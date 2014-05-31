@@ -340,7 +340,7 @@ def install_gpg_applet( mountpoint ):
     wget( url = 'https://dl.dropboxusercontent.com/u/59916027/chrubix/essentials/gpgApplet.tgz', extract_to_path = mountpoint, decompression_flag = 'z', quiet = True )
 
 
-def fix_broken_hyperlinks( mountpoint, dir_to_fix ):
+def fix_broken_hyperlinks( dir_to_fix ):
     contents = [ f for f in os.listdir( dir_to_fix ) ]
     for filename in contents:
         if not os.path.isdir( '%s/%s' % ( dir_to_fix, filename ) ) and os.path.exists( os.readlink( '%s/%s' % ( dir_to_fix, filename ) ) ):

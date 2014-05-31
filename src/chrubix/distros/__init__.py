@@ -799,7 +799,7 @@ MEH: No encryption is employed. No duress password is recorded. Guest Mode is st
             if self.name == 'archlinux':
                 # i2p comes w/ broken hyperlinks (/tmp/_root/... instead of ../...). Fix 'em.
                 if package_name in ( 'i2p', 'freenet', 'gtk-theme-adwaita-x', 'java-service-wrapper' ):
-                    fix_broken_hyperlinks( self.mountpoint, '%s%s/%s/src' % ( self.mountpoint, self.sources_basedir, package_name ) )
+                    fix_broken_hyperlinks( '%s%s/%s/src' % ( self.mountpoint, self.sources_basedir, package_name ) )
                 chroot_this( self.mountpoint, 'cd %s/%s && makepkg --skipchecksums --asroot %s && yes "" | pacman -U %s*pkg.tar.xz' %
                                         ( self.sources_basedir, package_name, '-f' if package_name == 'java-service-wrapper' else '--noextract', package_name ),
                                         on_fail = 'Failed to build&install %s within new %s distro' % ( package_name, self.name ) ,
