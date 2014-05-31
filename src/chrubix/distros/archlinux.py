@@ -14,7 +14,7 @@ libnotify talkfilters xorg-server-utils java-runtime libxmu apache-ant junit chr
 windowmaker librsvg libreoffice-en-US icedtea-web-java7 gconf hunspell-en zbar python2-setuptools \
 twisted python2-yaml python2-distutils-extra python2-gobject python2-cairo python2-poppler python2-pdfrw \
 bcprov gtk-engine-unico gtk-engine-murrine'
-    install_from_AUR = 'python2-pyptlib wmsystemtray hachoir-core hachoir-parser mat florence ttf-ms-fonts obfsproxy gtk-theme-adwaita-x win-xp-theme ssss java-service-wrapper i2p'
+    install_from_AUR = 'python2-pyptlib wmsystemtray hachoir-core hachoir-parser mat florence ttf-ms-fonts obfsproxy gtk-theme-adwaita-x win-xp-theme ssss java-service-wrapper i2p'  # pulseaudio-ctl pasystray-git
     final_push_packages = Distro.final_push_packages + ' lxdm network-manager-applet'
 
     def __init__( self , *args, **kwargs ):
