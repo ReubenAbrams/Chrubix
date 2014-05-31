@@ -1,0 +1,647 @@
+'''
+Created on May 9, 2014
+
+@author: hugo
+'''
+
+import os
+from chrubix.utils import write_oneliner_file, failed, wget, system_or_die, logme, do_a_sed, chroot_this
+
+def append_startx_addendum( outfile ):
+    f = open( outfile, 'a' )
+    f.write( '''
+# dpms, no audio bell; see https://www.notabilisfactum.com/blog/?page_id=7
+logger "QQQ start of startx addendum"
+export DISPLAY=:0.0
+xhost +
+logger "QQQ startx 0000"
+localectl set-locale en_US.utf8
+localectl set-keymap us
+logger "QQQ startx aaaa"
+setxkbmap us
+localectl set-x11-keymap us
+xset s off
+logger "QQQ startx bbbb"
+xset -dpms
+xset -b
+xset m 30/10 3
+logger "QQQ startx cccc"
+syndaemon -t -k -i 1 -d    # disable mousepad for 1s after typing finishes
+logger "QQQ startx end of startx addendum"
+''' )
+    f.close()
+
+def append_lxdm_post_login_script( outfile ):
+    f = open( outfile, 'a' )
+    f.write( '''
+liu=/tmp/.logged_in_user
+logger "QQQ start of postlogin script"
+export DISPLAY=:0.0
+echo "$USER" > $liu
+
+[ -e "/etc/lxdm/lxdm.conf.first.non-camo" ] && soundfile=winxp || soundfile=pghere
+mpg123 /etc/.mp3/$soundfile.mp3 &
+
+sleep 1
+if ps -o pid -C wmaker &>/dev/null; then
+  wmsystemtray &
+  sleep 0.5
+fi
+
+which keepassx &> /dev/null && keepassx -min &
+which start-freenet.sh &> /dev/null && start-freenet.sh start &
+
+# [ -e "/usr/local/bin/chrubix.sh" ] && sudo /usr/local/bin/chrubix.sh &> /tmp/.chrubix.err &
+
+#nm-connection-editor &
+
+[ -e "/tmp/.do-not-automatically-connect" ] && exit 0
+
+r=0
+while [ "$r" -le "3" ] ; do
+  if ping -c1 -W3 8.8.8.8 ; then
+    break
+  fi
+  r=$(($r+1))
+  sleep 1
+done
+
+if ! ps -o pid -C nm-applet &>/dev/null; then
+  nm-applet &
+  sleep 0.3
+fi
+
+sleep 1
+if which florence &> /dev/null ; then
+  florence &
+  sleep 2
+  florence hide &
+fi
+
+r=0
+while [ "$r" -le "3" ] ; do
+  if ping -c1 -W3 8.8.8.8 ; then
+    break
+  fi
+  r=$(($r+1))
+  sleep 1
+done
+
+if ! ping -c1 -W5 8.8.8.8 ; then
+  urxvt -geometry 120x20+0+320 -name "WiFi Setup" -e sh -c "/usr/local/bin/wifi_manual.sh" &
+  the_pid=$!
+  while ! ping -c1 -W5 8.8.8.8; do
+    sleep 1
+  done
+  kill $the_pid
+fi
+
+if ! ps -o pid -C tor ; then
+    systemctl start privoxy
+    sleep .5
+    /usr/bin/vidalia &
+    sleep .3
+fi
+
+#vidalia_rc_file=$USER/.vidalia/vidalia.conf    # TODO: Make vidalia auto-open web browser upon successfully connecting
+#if [ -e "$vidalia_rc_file" ] ; then
+#    mv $
+#fi
+
+. /etc/bash.bashrc
+. /etc/profile
+
+export DISPLAY=:0.0
+xset s off
+xset -dpms
+
+#xscreensaver -no-splash &
+
+logger "QQQ end of postlogin script"
+''' )
+    f.close()
+
+
+
+
+
+def append_lxdm_post_logout_script( outfile ):
+    f = open( outfile, 'a' )
+    f.write( '''
+liu=/tmp/.logged_in_user
+rm -f $liu
+logger "QQQ - terminating current user session and restarting lxdm"
+# Terminate current user session
+/usr/bin/loginctl terminate-session $XDG_SESSION_ID
+# Restart lxdm
+/usr/bin/systemctl restart lxdm.service
+''' )
+    f.close()
+
+
+
+
+
+def append_lxdm_pre_login_script( outfile ):
+    f = open( outfile, 'a' )
+    f.write( '''
+[ -e "/tmp/_root.old" ] && rm /tmp/_root.old
+[ -e "/tmp/_root" ] && mv /tmp/_root /tmp/_root.old
+ln -sf / /tmp/_root
+''' )
+    f.close()
+
+
+
+def append_lxdm_xresources_addendum( outfile ):
+    f = open( outfile, 'a' )
+    f.write( '''
+# ------- vvv XRESOURCES vvv ------- Make sure rxvf etc. will use chromium to open a web browser if user clicks on http:// link
+    echo "
+UXTerm*VT100*translations: #override Shift <Btn1Up>: exec-formatted("/usr/local/bin/run_browser_as_guest.sh '%t'", PRIMARY)
+UXTerm*charClass: 33:48,36-47:48,58-59:48,61:48,63-64:48,95:48,126:48
+URxvt.perl-ext-common: default,matcher
+URxvt.url-launcher: /usr/local/bin/run_browser_as_guest.sh
+URxvt.matcher.button: 1
+''' )
+    f.close()
+
+
+
+
+def generate_wifi_manual_script( outfile ):
+    write_oneliner_file( outfile, '''#/bin/sh
+lockfile=/tmp/.go_online_manual.lck
+manual_mode() {
+logger "QQQ wifi-manual --- starting"
+res=999
+#clear
+  while [ "$res" -ne "0" ] ; do
+    echo -en "Searching..."
+    all=""
+    while [ "`echo "$all" | wc -c`" -lt "4" ] ; do
+        all="`nmcli device wifi list | grep -v "SSID.*BSSID" | sed s/'    '/^/ | cut -d'^' -f1 | awk '{printf ", " substr($0,2,length($0)-2);}' | sed s/', '//`"
+        sleep 1
+        echo -en "."
+    done
+    echo "\n\nAvailable networks: $all" | wrap -w 79
+    echo ""
+    echo -en "WiFi ID: "
+    read id
+    [ "$id" = "" ] && return 1
+    echo -en "WiFi PW: "
+    read pw
+    echo -en "Working..."
+    nmcli dev wifi connect "$id" password "$pw" && res=0 || res=1
+    [ "$res" -ne "0" ] && echo "Bad ID and/or password. Try again." || echo "Success"
+  done
+  return 0
+}
+# -------------------------
+cat /etc/.alarmist.cfg 2>/dev/null | grep spoof | grep yes &>/dev/null && macchanger -r mlan0
+manual_mode
+exit $?
+''' )
+    system_or_die( 'chmod +x %s' % ( outfile ) )
+
+
+
+def generate_wifi_auto_script( outfile ):
+    write_oneliner_file( outfile, '''#/bin/sh
+lockfile=/tmp/.go_online_auto.lck
+try_to_connect() {
+  local lst res netname_tabbed netname
+  logger "QQQ wifi-auto --- Trying to connect to the Internet..."
+  r="`nmcli con status | grep -v "NAME.*UUID" | wc -l`"
+  if [ "$r" -gt "0" ] ; then
+    if ping -W5 -c1 8.8.8.8 ; then
+      logger "QQQ wifi-auto --- Cool, we're already online. Fair enough."
+      return 0
+    else
+      logger "QQQ wifi-auto --- ping failed. OK. Trying to connect to Internet."
+    fi
+  fi
+  lst="`nmcli con list | grep -v "UUID.*TYPE.*TIMESTAMP" | sed s/\\ \\ \\ \\ /^/ | cut -d'^' -f1 | tr ' ' '^'`"
+  res=999
+  for netname_tabbed in $lst $lst $lst ; do # try thrice
+    netname="`echo "$netname_tabbed" | tr '^' ' '`"
+    logger "QQQ wifi-auto --- Trying $netname"
+    nmcli con up id "$netname"
+    res=$?
+    [ "$res" -eq "0" ] && break
+    echo -en "."
+    sleep 1
+  done
+  if [ "$res" -eq "0" ]; then
+    logger "QQQ wifi-auto --- Successfully connected to WiFi - ID=$netname"
+  else
+    logger "QQQ wifi-auto --- failed to connect; Returning res=$res"
+  fi
+
+  return $res
+}
+# -------------------------
+logger "QQQ wifi-auto --- trying to get online automatically"
+if [ -e "$lockfile" ] ; then
+  p="`cat $lockfile`"
+  while ps $p &> /dev/null ; do
+    logger "QQQ wifi-auto --- Already running at $$. Waiting."
+    sleep 1
+  done
+fi
+echo "$$" > $lockfile
+chmod 700 $lockfile
+cat /etc/.alarmist.cfg 2>/dev/null | grep spoof | grep yes &>/dev/null && macchanger -r mlan0
+try_to_connect
+res=$?
+rm -f $lockfile
+exit $?
+''' )
+    system_or_die( 'chmod +x %s' % ( outfile ) )
+
+
+
+def write_ersatz_lxdm( outfile ):
+# Setup ersatz lxdm
+    write_oneliner_file( outfile, r'''#!/bin/bash
+GUEST_HOMEDIR=/tmp/.guest
+STOP_JFS_HANGUPS="echo 0 > /proc/sys/kernel/hung_task_timeout_secs"
+f=/etc/lxdm/lxdm.conf
+liu=/tmp/.logged_in_user
+
+. /etc/bash.bashrc
+. /etc/profile
+
+export DISPLAY=:0.0
+xset s off
+xset -dpms
+
+if [ -e "/etc/.first_time_ever" ] ; then
+    echo "`date` -- FIRST EVER" >> /tmp/log.txt
+    cp $f.first $f
+    systemctl start NetworkManager      # Shouldn't be necessary...
+    systemctl enable privoxy            # Shouldn't be necessary...
+    amixer sset Speaker unmute &> /dev/null  || echo "WARNING - unable to set speaker on unmute"
+    amixer sset Speaker 30%    &> /dev/null  || echo "WARNING - unable to set speaker volume"
+    for q in `amixer | grep Speaker | cut -d"'" -f2 | tr ' ' '/'`; do
+        g=`echo "$q" | tr '/' ' '`
+        amixer sset "$g" unmute
+    done
+    which alsactl &> /dev/null && alsactl store &> /dev/null # I've no idea if this helps or not
+    rm -f /etc/.first_time_ever
+    echo "`date` --- END OF FIRST EVER" >> /tmp/log.txt
+elif [ -e "/tmp/.okConnery.thisle.44" ] ; then
+    echo "`date` SECOND" >> /tmp/log.txt
+    cp $f.second $f
+    echo "### Second time around, eh?" >> $f
+    echo "`date` END OF SECOND" >> /tmp/log.txt
+else
+    echo "`date` FIRST" >> /tmp/log.txt
+    cp $f.first $f
+    echo "### Be gentle. It's my first time." >> $f
+    touch /tmp/.okConnery.thisle.44
+    echo "`date` END OF FIRST" >> /tmp/log.txt
+fi
+
+echo "`date` CALLING greeter or lxdm" >> /tmp/log.txt
+mkdir -p $GUEST_HOMEDIR
+chmod 700 $GUEST_HOMEDIR
+tar -Jxf /etc/.default_guest_files.tar.xz -C $GUEST_HOMEDIR
+chown -R guest.guest $GUEST_HOMEDIR
+
+$STOP_JFS_HANGUPS
+
+[ -e "/.squashfs.sqfs" ] && /usr/local/bin/greeter.sh    # Don't use greeter unless we're trying to be Alarmist/Tails/whatever.
+lxdm
+echo "`date` BACK FROM greeter or lxdm" >> /tmp/log.txt
+
+exit $?
+''' )
+    system_or_die( 'chmod +x %s' % ( outfile ) )
+
+
+def configure_privoxy( mountpoint ):
+    f = open( '%s/etc/privoxy/config' % ( mountpoint ), 'a' )
+    f.write( '''
+#this directs ALL requests to the tor proxy
+forward-socks4a / 127.0.0.1:9050 .
+forward-socks5 / 127.0.0.1:9050 .
+#this forwards all requests to I2P domains to the local I2P proxy without dns requests
+forward .i2p 127.0.0.1:4444
+#this forwards all requests to Freenet domains to the local Freenet node proxy without dns requests
+forward ksk@ 127.0.0.1:8888
+forward ssk@ 127.0.0.1:8888
+forward chk@ 127.0.0.1:8888
+forward svk@ 127.0.0.1:8888
+''' )
+    f.close()
+
+
+def append_proxy_details_to_environment_file( outfile ):
+    f = open( outfile, 'a' )
+    f.write( '''
+http_proxy=http://127.0.0.1:8118
+HTTP_PROXY=http://127.0.0.1:8118
+https_proxy=http://127.0.0.1:8118
+HTTPS_PROXY=http://127.0.0.1:8118
+SOCKS_SERVER=http://127.0.0.1:9050
+SOCKS5_SERVER=http://127.0.0.1:9050
+MSVA_PORT='6316'        # MonkeySphere?
+''' )
+    f.close()
+
+
+def install_guest_browser_script( mountpoint ):
+    system_or_die( 'echo "H4sIAF52SVMAA1WMvQrCMBzE9zzF2YYukkYfoBbBVQXnTKZ/TaBJpEmhQx/eUNTidMd9/MqNvFsvo2EsudfD9tTIbGQXhKOa346X0/X8L3UekzYBgjyK8gtQnu+Vp8kmKN4qX+AA/mEybVzosJ3WJI4QPZ4jxQShfzmqCgPFZod5Xgxv2eDW28LnuWBvkUV8bboAAAA=" \
+| base64 -d | gunzip > %s/usr/local/bin/run_as_guest.sh' % ( mountpoint ) )
+    system_or_die( 'chmod +x %s/usr/local/bin/run_as_guest.sh' % ( mountpoint ) )
+    write_oneliner_file( '%s/usr/local/bin/run_browser_as_guest.sh' % ( mountpoint ), '''#!/bin/sh
+GUEST_HOMEDIR=/tmp/.guest
+sudo /usr/local/bin/run_as_guest.sh "export DISPLAY=:0.0; chromium --user-data-dir=$GUEST_HOMEDIR $1"
+exit $?
+''' )
+    system_or_die( 'chmod +x %s/usr/local/bin/run_browser_as_guest.sh' % ( mountpoint ) )
+
+
+def add_speech_synthesis_script( mountpoint ):
+    write_oneliner_file( '%s/usr/local/bin/sayit.sh' % ( mountpoint ), '''#!/bin/sh
+tmpfile=/tmp/$RANDOM$RANDOM$RANDOM
+echo "$1" | text2wave > $tmpfile
+aplay $tmpfile &> /dev/null
+rm -f $tmpfile
+''' )
+    system_or_die( 'chmod +x %s/usr/local/bin/sayit.sh' % ( mountpoint ) )
+
+def configure_lxdm_login_manager( mountpoint, guest_window_manager ):
+    assert( os.path.exists( '%s/%s' % ( mountpoint, guest_window_manager ) ) )
+    f = '%s/etc/WindowMaker/WindowMaker' % ( mountpoint )
+    if os.path.isfile( f ):
+        do_a_sed( f, 'MouseLeftButton', 'flibbertygibbet' )
+        do_a_sed( f, 'MouseRightButton', 'MouseLeftButton' )
+        do_a_sed( f, 'flibbertygibbet', 'MouseRightButton' )
+    f = '%s/etc/lxdm/lxdm.conf' % ( mountpoint )
+    if not os.path.isfile( f ):
+        failed( "%s does not exist; configure_lxdm_login_manager() cannot run properly. That sucks." % ( f ) )
+#    system_or_die( r'cat %s | sed s/.*autologin=.*/autologin=guest/ | sed s/.*skip_password=.*/skip_password=1/ | \
+# sed s/.*session=.*/session=\\/usr\\/bin\\/wmaker/ > %s.first' % ( f, f ) )
+
+    system_or_die( r'cat %s | sed s/.*autologin=.*/autologin=guest/ | sed s/.*skip_password=.*/skip_password=1/ > %s' % ( f, f + '.first' ) )
+    do_a_sed( f + '.first', '.*session=.*', 'session=%s' % ( guest_window_manager ) )
+    system_or_die( 'cat %s | sed s/.*autologin=.*/###autologin=/ | sed s/.*skip_password=.*/skip_password=1/ > %s.second' % ( f, f ) )
+#    system_or_die( 'cp -f %s.first %s' % ( f, f ) )
+    append_lxdm_post_login_script( '%s/etc/lxdm/PostLogin' % ( mountpoint ) )  # Append. Don't replace.
+    append_startx_addendum( '%s/etc/lxdm/Xsession' % ( mountpoint ) )  # Append. Don't replace.
+    append_startx_addendum( '%s/etc/X11/xinit/xinitrc' % ( mountpoint ) )  # Append. Don't replace.
+    append_lxdm_pre_login_script( '%s/etc/lxdm/PreLogin' % ( mountpoint ) )  # Append. Don't replace.
+    append_lxdm_post_logout_script( '%s/etc/lxdm/PostLogout' % ( mountpoint ) )
+    append_lxdm_xresources_addendum( '%s/root/.Xresources' % ( mountpoint ) )
+    system_or_die( 'echo ". /etc/X11/xinitrc/xinitrc" >> %s/etc/lxdm/Xsession' % ( mountpoint ) )
+    do_a_sed( '%s/etc/X11/xinit/xinitrc' % ( mountpoint ), '.*xterm.*', '' )
+    do_a_sed( '%s/etc/X11/xinit/xinitrc' % ( mountpoint ), 'exec .*', '' )  # exec /usr/local/bin/greeter.sh' )
+
+#    system_or_die( 'echo "exec /usr/local/bin/greeter.sh" >> %s/etc/xinitrc/xinitrc' % ( mountpoint ) ) # start (Python) greeter at end of
+    write_oneliner_file( '%s/etc/.first_time_ever' % ( mountpoint ), 'yep' )
+    write_ersatz_lxdm( outfile = '%s/usr/local/bin/ersatz_lxdm.sh' % ( mountpoint ) )
+    chroot_this( mountpoint, 'systemctl enable lxdm', on_fail = "Failed to activate lxdm display manager" )
+    system_or_die( r'cat %s/usr/lib/systemd/system/lxdm.service | sed s/ExecStart=.*/ExecStart=\\/usr\\/local\\/bin\\/ersatz_lxdm.sh/ > /tmp/.t.t' % ( mountpoint ) )
+    system_or_die( r'cat /tmp/.t.t > %s/usr/lib/systemd/system/lxdm.service # $root/usr/lib/systemd/system/lxdm.service' % ( mountpoint ) )
+    chroot_this( mountpoint, 'which lxdm &> /dev/null', on_fail = 'I cannot find lxdm. This is not good.' )
+    if chroot_this( mountpoint, 'which kdm &> /dev/null' ) == 0:
+        chroot_this( mountpoint, 'systemctl disable kdm', attempts = 1 )
+
+
+
+
+
+
+
+
+
+
+def install_chrome_or_iceweasel_privoxy_wrapper( mountpoint ):
+    chrome_path = None
+    for f in ( '/usr/bin', '/usr/sbin', '/usr/local/bin', '/usr/local/sbin', '/bin', '/sbin' ):
+        chrome_path = '%s%s/chromium' % ( mountpoint, f )
+        if os.path.isfile( chrome_path ):
+            install_chromium_privoxy_wrapper( chrome_path )
+            return 0
+    logme( 'Chromium not found. Let us hope there is iceweasel...' )
+    iceweasel_path = None
+    for f in ( '/usr/bin', '/usr/sbin', '/usr/local/bin', '/usr/local/sbin', '/bin', '/sbin' ):
+        iceweasel_path = '%s%s/iceweasel' % ( mountpoint, f )
+        if os.path.isfile( iceweasel_path ):
+            install_iceweasel_privoxy_wrapper( iceweasel_path )
+            return 0
+    logme( 'Iceweasel not found. Crap.' )
+    failed( 'I found neither iceweasel nor chromium. I need at least one web browser, darn it...' )
+
+
+def install_insecure_browser( mountpoint ):
+    browser_name = None
+    original_browser_shortcut_fname = None
+    for bn in ( 'chromium', 'iceweasel' ):
+        original_browser_shortcut_fname = '%s/usr/share/applications/%s.desktop' % ( mountpoint, bn )
+        if os.path.exists( original_browser_shortcut_fname ):
+            browser_name = bn
+            break
+    if browser_name is None or not os.path.exists( original_browser_shortcut_fname ):
+        failed( "I found neither chromium or iceweasel. I need to clone a desktop file. Grr." )
+    insecure_browser_shortcut_fname = '%s/usr/share/applications/insecure-%s.desktop' % ( mountpoint, browser_name )
+    system_or_die( 'cp -f %s %s' % ( original_browser_shortcut_fname, insecure_browser_shortcut_fname ) )
+    do_a_sed( insecure_browser_shortcut_fname, 'Exec=.*', 'Exec=dillo https://check.torproject.org' )
+    do_a_sed( insecure_browser_shortcut_fname, 'Name=.*', 'Name=INSECURE BROWSER' )
+
+
+def install_iceweasel_privoxy_wrapper( iceweasel_path ):
+    if not os.path.isfile( '%s.forreals' % ( iceweasel_path ) ):
+        system_or_die( 'mv %s %s.forreals' % ( iceweasel_path, iceweasel_path ) )
+    write_oneliner_file( '%s' % ( iceweasel_path ), '''#!/bin/sh
+if ps -o pid -C privoxy &>/dev/null && ps -o pid -C tor &>/dev/null ; then
+  http_proxy=http://127.0.0.1:8118 iceweasel.forreals $@
+else
+  export DISPLAY=:0.0
+  xmessage -buttons Yes:0,No:1,Cancel:2 -default Yes -nearmouse "Run iceweasel insecurely?" -timeout 30
+  res=$?
+  if [ "$res" -eq "0" ] ; then
+    http_proxy= iceweasel.forreals $@
+  fi
+fi
+exit $?
+''' )
+    system_or_die( 'chmod +x %s' % ( iceweasel_path ) )
+    pretend_chrome = os.path.dirname( iceweasel_path ) + '/chromium'
+    assert( not os.path.exists( pretend_chrome ) )
+    system_or_die( 'ln -sf chromium %s' % ( iceweasel_path ) )
+
+
+
+
+
+def install_chromium_privoxy_wrapper( chrome_path ):
+    if not os.path.isfile( '%s.forreals' % ( chrome_path ) ):
+        system_or_die( 'mv %s %s.forreals' % ( chrome_path, chrome_path ) )
+    write_oneliner_file( '%s' % ( chrome_path ), '''#!/bin/sh
+if ps -o pid -C privoxy &>/dev/null && ps -o pid -C tor &>/dev/null ; then
+  chromium.forreals --proxy-server=http://127.0.0.1:8118 $@
+else
+  export DISPLAY=:0.0
+  xmessage -buttons Yes:0,No:1,Cancel:2 -default Yes -nearmouse "Run Chromium insecurely?" -timeout 30
+  res=$?
+  if [ "$res" -eq "0" ] ; then
+    chromium.forreals $@
+  fi
+fi
+exit $?
+''' )
+    system_or_die( 'chmod +x %s' % ( chrome_path ) )
+
+
+
+
+
+
+def remove_junk( mountpoint, kernel_src_basedir ):
+#    chroot_this( mountpoint, 'cd /usr/include && mv linux ../_linux_ && rm -Rf * && mv ../_linux_ linux' )
+    for path in ( 
+                    '/var/cache/pacman/pkg',
+                    '/var/cache/apt/archives/',
+                    '/usr/share/gtk-doc',
+                    '/usr/share/doc',
+                    '/usr/share/man',
+#                    kernel_src_basedir + '/src/chromeos-3.4/Documentation',    <-- needed for recompiling kernel (don't ask me why)
+                    '/usr/src/linux-3.4.0-ARCH',
+                    kernel_src_basedir + '/*.tar.gz',
+                    os.path.dirname( kernel_src_basedir ) + '/linux-[a-b,d-z]*',
+                ):
+        chroot_this( mountpoint, 'rm -Rf %s' % ( path ) )
+    # TODO: Consider %kernel_src_basedir/linux-chromebook/pkg/*
+    chroot_this( mountpoint, 'ln -sf %s/src/chromeos-3.4 /usr/src/linux-3.4.0-ARCH' % ( kernel_src_basedir ) )
+    chroot_this( mountpoint, 'cd /usr/share/locale && mkdir -p _ && mv [a-d,f-z]* _ && mv e[a-m,o-z]* _ && rm -Rf _' )
+    chroot_this( mountpoint, 'cd /usr/lib/firmware && cp s5p-mfc/s5p-mfc-v6.fw ../mfc_fw.bin && cp mrvl/sd8797_uapsta.bin .. && rm -Rf * && mkdir -p mrvl && mv ../sd8797_uapsta.bin mrvl/ && mv ../mfc_fw.bin .' )
+
+
+def tweak_xwindow_for_cbook( mountpoint ):
+#        print( "Installing GUI tweaks" )
+    system_or_die( 'rm -Rf %s/etc/X11/xorg.conf.d/' % ( mountpoint, ) )
+    system_or_die( 'mkdir -p %s/etc/X11/xorg.conf.d/' % ( mountpoint, ) )
+    wget( url = 'https://dl.dropboxusercontent.com/u/59916027/chrubix/essentials/x_alarm_chrubuntu.zip', save_as_file = '/tmp/x_alarm_chrubuntu.zip' , quiet = True )  # Original came from http://craigerrington.com/blog/installing-arch-linux-with-xfce-on-the-samsung-arm-chromebook/ ---- thanks, Craig
+    if not os.path.isfile( '/tmp/x_alarm_chrubuntu.zip' ):
+        failed( 'Unable to download /tmp/x_alarm_chrubuntu.zip' )
+    system_or_die( 'unzip /tmp/x_alarm_chrubuntu.zip -d %s/etc/X11/xorg.conf.d/ &> /dev/null' % ( mountpoint, ), "Failed to extract X11 settings from Chrubuntu" )
+    os.unlink( '/tmp/x_alarm_chrubuntu.zip' )
+    f = '%s/etc/X11/xorg.conf.d/10-keyboard.conf' % ( mountpoint, )
+    if not os.path.isfile( f ):
+        failed( '%s not found --- cannot tweak X' % ( f ) )
+    do_a_sed( f, 'gb', 'us' )
+    system_or_die( 'mkdir -p %s/etc/tmpfiles.d' % ( mountpoint, ) )
+    write_oneliner_file( mountpoint + '/etc/tmpfiles.d/touchpad.conf', "f /sys/devices/s3c2440-i2c.1/i2c-1/1-0067/power/wakeup - - - - disabled" )
+    write_oneliner_file( mountpoint + '/usr/share/festival/festival.scm', '''
+(Parameter.set 'Audio_Method 'Audio_Command)
+(Parameter.set 'Audio_Command "aplay -q -c 1 -t raw -f s16 -r $SR $FILE")
+''' )
+    f = open( '%s/etc/X11/xorg.conf' % ( mountpoint ), 'a' )
+    wget( url = 'https://dl.dropboxusercontent.com/u/59916027/chrubix/essentials/mtrack_drv.so',
+                                save_as_file = '%s/usr/lib/mtrack.so' % ( mountpoint ),
+                                quiet = True )  # See http://www.galexander.org/chromebook/
+    f.write( '''
+    Section "Device"
+        Identifier "card0"
+        Driver "armsoc"
+#       Driver "fbdev"
+        Screen 0
+        Option          "fbdev"                 "/dev/fb0"
+        Option          "Fimg2DExa"             "false"
+        Option          "DRI2"                  "true"
+        Option          "DRI2_PAGE_FLIP"        "false"
+        Option          "DRI2_WAIT_VSYNC"       "true"
+#       Option          "Fimg2DExaSolid"        "false"
+#       Option          "Fimg2DExaCopy"         "false"
+#       Option          "Fimg2DExaComposite"    "false"
+        Option          "SWcursorLCD"           "false"
+EndSection
+
+#Section "InputClass"
+#    Identifier      "touchpad"
+#    MatchIsTouchpad "on"
+#    MatchDevicePath "/dev/input/event*"
+#    Driver          "cmt"
+#    Option          "AccelerationProfile" "-1"
+#    Option          "Pressure Calibration Offset" "-1.73338827637399"
+#    Option          "Pressure Calibration Slope" "2.06326787767144"
+#    # Disable some causes of delay on daisy
+#    Option          "IIR b0" "1"
+#    Option          "IIR b1" "0"
+#    Option          "IIR b2" "0"
+#    Option          "IIR b3" "0"
+#    Option          "IIR a1" "0"
+#    Option          "IIR a2" "0"
+#    Option          "IIR Distance Threshold" "1000"
+#    Option          "Input Queue Delay" "0"
+#    # Extra filters for Daisy
+#    Option          "Box Width" "1.0"
+#    Option          "Sensor Jump Filter Enable" "1"
+#    Option          "Sensor Jump Min Dist Non-Move" "0.3"
+#    Option          "Sensor Jump Min Dist Move" "0.9"
+#    Option          "Sensor Jump Similar Multiplier Move" "1.5"
+#    Option          "Split Merge Max Movement" "6.5"
+#    Option          "Merge Max Ratio" "0.5"
+#    Option          "Max Allowed Pressure Change Per Sec" "4000"
+#    Option          "Max Hysteresis Pressure Per Sec" "4000"
+#    Option          "Tap Drag Lock Enable" "1"
+#    Option          "Three Finger Click Enable" "1"
+#EndSection
+''' )
+    f.close()
+
+
+
+def install_panicbutton( mountpoint, boomfname ):
+#        print( "Configuring acpi" )
+    system_or_die( 'mkdir -p %s/etc/tmpfiles.d' % ( mountpoint ) )
+    write_oneliner_file( '%s/etc/tmpfiles.d/brightness.conf' % ( mountpoint ), \
+                        'f /sys/class/backlight/pwm-backlight.0/brightness 0666 - - - 800' )
+    powerbuttonpushed_fname = '/usr/local/bin/power_button_pushed.sh'
+    write_oneliner_file( '%s%s' % ( mountpoint, powerbuttonpushed_fname ), '''#!/bin/sh
+ctrfile=/etc/.pwrcounter
+[ -e "$ctrfile" ] || echo 0 > $ctrfile
+counter=`cat $ctrfile`
+time_since_last_pushed=$((`date +%%s`-`stat -c %%Y $ctrfile`))
+[ "$time_since_last_pushed" -le "1" ] || counter=0
+counter=$(($counter+1))
+echo $counter > $ctrfile
+if [ "$counter" -ge "10" ]; then
+echo "Power button was pushed 10 times in rapid succession" > %s
+exec /usr/local/bin/boom.sh
+fi
+exit 0
+''' % ( boomfname ) )
+    system_or_die( 'chmod +x %s%s' % ( mountpoint, powerbuttonpushed_fname ) )
+# Setup power button (10x => boom)
+    handler_sh_file = '%s/etc/acpi/handler.sh' % ( mountpoint )
+    if os.path.isfile( handler_sh_file ):
+        # ARCHLINUX
+        do_a_sed( handler_sh_file, "logger 'LID closed'", "logger 'LID closed'; systemctl suspend" )
+        do_a_sed( handler_sh_file, "logger 'PowerButton pressed'", "logger 'PowerButton pressed'; /usr/local/bin/power_button_pushed.sh" )
+        system_or_die( 'chmod +x %s' % ( handler_sh_file ) )
+    elif os.path.isdir( '%s/etc/acpi/events' % ( mountpoint ) )  and 0 == os.system( 'cat %s/etc/acpi/powerbtn-acpi-support.sh | fgrep /etc/acpi/powerbtn.sh >/dev/null' % ( mountpoint ) ):
+        # DEBIAN
+        system_or_die( 'ln -sf %s %s/etc/acpi/powerbtn.sh' % ( powerbuttonpushed_fname, mountpoint ) )
+    else:
+        failed( 'How do I hook power button into this distro?' )
+# activate acpi (sort of)
+    chroot_this( mountpoint, 'systemctl enable acpid' )
+
+
+def check_and_if_necessary_fix_password_file( mountpoint, comment ):
+    passwd_file = '%s/etc/passwd' % ( mountpoint )
+    orig_pwd_file = '%s/etc/passwd.before.someone.mucked.it.up' % ( mountpoint )
+    if not os.path.isfile( passwd_file ):
+        logme( '%s - The passwd file does not exist at all yet. Never mind. Move along. Nothing to see here...' )
+    elif os.path.getsize( passwd_file ) == 0:
+        logme( '%s - Someone created a zero-size password file. OK. I shall restore from backup.' % ( comment ) )
+        system_or_die( 'cp -f %s %s' % ( orig_pwd_file, passwd_file ) )
+    else:
+        logme( '%s - Checked pw file. It is not non-zero. Good. Backing up...' % ( comment ) )
+        system_or_die( 'cp -f %s %s' % ( passwd_file, orig_pwd_file ) )
+
+
