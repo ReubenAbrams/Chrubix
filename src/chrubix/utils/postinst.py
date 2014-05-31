@@ -67,8 +67,11 @@ while [ "$r" -le "3" ] ; do
 done
 
 if ! ps -o pid -C nm-applet &>/dev/null; then
-  nm-applet &
-  sleep 0.3
+  sleep 1
+  if ! ps wax | grep nm-applet | grep -v grep &>/dev/null; then
+    nm-applet &
+    sleep 0.3
+  fi
 fi
 
 sleep 1
