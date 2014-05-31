@@ -50,7 +50,7 @@ libcanberra-gstreamer libcanberra-pulse xterm xscreensaver rxvt rxvt-unicode sme
 uboot-mkimage ttf-dejavu ffmpeg mplayer notification-daemon pkg-config ttf-liberation \
 gimp inkscape scribus audacity pitivi poedit alsa-utils simple-scan macchanger brasero pm-utils gnupg \
 python-yaml python-gobject python-qrencode python-imaging python-setuptools python-crypto '  # palimpsest gnome-session-fallback
-    final_push_packages = 'pavucontrol pulseaudio-ctl pasystray-git tor privoxy vidalia systemd syslog-ng gnome-tweak-tool'  # Install these, all at once, when we're ready to break the Internet :)
+    final_push_packages = 'pavucontrol tor privoxy vidalia systemd syslog-ng gnome-tweak-tool'  # Install these, all at once, when we're ready to break the Internet :)
     # Instance-level attributes
     def __init__( self, *args, **kwargs ):
         self.name = None
@@ -394,7 +394,7 @@ Name=org.freedesktop.Notifications
 Exec=/usr/lib/notification-daemon-1.0/notification-daemon
 ''' )  # See https://wiki.archlinux.org/index.php/Desktop_notifications
         system_or_die( 'echo -en "\n%%wheel ALL=(ALL) ALL\nALL ALL=(ALL) NOPASSWD: /usr/bin/systemctl poweroff,/usr/bin/systemctl halt,/usr/bin/systemctl reboot,/usr/local/bin/tweak_lxdm_and_reboot,/usr/local/bin/tweak_lxdm_and_shutdown,/usr/local/bin/run_as_guest.sh,/usr/local/bin/chrubix.sh\n" >> %s/etc/sudoers' % ( self.mountpoint ) )
-        for group_to_add_me_to in ( 'tor', 'freenet' ):
+        for group_to_add_me_to in ( 'tor', 'freenet', 'audio' ):
             chroot_this( self.mountpoint, 'usermod -a -G %s guest' % ( group_to_add_me_to ),
                                              on_fail = 'Failed to add guest to group tor' )
 
@@ -406,7 +406,7 @@ Exec=/usr/lib/notification-daemon-1.0/notification-daemon
                                         ( 'dbus-org.freedesktop.nm-dispatcher', 'NetworkManager-dispatcher' ),
                                         ( 'multi-user.target.wants/privoxy', 'privoxy' ),
                                         ( 'multi-user.target.wants/freenet', 'freenet' ),
-                                        ( 'multi-user.target.wants/i2p', 'i2p' )
+                                        ( 'multi-user.target.wants/i2prouter', 'i2prouter' )
                                         ):
             chroot_this( self.mountpoint, 'ln -sf /usr/lib/systemd/system/%s.service /etc/systemd/system/%s.service' % ( real_name, pretend_name ) )
         services_to_disable = ( 'tor', 'netctl.service', 'netcfg.service', 'netctl' )
@@ -592,14 +592,14 @@ Choose the 'boom' password : """ ).strip( '\r\n\r\n\r' )
 #        chroot_this( self.mountpoint, "cat %s | sed s/%s':.:'/%s'::'/ > /etc/shadow" % ( tmpfile, username, username ) )
         profile_fname = '%s%s/.profile' % ( self.mountpoint, userhome )
         write_oneliner_file( profile_fname, '''#!/bin/sh
-    sudo tweak_lxdm_and_$username
-    ''' )
+sudo tweak_lxdm_and_%s
+''' % ( username ) )
         system_or_die( 'chmod +x %s' % ( profile_fname ) )
         chroot_this( self.mountpoint, "chown -R %s.%s %s" % ( username, username, userhome ), attempts = 1, on_fail = 'Failed to modify permissions of %s config file' % ( username ) )
         write_oneliner_file( '%s/usr/local/bin/tweak_lxdm_and_%s' % ( self.mountpoint, username ), '''#!/bin/sh
-    sync;sync;sync
-    systemctl %s
-    exit 0
+sync;sync;sync
+systemctl %s
+exit 0
     ''' % ( cmd ) )
         system_or_die( 'chmod +x %s/usr/local/bin/tweak_lxdm_and_%s' % ( self.mountpoint, username ) )
 
