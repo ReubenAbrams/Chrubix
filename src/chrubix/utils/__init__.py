@@ -468,7 +468,7 @@ def install_mp3_files( mountpoint ):
     system_or_die( 'mkdir -p %s' % ( mydir ) )
     for myname in ( 'boom', 'error1', 'error2', 'MacStartUp', 'online', 'pg2back', 'pgclean', 'pghere', 'welcome', 'wrongCB', 'wrongSD' ):
         wget( url = 'https://dl.dropboxusercontent.com/u/59916027/chrubix/audio/%s.mp3.gz' % ( myname ), save_as_file = '%s/%s.mp3.gz' % ( mydir, myname ), quiet = True )
-        system_or_die( 'gunzip %s/%s.gz' % ( mydir, myname ) )
+        system_or_die( 'gunzip %s/%s.mp3.gz' % ( mydir, myname ) )
     wget( url = 'http://www.winhistory.de/more/winstart/mp3/winxp.mp3', save_as_file = '%s/winxp.mp3' % ( mydir ), quiet = True )
 
 
