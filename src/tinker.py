@@ -63,7 +63,7 @@ elif argv[2] == 'build-from-src':
     pkg = argv[4]
     distro.build_and_install_software_from_archlinux_source( pkg )
 elif argv[2] == 'fix-hyperlinks':
-    fix_broken_hyperlinks( '/tmp/_root', argv[3] )
+    fix_broken_hyperlinks( argv[3] )
 elif argv[2] == 'build-from-git':
     distro = generate_distro_record_from_name( argv[3] )
     distro.mountpoint = '/tmp/_root'
