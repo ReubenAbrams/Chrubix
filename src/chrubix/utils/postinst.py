@@ -10,7 +10,6 @@ from chrubix.utils import write_oneliner_file, failed, wget, system_or_die, logm
 def append_startx_addendum( outfile ):
     f = open( outfile, 'a' )
     f.write( '''
-# dpms, no audio bell; see https://www.notabilisfactum.com/blog/?page_id=7
 logger "QQQ start of startx addendum"
 export DISPLAY=:0.0
 xhost +
@@ -23,7 +22,7 @@ localectl set-x11-keymap us
 xset s off
 logger "QQQ startx bbbb"
 xset -dpms
-xset -b
+xset -b        # dpms, no audio bell; see https://www.notabilisfactum.com/blog/?page_id=7
 xset m 30/10 3
 logger "QQQ startx cccc"
 syndaemon -t -k -i 1 -d    # disable mousepad for 1s after typing finishes
