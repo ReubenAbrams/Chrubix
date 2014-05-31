@@ -2,7 +2,7 @@
 
 # Form implementation generated from reading ui file 'ui/AlarmistGreeter.ui'
 #
-# Created: Wed May 28 21:42:59 2014
+# Created: Sat May 31 00:17:18 2014
 #      by: PyQt4 UI code generator 4.10.4
 #
 # WARNING! All changes made in this file will be lost!
@@ -27,7 +27,7 @@ class Ui_dlgAlarmistGreeter(object):
     def setupUi(self, dlgAlarmistGreeter):
         dlgAlarmistGreeter.setObjectName(_fromUtf8("dlgAlarmistGreeter"))
         dlgAlarmistGreeter.setWindowModality(QtCore.Qt.WindowModal)
-        dlgAlarmistGreeter.resize(313, 268)
+        dlgAlarmistGreeter.resize(313, 270)
         sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Preferred, QtGui.QSizePolicy.MinimumExpanding)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
@@ -119,7 +119,7 @@ class Ui_dlgAlarmistGreeter(object):
         self.frame5.setFrameShadow(QtGui.QFrame.Raised)
         self.frame5.setObjectName(_fromUtf8("frame5"))
         self.label_6 = QtGui.QLabel(self.frame5)
-        self.label_6.setGeometry(QtCore.QRect(20, 10, 201, 41))
+        self.label_6.setGeometry(QtCore.QRect(20, 10, 211, 41))
         self.label_6.setWordWrap(True)
         self.label_6.setObjectName(_fromUtf8("label_6"))
         self.radDirectNo = QtGui.QRadioButton(self.frame5)
@@ -172,7 +172,7 @@ class Ui_dlgAlarmistGreeter(object):
 "to connect directly to the Tor network, say (Y)es. On the other hand, If\n"
 "your computer\'s network connection is censored, filtered, or proxied, say\n"
 "(N)o and configure your bridge, firewall, and proxy settings manually.", None))
-        self.label_6.setText(_translate("dlgAlarmistGreeter", "Direct connect to Network?", None))
+        self.label_6.setText(_translate("dlgAlarmistGreeter", "Directly connect to Network?", None))
         self.radDirectNo.setText(_translate("dlgAlarmistGreeter", "No", None))
         self.radDirectYes.setText(_translate("dlgAlarmistGreeter", "Yes", None))
 
