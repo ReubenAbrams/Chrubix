@@ -19,7 +19,7 @@ import urwid
 import crypt
 import logging
 
-g_proxy = None if ( 0 != os.system( 'ping -c1 -W1 192.168.1.66 &> /dev/null' ) or 0 != os.system( 'cat /proc/cmdline | grep dm_verity &> /dev/null' ) ) else '192.168.1.66:8080'
+g_proxy = None if ( 0 != os.system( 'ping -c1 -W1 192.168.1.66 &> /dev/null' ) or 0 != os.system( 'cat /proc/cmdline | grep dm_verity &> /dev/null' ) ) else '192.168.1.66:8123'
 g_default_window_manager = '/usr/bin/wmaker'  # wmaker, startxfce4, startlxde, ...
 
 
