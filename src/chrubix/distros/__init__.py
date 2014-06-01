@@ -1029,6 +1029,7 @@ WantedBy=multi-user.target
                                 self.modify_build_and_install_mkfs_and_kernel_for_OS,
                                 self.save_for_posterity_if_possible_C )  # self.nop
         fourth_stage = ( 
+                                self.install_chrubix,
                                 self.install_timezone,
                                 self.install_vbutils_etc_from_cbook,
                                 self.install_freenet,
@@ -1037,7 +1038,6 @@ WantedBy=multi-user.target
                                 self.install_mkinitcpio_ramwipe_hooks,
                                 self.install_gpg_applet,
                                 self.install_panic_button,
-                                self.install_chrubix,
                                 self.install_final_push_of_packages,  # Chrubix, wmsystemtray, boom scripts, GUI, networking, ...
                                 # From this point on, assume Internet access is gone.
                                 self.configure_dbus_sudo_and_groups,
