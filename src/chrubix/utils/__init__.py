@@ -337,8 +337,7 @@ def do_a_sed( filename, replace_me, with_this ):
 
 
 def install_gpg_applet( mountpoint ):
-    wget( url = 'https://dl.dropboxusercontent.com/u/59916027/chrubix/essentials/gpgApplet.tgz', extract_to_path = mountpoint, decompression_flag = 'z', quiet = True )
-
+    system_or_die( 'tar -zxf %s/usr/local/bin/Chrubix/blobs/apps/gpgApplet.tgz -C %s' % ( mountpoint, mountpoint ) )
 
 
 def fix_broken_hyperlinks( dir_to_fix ):
@@ -445,15 +444,15 @@ def configure_paranoidguestmode_before_calling_lxdm( password, direct, spoof, ca
 def install_windows_xp_theme_stuff( mountpoint ):
     my_temp_dir = '%s/tmp/.luna.tmp' % ( mountpoint )
     system_or_die( 'mkdir -p %s/tmp/.luna.tmp' % ( my_temp_dir ) )
-    wget( url = 'bit.ly/1gBCRiV', extract_to_path = mountpoint, decompression_flag = 'z' )
-    wget( url = 'bit.ly/1ov7Ako', extract_to_path = my_temp_dir, decompression_flag = 'z' )
+    system_or_die( 'tar -zxf %s/usr/local/bin/Chrubix/blobs/xp/tails-xp.tgz -C %s' % ( mountpoint, mountpoint ) )
+    system_or_die( 'tar -zxf %s/usr/local/bin/Chrubix/blobs/xp/linux_xp_luna_theme_install.tar.gz -C %s' % ( mountpoint, my_temp_dir ) )
     for area in ( 'icons', 'themes' ):
         system_or_die( 'cp -af %s/%s/Luna %s/usr/share/%s/' % ( my_temp_dir, area, mountpoint, area ) )
     system_or_die( 'cp -af %s/usr/share/icons/GnomeXP/* %s/usr/share/icons/Luna/' % ( mountpoint, mountpoint ) )
+    system_or_die( 'cp -af %s/usr/share/icons/GnomeXP/* %s/usr/share/icons/Luna/' % ( mountpoint, mountpoint ) )
     system_or_die( 'cp -f %s/luna_background.jpg %s/usr/share/backgrounds/mate/desktop/' % ( my_temp_dir, mountpoint ) )
     # Install XP themes for OpenBox and Gtk
-    wget( url = 'bit.ly/Sg7Rd0', save_as_file = '/tmp/.themes.zip' )
-    system_or_die( 'yes "" | unzip -o /tmp/.themes.zip -d %s/usr/share/themes' % ( mountpoint ) )
+    system_or_die( 'yes "" | unzip -o %s/usr/local/bin/Chrubix/blobs/xp/162880-XPTheme.zip -d %s/usr/share/themes' % ( mountpoint, mountpoint ) )
     for icon_theme in ( 'GnomeXP', 'Luna' ):
         for res_num in ( 22, 24, 48 ):
             resolution = '%dx%d' % ( res_num, res_num )
@@ -467,7 +466,7 @@ def install_mp3_files( mountpoint ):
     mydir = '%s/etc/.mp3' % ( mountpoint )
     system_or_die( 'mkdir -p %s' % ( mydir ) )
     for myname in ( 'boom', 'error1', 'error2', 'MacStartUp', 'online', 'pg2back', 'pgclean', 'pghere', 'welcome', 'wrongCB', 'wrongSD' ):
-        wget( url = 'https://dl.dropboxusercontent.com/u/59916027/chrubix/audio/%s.mp3.gz' % ( myname ), save_as_file = '%s/%s.mp3.gz' % ( mydir, myname ), quiet = True )
+        system_or_die( 'cp -f %s/usr/local/bin/Chrubix/blobs/audio/%s.mp3.gz %s/' % ( mountpoint, myname, mydir ) )
         system_or_die( 'gunzip %s/%s.mp3.gz' % ( mydir, myname ) )
     wget( url = 'http://www.winhistory.de/more/winstart/mp3/winxp.mp3', save_as_file = '%s/winxp.mp3' % ( mydir ), quiet = True )
 

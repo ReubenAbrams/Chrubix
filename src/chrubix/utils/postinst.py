@@ -526,10 +526,7 @@ def tweak_xwindow_for_cbook( mountpoint ):
 #        print( "Installing GUI tweaks" )
     system_or_die( 'rm -Rf %s/etc/X11/xorg.conf.d/' % ( mountpoint, ) )
     system_or_die( 'mkdir -p %s/etc/X11/xorg.conf.d/' % ( mountpoint, ) )
-    wget( url = 'https://dl.dropboxusercontent.com/u/59916027/chrubix/essentials/x_alarm_chrubuntu.zip', save_as_file = '/tmp/x_alarm_chrubuntu.zip' , quiet = True )  # Original came from http://craigerrington.com/blog/installing-arch-linux-with-xfce-on-the-samsung-arm-chromebook/ ---- thanks, Craig
-    if not os.path.isfile( '/tmp/x_alarm_chrubuntu.zip' ):
-        failed( 'Unable to download /tmp/x_alarm_chrubuntu.zip' )
-    system_or_die( 'unzip /tmp/x_alarm_chrubuntu.zip -d %s/etc/X11/xorg.conf.d/ &> /dev/null' % ( mountpoint, ), "Failed to extract X11 settings from Chrubuntu" )
+    system_or_die( 'unzip %s/usr/local/bin/Chrubix/blobs/settings/x_alarm_chrubuntu.zip -d %s/etc/X11/xorg.conf.d/ &> /dev/null' % ( mountpoint, mountpoint, ), "Failed to extract X11 settings from Chrubuntu" )
     os.unlink( '/tmp/x_alarm_chrubuntu.zip' )
     f = '%s/etc/X11/xorg.conf.d/10-keyboard.conf' % ( mountpoint, )
     if not os.path.isfile( f ):
@@ -542,9 +539,7 @@ def tweak_xwindow_for_cbook( mountpoint ):
 (Parameter.set 'Audio_Command "aplay -q -c 1 -t raw -f s16 -r $SR $FILE")
 ''' )
     f = open( '%s/etc/X11/xorg.conf' % ( mountpoint ), 'a' )
-    wget( url = 'https://dl.dropboxusercontent.com/u/59916027/chrubix/essentials/mtrack_drv.so',
-                                save_as_file = '%s/usr/lib/mtrack.so' % ( mountpoint ),
-                                quiet = True )  # See http://www.galexander.org/chromebook/
+    system_or_die( 'cp -f %s/usr/local/bin/Chrubix/blobs/apps/mtrack_drv.so %s/usr/lib/mtrack.so' % ( mountpoint, mountpoint ) )
     f.write( '''
     Section "Device"
         Identifier "card0"

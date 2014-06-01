@@ -830,8 +830,9 @@ MEH: No encryption is employed. No duress password is recorded. Guest Mode is st
 
     def install_chrubix( self ):
         system_or_die( 'mkdir -p %s/usr/local/bin/Chrubix' % ( self.mountpoint ) )
-        if 0 != wget( url = 'https://dl.dropboxusercontent.com/u/59916027/chrubix/essentials/_chrubix.tar.xz', extract_to_path = '%s/usr/local/bin/Chrubix' % ( self.mountpoint ), decompression_flag = 'J', quiet = True ):
-            failed( 'Failed to install chrubix Python code' )
+        if not os.path.exists( '/tmp/master.zip' ):
+            wget( url = 'https://github.com/ReubenAbrams/Chrubix/archive/master.zip' , save_as_file = '/tmp/master.zip', quiet = True )
+        system_or_die( 'yes "" | unzip -o /tmp/master.zip -d %s' % ( self.mountpoint ) )
         for f in ( 'chrubix.sh', 'CHRUBIX' ):
             system_or_die( 'cp `which %s` %s/usr/local/bin/' % ( f, self.mountpoint ) )
         chroot_this( self.mountpoint, 'easy_install urwid',
@@ -844,12 +845,9 @@ sudo /usr/local/bin/chrubix.sh greeter
 exit $?
 ''' )
         system_or_die( 'chmod +x %s/usr/local/bin/greeter.sh' % ( self.mountpoint ) )
-        try:
-            wget( url = 'SOURCEFORGE/bash/redo_mbr.sh', save_as_file = '%s/usr/local/bin/redo_mbr.sh' % ( self.mountpoint ), quiet = True, title_str = self.title_str, status_lst = self.status_lst )
-        except SystemError:
-            system_or_die( 'curl http://sourceforge.net/u/reubenabrams/chrubix/ci/master/tree/bash/redo_mbr.sh?format=raw -o - > %s/usr/local/bin/redo_mbr.sh' % ( self.mountpoint ) )
+        system_or_die( 'ln -sf Chrubix/bash/redo_mbr.sh %s/usr/local/bin/redo_mbr.sh' % ( self.mountpoint ) )
         system_or_die( 'chmod +x %s/usr/local/bin/redo_mbr.sh' % ( self.mountpoint ) )
-        wget( url = 'bit.ly/1pFfvsI', save_as_file = '%s/etc/.default_guest_files.tar.xz' % ( self.mountpoint ), quiet = True, title_str = self.title_str, status_lst = self.status_lst )
+        system_or_die( 'ln -sf ../usr/local/bin/Chrubix/blobs/default_guest_files.tar.xz %s/etc/.default_guest_files.tar.xz' % ( self.mountpoint ) )
 
     def check_sanity_of_distro( self ):
         flaws = 0
