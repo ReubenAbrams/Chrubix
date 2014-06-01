@@ -25,7 +25,7 @@ CHRUBIX_URL=https://github.com/ReubenAbrams/Chrubix/archive/master.zip
 
 
 if ping -W2 -c1 192.168.1.66 &>/dev/null ; then
-	WGET_PROXY="http://192.168.1.66:8123"
+	WGET_PROXY="http://192.168.1.66:8080"
 else
 	WGET_PROXY=""
 fi
