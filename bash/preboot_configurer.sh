@@ -1,6 +1,9 @@
 #!/bin/bash
 #
-
+# preboot_configurer.sh
+# - the command-line version of greeter.py
+#
+#################################################################################
 
 
 

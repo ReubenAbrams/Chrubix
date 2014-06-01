@@ -1,7 +1,11 @@
+#!/usr/local/bin/python3
+#
+# postinst.py
+
+
 '''
 Created on May 9, 2014
 
-@author: hugo
 '''
 
 import os

@@ -18,6 +18,9 @@
 
 
 
+ALARPY_URL="https://dl.dropboxusercontent.com/u/59916027/chrubix/alarpy.tar.xz"
+FINALS_URL="https://dl.dropboxusercontent.com/u/59916027/chrubix/finals"
+CHRUBIX_URL=https://github.com/ReubenAbrams/Chrubix/archive/master.zip
 
 
 
@@ -203,14 +206,11 @@ if [ \"\$USER\" != \"root\" ] ; then
   echo \"Please type sudo in front of the call to run me.\"
   exit 1
 fi
-wget https://dl.dropboxusercontent.com/u/59916027/chrubix/essentials/_chrubix.tar.xz --quiet -O - > /tmp/latest-chrubix.tar.xz
-if [ \"\$?\" -ne \"0\" ] ; then
-  echo "FAILED TO DOWNLOAD/INSTALL CHRUBIX. Using the old copy..."
-else
-  rm -Rf /usr/local/bin/Chrubix /usr/local/bin/1hq8O7s
-  mkdir -p /usr/local/bin/Chrubix
-  tar -Jxf /tmp/latest-chrubix.tar.xz -C /usr/local/bin/Chrubix
-fi
+wget $CHRUBIX_URL -O - > /tmp/master.zip || failed \"Failed to download Chrubix from GitHub.\"
+rm -Rf /usr/local/bin/Chrubix /usr/local/bin/1hq8O7s
+mkdir -p /usr/local/bin
+unzip /tmp/master.zip -d /usr/local/bin
+mv /usr/local/bin/Chrubix* /usr/local/bin/Chrubix	# rename Chrubix-master (or whatever) to Chrubix
 export DISPLAY=:0.0
 cd /usr/local/bin/Chrubix/src
 if [ \"\$1\" = \"tinker\" ] ; then
@@ -302,20 +302,21 @@ Alarmis(t), a derivative of Tails
 (U)buntu Pangolin
 (W)heezy [Debian]
 
-Which would you like to install? "
+Which would you like me to install? "
 		read r
 		case $r in
-"A") distroname="archlinux";url="https://dl.dropboxusercontent.com/u/59916027/chrubix/finals/archlinux__D.xz";;
-"F") distroname="fedora";	url="https://dl.dropboxusercontent.com/u/59916027/chrubix/finals/fedora__D.tar.xz";;
-"J") distroname="jessie";	url="https://dl.dropboxusercontent.com/u/59916027/chrubix/finals/jessie__D.tar.xz";;
-"K") distroname="kali";		url="https://dl.dropboxusercontent.com/u/59916027/chrubix/finals/kali__D.tar.xz";;
-"S") distroname="suse";		url="https://dl.dropboxusercontent.com/u/59916027/chrubix/finals/suse__D.tar.xz";;
-"T") distroname="alarmist";	url="https://dl.dropboxusercontent.com/u/59916027/chrubix/finals/alarmist__D.tar.xz";;
-"U") distroname="ubuntu";	url="https://dl.dropboxusercontent.com/u/59916027/chrubix/finals/ubuntu__D.tar.xz";;
-"W") distroname="wheezy";	url="https://dl.dropboxusercontent.com/u/59916027/chrubix/finals/wheezy__D.tar.xz";;
+"A") distroname="archlinux";;
+"F") distroname="fedora";;
+"J") distroname="jessie";;
+"K") distroname="kali";;
+"S") distroname="suse";;
+"T") distroname="alarmist";;
+"U") distroname="ubuntu";;
+"W") distroname="wheezy";;
 *)   echo "Unknown distro";;
 		esac
 	done
+	url=$FINALS_URL/$distroname"__D.tar.xz"
 	echo $distroname > $lockfile
 fi
 
@@ -354,7 +355,7 @@ else
 	if [ -e "/home/chronos/user/Downloads/alarpy.tar.xz" ] ; then
 		tar -Jxf /home/chronos/user/Downloads/alarpy.tar.xz -C $btstrap || failed "Failed to install alarpy.tar.xz"
 	else
-		wget "http://sourceforge.net/projects/chrubix/files/images/1.0/alarpy.tar.xz/download" -O - | tar -Jx -C $btstrap || failed "Failed to download/install alarpy.tar.xz"
+		wget $ALARPY_URL -O - | tar -Jx -C $btstrap || failed "Failed to download/install alarpy.tar.xz"
 	fi
 	echo ""
 	echo "en_US.UTF-8 UTF-8" >> $btstrap/etc/locale.gen

@@ -1,7 +1,10 @@
+#!/usr/local/bin/python3
+#
+# utils.py
+
 '''
 Created on May 1, 2014
 
-@author: hugo
 '''
 
 

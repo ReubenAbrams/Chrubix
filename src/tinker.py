@@ -2,7 +2,7 @@
 #
 # tinker.py
 # Test subroutine of the CHRUBIX project
-# ...for Hugo to tinker with things :)
+# ...for me to tinker with things :)
 #
 
 import sys

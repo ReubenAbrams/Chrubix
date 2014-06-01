@@ -1,4 +1,6 @@
 #!/usr/local/bin/python3
+#
+# distros.py
 
 # TODO: Make sure memory is getting wiped at shutdown (play a tune?). See https://bbs.archlinux.org/viewtopic.php?id=136283
 import os
@@ -73,6 +75,18 @@ python-yaml python-gobject python-qrencode python-imaging python-setuptools pyth
         self.typical_install_duration = -1
         self.use_latest_kernel = False
         self.__dict__.update( kwargs )
+
+    def configure_distrospecific_tweaks( self ):  failed( "please define in subclass" )
+    def install_barebones_root_filesystem( self ):  failed( "please define in subclass" )
+    def download_mkfs_sources( self ):              failed( "please define in subclass" )
+    def build_package( self, source_pathname ):     failed( "build_package(%s) --- please define in subclass" % ( source_pathname ) )
+    def install_package_manager_tweaks( self ):     failed( "please define in subclass. Don't forget! Exclude jfsprogs, btrfsprogs, xfsprogs, linux kernel." )
+    def update_and_upgrade_all( self ):             failed( "please define in subclass" )
+    def install_important_packages( self ):         failed( "please define in subclass" )
+    def install_kernel_and_mkfs( self ):            failed( 'please define in subclass' )
+    def install_locale( self ):                     failed( 'please define in subclass' )
+    def install_final_push_of_packages( self ):     failed( "please define in subclass -- must install network-manager and wmwsystemtray" )
+    def build_mkfs_n_kernel_for_OS_w_preexisting_PKGBUILDs( self ):   failed( "please define in subclass" )
 
     @property
     def pheasants( self ):
@@ -198,18 +212,6 @@ python-yaml python-gobject python-qrencode python-imaging python-setuptools pyth
     @boom_pw_hash.setter
     def boom_pw_hash( self, value ):
         raise AttributeError( 'Do not try to set the boom password hash to %s. Set the boom password instead.' % ( value ) )
-
-    def configure_distrospecific_tweaks( self ):  failed( "please define in subclass" )
-    def install_barebones_root_filesystem( self ):  failed( "please define in subclass" )
-    def download_mkfs_sources( self ):              failed( "please define in subclass" )
-    def build_package( self, source_pathname ):     failed( "build_package(%s) --- please define in subclass" % ( source_pathname ) )
-    def install_package_manager_tweaks( self ):     failed( "please define in subclass. Don't forget! Exclude jfsprogs, btrfsprogs, xfsprogs, linux kernel." )
-    def update_and_upgrade_all( self ):             failed( "please define in subclass" )
-    def install_important_packages( self ):         failed( "please define in subclass" )
-    def install_kernel_and_mkfs( self ):            failed( 'please define in subclass' )
-    def install_locale( self ):                     failed( 'please define in subclass' )
-    def install_final_push_of_packages( self ):     failed( "please define in subclass -- must install network-manager and wmwsystemtray" )
-    def build_mkfs_n_kernel_for_OS_w_preexisting_PKGBUILDs( self ):   failed( "please define in subclass" )
 
     def build_mkfs( self ):
         self.status_lst.append( ['Building mk*fs'] )
