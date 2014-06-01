@@ -47,10 +47,10 @@ sound-juicer keepassx liferea gobby claws-mail festival-us bluez-utils libreoffi
 busybox bzr cpio cryptsetup curl lzop ed parted libtool patch git nano bc pv pidgin mythes-en \
 python-pip python-setuptools python3 rng-tools sudo tzdata unzip wget flex gcc mousepad bison autoconf \
 ntfs-3g autogen automake bluez pulseaudio docbook-xsl dosfstools expect acpid make mpg123 pwgen asciidoc \
-libcanberra-gstreamer libcanberra-pulse xterm xscreensaver rxvt rxvt-unicode smem intltool libxfixes \
+libcanberra-pulse xterm xscreensaver rxvt rxvt-unicode smem intltool libxfixes \
 uboot-mkimage ttf-dejavu ffmpeg mplayer notification-daemon pkg-config ttf-liberation \
 gimp inkscape scribus audacity pitivi poedit alsa-utils simple-scan macchanger brasero pm-utils gnupg \
-python-yaml python-gobject python-qrencode python-imaging python-setuptools python-crypto '  # palimpsest gnome-session-fallback
+python-yaml python-gobject python-qrencode python-imaging python-setuptools python-crypto '  # palimpsest gnome-session-fallback mate-settings-daemon-pulseaudio
     final_push_packages = 'pavucontrol tor privoxy vidalia systemd syslog-ng gnome-tweak-tool'  # Install these, all at once, when we're ready to break the Internet :)
     # Instance-level attributes
     def __init__( self, *args, **kwargs ):
