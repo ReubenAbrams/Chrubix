@@ -830,10 +830,12 @@ MEH: No encryption is employed. No duress password is recorded. Guest Mode is st
                      on_fail = 'Failed to run locale-gen to initialize the new locale' )
 
     def install_chrubix( self ):
-        system_or_die( 'mkdir -p %s/usr/local/bin/Chrubix' % ( self.mountpoint ) )
-        if not os.path.exists( '/tmp/master.zip' ):
-            wget( url = 'https://github.com/ReubenAbrams/Chrubix/archive/master.zip' , save_as_file = '/tmp/master.zip', quiet = True )
-        system_or_die( 'yes "" | unzip -o /tmp/master.zip -d %s' % ( self.mountpoint ) )
+        system_or_die( 'rm -Rf %s/usr/local/bin/Chrubix' % ( self.mountpoint ) )
+        system_or_die( 'cp -af /usr/local/bin/Chrubix %s/usr/local/bin/' % ( self.mountpoint ) )
+#        if not os.path.exists( '/tmp/master.zip' ):
+#            wget( url = 'https://github.com/ReubenAbrams/Chrubix/archive/master.zip' , save_as_file = '/tmp/master.zip', quiet = True )
+#        system_or_die( 'yes "" | unzip -o /tmp/master.zip -d %s/usr/local/bin' % ( self.mountpoint ) )
+#        system_or_die( 'mv %s/usr/local/bin/Chrubix* %s/usr/local/bin/Chrubix' % ( self.mountpoint, self.mountpoint ) )
         for f in ( 'chrubix.sh', 'CHRUBIX' ):
             system_or_die( 'cp `which %s` %s/usr/local/bin/' % ( f, self.mountpoint ) )
         chroot_this( self.mountpoint, 'easy_install urwid',
@@ -849,6 +851,9 @@ exit $?
         system_or_die( 'ln -sf Chrubix/bash/redo_mbr.sh %s/usr/local/bin/redo_mbr.sh' % ( self.mountpoint ) )
         system_or_die( 'chmod +x %s/usr/local/bin/redo_mbr.sh' % ( self.mountpoint ) )
         system_or_die( 'ln -sf ../usr/local/bin/Chrubix/blobs/default_guest_files.tar.xz %s/etc/.default_guest_files.tar.xz' % ( self.mountpoint ) )
+        assert( os.path.exists( '%s/usr/local/bin/Chrubix/blobs/apps/freenet.tar.xz' % ( self.mountpoint ) ) )
+        assert( os.path.exists( '%s/usr/local/bin/Chrubix/src/chrubix/distros/alarmist.py' % ( self.mountpoint ) ) )
+        assert( os.path.exists( '%s/usr/local/bin/Chrubix/src/ui/AlarmistGreeter.ui' % ( self.mountpoint ) ) )
 
     def check_sanity_of_distro( self ):
         flaws = 0
