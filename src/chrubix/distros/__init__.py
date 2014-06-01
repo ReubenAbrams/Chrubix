@@ -1,6 +1,5 @@
 #!/usr/local/bin/python3
 
-
 # TODO: Make sure memory is getting wiped at shutdown (play a tune?). See https://bbs.archlinux.org/viewtopic.php?id=136283
 import os
 import sys
