@@ -28,7 +28,7 @@ bcprov gtk-engine-unico gtk-engine-murrine'
 
     def install_barebones_root_filesystem( self ):
         logme( 'ArchlinuxDistro - install_barebones_root_filesystem() - starting' )
-        wget( url = 'https://dl.dropboxusercontent.com/u/59916027/chrubix/skeletons/ArchLinuxARM-chromebook-latest.tar.gz', \
+        wget( url = 'http://us.mirror.archlinuxarm.org/os/ArchLinuxARM-chromebook-latest.tar.gz', \
                                                 extract_to_path = self.mountpoint, decompression_flag = 'z', \
                                                 title_str = self.title_str, status_lst = self.status_lst )
         return 0
