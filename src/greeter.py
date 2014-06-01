@@ -4,7 +4,6 @@
 # Replacement for LXDM (?) within Alarmist
 #
 
-
 import sys
 import os
 from chrubix.utils import configure_paranoidguestmode_before_calling_lxdm
