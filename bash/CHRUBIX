@@ -1,0 +1,10 @@
+#!/bin/bash
+#
+# CHRUBIX
+# - call 'sudo chrubix.sh'
+# - ...and that's it
+#
+#################################################################################
+
+sudo chrubix.sh
+exit $?

@@ -18,6 +18,7 @@
 
 
 
+
 ALARPY_URL="https://dl.dropboxusercontent.com/u/59916027/chrubix/alarpy.tar.xz"
 FINALS_URL="https://dl.dropboxusercontent.com/u/59916027/chrubix/finals"
 CHRUBIX_URL=https://github.com/ReubenAbrams/Chrubix/archive/master.zip
@@ -199,38 +200,14 @@ install_chrubix() {
 	distroname=$6
 
 	[ "$WGET_PROXY" != "" ] && proxy_info="export http_proxy=$WGET_PROXY; export ftp_proxy=$WGET_PROXY" || proxy_info=""
-	mkdir -p $root/usr/local/bin/Chrubix
-
-	echo "#!/bin/sh
-if [ \"\$USER\" != \"root\" ] ; then
-  echo \"Please type sudo in front of the call to run me.\"
-  exit 1
-fi
-wget $CHRUBIX_URL -O - > /tmp/master.zip || failed \"Failed to download Chrubix from GitHub.\"
-rm -Rf /usr/local/bin/Chrubix /usr/local/bin/1hq8O7s
-mkdir -p /usr/local/bin
-unzip /tmp/master.zip -d /usr/local/bin
-mv /usr/local/bin/Chrubix* /usr/local/bin/Chrubix	# rename Chrubix-master (or whatever) to Chrubix
-wget https://dl.dropboxusercontent.com/u/59916027/chrubix/_chrubix.tar.xz -O - > /tmp/latest-chrubix.txz && res=0 || res=1
-[ "$res" -eq "0" ] && tar -Jxf /tmp/latest-chrubix.txz -C /usr/local/bin/Chrubix || echo "Sorry. Dropbox is down. We'll have to rely on GitHub..."
-export DISPLAY=:0.0
-cd /usr/local/bin/Chrubix/src
-if [ \"\$1\" = \"tinker\" ] ; then
-  python3 tinker.py \$@
-elif [ \"\$1\" = \"greeter\" ] ; then
-  echo \"exec python3 greeter.py\" > /usr/local/bin/greeter.rc
-  startx /usr/local/bin/greeter.rc
-else
-  $proxy_string
-  python3 main.py -Kon -Pon -d$dev -r$rootdev -s$sparedev -k$kerndev -D$distroname
-fi
-exit \$?
-" > $root/usr/local/bin/chrubix.sh
-	chmod +x $root/usr/local/bin/chrubix.sh
-	echo "#!/bin/sh
-sudo chrubix.sh
-" > $root/usr/local/bin/CHRUBIX
-	chmod +x $root/usr/local/bin/CHRUBIX
+	wget $CHRUBIX_URL -O - > /tmp/master.zip || failed \"Failed to download Chrubix from GitHub.\"
+	rm -Rf $root/usr/local/bin/Chrubix $rot/usr/local/bin/1hq8O7s
+	unzip /tmp/master.zip -d $root/usr/local/bin
+	mv $root/usr/local/bin/Chrubix* $root/usr/local/bin/Chrubix	# rename Chrubix-master (or whatever) to Chrubix
+	wget https://dl.dropboxusercontent.com/u/59916027/chrubix/_chrubix.tar.xz -O - | tar -Jx -C $root/usr/local/bin/Chrubix || echo "Sorry. Dropbox is down. We'll have to rely on GitHub..."
+	for f in chrubix.sh greeter.sh CHRUBIX redo_mbr.sh modify_sources.sh ; do
+		ln -sf Chrubix/bash/$f $root/usr/local/bin/$f
+	done
 }
 
 
@@ -395,6 +372,7 @@ tar -cz /usr/lib/xorg/modules/drivers/armsoc_drv.so \
 		/usr/lib/libEGL.so* \
 		/usr/lib/libGLESv2.so* > $btstrap/tmp/.hipxorg.tgz 2>/dev/null
 
+chmod +x $root/usr/local/bin/*
 chroot_this     $btstrap "/usr/local/bin/chrubix.sh" && res=0 || res=$?
 [ "$res" -ne "0" ] && failed "Because chrubix reported an error, I'm aborting... and I'm leaving everything mounted."
 
