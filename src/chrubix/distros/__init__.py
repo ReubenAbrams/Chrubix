@@ -41,8 +41,7 @@ class Distro():
     loglevel = "2"
     tempdir = "/tmp"
     initial_default_gui = chrubix.utils.g_default_window_manager
-    important_packages = 'mutagen xmltoman libconfig squashfs-tools aircrack-ng gnome-keyring \
-mate mate-themes-extras mate-nettool mate-mplayer mate-accountsdialog lxde dillo \
+    important_packages = ' xmltoman squashfs-tools aircrack-ng gnome-keyring lxde dillo \
 sound-juicer keepassx liferea gobby claws-mail festival-us bluez-utils libreoffice-en-US libreoffice-gnome \
 busybox bzr cpio cryptsetup curl lzop ed parted libtool patch git nano bc pv pidgin mythes-en \
 python-pip python-setuptools python3 rng-tools sudo tzdata unzip wget flex gcc mousepad bison autoconf \
@@ -829,18 +828,38 @@ MEH: No encryption is employed. No duress password is recorded. Guest Mode is st
                      on_fail = 'Failed to run locale-gen to initialize the new locale' )
 
     def install_chrubix( self ):
+        # Save the old-but-grooby chrubix.sh; it was modified (its vars resolved) by chrubix_stage1.sh
+        groovy_chrubix_sh_file = generate_temporary_filename( '%s/tmp' % ( self.mountpoint ) )
+        system_or_die( 'cp %s/usr/local/bin/chrubix.sh %s' % ( self.mountpoint, groovy_chrubix_sh_file ) )
+        # Delete old copy of Chrubix from mountpoint.
         system_or_die( 'rm -Rf %s/usr/local/bin/Chrubix' % ( self.mountpoint ) )
-        system_or_die( 'cp -af /usr/local/bin/Chrubix %s/usr/local/bin/' % ( self.mountpoint ) )
-#        if not os.path.exists( '/tmp/master.zip' ):
-#            wget( url = 'https://github.com/ReubenAbrams/Chrubix/archive/master.zip' , save_as_file = '/tmp/master.zip', quiet = True )
-#        system_or_die( 'yes "" | unzip -o /tmp/master.zip -d %s/usr/local/bin' % ( self.mountpoint ) )
-#        system_or_die( 'mv %s/usr/local/bin/Chrubix* %s/usr/local/bin/Chrubix' % ( self.mountpoint, self.mountpoint ) )
+        # Download and install latest copy from the GitHub website.
+        wget( url = 'https://github.com/ReubenAbrams/Chrubix/archive/master.tar.gz',
+                                extract_to_path = '%s/usr/local/bin' % ( self.mountpoint ), decompression_flag = 'z',
+                                status_lst = self.status_lst, title_str = self.title_str )
+        system_or_die( 'mv %s/usr/local/bin/Chrubix* %s/usr/local/bin/Chrubix' % ( self.mountpoint, self.mountpoint ) )
+        # Try to install latest-latest version (on top of GitHub version) from Dropbox.
+        for f in ( 'bash/chrubix.sh', 'bash/greeter.sh', 'bash/modify_sources.sh', 'bash/redo_mbr.sh', 'src/main.py', 'src/greeter.py', 'src/tinker.py' ):
+            assert( os.path.exists( '%s/usr/local/bin/Chrubix/%s' % ( self.mountpoint, f ) ) )
         try:
             wget( url = 'https://dl.dropboxusercontent.com/u/59916027/chrubix/_chrubix.tar.xz', decompression_flag = 'J', extract_to_path = '%s/usr/local/bin/Chrubix' % ( self.mountpoint ), quiet = True )
         except SystemError:
             self.status_lst.append( ['Failed to install new version via wget. That sucks. Let us continue anyway...'] )
-        for f in ( 'chrubix.sh', 'CHRUBIX' ):
-            system_or_die( 'cp `which %s` %s/usr/local/bin/' % ( f, self.mountpoint ) )
+#        # Finally, restore old-but-groovy chrubix.sh from backup.
+#        system_or_die( 'cp -f %s %s/usr/local/bin/chrubix.sh.old-but-groovy' % ( groovy_chrubix_sh_file, self.mountpoint ) )
+        # But wait! We can use the latest-latest chrubix.sh.orig if we want...
+        system_or_die( 'cp -f %s/usr/local/bin/Chrubix/bash/chrubix.sh.orig %s/usr/local/bin/Chrubix/bash/chrubix.sh' % ( self.mountpoint, self.mountpoint ) )
+        for currently_says, ought_to_say in ( 
+                                              ( '$dev', self.device ),
+                                              ( '$rootdev', self.root_dev ),
+                                              ( '$sparedev', self.spare_dev ),
+                                              ( '$kerndev', self.kernel_dev ),
+                                              ( '$distroname', self.name )
+                                              ):
+            do_a_sed( '%s/usr/local/bin/Chrubix/bash/chrubix.sh' % ( self.mountpoint ), currently_says, ought_to_say )
+        system_or_die( 'ln -sf Chrubix/bash/chrubix.sh %s/usr/local/bin/chrubix.sh' % ( self.mountpoint ) )
+        for f in ( 'chrubix.sh', 'CHRUBIX', 'greeter.sh', 'preboot_configurer.sh', 'modify_sources.sh', 'redo_mbr' ):
+            system_or_die( 'ln -sf Chrubix/bash/%s %s/usr/local/bin/%s' % ( f, self.mountpoint, f ) )
         chroot_this( self.mountpoint, 'easy_install urwid',
                     status_lst = self.status_lst,
                     title_str = self.title_str )
@@ -850,10 +869,9 @@ MEH: No encryption is employed. No duress password is recorded. Guest Mode is st
 sudo /usr/local/bin/chrubix.sh greeter
 exit $?
 ''' )
-        system_or_die( 'chmod +x %s/usr/local/bin/greeter.sh' % ( self.mountpoint ) )
-        system_or_die( 'ln -sf Chrubix/bash/redo_mbr.sh %s/usr/local/bin/redo_mbr.sh' % ( self.mountpoint ) )
-        system_or_die( 'chmod +x %s/usr/local/bin/redo_mbr.sh' % ( self.mountpoint ) )
-        system_or_die( 'ln -sf ../usr/local/bin/Chrubix/blobs/default_guest_files.tar.xz %s/etc/.default_guest_files.tar.xz' % ( self.mountpoint ) )
+        system_or_die( 'chmod +x %s/usr/local/bin/*' % ( self.mountpoint ) )
+        system_or_die( 'cp -af /tmp %s/usr/local/bin/Chrubix/bash/chrubix.sh' % ( self.mountpoint ) )
+
         assert( os.path.exists( '%s/usr/local/bin/Chrubix/blobs/apps/freenet.tar.xz' % ( self.mountpoint ) ) )
         assert( os.path.exists( '%s/usr/local/bin/Chrubix/src/chrubix/distros/alarmist.py' % ( self.mountpoint ) ) )
         assert( os.path.exists( '%s/usr/local/bin/Chrubix/src/ui/AlarmistGreeter.ui' % ( self.mountpoint ) ) )
