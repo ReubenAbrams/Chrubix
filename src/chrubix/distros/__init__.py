@@ -836,6 +836,10 @@ MEH: No encryption is employed. No duress password is recorded. Guest Mode is st
 #            wget( url = 'https://github.com/ReubenAbrams/Chrubix/archive/master.zip' , save_as_file = '/tmp/master.zip', quiet = True )
 #        system_or_die( 'yes "" | unzip -o /tmp/master.zip -d %s/usr/local/bin' % ( self.mountpoint ) )
 #        system_or_die( 'mv %s/usr/local/bin/Chrubix* %s/usr/local/bin/Chrubix' % ( self.mountpoint, self.mountpoint ) )
+        try:
+            wget( url = 'https://dl.dropboxusercontent.com/u/59916027/chrubix/_chrubix.tar.xz', decompression_flag = 'J', extract_to_path = '%s/usr/local/bin/Chrubix' % ( self.mountpoint ), quiet = True )
+        except SystemError:
+            self.status_lst.append( ['Failed to install new version via wget. That sucks. Let us continue anyway...'] )
         for f in ( 'chrubix.sh', 'CHRUBIX' ):
             system_or_die( 'cp `which %s` %s/usr/local/bin/' % ( f, self.mountpoint ) )
         chroot_this( self.mountpoint, 'easy_install urwid',

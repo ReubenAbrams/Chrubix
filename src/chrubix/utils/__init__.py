@@ -142,8 +142,6 @@ def call_binary_and_show_progress( binary_info, title_str, foot_str, status_lst,
 
 def wget( url, save_as_file = None, extract_to_path = None, decompression_flag = None, quiet = False, title_str = None, status_lst = None, attempts = 5 ):
     attempt_number = 0
-    if url.find( 'SOURCEFORGE' ) >= 0:
-        url = url.replace( 'SOURCEFORGE', 'https://sourceforge.net/u/reubenabrams/chrubix/ci/master/tree' ) + '?format=raw'
     while attempt_number < attempts:
         extra_params = '' if ( g_proxy is None and attempt_number == 0 ) else '-e use_proxy=yes -e http_proxy=' + g_proxy
         extra_params += ' --quiet' if quiet else ''
