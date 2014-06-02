@@ -21,7 +21,7 @@
 
 ALARPY_URL="https://dl.dropboxusercontent.com/u/59916027/chrubix/alarpy.tar.xz"
 FINALS_URL="https://dl.dropboxusercontent.com/u/59916027/chrubix/finals"
-CHRUBIX_URL=https://github.com/ReubenAbrams/Chrubix/archive/master.zip
+CHRUBIX_URL=https://github.com/ReubenAbrams/Chrubix/archive/master.tgz
 
 
 
