@@ -215,7 +215,7 @@ install_chrubix() {
 | sed s/\$rootdev/\dev\\\/`basename $rootdev`/ \
 | sed s/\$sparedev/\dev\\\/`basename $sparedev`/ \
 | sed s/\$kerndev/\dev\\\/`basename $kerndev`/ \
-| sed s/\$distroname/\tmp\\\/$distroname/ \
+| sed s/\$distroname/$distroname/ \
 > chrubix.sh
 	cd /
 
