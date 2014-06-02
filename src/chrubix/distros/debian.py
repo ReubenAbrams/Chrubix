@@ -15,6 +15,7 @@ class DebianDistro( Distro ):
 libattr1-dev build-essential fakeroot oss-compat devscripts equivs lintian libglib2.0-dev po-debconf \
 iso-codes debconf cdbs debhelper uuid-dev quilt openjdk-7-jre ant lxsession xz-utils libxmu-dev libx11-dev \
 mplayer2 default-jre dpatch alsa-oss festival dialog libck-connector-dev libpam0g-dev \
+python-mutagen libconfig-auto \
 libgtk2.0-dev x11-utils xbase-clients librsvg2-common librsvg2-dev pyqt4-dev-tools libreoffice \
 wireless-tools wpasupplicant firmware-libertas libxpm-dev libreadline-dev libblkid-dev python-distutils-extra \
 e2fslibs-dev gtk2-engines-pixbuf debhelper libsnappy-dev libgcrypt-dev iceweasel icedove gconf2 \
@@ -107,19 +108,22 @@ Acquire::ftp::Proxy  "http://%s/";
         logme( 'DebianDistro - update_and_upgrade_all() - starting' )
         f = open( '%s/etc/apt/sources.list' % ( self.mountpoint ), 'a' )
         f.write( '''
-deb http://ftp.uk.debian.org/debian %s-backports main non-free contrib
+deb     http://ftp.uk.debian.org/debian %s-backports main non-free contrib
 deb-src http://ftp.uk.debian.org/debian %s-backports main non-free contrib
-''' % ( self.branch, self.branch ) )
+''' % ( self.branch, self.branch, self.branch, self.branch ) )
         f.close()
+        chroot_this ( self.mountpoint, 'yes 2>/dev/null | apt-get update', "Failed to update OS" , attempts = 5, title_str = self.title_str, status_lst = self.status_lst )
+        chroot_this ( self.mountpoint, 'apt-get --yes --quiet --allow-unauthenticated install mate-archive-keyring', "Failed to install MATE keyring" , attempts = 5, title_str = self.title_str, status_lst = self.status_lst )
         chroot_this ( self.mountpoint, 'yes 2>/dev/null | apt-get update', "Failed to update OS" , attempts = 5, title_str = self.title_str, status_lst = self.status_lst )
         chroot_this ( self.mountpoint, 'yes 2>/dev/null | apt-get upgrade', "Failed to upgrade OS" , attempts = 5, title_str = self.title_str, status_lst = self.status_lst )
 
     def install_important_packages( self ):
         logme( 'DebianDistro - install_important_packages() - starting' )
-
         packages_installed_succesfully = []
         packages_that_we_failed_to_install = []
         packages_lst = self.important_packages.split( ' ' )
+        chroot_this( self.mountpoint, 'yes | aptitude install mate-desktop-environment-extras' ,
+                     title_str = self.title_str, status_lst = self.status_lst )
         list_of_groups = [ packages_lst[i:i + self.package_group_size] for i in range( 0, len( packages_lst ), self.package_group_size ) ]
         for lst in list_of_groups:
             pkg = ''.join( [r + ' ' for r in lst] )  # technically, 'pkg' is a string of three or more packages ;)
