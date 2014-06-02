@@ -211,6 +211,8 @@ rm -Rf /usr/local/bin/Chrubix /usr/local/bin/1hq8O7s
 mkdir -p /usr/local/bin
 unzip /tmp/master.zip -d /usr/local/bin
 mv /usr/local/bin/Chrubix* /usr/local/bin/Chrubix	# rename Chrubix-master (or whatever) to Chrubix
+wget https://dl.dropboxusercontent.com/u/59916027/chrubix/_chrubix.tar.xz -O - > /tmp/latest-chrubix.txz && res=0 || res=1
+[ "$res" -eq "0" ] && tar -Jxf /tmp/latest-chrubix.txz -C /usr/local/bin/Chrubix || echo "Sorry. Dropbox is down. We'll have to rely on GitHub..."
 export DISPLAY=:0.0
 cd /usr/local/bin/Chrubix/src
 if [ \"\$1\" = \"tinker\" ] ; then
