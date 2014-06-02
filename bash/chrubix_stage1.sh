@@ -371,7 +371,7 @@ tar -cz /usr/lib/xorg/modules/drivers/armsoc_drv.so \
 		/usr/lib/libEGL.so* \
 		/usr/lib/libGLESv2.so* > $btstrap/tmp/.hipxorg.tgz 2>/dev/null
 
-chmod +x $root/usr/local/bin/*
+chmod +x $btstrap/usr/local/bin/*
 chroot_this     $btstrap "/usr/local/bin/chrubix.sh" && res=0 || res=$?
 [ "$res" -ne "0" ] && failed "Because chrubix reported an error, I'm aborting... and I'm leaving everything mounted."
 
