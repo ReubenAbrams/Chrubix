@@ -109,6 +109,13 @@ elif argv[2] == 'clone-guest':
     distro = generate_distro_record_from_name( argv[3] )
     system_or_die( 'cd /tmp/.guest; tar -cJ %s > %s' % ( files_to_save, outfile ) )
     print( 'Saved /tmp/.guest/.* goodies to %s' % ( outfile ) )
+elif argv[2] == 'stage-three':
+    distro = generate_distro_record_from_name( argv[3] )
+    distro.mountpoint = '/tmp/_root'
+    distro.device = '/dev/mmcblk1'
+    distro.root_dev = '/dev/mmcblk1p3'
+#    distro.download_kernel_and_mkfs_sources()
+    distro.modify_build_and_install_mkfs_and_kernel_for_OS()
 else:
     raise RuntimeError ( 'I do not understand %s' % ( argv[2] ) )
 os.system( 'sleep 5' )

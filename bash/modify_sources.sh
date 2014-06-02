@@ -528,13 +528,13 @@ modify_magics_and_superblocks() {
 
 	echo "Working on btrfs"
 	replace_this_magic_number $root \"_BHRfS_M\" \"$serialno\"						#	> /dev/null || failed "Failed #1."
-replace_this_magic_number $root 4D5F53665248425F "`serialno_as_bcd_string $serialno`" #> /dev/null || failed "Failed #2."
+	replace_this_magic_number $root 4D5F53665248425F "`serialno_as_bcd_string $serialno`" #> /dev/null || failed "Failed #2."
 	echo "Working on jfs"
 	replace_this_magic_number $root \"JFS1\" \"$last4\"								#	> /dev/null || failed "Failed #3."
-replace_this_magic_number $root 3153464a "`serialno_as_bcd_string $last4`"		#	> /dev/null || failed "Failed #4."
+	replace_this_magic_number $root 3153464a "`serialno_as_bcd_string $last4`"		#	> /dev/null || failed "Failed #4."
 	echo "Working on xfs"
     replace_this_magic_number $root \"XFSB\" \"`serialno_as_slashed_string $serialno`\"#	> /dev/null || failed "Failed #5."
-replace_this_magic_number $root 58465342 "$bytereversed_serno"						#> /dev/null || failed "Failed #6."
+	replace_this_magic_number $root 58465342 "$bytereversed_serno"						#> /dev/null || failed "Failed #6."
 	echo "Done w/ magics and superblocks"
 }
 

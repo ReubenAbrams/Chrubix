@@ -92,7 +92,7 @@ bcprov gtk-engine-unico gtk-engine-murrine'
         assert( self.list_of_mkfs_packages[0].find( 'btrfs' ) >= 0 )
         assert( self.list_of_mkfs_packages[1].find( 'jfs' ) >= 0 )
         assert( self.list_of_mkfs_packages[2].find( 'xfs' ) >= 0 )
-        self.download_package_source( self.list_of_mkfs_packages[0], ( 'PKGBUILD', 'btrfs-progs.install', 'initcpio-hook-btrfs', 'initcpio-install-btrfs' ) )
+        self.download_package_source( self.list_of_mkfs_packages[0], ( 'PKGBUILD', 'btrfs-progs.install', 'initcpio-hook-btrfs', 'initcpio-install-btrfs', '01-fix-manpages.patch' ) )
         self.download_package_source( self.list_of_mkfs_packages[1], ( 'PKGBUILD', 'inttypes.patch' ) )
         self.download_package_source( self.list_of_mkfs_packages[2], ( 'PKGBUILD', ) )
 

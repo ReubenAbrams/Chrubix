@@ -322,16 +322,15 @@ make' % ( self.sources_basedir ), title_str = self.title_str, status_lst = self.
 
     def modify_kernel_and_mkfs_sources( self, apply_kali_and_unionfs_patches = True ):
         logme( 'modify_kernel_and_mkfs_sources() --- starting' )
-        self.call_bash_script_that_modifies_kernel_n_mkfs_sources()
         if apply_kali_and_unionfs_patches:
             patch_kernel( self.mountpoint, self.kernel_src_basedir, 'http://patches.aircrack-ng.org/mac80211.compat08082009.wl_frag+ack_v1.patch' )
             patch_kernel( self.mountpoint, self.kernel_src_basedir, 'http://download.filesystems.org/unionfs/unionfs-2.x/unionfs-2.5.13_for_3.4.84.diff.gz' )
+        self.call_bash_script_that_modifies_kernel_n_mkfs_sources()
 
     def call_bash_script_that_modifies_kernel_n_mkfs_sources( self ):
         self.status_lst.append( ['Modifying kernel and mkfs sources'] )
-        wget ( url = 'SOURCEFORGE/bash/modify_sources.sh', save_as_file = '/tmp/.modify_sources.sh', quiet = True )
         # FIXME: Examine modify_sources.sh; grep it for TTTTTTTTTT; is that section necessary? Run some tests. Find out.
-        system_or_die( 'bash /tmp/.modify_sources.sh %s %s %s %s' % ( 
+        system_or_die( 'bash /usr/local/bin/modify_sources.sh %s %s %s %s' % ( 
                                                                 self.device,
                                                                 self.mountpoint,
                                                                 'yes' if self.pheasants else 'no',
