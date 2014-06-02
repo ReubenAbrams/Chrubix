@@ -209,7 +209,6 @@ install_chrubix() {
 	done
 
 	cd $root/usr/local/bin/Chrubix/bash
-	mv chrubix.sh chrubix.sh.orig
 	cat chrubix.sh.orig \
 | sed s/\$dev/\\\/dev\\\/`basename $dev`/ \
 | sed s/\$rootdev/\\\/dev\\\/`basename $rootdev`/ \
@@ -371,7 +370,6 @@ fi
 install_chrubix $btstrap $dev "$dev_p"3 "$dev_p"2 "$dev_p"1 $distroname
 
 
-echo ""
 echo "************ Calling CHRUBIX, the Python powerhouse of pulchritudinous perfection ************"
 
 tar -cz /usr/share/vboot /usr/bin/vbutil* /usr/bin/old_bins /usr/bin/futility > $btstrap/tmp/.vbkeys.tgz 2>/dev/null #### MAKE SURE CHRUBIX HAS ACCESS TO Y-O-U-R KEYS and YOUR vbutil* binaries ####
