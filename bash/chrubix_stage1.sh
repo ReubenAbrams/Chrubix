@@ -207,6 +207,18 @@ install_chrubix() {
 	for f in chrubix.sh greeter.sh CHRUBIX redo_mbr.sh modify_sources.sh ; do
 		ln -sf Chrubix/bash/$f $root/usr/local/bin/$f
 	done
+
+	cd $root/usr/local/bin/Chrubix/bash
+	mv chrubix.sh chrubix.sh.orig
+	cat chrubix.sh.orig \
+| sed s/\$dev/\dev\\\/`basename $dev`/ \
+| sed s/\$rootdev/\dev\\\/`basename $rootdev`/ \
+| sed s/\$sparedev/\dev\\\/`basename $sparedev`/ \
+| sed s/\$kerndev/\dev\\\/`basename $kerndev`/ \
+| sed s/\$distroname/\tmp\\\/$distroname/ \
+> chrubix.sh
+	cd /
+
 }
 
 
@@ -256,9 +268,9 @@ fstab_opts="defaults,noatime,nodiratime" #commit=100
 mount_opts="-o $fstab_opts"
 format_opts="-v"
 fstype=ext4
-root=/tmp/_root.`basename $dev`
-boot=/tmp/_boot.`basename $dev`
-kern=/tmp/_kern.`basename $dev`
+root=/tmp/_root.`basename $dev`		# Don't monkey with this...
+boot=/tmp/_boot.`basename $dev`		# ...or this...
+kern=/tmp/_kern.`basename $dev`		# ...or this!
 
 
 lockfile=/tmp/.chrubix.distro.`basename $dev`
