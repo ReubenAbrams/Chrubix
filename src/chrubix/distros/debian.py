@@ -2,12 +2,13 @@
 #
 # debian.py
 
+# TODO: aptitude --download-only ... Should I install it at end of important pkg func, or should I do it during final push?
+
 
 from chrubix.utils import generate_temporary_filename, g_proxy, failed, system_or_die, write_oneliner_file, wget, logme, \
                           chroot_this, read_oneliner_file, do_a_sed  # , generate_and_incorporate_patch_for_debian
 import os
 from chrubix.distros import Distro
-
 
 
 class DebianDistro( Distro ):
@@ -16,7 +17,7 @@ class DebianDistro( Distro ):
 libattr1-dev build-essential fakeroot oss-compat devscripts equivs lintian libglib2.0-dev po-debconf \
 iso-codes debconf cdbs debhelper uuid-dev quilt openjdk-7-jre ant lxsession xz-utils libxmu-dev libx11-dev \
 mplayer2 default-jre dpatch alsa-oss festival dialog libck-connector-dev libpam0g-dev \
-python-mutagen libconfig-auto \
+python-mutagen libconfig-auto mythes-en-us \
 libgtk2.0-dev x11-utils xbase-clients librsvg2-common librsvg2-dev pyqt4-dev-tools libreoffice \
 wireless-tools wpasupplicant firmware-libertas libxpm-dev libreadline-dev libblkid-dev python-distutils-extra \
 e2fslibs-dev gtk2-engines-pixbuf debhelper libsnappy-dev libgcrypt-dev iceweasel icedove gconf2 \
@@ -101,7 +102,7 @@ deb-src http://ftp.ca.debian.org/debian %s main non-free contrib
 Acquire::http::Proxy "http://%s/";
 Acquire::ftp::Proxy  "ftp://%s/";
 Acquire::https::Proxy "https://%s/";
-''' % ( g_proxy, g_proxy ) )
+''' % ( g_proxy, g_proxy, g_proxy ) )
             f.close()
         for pkg_name in self.list_of_mkfs_packages:
             chroot_this( self.mountpoint, 'sudo apt-mark hold %s' % ( pkg_name ) )

@@ -41,16 +41,16 @@ class Distro():
     loglevel = "2"
     tempdir = "/tmp"
     initial_default_gui = chrubix.utils.g_default_window_manager
-    important_packages = ' xmltoman squashfs-tools aircrack-ng gnome-keyring lxde dillo \
+    important_packages = 'xmltoman squashfs-tools aircrack-ng gnome-keyring dillo \
 sound-juicer keepassx liferea gobby claws-mail festival-us bluez-utils libreoffice-en-US libreoffice-gnome \
-busybox bzr cpio cryptsetup curl lzop ed parted libtool patch git nano bc pv pidgin mythes-en \
+busybox bzr cpio cryptsetup curl lzop ed parted libtool patch git nano bc pv pidgin \
 python-pip python-setuptools python3 rng-tools sudo tzdata unzip wget flex gcc mousepad bison autoconf \
 ntfs-3g autogen automake bluez pulseaudio docbook-xsl dosfstools expect acpid make mpg123 pwgen asciidoc \
 libcanberra-pulse xterm xscreensaver rxvt rxvt-unicode smem intltool libxfixes \
 uboot-mkimage ttf-dejavu ffmpeg mplayer notification-daemon pkg-config ttf-liberation \
 gimp inkscape scribus audacity pitivi poedit alsa-utils simple-scan macchanger brasero pm-utils gnupg \
 python-yaml python-gobject python-qrencode python-imaging python-setuptools python-crypto '  # palimpsest gnome-session-fallback mate-settings-daemon-pulseaudio
-    final_push_packages = 'pavucontrol tor privoxy vidalia systemd syslog-ng gnome-tweak-tool'  # Install these, all at once, when we're ready to break the Internet :)
+    final_push_packages = 'lxde pavucontrol tor privoxy vidalia systemd syslog-ng gnome-tweak-tool'  # Install these, all at once, when we're ready to break the Internet :)
     # Instance-level attributes
     def __init__( self, *args, **kwargs ):
         self.name = None
@@ -829,21 +829,26 @@ MEH: No encryption is employed. No duress password is recorded. Guest Mode is st
 
     def install_chrubix( self ):
         # Save the old-but-grooby chrubix.sh; it was modified (its vars resolved) by chrubix_stage1.sh
-        groovy_chrubix_sh_file = generate_temporary_filename( '%s/tmp' % ( self.mountpoint ) )
-        system_or_die( 'cp %s/usr/local/bin/chrubix.sh %s' % ( self.mountpoint, groovy_chrubix_sh_file ) )
+#        groovy_chrubix_sh_file = generate_temporary_filename( 'tmp' )
+#        system_or_die( 'cp /usr/local/bin/chrubix.sh %s' % ( self.mountpoint, groovy_chrubix_sh_file ) )
         # Delete old copy of Chrubix from mountpoint.
         system_or_die( 'rm -Rf %s/usr/local/bin/Chrubix' % ( self.mountpoint ) )
         # Download and install latest copy from the GitHub website.
         if 0 != wget( url = 'https://github.com/ReubenAbrams/Chrubix/archive/master.tar.gz',
                                 extract_to_path = '%s/usr/local/bin' % ( self.mountpoint ), decompression_flag = 'z',
-                                status_lst = self.status_lst, title_str = self.title_str ):
+                                quiet = True, status_lst = self.status_lst, title_str = self.title_str ):
             failed( 'Failed to install Chrubix in bootstrap OS' )
         system_or_die( 'mv %s/usr/local/bin/Chrubix* %s/usr/local/bin/Chrubix' % ( self.mountpoint, self.mountpoint ) )
         # Try to install latest-latest version (on top of GitHub version) from Dropbox.
         for f in ( 'bash/chrubix.sh', 'bash/greeter.sh', 'bash/modify_sources.sh', 'bash/redo_mbr.sh', 'src/main.py', 'src/greeter.py', 'src/tinker.py' ):
-            assert( os.path.exists( '%s/usr/local/bin/Chrubix/%s' % ( self.mountpoint, f ) ) )
+            g = '%s/usr/local/bin/Chrubix/%s' % ( self.mountpoint, f )
+            if os.path.exists( g ):
+                logme( '%s exists' % ( g ) )
+            else:
+                failed( '%s does not exist' % ( g ) )
         try:
-            wget( url = 'https://dl.dropboxusercontent.com/u/59916027/chrubix/_chrubix.tar.xz', decompression_flag = 'J', extract_to_path = '%s/usr/local/bin/Chrubix' % ( self.mountpoint ), quiet = True )
+            wget( url = 'https://dl.dropboxusercontent.com/u/59916027/chrubix/_chrubix.tar.xz',
+                  decompression_flag = 'J', extract_to_path = '%s/usr/local/bin/Chrubix' % ( self.mountpoint ), quiet = True )
         except SystemError:
             self.status_lst.append( ['Failed to install new version via wget. That sucks. Let us continue anyway...'] )
 #        # Finally, restore old-but-groovy chrubix.sh from backup.

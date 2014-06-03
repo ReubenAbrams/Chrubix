@@ -22,7 +22,7 @@
 ALARPY_URL="https://dl.dropboxusercontent.com/u/59916027/chrubix/alarpy.tar.xz"
 FINALS_URL="https://dl.dropboxusercontent.com/u/59916027/chrubix/finals"
 CHRUBIX_URL=https://github.com/ReubenAbrams/Chrubix/archive/master.tar.gz
-
+OVERLAY_URL=https://dl.dropboxusercontent.com/u/59916027/chrubix/_chrubix.tar.xz
 
 
 if ping -W2 -c1 192.168.1.66 &>/dev/null ; then
@@ -203,7 +203,7 @@ install_chrubix() {
 	rm -Rf $root/usr/local/bin/Chrubix $rot/usr/local/bin/1hq8O7s
 	wget $CHRUBIX_URL -O - | tar -zx -C $root/usr/local/bin
 	mv $root/usr/local/bin/Chrubix* $root/usr/local/bin/Chrubix	# rename Chrubix-master (or whatever) to Chrubix
-	wget https://dl.dropboxusercontent.com/u/59916027/chrubix/_chrubix.tar.xz -O - | tar -Jx -C $root/usr/local/bin/Chrubix || echo "Sorry. Dropbox is down. We'll have to rely on GitHub..."
+	wget $OVERLAY_URL -O - | tar -Jx -C $root/usr/local/bin/Chrubix || failed "Sorry. Dropbox is down. We'll have to rely on GitHub..."
 	for f in chrubix.sh greeter.sh CHRUBIX redo_mbr.sh modify_sources.sh ; do
 		ln -sf Chrubix/bash/$f $root/usr/local/bin/$f
 	done
