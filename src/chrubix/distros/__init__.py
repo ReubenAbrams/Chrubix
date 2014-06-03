@@ -29,6 +29,7 @@ class Distro():
     '''
     '''
     # Class-level consts
+    hewwo = '2014/06/02 @ 23:02'
     crypto_rootdev = "/dev/mapper/cryptroot"
     crypto_homedev = "/dev/mapper/crypthome"
     boot_prompt_string = "boot: "
@@ -104,7 +105,7 @@ gnome-tweak-tool'  # Install these, all at once, when we're ready to break the I
         my_title = self.name
         if self.branch is not None:
             my_title += ' ' + self.branch
-        return 'Installing %s on %s' % ( my_title, self.device )
+        return '%s - Installing %s on %s' % ( self.hewwo, my_title, self.device )
     @title_str.setter
     def title_str( self, value ):
         raise AttributeError( 'Please do not try to set title_str, even to %s' % ( str( value ) ) )
@@ -862,7 +863,7 @@ MEH: No encryption is employed. No duress password is recorded. Guest Mode is st
                                               ):
             do_a_sed( '%s/usr/local/bin/Chrubix/bash/chrubix.sh' % ( self.mountpoint ), currently_says, ought_to_say )
         system_or_die( 'ln -sf Chrubix/bash/chrubix.sh %s/usr/local/bin/chrubix.sh' % ( self.mountpoint ) )
-        for f in ( 'chrubix.sh', 'CHRUBIX', 'greeter.sh', 'preboot_configurer.sh', 'modify_sources.sh', 'redo_mbr' ):
+        for f in ( 'chrubix.sh', 'CHRUBIX', 'greeter.sh', 'preboot_configurer.sh', 'modify_sources.sh', 'redo_mbr.sh' ):
             system_or_die( 'ln -sf Chrubix/bash/%s %s/usr/local/bin/%s' % ( f, self.mountpoint, f ) )
         chroot_this( self.mountpoint, 'easy_install urwid',
                     status_lst = self.status_lst,
