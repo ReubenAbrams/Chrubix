@@ -9,6 +9,7 @@ import os
 from chrubix.distros import Distro
 
 
+
 class DebianDistro( Distro ):
     important_packages = Distro.important_packages + ' ' + \
 ' xorg gnu-standards apt-utils libpopt-dev libacl1-dev libcrypto++-dev exo-utils libnotify-bin \
@@ -98,7 +99,8 @@ deb-src http://ftp.ca.debian.org/debian %s main non-free contrib
             f = open( '%s/etc/apt/apt.conf' % ( self.mountpoint ), 'a' )
             f.write( '''
 Acquire::http::Proxy "http://%s/";
-Acquire::ftp::Proxy  "http://%s/";
+Acquire::ftp::Proxy  "ftp://%s/";
+Acquire::https::Proxy "https://%s/";
 ''' % ( g_proxy, g_proxy ) )
             f.close()
         for pkg_name in self.list_of_mkfs_packages:
@@ -110,10 +112,8 @@ Acquire::ftp::Proxy  "http://%s/";
         f.write( '''
 deb     http://ftp.uk.debian.org/debian %s-backports main non-free contrib
 deb-src http://ftp.uk.debian.org/debian %s-backports main non-free contrib
-''' % ( self.branch, self.branch, self.branch, self.branch ) )
+''' % ( self.branch, self.branch ) )
         f.close()
-        chroot_this ( self.mountpoint, 'yes 2>/dev/null | apt-get update', "Failed to update OS" , attempts = 5, title_str = self.title_str, status_lst = self.status_lst )
-        chroot_this ( self.mountpoint, 'apt-get --yes --quiet --allow-unauthenticated install mate-archive-keyring', "Failed to install MATE keyring" , attempts = 5, title_str = self.title_str, status_lst = self.status_lst )
         chroot_this ( self.mountpoint, 'yes 2>/dev/null | apt-get update', "Failed to update OS" , attempts = 5, title_str = self.title_str, status_lst = self.status_lst )
         chroot_this ( self.mountpoint, 'yes 2>/dev/null | apt-get upgrade', "Failed to upgrade OS" , attempts = 5, title_str = self.title_str, status_lst = self.status_lst )
 
@@ -122,8 +122,6 @@ deb-src http://ftp.uk.debian.org/debian %s-backports main non-free contrib
         packages_installed_succesfully = []
         packages_that_we_failed_to_install = []
         packages_lst = self.important_packages.split( ' ' )
-        chroot_this( self.mountpoint, 'yes | aptitude install mate-desktop-environment-extras' ,
-                     title_str = self.title_str, status_lst = self.status_lst )
         list_of_groups = [ packages_lst[i:i + self.package_group_size] for i in range( 0, len( packages_lst ), self.package_group_size ) ]
         for lst in list_of_groups:
             pkg = ''.join( [r + ' ' for r in lst] )  # technically, 'pkg' is a string of three or more packages ;)
@@ -146,6 +144,10 @@ deb-src http://ftp.uk.debian.org/debian %s-backports main non-free contrib
             self.status_lst.append( ['Installed %d packages successfully' % ( len( packages_installed_succesfully ) )] )
             self.status_lst[-1] += '...but we failed to install %s' % str( packages_that_we_failed_to_install )
         self.steal_dtc_and_mkinitcpio_from_alarpy()
+        if chroot_this( self.mountpoint, 'yes 2> /dev/null | aptitude install mate-desktop-environment-extras' ,
+                     on_fail = 'Failed to install MATE',
+                     title_str = self.title_str, status_lst = self.status_lst ):
+            failed( 'Failed to install MATE' )
 
 #    def download_kernel_source( self ):
 #        self.download_package_source( destination_directory = os.path.dirname( self.kernel_src_basedir ),

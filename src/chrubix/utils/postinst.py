@@ -42,6 +42,8 @@ logger "QQQ start of postlogin script"
 export DISPLAY=:0.0
 echo "$USER" > $liu
 
+start-pulseaudio-x11 &
+
 [ -e "/etc/lxdm/lxdm.conf.first.non-camo" ] && soundfile=winxp || soundfile=pghere
 mpg123 /etc/.mp3/$soundfile.mp3 &
 

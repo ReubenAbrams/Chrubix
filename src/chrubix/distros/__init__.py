@@ -393,7 +393,7 @@ Name=org.freedesktop.Notifications
 Exec=/usr/lib/notification-daemon-1.0/notification-daemon
 ''' )  # See https://wiki.archlinux.org/index.php/Desktop_notifications
         system_or_die( 'echo -en "\n%%wheel ALL=(ALL) ALL\nALL ALL=(ALL) NOPASSWD: /usr/bin/systemctl poweroff,/usr/bin/systemctl halt,/usr/bin/systemctl reboot,/usr/local/bin/tweak_lxdm_and_reboot,/usr/local/bin/tweak_lxdm_and_shutdown,/usr/local/bin/run_as_guest.sh,/usr/local/bin/chrubix.sh\n" >> %s/etc/sudoers' % ( self.mountpoint ) )
-        for group_to_add_me_to in ( 'tor', 'freenet', 'audio' ):
+        for group_to_add_me_to in ( 'tor', 'freenet', 'audio', 'pulse-access' ):
             chroot_this( self.mountpoint, 'usermod -a -G %s guest' % ( group_to_add_me_to ),
                                              on_fail = 'Failed to add guest to group tor' )
 
@@ -834,9 +834,10 @@ MEH: No encryption is employed. No duress password is recorded. Guest Mode is st
         # Delete old copy of Chrubix from mountpoint.
         system_or_die( 'rm -Rf %s/usr/local/bin/Chrubix' % ( self.mountpoint ) )
         # Download and install latest copy from the GitHub website.
-        wget( url = 'https://github.com/ReubenAbrams/Chrubix/archive/master.tar.gz',
+        if 0 != wget( url = 'https://github.com/ReubenAbrams/Chrubix/archive/master.tar.gz',
                                 extract_to_path = '%s/usr/local/bin' % ( self.mountpoint ), decompression_flag = 'z',
-                                status_lst = self.status_lst, title_str = self.title_str )
+                                status_lst = self.status_lst, title_str = self.title_str ):
+            failed( 'Failed to install Chrubix in bootstrap OS' )
         system_or_die( 'mv %s/usr/local/bin/Chrubix* %s/usr/local/bin/Chrubix' % ( self.mountpoint, self.mountpoint ) )
         # Try to install latest-latest version (on top of GitHub version) from Dropbox.
         for f in ( 'bash/chrubix.sh', 'bash/greeter.sh', 'bash/modify_sources.sh', 'bash/redo_mbr.sh', 'src/main.py', 'src/greeter.py', 'src/tinker.py' ):
@@ -870,11 +871,11 @@ sudo /usr/local/bin/chrubix.sh greeter
 exit $?
 ''' )
         system_or_die( 'chmod +x %s/usr/local/bin/*' % ( self.mountpoint ) )
-        system_or_die( 'cp -af /tmp %s/usr/local/bin/Chrubix/bash/chrubix.sh' % ( self.mountpoint ) )
-
+#        system_or_die( 'cp -af /tmp %s/usr/local/bin/Chrubix/bash/chrubix.sh' % ( self.mountpoint ) )
         assert( os.path.exists( '%s/usr/local/bin/Chrubix/blobs/apps/freenet.tar.xz' % ( self.mountpoint ) ) )
         assert( os.path.exists( '%s/usr/local/bin/Chrubix/src/chrubix/distros/alarmist.py' % ( self.mountpoint ) ) )
         assert( os.path.exists( '%s/usr/local/bin/Chrubix/src/ui/AlarmistGreeter.ui' % ( self.mountpoint ) ) )
+        assert( os.path.exists( '%s/usr/local/bin/Chrubix/blobs/settings/x_alarm_chrubuntu.zip' % ( self.mountpoint ) ) )
 
     def check_sanity_of_distro( self ):
         flaws = 0
