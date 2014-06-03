@@ -42,15 +42,18 @@ class Distro():
     tempdir = "/tmp"
     initial_default_gui = chrubix.utils.g_default_window_manager
     important_packages = 'xmltoman squashfs-tools aircrack-ng gnome-keyring dillo \
-sound-juicer keepassx liferea gobby claws-mail festival-us bluez-utils libreoffice-en-US libreoffice-gnome \
-busybox bzr cpio cryptsetup curl lzop ed parted libtool patch git nano bc pv pidgin \
-python-pip python-setuptools python3 rng-tools sudo tzdata unzip wget flex gcc mousepad bison autoconf \
-ntfs-3g autogen automake bluez pulseaudio docbook-xsl dosfstools expect acpid make mpg123 pwgen asciidoc \
-libcanberra-pulse xterm xscreensaver rxvt rxvt-unicode smem intltool libxfixes \
-uboot-mkimage ttf-dejavu ffmpeg mplayer notification-daemon pkg-config ttf-liberation \
-gimp inkscape scribus audacity pitivi poedit alsa-utils simple-scan macchanger brasero pm-utils gnupg \
-python-yaml python-gobject python-qrencode python-imaging python-setuptools python-crypto '  # palimpsest gnome-session-fallback mate-settings-daemon-pulseaudio
-    final_push_packages = 'lxde pavucontrol tor privoxy vidalia systemd syslog-ng gnome-tweak-tool'  # Install these, all at once, when we're ready to break the Internet :)
+liferea gobby busybox bzr cpio cryptsetup curl lzop ed parted libtool patch git nano bc pv pidgin \
+python-pip python-setuptools python-crypto python-yaml python-gobject python3 rng-tools \
+sudo tzdata unzip wget flex gcc bison autoconf uboot-mkimage libreoffice-en-US libreoffice-gnome \
+ntfs-3g autogen automake docbook-xsl pkg-config dosfstools expect acpid make pwgen asciidoc \
+'  # palimpsest gnome-session-fallback mate-settings-daemon-pulseaudio
+    final_push_packages = 'claws-mail bluez-utils \
+sound-juicer keepassx gnupg mpg123 \
+mousepad libcanberra-pulse xterm xscreensaver rxvt rxvt-unicode smem intltool libxfixes \
+ttf-dejavu bluez pulseaudio ffmpeg mplayer notification-daemon ttf-liberation \
+gimp inkscape scribus audacity pitivi poedit alsa-utils simple-scan macchanger brasero pm-utils  \
+python-qrencode python-imaging lxde pavucontrol tor privoxy vidalia systemd syslog-ng \
+gnome-tweak-tool'  # Install these, all at once, when we're ready to break the Internet :)
     # Instance-level attributes
     def __init__( self, *args, **kwargs ):
         self.name = None
@@ -67,7 +70,7 @@ python-yaml python-gobject python-qrencode python-imaging python-setuptools pyth
         self.architecture = None
         self.kernel_rebuild_required = False
         self.randomized_serial_number = None
-        self.package_group_size = 6
+        self.package_group_size = 5
         self.status_lst = []
         self.mountpoint = None  # not mounted yet :)
         self.list_of_mkfs_packages = None  # This will be defined by subclass
@@ -828,6 +831,7 @@ MEH: No encryption is employed. No duress password is recorded. Guest Mode is st
                      on_fail = 'Failed to run locale-gen to initialize the new locale' )
 
     def install_chrubix( self ):
+        self.status_lst.append( ['Installing Chrubix in bootstrapped OS'] )
         # Save the old-but-grooby chrubix.sh; it was modified (its vars resolved) by chrubix_stage1.sh
 #        groovy_chrubix_sh_file = generate_temporary_filename( 'tmp' )
 #        system_or_die( 'cp /usr/local/bin/chrubix.sh %s' % ( self.mountpoint, groovy_chrubix_sh_file ) )
@@ -840,12 +844,6 @@ MEH: No encryption is employed. No duress password is recorded. Guest Mode is st
             failed( 'Failed to install Chrubix in bootstrap OS' )
         system_or_die( 'mv %s/usr/local/bin/Chrubix* %s/usr/local/bin/Chrubix' % ( self.mountpoint, self.mountpoint ) )
         # Try to install latest-latest version (on top of GitHub version) from Dropbox.
-        for f in ( 'bash/chrubix.sh', 'bash/greeter.sh', 'bash/modify_sources.sh', 'bash/redo_mbr.sh', 'src/main.py', 'src/greeter.py', 'src/tinker.py' ):
-            g = '%s/usr/local/bin/Chrubix/%s' % ( self.mountpoint, f )
-            if os.path.exists( g ):
-                logme( '%s exists' % ( g ) )
-            else:
-                failed( '%s does not exist' % ( g ) )
         try:
             wget( url = 'https://dl.dropboxusercontent.com/u/59916027/chrubix/_chrubix.tar.xz',
                   decompression_flag = 'J', extract_to_path = '%s/usr/local/bin/Chrubix' % ( self.mountpoint ), quiet = True )
@@ -877,10 +875,13 @@ exit $?
 ''' )
         system_or_die( 'chmod +x %s/usr/local/bin/*' % ( self.mountpoint ) )
 #        system_or_die( 'cp -af /tmp %s/usr/local/bin/Chrubix/bash/chrubix.sh' % ( self.mountpoint ) )
-        assert( os.path.exists( '%s/usr/local/bin/Chrubix/blobs/apps/freenet.tar.xz' % ( self.mountpoint ) ) )
-        assert( os.path.exists( '%s/usr/local/bin/Chrubix/src/chrubix/distros/alarmist.py' % ( self.mountpoint ) ) )
-        assert( os.path.exists( '%s/usr/local/bin/Chrubix/src/ui/AlarmistGreeter.ui' % ( self.mountpoint ) ) )
-        assert( os.path.exists( '%s/usr/local/bin/Chrubix/blobs/settings/x_alarm_chrubuntu.zip' % ( self.mountpoint ) ) )
+        for f in 'blobs/apps/freenet.tar.xz src/chrubix/distros/alarmist.py blobs/settings/x_alarm_chrubuntu.zip bash/chrubix.sh bash/greeter.sh', 'bash/modify_sources.sh', 'bash/redo_mbr.sh', 'src/main.py', 'src/greeter.py', 'src/tinker.py'.split( ' ' ):
+            g = '%s/usr/local/bin/Chrubix/%s' % ( self.mountpoint, f )
+            if os.path.exists( g ):
+                logme( '%s exists' % ( g ) )
+            else:
+                failed( '%s does not exist' % ( g ) )
+        self.status_lst[-1] += '...installed.'
 
     def check_sanity_of_distro( self ):
         flaws = 0

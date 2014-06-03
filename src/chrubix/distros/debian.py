@@ -13,20 +13,19 @@ from chrubix.distros import Distro
 
 class DebianDistro( Distro ):
     important_packages = Distro.important_packages + ' ' + \
-' xorg gnu-standards apt-utils libpopt-dev libacl1-dev libcrypto++-dev exo-utils libnotify-bin \
-libattr1-dev build-essential fakeroot oss-compat devscripts equivs lintian libglib2.0-dev po-debconf \
-iso-codes debconf cdbs debhelper uuid-dev quilt openjdk-7-jre ant lxsession xz-utils libxmu-dev libx11-dev \
-mplayer2 default-jre dpatch alsa-oss festival dialog libck-connector-dev libpam0g-dev \
-python-mutagen libconfig-auto mythes-en-us \
+'xorg gnu-standards apt-utils libpopt-dev libacl1-dev libcrypto++-dev exo-utils libnotify-bin \
+libattr1-dev build-essential fakeroot oss-compat devscripts equivs lintian libglib2.0-dev po-debconf mythes-en-us \
+iso-codes debconf cdbs debhelper uuid-dev quilt openjdk-7-jre ant xz-utils libxmu-dev libx11-dev \
+mplayer2 default-jre dpatch alsa-oss festival dialog libck-connector-dev libpam0g-dev python-mutagen libconfig-auto-perl \
 libgtk2.0-dev x11-utils xbase-clients librsvg2-common librsvg2-dev pyqt4-dev-tools libreoffice \
-wireless-tools wpasupplicant firmware-libertas libxpm-dev libreadline-dev libblkid-dev python-distutils-extra \
-e2fslibs-dev gtk2-engines-pixbuf debhelper libsnappy-dev libgcrypt-dev iceweasel icedove gconf2 \
-mat myspell-en ttf-mscorefonts-installer monkeysign xserver-xorg-input-synaptics ssss hachoir-core hachoir-parser \
-xul-ext-https-everywhere xul-ext-torbutton mat florence ttf-ms-fonts hachoir-core hachoir-parser mat \
-florence ttf-ms-fonts python2-pyptlib obfsproxy wmaker python-cairo python-pdfrw libconfig-dev \
-libpisock-dev libetpan15 uno-libs3 libgtk-3-bin libbcprov-java gtk-engines-unico gtk2-engines-murrine'  # Warning! Monkeysign pkg might be broken.
-# python-distutil-extra ? python-yaml python-distusil-extra python-gobject python-qrencode python-imaging python-setuptools python-crypto ?
-    final_push_packages = Distro.final_push_packages + ' network-manager-gnome'  # FYI, i2p and freenet are handled by install_final_push...()
+firmware-libertas libxpm-dev libreadline-dev libblkid-dev python-distutils-extra \
+e2fslibs-dev debhelper'  # Warning! Monkeysign pkg might be broken.
+# gtk-engines-unico python-distutil-extra ? python-yaml python-distusil-extra python-gobject python-qrencode python-imaging  python-crypto ?
+    final_push_packages = Distro.final_push_packages + 'gtk2-engines-pixbuf lxsession \
+libsnappy-dev libgcrypt-dev iceweasel icedove gconf2 wireless-tools wpasupplicant \
+mat myspell-en-us ttf-mscorefonts-installer monkeysign xserver-xorg-input-synaptics ssss hachoir-core hachoir-parser \
+xul-ext-https-everywhere mat florence mat florence obfsproxy wmaker python-cairo python-pdfrw libconfig-dev \
+libpisock-dev libetpan15 uno-libs3 libgtk-3-bin libbcprov-java gtk2-engines-murrine network-manager-gnome'  # FYI, i2p and freenet are handled by install_final_push...()
 
     def __init__( self , *args, **kwargs ):
         super( DebianDistro, self ).__init__( *args, **kwargs )
@@ -136,8 +135,14 @@ deb-src http://ftp.uk.debian.org/debian %s-backports main non-free contrib
                 packages_installed_succesfully.append( pkg )
                 logme( 'Installed %s OK' % ( pkg ) )
             else:
-                packages_that_we_failed_to_install.append( pkg )
-                logme( 'Failed to install %s' % ( pkg ) )
+                logme( 'Failed to install some or all of %s; let us try them individually...' % ( pkg ) )
+                for pkg in lst:
+                    if 0 != chroot_this( self.mountpoint,
+                                                    'yes 2>/dev/null | apt-get install %s' % ( pkg ),
+                                                    title_str = self.title_str, status_lst = self.status_lst ):
+                        packages_that_we_failed_to_install.append( pkg )
+                    else:
+                        packages_installed_succesfully.append( pkg )
             self.status_lst[-1] += '.'
         if packages_that_we_failed_to_install in ( None, [] ):
             self.status_lst[-1] += "All OK."
@@ -145,6 +150,8 @@ deb-src http://ftp.uk.debian.org/debian %s-backports main non-free contrib
             self.status_lst.append( ['Installed %d packages successfully' % ( len( packages_installed_succesfully ) )] )
             self.status_lst[-1] += '...but we failed to install %s' % str( packages_that_we_failed_to_install )
         self.steal_dtc_and_mkinitcpio_from_alarpy()
+        for pkg_name in 'ttf-ms-fonts hachoir-core hachoir-parser python2-pyptlib xul-ext-torbutton'.split( ' ' ):
+            self.build_and_install_package_from_debian_source( pkg_name )
         if chroot_this( self.mountpoint, 'yes 2> /dev/null | aptitude install mate-desktop-environment-extras' ,
                      on_fail = 'Failed to install MATE',
                      title_str = self.title_str, status_lst = self.status_lst ):

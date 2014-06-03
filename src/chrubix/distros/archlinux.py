@@ -12,7 +12,7 @@ class ArchlinuxDistro( Distro ):
     important_packages = Distro.important_packages + ' ' + \
 'xf86-video-fbdev cgpt xz mkinitcpio xf86-video-armsoc exo \
 mate mate-themes-extras mate-nettool mate-mplayer mate-accountsdialog \
-mutagen libconfig xf86-input-synaptics libxpm dtc xmlto xorg-server mythes-en \
+mutagen libconfig xf86-input-synaptics festival-us libxpm dtc xmlto xorg-server mythes-en \
 xorg-xmessage mesa pyqt gptfdisk xlockmore bluez-libs alsa-plugins acpi xorg-xinit sdl libcanberra \
 libnotify talkfilters xorg-server-utils java-runtime libxmu apache-ant junit chromium thunderbird \
 windowmaker librsvg libreoffice-en-US icedtea-web-java7 gconf hunspell-en zbar python2-setuptools \
