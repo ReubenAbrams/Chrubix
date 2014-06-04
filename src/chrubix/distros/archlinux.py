@@ -9,17 +9,18 @@ import os
 
 
 class ArchlinuxDistro( Distro ):
-    important_packages = Distro.important_packages + ' ' + \
-'xf86-video-fbdev cgpt xz mkinitcpio xf86-video-armsoc exo \
-mate mate-themes-extras mate-nettool mate-mplayer mate-accountsdialog \
-mutagen libconfig xf86-input-synaptics festival-us libxpm dtc xmlto xorg-server mythes-en \
-xorg-xmessage mesa pyqt gptfdisk xlockmore bluez-libs alsa-plugins acpi xorg-xinit sdl libcanberra \
-libnotify talkfilters xorg-server-utils java-runtime libxmu apache-ant junit chromium thunderbird \
-windowmaker librsvg libreoffice-en-US icedtea-web-java7 gconf hunspell-en zbar python2-setuptools \
+    important_packages = Distro.important_packages + ' \
+cgpt xz mkinitcpio mutagen libconfig festival-us libxpm dtc xmlto mythes-en \
+mesa pyqt gptfdisk bluez-libs alsa-plugins acpi sdl libcanberra \
+libnotify talkfilters java-runtime libxmu apache-ant junit zbar python2-setuptools \
 twisted python2-yaml python2-distutils-extra python2-gobject python2-cairo python2-poppler python2-pdfrw \
-bcprov gtk-engine-unico gtk-engine-murrine mate-themes-extras mate-nettool mate-mplayer mate-accountsdialog'
+bcprov'
     install_from_AUR = 'python2-pyptlib wmsystemtray hachoir-core hachoir-parser mat florence ttf-ms-fonts obfsproxy gtk-theme-adwaita-x win-xp-theme ssss java-service-wrapper i2p'  # pulseaudio-ctl pasystray-git
-    final_push_packages = Distro.final_push_packages + ' lxdm network-manager-applet'
+    final_push_packages = Distro.final_push_packages + ' \
+xf86-input-synaptics xorg-server xorg-xinit xf86-video-fbdev xf86-video-armsoc xlockmore xorg-server-utils \
+xorg-xmessage chromium thunderbird windowmaker librsvg icedtea-web-java7 gconf hunspell-en \
+lxdm network-manager-applet libreoffice-en-US gtk-engine-unico gtk-engine-murrine \
+mate-themes-extras mate-nettool mate-mplayer mate-accountsdialog'
 
     def __init__( self , *args, **kwargs ):
         super( ArchlinuxDistro, self ).__init__( *args, **kwargs )

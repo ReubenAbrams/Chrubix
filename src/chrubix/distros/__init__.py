@@ -46,11 +46,11 @@ class Distro():
     important_packages = 'xmltoman squashfs-tools aircrack-ng gnome-keyring dillo \
 liferea gobby busybox bzr cpio cryptsetup curl lzop ed parted libtool patch git nano bc pv pidgin \
 python-pip python-setuptools python-crypto python-yaml python-gobject python3 rng-tools \
-sudo tzdata unzip wget flex gcc bison autoconf uboot-mkimage libreoffice-common libreoffice-gnome \
+sudo tzdata unzip wget flex gcc bison autoconf uboot-mkimage \
 ntfs-3g autogen automake docbook-xsl pkg-config dosfstools expect acpid make pwgen asciidoc \
 '  # palimpsest gnome-session-fallback mate-settings-daemon-pulseaudio
     final_push_packages = 'claws-mail bluez-utils \
-sound-juicer keepassx gnupg mpg123 \
+sound-juicer keepassx gnupg mpg123 libreoffice-common libreoffice-gnome \
 mousepad libcanberra-pulse xterm xscreensaver rxvt rxvt-unicode smem intltool libxfixes \
 ttf-dejavu bluez pulseaudio ffmpeg mplayer notification-daemon ttf-liberation \
 gimp inkscape scribus audacity pitivi poedit alsa-utils simple-scan macchanger brasero pm-utils  \
