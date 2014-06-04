@@ -11,7 +11,7 @@ if [ "$USER" != "root" ] ; then
  	exit 1
 fi
 
-if ! cat /proc/cmdline | fgrep root=/dev/dm-0 &> /dev/null ; then
+if ! ps | fgrep CHRUBIX | fgrep -v fgrep ; then
 	wget https://dl.dropboxusercontent.com/u/59916027/chrubix/_chrubix.tar.xz -O - | tar -Jx -C /usr/local/bin/Chrubix || echo "Sorry. Dropbox is down. We'll have to rely on GitHub..."
 fi
 
