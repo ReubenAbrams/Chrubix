@@ -7,19 +7,19 @@ from chrubix.distros import Distro
 from chrubix.utils import failed, system_or_die, chroot_this, wget, logme, do_a_sed
 import os
 
-
+# FIXME: paman and padevchooser are deprecated
 class ArchlinuxDistro( Distro ):
     important_packages = Distro.important_packages + ' \
 cgpt xz mkinitcpio mutagen libconfig festival-us libxpm dtc xmlto mythes-en \
 mesa pyqt gptfdisk bluez-libs alsa-plugins acpi sdl libcanberra \
 libnotify talkfilters java-runtime libxmu apache-ant junit zbar python2-setuptools \
 twisted python2-yaml python2-distutils-extra python2-gobject python2-cairo python2-poppler python2-pdfrw \
-bcprov'
+bcprov gtk-engine-unico gtk-engine-murrine gtk-engines xorg-server xorg-xinit '
     install_from_AUR = 'wmsystemtray python2-pyptlib hachoir-core hachoir-parser mat florence obfsproxy ssss ttf-ms-fonts gtk-theme-adwaita-x win-xp-theme java-service-wrapper i2p'  # pulseaudio-ctl pasystray-git
     final_push_packages = Distro.final_push_packages + ' \
-xf86-input-synaptics xorg-server xorg-xinit xf86-video-fbdev xf86-video-armsoc xlockmore xorg-server-utils \
+xf86-input-synaptics xf86-video-fbdev xf86-video-armsoc xlockmore xorg-server-utils \
 xorg-xmessage chromium thunderbird windowmaker librsvg icedtea-web-java7 gconf hunspell-en \
-lxdm network-manager-applet libreoffice-en-US gtk-engine-unico gtk-engine-murrine \
+lxdm network-manager-applet libreoffice-en-US  \
 mate mate-themes-extras mate-nettool mate-mplayer mate-accountsdialog'
 
     def __init__( self , *args, **kwargs ):
@@ -145,13 +145,13 @@ mate mate-themes-extras mate-nettool mate-mplayer mate-accountsdialog'
     def install_final_push_of_packages( self ):
         logme( 'ArchlinuxDistro - install_final_push_of_packages() - starting' )
         self.status_lst.append( 'Installed' )
-        failed_pkgs = self.install_from_AUR.split( ' ' )
+        failed_pkgs = self.install_from_AUR
         attempts = 0
         while failed_pkgs != '' and attempts < 5:
             attempts += 1
             packages_to_install = failed_pkgs
             failed_pkgs = ''
-            for pkg_name in [r for r in packages_to_install if r != '']:
+            for pkg_name in packages_to_install.split( ' ' ):
                 try:
                     self.build_and_install_software_from_archlinux_source( pkg_name, quiet = True )
                     self.status_lst[-1] += ' %s' % ( pkg_name )

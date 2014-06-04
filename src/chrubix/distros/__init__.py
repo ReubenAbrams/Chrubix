@@ -25,7 +25,7 @@ from chrubix.utils.postinst import append_lxdm_post_login_script, append_lxdm_pr
 from chrubix.utils.mbr import install_initcpio_wiperamonshutdown_files
 from xml.dom import NotFoundErr
 
-
+# FIXME: paman and padevchooser are deprecated
 class Distro():
     '''
     '''
@@ -1079,11 +1079,11 @@ WantedBy=multi-user.target
                                 # From this point on, assume Internet access is gone.
                                 self.configure_dbus_sudo_and_groups,
                                 self.configure_lxdm_login_manager,
-                                self.configure_winxp_camo_and_guest_default_files,
                                 self.configure_privacy_tools,
                                 self.configure_chrome_or_iceweasel,
                                 self.configure_networking,
                                 self.configure_speech_synthesis_and_font_cache,
+                                self.configure_winxp_camo_and_guest_default_files,
                                 self.configure_distrospecific_tweaks,
                                 self.remove_all_junk,
                                 self.check_sanity_of_distro,

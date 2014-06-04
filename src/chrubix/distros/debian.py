@@ -10,7 +10,7 @@ from chrubix.utils import generate_temporary_filename, g_proxy, failed, system_o
 import os
 from chrubix.distros import Distro
 
-
+# FIXME: paman and padevchooser are deprecated
 class DebianDistro( Distro ):
     important_packages = Distro.important_packages + ' ' + \
 'gnu-standards apt-utils libpopt-dev libacl1-dev libcrypto++-dev exo-utils libnotify-bin \
