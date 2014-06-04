@@ -14,12 +14,12 @@ cgpt xz mkinitcpio mutagen libconfig festival-us libxpm dtc xmlto mythes-en \
 mesa pyqt gptfdisk bluez-libs alsa-plugins acpi sdl libcanberra \
 libnotify talkfilters java-runtime libxmu apache-ant junit zbar python2-setuptools \
 twisted python2-yaml python2-distutils-extra python2-gobject python2-cairo python2-poppler python2-pdfrw \
-bcprov gtk-engine-unico gtk-engine-murrine gtk-engines xorg-server xorg-xinit '
-    install_from_AUR = 'wmsystemtray python2-pyptlib hachoir-core hachoir-parser mat florence obfsproxy ssss ttf-ms-fonts gtk-theme-adwaita-x win-xp-theme java-service-wrapper i2p'  # pulseaudio-ctl pasystray-git
+bcprov gtk-engine-unico gtk-engine-murrine gtk-engines xorg-fonts xorg-font-utils xorg-fonts-encodings'
+    install_from_AUR = 'ttf-ms-fonts gtk-theme-adwaita-x win-xp-theme wmsystemtray python2-pyptlib hachoir-core hachoir-parser mat florence obfsproxy java-service-wrapper i2p ssss'  # pulseaudio-ctl pasystray-git
     final_push_packages = Distro.final_push_packages + ' \
 xf86-input-synaptics xf86-video-fbdev xf86-video-armsoc xlockmore xorg-server-utils \
 xorg-xmessage chromium thunderbird windowmaker librsvg icedtea-web-java7 gconf hunspell-en \
-lxdm network-manager-applet libreoffice-en-US  \
+lxdm network-manager-applet libreoffice-en-US xorg-server xorg-xinit \
 mate mate-themes-extras mate-nettool mate-mplayer mate-accountsdialog'
 
     def __init__( self , *args, **kwargs ):
@@ -152,6 +152,8 @@ mate mate-themes-extras mate-nettool mate-mplayer mate-accountsdialog'
             packages_to_install = failed_pkgs
             failed_pkgs = ''
             for pkg_name in packages_to_install.split( ' ' ):
+                if pkg_name in ( None, '', ' ' ):
+                    continue
                 try:
                     self.build_and_install_software_from_archlinux_source( pkg_name, quiet = True )
                     self.status_lst[-1] += ' %s' % ( pkg_name )
