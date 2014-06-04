@@ -10,10 +10,12 @@ from chrubix.utils import logme, wget, chroot_this, system_or_die
 
 class SuseDistro( Distro ):
     important_packages = Distro.important_packages + ' ' + '\
-xf86-video-fbdev cgpt xz mkinitcpio xf86-video-armsoc exo xf86-input-synaptics libxpm dtc xmlto xorg-server festival-us \
-xorg-xmessage mesa pyqt gptfdisk xlockmore bluez-libs alsa-plugins acpi xorg-xinit sdl libcanberra icedtea-web-java7 \
+ cgpt xz mkinitcpio libxpm dtc xmlto festival-us \
+mesa gptfdisk bluez-libs alsa-plugins acpisdl libcanberra icedtea-web-java7 \
 libnotify talkfilters chromium xorg-server-utils java-runtime libxmu libxfixes apache-ant junit'
-    final_push_packages = Distro.important_packages + ' ' + 'wmsystemtray lxdm network-manager-gnome'
+    final_push_packages = Distro.important_packages + '\
+xorg-server xf86-input-synaptics xf86-video-armsoc xorg-xmessage xlockmore pyqt \
+xorg-xinit xf86-video-fbdev wmsystemtray lxdm network-manager-gnome'
     def __init__( self ):
         super( SuseDistro, self ).__init__()
         self.__distroname = 'fedora'
