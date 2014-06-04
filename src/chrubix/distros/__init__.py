@@ -30,7 +30,7 @@ class Distro():
     '''
     '''
     # Class-level consts
-    hewwo = '2014/06/03 @ 15:30'
+    hewwo = '2014/06/04 @ 12:40'
     crypto_rootdev = "/dev/mapper/cryptroot"
     crypto_homedev = "/dev/mapper/crypthome"
     boot_prompt_string = "boot: "
@@ -926,11 +926,11 @@ exit $?
 # -b chromeos-3.4 ${basedir}/kernel # NO NEED. It gives us nothing that PKGBUILD(s) doesn't give us.
 
     def configure_winxp_camo_and_guest_default_files( self ):
+        install_windows_xp_theme_stuff( self.mountpoint )
         if os.path.exists( '%s/usr/share/icons/GnomeXP' % ( self.mountpoint ) ):
             raise RuntimeError( 'I have already installed the groovy XP stuff, FYI.' )
         system_or_die( 'rm -f %s/etc/lxdm/PreLogin' % ( self.mountpoint ) )
         append_lxdm_pre_login_script( '%s/etc/lxdm/PreLogin' % ( self.mountpoint ) )
-        install_windows_xp_theme_stuff( self.mountpoint )
         install_mp3_files( self.mountpoint )
         write_ersatz_lxdm( outfile = '%s/usr/local/bin/ersatz_lxdm.sh' % ( self.mountpoint ) )
 
