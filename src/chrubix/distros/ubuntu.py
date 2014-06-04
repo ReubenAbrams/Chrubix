@@ -5,12 +5,12 @@
 
 
 from chrubix.utils import logme, wget
-from chrubix.distros.debian import WheezyDebianDistro
+from chrubix.distros.debian import JessieDebianDistro
 
 
-class UbuntuDistro( WheezyDebianDistro ):
-    important_packages = WheezyDebianDistro.important_packages  # + ' ' + '????'
-    final_push_packages = WheezyDebianDistro.final_push_packages + ' ' + 'lxdm wmsystemtray'
+class UbuntuDistro( JessieDebianDistro ):
+    important_packages = JessieDebianDistro.important_packages  # + ' ' + '????'
+    final_push_packages = JessieDebianDistro.final_push_packages + ' ' + 'lxdm wmsystemtray'
     def __init__( self , *args, **kwargs ):
         super( UbuntuDistro, self ).__init__( *args, **kwargs )
         self.name = 'ubuntu'
