@@ -15,12 +15,12 @@ mesa pyqt gptfdisk bluez-libs alsa-plugins acpi sdl libcanberra \
 libnotify talkfilters java-runtime libxmu apache-ant junit zbar python2-setuptools \
 twisted python2-yaml python2-distutils-extra python2-gobject python2-cairo python2-poppler python2-pdfrw \
 bcprov'
-    install_from_AUR = 'python2-pyptlib wmsystemtray hachoir-core hachoir-parser mat florence ttf-ms-fonts obfsproxy gtk-theme-adwaita-x win-xp-theme ssss java-service-wrapper i2p'  # pulseaudio-ctl pasystray-git
+    install_from_AUR = 'wmsystemtray python2-pyptlib hachoir-core hachoir-parser mat florence obfsproxy ssss ttf-ms-fonts gtk-theme-adwaita-x win-xp-theme java-service-wrapper i2p'  # pulseaudio-ctl pasystray-git
     final_push_packages = Distro.final_push_packages + ' \
 xf86-input-synaptics xorg-server xorg-xinit xf86-video-fbdev xf86-video-armsoc xlockmore xorg-server-utils \
 xorg-xmessage chromium thunderbird windowmaker librsvg icedtea-web-java7 gconf hunspell-en \
 lxdm network-manager-applet libreoffice-en-US gtk-engine-unico gtk-engine-murrine \
-mate-themes-extras mate-nettool mate-mplayer mate-accountsdialog'
+mate mate-themes-extras mate-nettool mate-mplayer mate-accountsdialog'
 
     def __init__( self , *args, **kwargs ):
         super( ArchlinuxDistro, self ).__init__( *args, **kwargs )
@@ -145,16 +145,21 @@ mate-themes-extras mate-nettool mate-mplayer mate-accountsdialog'
     def install_final_push_of_packages( self ):
         logme( 'ArchlinuxDistro - install_final_push_of_packages() - starting' )
         self.status_lst.append( 'Installed' )
-        failed_pkgs = ''
-        for pkg_name in self.install_from_AUR.split( ' ' ):
-            try:
-                self.build_and_install_software_from_archlinux_source( pkg_name, quiet = True )
-                self.status_lst[-1] += ' %s' % ( pkg_name )
-            except RuntimeError:
-                failed_pkgs += ' %s' % ( pkg_name )
-        self.status_lst[-1] += '...OK.'
+        failed_pkgs = self.install_from_AUR.split( ' ' )
+        attempts = 0
+        while failed_pkgs != '' and attempts < 5:
+            attempts += 1
+            packages_to_install = failed_pkgs
+            failed_pkgs = ''
+            for pkg_name in packages_to_install:
+                try:
+                    self.build_and_install_software_from_archlinux_source( pkg_name, quiet = True )
+                    self.status_lst[-1] += ' %s' % ( pkg_name )
+                except RuntimeError:
+                    failed_pkgs += ' %s' % ( pkg_name )
+            self.status_lst[-1] += '...OK.'
         if failed_pkgs != '':
-            self.status_lst[-1] += '..but%s failed.' % ( failed_pkgs )
+            self.status_lst.append( ['Warning - failed to install%s' % ( failed_pkgs )] )
         self.status_lst.append( ['Installing %s' % ( self.final_push_packages.replace( '  ', ' ' ).replace( ' ', ', ' ) )] )
         chroot_this( self.mountpoint, 'yes "" 2>/dev/null | pacman -S --needed %s' % ( self.final_push_packages ), title_str = self.title_str, status_lst = self.status_lst,
                      on_fail = 'Failed to install final push of packages', attempts = 20 )
