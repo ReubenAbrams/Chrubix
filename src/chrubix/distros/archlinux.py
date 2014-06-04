@@ -144,13 +144,19 @@ bcprov gtk-engine-unico gtk-engine-murrine mate-themes-extras mate-nettool mate-
     def install_final_push_of_packages( self ):
         logme( 'ArchlinuxDistro - install_final_push_of_packages() - starting' )
         self.status_lst.append( 'Installed' )
+        failed_pkgs = ''
         for pkg_name in self.install_from_AUR.split( ' ' ):
-            self.build_and_install_software_from_archlinux_source( pkg_name, quiet = True )
-            self.status_lst[-1] += ' %s' % ( pkg_name )
+            try:
+                self.build_and_install_software_from_archlinux_source( pkg_name, quiet = True )
+                self.status_lst[-1] += ' %s' % ( pkg_name )
+            except RuntimeError:
+                failed_pkgs += ' %s' % ( pkg_name )
         self.status_lst[-1] += '...OK.'
+        if failed_pkgs != '':
+            self.status_lst[-1] += '..but%s failed.' % ( failed_pkgs )
         self.status_lst.append( ['Installing %s' % ( self.final_push_packages.replace( '  ', ' ' ).replace( ' ', ', ' ) )] )
         chroot_this( self.mountpoint, 'yes "" 2>/dev/null | pacman -S --needed %s' % ( self.final_push_packages ), title_str = self.title_str, status_lst = self.status_lst,
-                     on_fail = 'Failed to install final push of packages' )
+                     on_fail = 'Failed to install final push of packages', attempts = 20 )
         self.update_and_upgrade_all()
         self.status_lst[-1] += '...complete.'
 

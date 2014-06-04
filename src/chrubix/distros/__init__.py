@@ -2,6 +2,7 @@
 #
 # distros.py
 
+
 # TODO: Make sure memory is getting wiped at shutdown (play a tune?). See https://bbs.archlinux.org/viewtopic.php?id=136283
 import os
 import sys
@@ -29,7 +30,7 @@ class Distro():
     '''
     '''
     # Class-level consts
-    hewwo = '2014/06/02 @ 23:02'
+    hewwo = '2014/06/03 @ 15:30'
     crypto_rootdev = "/dev/mapper/cryptroot"
     crypto_homedev = "/dev/mapper/crypthome"
     boot_prompt_string = "boot: "
@@ -45,7 +46,7 @@ class Distro():
     important_packages = 'xmltoman squashfs-tools aircrack-ng gnome-keyring dillo \
 liferea gobby busybox bzr cpio cryptsetup curl lzop ed parted libtool patch git nano bc pv pidgin \
 python-pip python-setuptools python-crypto python-yaml python-gobject python3 rng-tools \
-sudo tzdata unzip wget flex gcc bison autoconf uboot-mkimage libreoffice-en-US libreoffice-gnome \
+sudo tzdata unzip wget flex gcc bison autoconf uboot-mkimage libreoffice-common libreoffice-gnome \
 ntfs-3g autogen automake docbook-xsl pkg-config dosfstools expect acpid make pwgen asciidoc \
 '  # palimpsest gnome-session-fallback mate-settings-daemon-pulseaudio
     final_push_packages = 'claws-mail bluez-utils \
@@ -398,8 +399,10 @@ Exec=/usr/lib/notification-daemon-1.0/notification-daemon
 ''' )  # See https://wiki.archlinux.org/index.php/Desktop_notifications
         system_or_die( 'echo -en "\n%%wheel ALL=(ALL) ALL\nALL ALL=(ALL) NOPASSWD: /usr/bin/systemctl poweroff,/usr/bin/systemctl halt,/usr/bin/systemctl reboot,/usr/local/bin/tweak_lxdm_and_reboot,/usr/local/bin/tweak_lxdm_and_shutdown,/usr/local/bin/run_as_guest.sh,/usr/local/bin/chrubix.sh\n" >> %s/etc/sudoers' % ( self.mountpoint ) )
         for group_to_add_me_to in ( 'tor', 'freenet', 'audio', 'pulse-access' ):
-            chroot_this( self.mountpoint, 'usermod -a -G %s guest' % ( group_to_add_me_to ),
-                                             on_fail = 'Failed to add guest to group tor' )
+            if group_to_add_me_to != 'pulse-access' and 0 != chroot_this( 
+                                        self.mountpoint, 'usermod -a -G %s guest' % ( group_to_add_me_to ),
+                                        title_str = self.title_str, status_lst = self.status_lst ):
+                failed( 'Failed to add guest to group %s' % ( group_to_add_me_to ) )
 
     def configure_networking( self ):
         for pretend_name, real_name in ( 
@@ -874,9 +877,10 @@ MEH: No encryption is employed. No duress password is recorded. Guest Mode is st
 sudo /usr/local/bin/chrubix.sh greeter
 exit $?
 ''' )
+        os.system( 'rm -f %s/usr/local/bin/redo_mbr' % ( self.mountpoint ) )
         system_or_die( 'chmod +x %s/usr/local/bin/*' % ( self.mountpoint ) )
 #        system_or_die( 'cp -af /tmp %s/usr/local/bin/Chrubix/bash/chrubix.sh' % ( self.mountpoint ) )
-        for f in 'blobs/apps/freenet.tar.xz src/chrubix/distros/alarmist.py blobs/settings/x_alarm_chrubuntu.zip bash/chrubix.sh bash/greeter.sh', 'bash/modify_sources.sh', 'bash/redo_mbr.sh', 'src/main.py', 'src/greeter.py', 'src/tinker.py'.split( ' ' ):
+        for f in 'blobs/apps/freenet.tar.xz src/chrubix/distros/alarmist.py blobs/settings/x_alarm_chrubuntu.zip bash/chrubix.sh bash/greeter.sh bash/modify_sources.sh bash/redo_mbr.sh src/main.py src/greeter.py src/tinker.py'.split( ' ' ):
             g = '%s/usr/local/bin/Chrubix/%s' % ( self.mountpoint, f )
             if os.path.exists( g ):
                 logme( '%s exists' % ( g ) )
@@ -892,7 +896,7 @@ exit $?
                                     'chrubix.sh', 'mkinitcpio', 'dtc', 'wmsystemtray', 'florence', \
                                     'pidgin', 'gpgApplet', 'macchanger', 'gpg', 'chrubix.sh', 'greeter.sh', \
                                     'run_browser_as_guest.sh', 'dropbox_uploader.sh', 'power_button_pushed.sh', \
-                                    'sayit.sh', 'vidalia', 'i2prouter', 'start-freenet.sh', 'claws-mail', \
+                                    'sayit.sh', 'vidalia', 'i2prouter', 'claws-mail', \
                                     'thunderbird', 'CHRUBIX', 'libreoffice', 'ssss-combine', 'ssss-split', 'dillo'
                                   ):
             self.status_lst[-1] += '.'
@@ -900,7 +904,7 @@ exit $?
                 self.status_lst.append( ['%s is missing from final distro' % ( executable_to_find )] )
                 flaws += 1
         if flaws > 0:
-            self.status_lst[-1] += ( ['%d flaw%s found; please rectify' % ( flaws, '' if flaws == 1 else 's' )] )
+            self.status_lst.append( ['%d flaw%s found; please rectify' % ( flaws, '' if flaws == 1 else 's' )] )
         else:
             self.status_lst[-1] += 'distro is not insane. (How nice)'
         logme( "This sanity-checker is incomplete. Please improve it." )
@@ -921,7 +925,7 @@ exit $?
 # git clone --depth 1 http://chromium.googlesource.com/chromiumos/third_party/kernel.git \
 # -b chromeos-3.4 ${basedir}/kernel # NO NEED. It gives us nothing that PKGBUILD(s) doesn't give us.
 
-    def install_winxp_camo_and_guest_default_files( self ):
+    def configure_winxp_camo_and_guest_default_files( self ):
         if os.path.exists( '%s/usr/share/icons/GnomeXP' % ( self.mountpoint ) ):
             raise RuntimeError( 'I have already installed the groovy XP stuff, FYI.' )
         system_or_die( 'rm -f %s/etc/lxdm/PreLogin' % ( self.mountpoint ) )
@@ -1065,10 +1069,9 @@ WantedBy=multi-user.target
         fourth_stage = ( 
                                 self.install_chrubix,
                                 self.install_timezone,
-                                self.install_vbutils_etc_from_cbook,
+#                                self.install_vbutils_etc_from_cbook,  # FIXME: Is this superfluous? I don't know.
                                 self.install_freenet,
                                 self.tweak_xwindow_for_chromebook,
-                                self.install_winxp_camo_and_guest_default_files,
                                 self.install_mkinitcpio_ramwipe_hooks,
                                 self.install_gpg_applet,
                                 self.install_panic_button,
@@ -1076,6 +1079,7 @@ WantedBy=multi-user.target
                                 # From this point on, assume Internet access is gone.
                                 self.configure_dbus_sudo_and_groups,
                                 self.configure_lxdm_login_manager,
+                                self.configure_winxp_camo_and_guest_default_files,
                                 self.configure_privacy_tools,
                                 self.configure_chrome_or_iceweasel,
                                 self.configure_networking,
@@ -1085,6 +1089,7 @@ WantedBy=multi-user.target
                                 self.check_sanity_of_distro,
                                 self.save_for_posterity_if_possible_D )  # self.nop )  #
         fifth_stage = ( 
+                                self.install_vbutils_etc_from_cbook,
                                 self.migrate_or_squash_OS,  # Every class but Alarmist will use migrate. Alarmist uses squash.
                                 self.unmount_and_clean_up
                                 )

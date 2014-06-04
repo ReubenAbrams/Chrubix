@@ -16,14 +16,15 @@ class DebianDistro( Distro ):
 'xorg gnu-standards apt-utils libpopt-dev libacl1-dev libcrypto++-dev exo-utils libnotify-bin \
 libattr1-dev build-essential fakeroot oss-compat devscripts equivs lintian libglib2.0-dev po-debconf mythes-en-us \
 iso-codes debconf cdbs debhelper uuid-dev quilt openjdk-7-jre ant xz-utils libxmu-dev libx11-dev \
-mplayer2 default-jre dpatch alsa-oss festival dialog libck-connector-dev libpam0g-dev python-mutagen libconfig-auto-perl \
+mplayer2 default-jre dpatch festival dialog libck-connector-dev libpam0g-dev python-mutagen libconfig-auto-perl \
 libgtk2.0-dev x11-utils xbase-clients librsvg2-common librsvg2-dev pyqt4-dev-tools libreoffice \
 firmware-libertas libxpm-dev libreadline-dev libblkid-dev python-distutils-extra \
 e2fslibs-dev debhelper'  # Warning! Monkeysign pkg might be broken.
 # gtk-engines-unico python-distutil-extra ? python-yaml python-distusil-extra python-gobject python-qrencode python-imaging  python-crypto ?
     final_push_packages = Distro.final_push_packages + 'gtk2-engines-pixbuf lxsession \
 libsnappy-dev libgcrypt-dev iceweasel icedove gconf2 wireless-tools wpasupplicant \
-mat myspell-en-us ttf-mscorefonts-installer monkeysign xserver-xorg-input-synaptics ssss hachoir-core hachoir-parser \
+pulseaudio paprefs pulseaudio-module-jack pavucontrol paman alsa-tools-gui alsa-oss \
+mat myspell-en-us msttcorefonts monkeysign xserver-xorg-input-synaptics ssss python-hachoir-core python-hachoir-parser \
 xul-ext-https-everywhere mat florence mat florence obfsproxy wmaker python-cairo python-pdfrw libconfig-dev \
 libpisock-dev libetpan15 uno-libs3 libgtk-3-bin libbcprov-java gtk2-engines-murrine network-manager-gnome'  # FYI, i2p and freenet are handled by install_final_push...()
 
@@ -150,7 +151,7 @@ deb-src http://ftp.uk.debian.org/debian %s-backports main non-free contrib
             self.status_lst.append( ['Installed %d packages successfully' % ( len( packages_installed_succesfully ) )] )
             self.status_lst[-1] += '...but we failed to install %s' % str( packages_that_we_failed_to_install )
         self.steal_dtc_and_mkinitcpio_from_alarpy()
-        for pkg_name in 'ttf-ms-fonts hachoir-core hachoir-parser python2-pyptlib xul-ext-torbutton'.split( ' ' ):
+        for pkg_name in 'python2-pyptlib xul-ext-torbutton'.split( ' ' ):
             self.build_and_install_package_from_debian_source( pkg_name )
         if chroot_this( self.mountpoint, 'yes 2> /dev/null | aptitude install mate-desktop-environment-extras' ,
                      on_fail = 'Failed to install MATE',
