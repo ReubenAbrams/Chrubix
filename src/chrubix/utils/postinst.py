@@ -314,7 +314,7 @@ fi
 echo "`date` CALLING greeter or lxdm" >> /tmp/log.txt
 mkdir -p $GUEST_HOMEDIR
 chmod 700 $GUEST_HOMEDIR
-tar -Jxf /etc/.default_guest_files.tar.xz -C $GUEST_HOMEDIR
+tar -Jxf /usr/local/bin/Chrubix/blobs/settings/default_guest_files.tar.xz -C $GUEST_HOMEDIR
 chown -R guest.guest $GUEST_HOMEDIR
 
 $STOP_JFS_HANGUPS
@@ -382,6 +382,8 @@ rm -f $tmpfile
 
 def configure_lxdm_login_manager( mountpoint, guest_window_manager ):
     assert( os.path.exists( '%s/%s' % ( mountpoint, guest_window_manager ) ) )
+    if 0 != chroot_this( mountpoint, 'which lxdm' ):
+            failed( 'You haven ot installed LXDM yet.' )
     f = '%s/etc/WindowMaker/WindowMaker' % ( mountpoint )
     if os.path.isfile( f ):
         do_a_sed( f, 'MouseLeftButton', 'flibbertygibbet' )
@@ -533,7 +535,6 @@ def tweak_xwindow_for_cbook( mountpoint ):
     system_or_die( 'rm -Rf %s/etc/X11/xorg.conf.d/' % ( mountpoint, ) )
     system_or_die( 'mkdir -p %s/etc/X11/xorg.conf.d/' % ( mountpoint, ) )
     system_or_die( 'unzip %s/usr/local/bin/Chrubix/blobs/settings/x_alarm_chrubuntu.zip -d %s/etc/X11/xorg.conf.d/ &> /dev/null' % ( mountpoint, mountpoint, ), "Failed to extract X11 settings from Chrubuntu" )
-    os.unlink( '/tmp/x_alarm_chrubuntu.zip' )
     f = '%s/etc/X11/xorg.conf.d/10-keyboard.conf' % ( mountpoint, )
     if not os.path.isfile( f ):
         failed( '%s not found --- cannot tweak X' % ( f ) )
