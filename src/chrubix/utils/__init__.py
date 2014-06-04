@@ -444,7 +444,7 @@ def configure_paranoidguestmode_before_calling_lxdm( password, direct, spoof, ca
 
 def install_windows_xp_theme_stuff( mountpoint ):
     my_temp_dir = '%s/tmp/.luna.tmp' % ( mountpoint )
-    system_or_die( 'mkdir -p %s/tmp/.luna.tmp' % ( my_temp_dir ) )
+    system_or_die( 'mkdir -p %s' % ( my_temp_dir ) )
     system_or_die( 'tar -zxf %s/usr/local/bin/Chrubix/blobs/xp/tails-xp.tgz -C %s' % ( mountpoint, mountpoint ) )
     system_or_die( 'tar -zxf %s/usr/local/bin/Chrubix/blobs/xp/linux_xp_luna_theme_install.tar.gz -C %s' % ( mountpoint, my_temp_dir ) )
     for area in ( 'icons', 'themes' ):
