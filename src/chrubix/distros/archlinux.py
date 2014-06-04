@@ -151,7 +151,7 @@ mate mate-themes-extras mate-nettool mate-mplayer mate-accountsdialog'
             attempts += 1
             packages_to_install = failed_pkgs
             failed_pkgs = ''
-            for pkg_name in packages_to_install:
+            for pkg_name in [r for r in packages_to_install if r != '']:
                 try:
                     self.build_and_install_software_from_archlinux_source( pkg_name, quiet = True )
                     self.status_lst[-1] += ' %s' % ( pkg_name )
