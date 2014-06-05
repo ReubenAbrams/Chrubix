@@ -21,11 +21,11 @@ libnotify talkfilters chromium xorg-server-utils java-runtime libxmu libxfixes a
 
     def install_barebones_root_filesystem( self ):
         logme( 'FedoraDistro - install_barebones_root_filesystem() - starting' )
-        chroot_this( self.mountpoint, 'mv /dev /dev.real' )
+        system_or_die( 'mv %s/dev %s/dev.real' % ( self.mountpoint, self.mountpoint ) )
         wget( url = 'https://dl.dropboxusercontent.com/u/59916027/chrubix/skeletons/fedora-rootfs.tar.xz',
                                         extract_to_path = self.mountpoint, decompression_flag = 'J',
                                         title_str = self.title_str, status_lst = self.status_lst )
-        chroot_this( self.mountpoint, 'mv /dev /.dev.wtf && mv /dev.real /dev', on_fail = 'Failed to fix /dev' )
+        system_or_die( 'mv %s/dev %s/.dev.wtf && mv %s/dev.real %s/dev' % ( self.mountpoint, self.mountpoint, self.mountpoint, self.mountpoint ) )
         return 0
 
     def install_final_push_of_packages( self ):  # See https://twiki.grid.iu.edu/bin/view/Documentation/Release3/YumRpmBasics
