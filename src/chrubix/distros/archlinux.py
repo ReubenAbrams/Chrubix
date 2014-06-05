@@ -145,6 +145,8 @@ mate mate-themes-extras mate-nettool mate-mplayer mate-accountsdialog'
     def install_final_push_of_packages( self ):
         logme( 'ArchlinuxDistro - install_final_push_of_packages() - starting' )
         self.status_lst.append( 'Installed' )
+        chroot_this( self.mountpoint, '/bin/easy_install-2.* leap.bitmask', title_str = self.title_str, status_lst = self.status_lst )
+        self.status_lst[-1] += ' bitmask'
         failed_pkgs = self.install_from_AUR
         attempts = 0
         while failed_pkgs != '' and attempts < 5:
@@ -167,4 +169,3 @@ mate mate-themes-extras mate-nettool mate-mplayer mate-accountsdialog'
                      on_fail = 'Failed to install final push of packages', attempts = 20 )
         self.update_and_upgrade_all()
         self.status_lst[-1] += '...complete.'
-
