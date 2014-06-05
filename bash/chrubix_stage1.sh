@@ -19,7 +19,7 @@
 
 
 
-ALARPY_URL="https://dl.dropboxusercontent.com/u/59916027/chrubix/alarpy.tar.xz"
+ALARPY_URL="https://dl.dropboxusercontent.com/u/59916027/chrubix/skeletons/alarpy.tar.xz"
 FINALS_URL="https://dl.dropboxusercontent.com/u/59916027/chrubix/finals"
 CHRUBIX_URL=https://github.com/ReubenAbrams/Chrubix/archive/master.tar.gz
 OVERLAY_URL=https://dl.dropboxusercontent.com/u/59916027/chrubix/_chrubix.tar.xz
@@ -372,7 +372,6 @@ install_chrubix $btstrap $dev "$dev_p"3 "$dev_p"2 "$dev_p"1 $distroname
 
 echo "************ Calling CHRUBIX, the Python powerhouse of pulchritudinous perfection ************"
 
-tar -cz /usr/share/vboot /usr/bin/vbutil* /usr/bin/old_bins /usr/bin/futility > $btstrap/tmp/.vbkeys.tgz 2>/dev/null #### MAKE SURE CHRUBIX HAS ACCESS TO Y-O-U-R KEYS and YOUR vbutil* binaries ####
 tar -cz /usr/lib/xorg/modules/drivers/armsoc_drv.so \
 		/usr/lib/xorg/modules/input/cmt_drv.so /usr/lib/libgestures.so.0 \
 		/usr/lib/libevdev* \
@@ -380,6 +379,7 @@ tar -cz /usr/lib/xorg/modules/drivers/armsoc_drv.so \
 		/usr/lib/libmali.so* \
 		/usr/lib/libEGL.so* \
 		/usr/lib/libGLESv2.so* > $btstrap/tmp/.hipxorg.tgz 2>/dev/null
+tar -cz /usr/share/vboot /usr/bin/vbutil* /usr/bin/old_bins /usr/bin/futility > $btstrap/tmp/.vbkeys.tgz 2>/dev/null #### MAKE SURE CHRUBIX HAS ACCESS TO Y-O-U-R KEYS and YOUR vbutil* binaries ####
 
 chmod +x $btstrap/usr/local/bin/*
 chroot_this     $btstrap "/usr/local/bin/chrubix.sh" && res=0 || res=$?
