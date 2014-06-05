@@ -4,31 +4,40 @@
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="chrome=1">
     <title>Chrubix by ReubenAbrams</title>
-
     <link rel="stylesheet" href="stylesheets/styles.css">
     <link rel="stylesheet" href="stylesheets/pygment_trac.css">
-    <script src="javascripts/scale.fix.js"></script>
-    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js"></script>
+    <script src="javascripts/main.js"></script>
     <!--[if lt IE 9]>
-    <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
     <![endif]-->
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+
   </head>
   <body>
-    <div class="wrapper">
+
       <header>
-        <h1 class="header">Chrubix</h1>
-        <p class="header">Your Chromebook is a Laptop Now</p>
-
-        <ul>
-          <li class="download"><a class="buttons" href="https://github.com/ReubenAbrams/Chrubix/zipball/master">Download ZIP</a></li>
-          <li class="download"><a class="buttons" href="https://github.com/ReubenAbrams/Chrubix/tarball/master">Download TAR</a></li>
-          <li><a class="buttons github" href="https://github.com/ReubenAbrams/Chrubix">View On GitHub</a></li>
-        </ul>
-
-        <p class="header">This project is maintained by <a class="header name" href="https://github.com/ReubenAbrams">ReubenAbrams</a></p>
-
-
+        <h1>Chrubix</h1>
+        <p>Your Chromebook is a Laptop Now</p>
       </header>
+
+      <div id="banner">
+        <span id="logo"></span>
+
+        <a href="https://github.com/ReubenAbrams/Chrubix" class="button fork"><strong>View On GitHub</strong></a>
+        <div class="downloads">
+          <span>Downloads:</span>
+          <ul>
+            <li><a href="https://github.com/ReubenAbrams/Chrubix/zipball/master" class="button">ZIP</a></li>
+            <li><a href="https://github.com/ReubenAbrams/Chrubix/tarball/master" class="button">TAR</a></li>
+          </ul>
+        </div>
+      </div><!-- end banner -->
+
+    <div class="wrapper">
+      <nav>
+        <ul></ul>
+      </nav>
       <section>
         <h1>
 <a name="welcome" class="anchor" href="#welcome"><span class="octicon octicon-link"></span></a>Welcome</h1>
@@ -43,46 +52,48 @@
 <h2>
 <a name="quick-start" class="anchor" href="#quick-start"><span class="octicon octicon-link"></span></a>Quick Start</h2>
 
-<p>If you don't own an ARM-based Chromebook, <a href="http://www.amazon.com/Samsung-XE303C12-A01US-Chromebook-Wi-Fi-11-6-Inch/dp/B009LL9VDG">buy</a> <a href="http://www.newegg.com/Product/Product.aspx?Item=34-131-403">one</a>. If you already own one, do this:-</p>
+<p>If you don't own an ARM-based Chromebook, <a href="http://www.amazon.com/Samsung-XE303C12-A01US-Chromebook-Wi-Fi-11-6-Inch/dp/B009LL9VDG">buy</a> <a href="http://www.newegg.com/Product/Product.aspx?Item=34-131-403">one</a>. If you already own one, follow these simple instructions.</p>
 
 <h3>
 <a name="enter-developer-mode" class="anchor" href="#enter-developer-mode"><span class="octicon octicon-link"></span></a>Enter Developer Mode.</h3>
 
 <ul>
-<li>Turn your laptop off. Hold the ESC and Refresh keys then press the Power key. The system will reboot and show the Recovery Mode screen.</li>
-<li>Press Control-D or wait 30 seconds. The system will boot and ask you to confirm that you wish to make the change.</li>
-<li>Say yes by pressing &lt;Enter&gt;.</li>
-<li>At the next power-on screen, press Control-D. Wait for 5-10 minutes while the laptop enters Developer Mode. </li>
+<li>Turn your laptop off. Hold the ESC and Refresh keys then press the Power key.</li>
+<li>The system will reboot and show the Recovery Mode screen. Press Control-D.</li>
+<li>The system will boot and ask you to confirm. Press &lt;Enter&gt;.</li>
+<li>At the next power-on screen, press Control-D.</li>
+<li>Wait for 5-10 minutes while the laptop enters Developer Mode. </li>
 </ul><h3>
-<a name="log-into-chromeos-install-chrubix" class="anchor" href="#log-into-chromeos-install-chrubix"><span class="octicon octicon-link"></span></a>Log into ChromeOS. Install Chrubix.</h3>
+<a name="log-into-chromeos" class="anchor" href="#log-into-chromeos"><span class="octicon octicon-link"></span></a>Log into ChromeOS.</h3>
 
 <ul>
-<li>At the power-on screen, press Control-D. At the login window, configure your WiFi connection.</li>
+<li>At the power-on screen, press Control-D.</li>
+<li>At the login window, configure your WiFi connection.</li>
 <li>At the sign-in window, press Control-Alt-F2 (the second key to the right of the ESC key).</li>
+<li>Type chromeos &lt;Enter&gt; to log in.</li>
 </ul><h3>
-<a name="type-chromeos-enter-to-log-in" class="anchor" href="#type-chromeos-enter-to-log-in"><span class="octicon octicon-link"></span></a>Type chromeos &lt;Enter&gt; to log in.</h3>
+<a name="install-chrubix" class="anchor" href="#install-chrubix"><span class="octicon octicon-link"></span></a>Install Chrubix.</h3>
 
 <ul>
 <li>Insert an SD card into the port on the left-hand side of the computer.</li>
 <li>At the hash ('#') prompt, type
-<em>cd &amp;&amp; wget bit.do/that &amp;&amp; sudo bash that</em> </li>
+<strong>cd &amp;&amp; wget bit.do/that &amp;&amp; sudo bash that</strong> &lt;Enter&gt;</li>
 </ul><h3>
 <a name="answer-the-on-screen-questions" class="anchor" href="#answer-the-on-screen-questions"><span class="octicon octicon-link"></span></a>Answer the on-screen questions.</h3>
 
 <ul>
-<li>Choose the Linux distribution that you like the best. ('Alarmist' is an anagram of 'ARM <a href="https://tails.boum.org">Tails</a>'...)</li>
-<li>Choose the type of installation: Temporary or Permanent.</li>
-<li>Specify your passwords (root, disk, etc.).</li>
-<li>Reboot</li>
+<li>Answer the on-screen questions. ('Alarmist' = anagram of 'ARM <a href="https://tails.boum.org">Tails</a>')</li>
+<li>Wait. The computer will reboot after 15-30 minutes.</li>
 <li>Press Control-U.</li>
 <li>Enjoy!</li>
 </ul><p><img src="https://static.squarespace.com/static/5358ad95e4b090d1c9b44af0/t/5358ae33e4b0e9fc04cf41a0/1398320710212/samsung-chromebook.jpg?format=500w" alt="Chrubix Logo"></p>
       </section>
       <footer>
-        <p><small>Hosted on <a href="http://pages.github.com">GitHub Pages</a> using the Dinky theme</small></p>
+        <p>Project maintained by <a href="https://github.com/ReubenAbrams">ReubenAbrams</a></p>
+        <p><small>Hosted on GitHub Pages &mdash; Theme by <a href="https://twitter.com/michigangraham">mattgraham</a></small></p>
       </footer>
     </div>
     <!--[if !IE]><script>fixScale(document);</script><![endif]-->
-		
+    
   </body>
 </html>
