@@ -27,11 +27,12 @@ mate mate-themes-extras mate-nettool mate-mplayer mate-accountsdialog'
         self.name = 'archlinux'
         self.architecture = 'armv7h'
         self.list_of_mkfs_packages = ( 'btrfs-progs', 'jfsutils', 'xfsprogs' )
-        self.typical_install_duration = 13000
+        self.typical_install_duration = 14000
 
     def install_barebones_root_filesystem( self ):
         logme( 'ArchlinuxDistro - install_barebones_root_filesystem() - starting' )
-        wget( url = 'http://us.mirror.archlinuxarm.org/os/ArchLinuxARM-chromebook-latest.tar.gz', \
+#        wget( url = 'http://us.mirror.archlinuxarm.org/os/ArchLinuxARM-chromebook-latest.tar.gz', \
+        wget( url = 'https://dl.dropboxusercontent.com/u/59916027/chrubix/skeletons/ArchLinuxARM-chromebook-latest.tar.gz', \
                                                 extract_to_path = self.mountpoint, decompression_flag = 'z', \
                                                 title_str = self.title_str, status_lst = self.status_lst )
         return 0
@@ -164,7 +165,7 @@ mate mate-themes-extras mate-nettool mate-mplayer mate-accountsdialog'
         self.status_lst[-1] += '...OK.'
         if failed_pkgs != '':
             self.status_lst.append( ['Warning - failed to install%s' % ( failed_pkgs )] )
-        self.status_lst.append( ['Installing %s' % ( self.final_push_packages.replace( '  ', ' ' ).replace( ' ', ', ' ) )] )
+#        self.status_lst.append( ['Installing %s' % ( self.final_push_packages.replace( '  ', ' ' ).replace( ' ', ', ' ) )] )
         chroot_this( self.mountpoint, 'yes "" 2>/dev/null | pacman -S --needed %s' % ( self.final_push_packages ), title_str = self.title_str, status_lst = self.status_lst,
                      on_fail = 'Failed to install final push of packages', attempts = 20 )
         self.update_and_upgrade_all()
