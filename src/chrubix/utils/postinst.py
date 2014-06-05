@@ -506,10 +506,6 @@ exit $?
     system_or_die( 'chmod +x %s' % ( chrome_path ) )
 
 
-
-
-
-
 def remove_junk( mountpoint, kernel_src_basedir ):
 #    chroot_this( mountpoint, 'cd /usr/include && mv linux ../_linux_ && rm -Rf * && mv ../_linux_ linux' )
     for path in ( 
@@ -521,9 +517,12 @@ def remove_junk( mountpoint, kernel_src_basedir ):
 #                    kernel_src_basedir + '/src/chromeos-3.4/Documentation',    <-- needed for recompiling kernel (don't ask me why)
                     '/usr/src/linux-3.4.0-ARCH',
                     kernel_src_basedir + '/*.tar.gz',
-                    os.path.dirname( kernel_src_basedir ) + '/linux-[a-b,d-z]*',
+                    os.path.dirname( kernel_src_basedir ) + '/linux-[a-b,d-z]*'
                 ):
         chroot_this( mountpoint, 'rm -Rf %s' % ( path ) )
+        if not os.path.exists( '%s%s' % ( mountpoint, kernel_src_basedir ) ):
+            failed( 'rm -Rf %s ==> deletes the linux-chromebook folder from the bootstrap OS. That is suboptimal' % ( path ) )
+
     # TODO: Consider %kernel_src_basedir/linux-chromebook/pkg/*
     chroot_this( mountpoint, 'ln -sf %s/src/chromeos-3.4 /usr/src/linux-3.4.0-ARCH' % ( kernel_src_basedir ) )
     chroot_this( mountpoint, 'cd /usr/share/locale && mkdir -p _ && mv [a-d,f-z]* _ && mv e[a-m,o-z]* _ && rm -Rf _' )
