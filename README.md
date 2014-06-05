@@ -1,13 +1,21 @@
 Chrubix
 =======
 
+WELCOME
+
 Chrubix provides secure GNU/Linux for ARM-based Chromebooks. Tails would be
-the best alternative if you own an Intel-based Chromebook or laptop.
+the best alternative if you own an Intel-based Chromebook or laptop. This
+project's code base is licensed under the GPL and is available for free.
+
+
+SUPPORT
 
 For support, please go to the wiki or mailing list.
 See https://github.com/ReubenAbrams/Chrubix for details.
 
-Quick Start
+
+QUICK START
+
 If you don't own an ARM-based Chromebook, buy one. If you already own one, follow these simple instructions.
 1 Enter Developer Mode.
 * Turn your laptop off. Hold the ESC and Refresh keys then press the Power key.
@@ -31,3 +39,17 @@ If you don't own an ARM-based Chromebook, buy one. If you already own one, follo
 * Wait. The computer will reboot after 15-30 minutes.
 * Press Control-U.
 * Enjoy!
+
+
+CREDITS
+
+Reuben Abrams - originator; lead developer
+Various authors - the XP themes
+Andrea Fabrizi - the Dropbox uploader
+ArchLinuxArm team - alarpy etc.
+G. Alexander - info on Chromebooks
+Marcin Juszkiewicz - hardare info
+Authors of FreeNet - Freenet
+Authors of I2P - I2P
+Authors of Tor - Tor
+Tails Team - GPG Applet
