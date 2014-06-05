@@ -208,7 +208,14 @@ deb-src http://ftp.uk.debian.org/debian %s-backports main non-free contrib
                      title_str = self.title_str, status_lst = self.status_lst,
                      on_fail = 'Failed to install final push of packages' )
         # install XP theme for MATE
-        for cmd in ( 'yes | add-apt-repository ppa:noobslab/themes', 'yes | apt-get update', 'yes | apt-get install win-xp-theme' ):
+        for cmd in ( 
+                     'yes | add-apt-repository ppa:noobslab/themes',
+                     'yes | add-apt-repository "deb http://deb.bitmask.net/debian wheezy main"',
+                     'yes "" 2>/dev/null | curl https://dl.bitmask.net/apt.key | apt-key add -',
+                     'yes | apt-get update',
+                     'yes | apt-get install win-xp-theme',
+                     'yes | apt-get install bitmask leap-keyring'
+                     ):
             chroot_this( self.mountpoint, cmd )
         # install i2p
         write_oneliner_file( '%s/etc/apt/sources.list.d/i2p.list' % ( self.mountpoint ), '''
