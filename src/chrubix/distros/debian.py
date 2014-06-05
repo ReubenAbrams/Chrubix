@@ -28,8 +28,10 @@ mat myspell-en-us msttcorefonts monkeysign xserver-xorg-input-synaptics ssss pyt
 xul-ext-https-everywhere mat florence mat florence xorg obfsproxy wmaker python-cairo python-pdfrw libconfig-dev \
 libpisock-dev libetpan15 uno-libs3 libgtk-3-bin libbcprov-java gtk2-engines-murrine network-manager-gnome \
 x11-utils xbase-clients \
+win-xp-theme bitmask leap-keyring \
 mate-desktop-environment-extras'  # FYI, i2p and freenet are handled by install_final_push...()
 # xul-ext-flashblock
+# FYI, bitmask and leap-keyring are made possible by apt-add-repository() call in ..._final_push_...(). Ditto, win-xp-theme.
 
     def __init__( self , *args, **kwargs ):
         super( DebianDistro, self ).__init__( *args, **kwargs )
@@ -212,9 +214,7 @@ deb-src http://ftp.uk.debian.org/debian %s-backports main non-free contrib
                      'yes | add-apt-repository ppa:noobslab/themes',
                      'yes | add-apt-repository "deb http://deb.bitmask.net/debian wheezy main"',
                      'yes "" 2>/dev/null | curl https://dl.bitmask.net/apt.key | apt-key add -',
-                     'yes | apt-get update',
-                     'yes | apt-get install win-xp-theme',
-                     'yes | apt-get install bitmask leap-keyring'
+                     'yes | apt-get update'
                      ):
             chroot_this( self.mountpoint, cmd )
         # install i2p
