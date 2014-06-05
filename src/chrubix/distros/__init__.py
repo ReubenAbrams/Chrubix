@@ -807,7 +807,7 @@ MEH: No encryption is employed. No duress password is recorded. Guest Mode is st
             if package_name == 'ssss':
                 do_a_sed( '%s/%s/%s/PKGBUILD' % ( self.mountpoint, self.sources_basedir, package_name ),
                           'url=.*',
-                          'url=https://dl.dropboxusercontent.com/u/59916027/chrubix/ssss_0.5.orig.tar.gz' )
+                          'url="http://ftp.riken.jp/Linux/ubuntu/pool/universe/s/ssss/ssss_0.5.orig.tar.gz"' )
             if self.name == 'archlinux':
                 # i2p comes w/ broken hyperlinks (/tmp/_root/... instead of ../...). Fix 'em.
                 if package_name in ( 'i2p', 'freenet', 'gtk-theme-adwaita-x', 'java-service-wrapper' ):
