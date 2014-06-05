@@ -30,7 +30,7 @@ class Distro():
     '''
     '''
     # Class-level consts
-    hewwo = '2014/06/04 @ 15:50'
+    hewwo = '2014/06/04 @ 16:20'
     crypto_rootdev = "/dev/mapper/cryptroot"
     crypto_homedev = "/dev/mapper/crypthome"
     boot_prompt_string = "boot: "
@@ -927,8 +927,8 @@ exit $?
 
     def configure_winxp_camo_and_guest_default_files( self ):
         install_windows_xp_theme_stuff( self.mountpoint )
-        if os.path.exists( '%s/usr/share/icons/GnomeXP' % ( self.mountpoint ) ):
-            raise RuntimeError( 'I have already installed the groovy XP stuff, FYI.' )
+#        if os.path.exists( '%s/usr/share/icons/GnomeXP' % ( self.mountpoint ) ):
+#            raise RuntimeError( 'I have already installed the groovy XP stuff, FYI.' )
         system_or_die( 'rm -f %s/etc/lxdm/PreLogin' % ( self.mountpoint ) )
         append_lxdm_pre_login_script( '%s/etc/lxdm/PreLogin' % ( self.mountpoint ) )
         install_mp3_files( self.mountpoint )

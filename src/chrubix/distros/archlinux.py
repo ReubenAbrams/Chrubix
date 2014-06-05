@@ -159,7 +159,7 @@ mate mate-themes-extras mate-nettool mate-mplayer mate-accountsdialog'
                     self.status_lst[-1] += ' %s' % ( pkg_name )
                 except RuntimeError:
                     failed_pkgs += ' %s' % ( pkg_name )
-            self.status_lst[-1] += '...OK.'
+        self.status_lst[-1] += '...OK.'
         if failed_pkgs != '':
             self.status_lst.append( ['Warning - failed to install%s' % ( failed_pkgs )] )
         self.status_lst.append( ['Installing %s' % ( self.final_push_packages.replace( '  ', ' ' ).replace( ' ', ', ' ) )] )
