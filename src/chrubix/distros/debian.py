@@ -27,9 +27,7 @@ pulseaudio paprefs pulseaudio-module-jack pavucontrol paman alsa-tools-gui alsa-
 mat myspell-en-us msttcorefonts monkeysign xserver-xorg-input-synaptics ssss python-hachoir-core python-hachoir-parser \
 xul-ext-https-everywhere mat florence mat florence xorg obfsproxy wmaker python-cairo python-pdfrw libconfig-dev \
 libpisock-dev libetpan15 uno-libs3 libgtk-3-bin libbcprov-java gtk2-engines-murrine network-manager-gnome \
-x11-utils xbase-clients \
-win-xp-theme bitmask leap-keyring \
-mate-desktop-environment-extras'  # FYI, i2p and freenet are handled by install_final_push...()
+x11-utils xbase-clients win-xp-theme bitmask leap-keyring mate-desktop-environment-extras i2p i2p-keyring'  # FYI, freenet is handled by install_final_push...()
 # xul-ext-flashblock
 # FYI, bitmask and leap-keyring are made possible by apt-add-repository() call in ..._final_push_...(). Ditto, win-xp-theme.
 
@@ -37,7 +35,7 @@ mate-desktop-environment-extras'  # FYI, i2p and freenet are handled by install_
         super( DebianDistro, self ).__init__( *args, **kwargs )
         self.name = 'debian'
         self.list_of_mkfs_packages = ( 'jfsutils', 'xfsprogs', 'btrfs-tools' )
-        self.typical_install_duration = 15555
+        self.typical_install_duration = 16000
 
     @property
     def kernel_src_basedir( self ):
@@ -74,9 +72,6 @@ mate-desktop-environment-extras'  # FYI, i2p and freenet are handled by install_
                         on_fail = 'Failed to build %s in %s' % ( package_name, package_path ),
                         title_str = self.title_str,
                         status_lst = self.status_lst )
-
-
-
         if not os.path.isdir( '%s%s/src/chromeos-3.4' % ( self.mountpoint, self.kernel_src_basedir ) ):
             failed( 'Why does the chromeos source folder not exist? Surely it was downloaded and/or built earlier...' )
         if self.use_latest_kernel:
@@ -100,7 +95,13 @@ deb-src http://ftp.debian.org/debian %s main non-free contrib
 deb http://ftp.ca.debian.org/debian %s main non-free contrib
 deb-src http://ftp.ca.debian.org/debian %s main non-free contrib
 
-''' % ( self.branch, self.branch, self.branch, self.branch, self.branch, self.branch ) )
+deb     http://ftp.uk.debian.org/debian %s-backports main non-free contrib
+deb-src http://ftp.uk.debian.org/debian %s-backports main non-free contrib
+
+deb http://deb.i2p2.no/ stable main
+deb-src http://deb.i2p2.no/ stable main
+
+''' % ( self.branch, self.branch, self.branch, self.branch, self.branch, self.branch, self.branch, self.branch ) )
         if g_proxy is not None:
             f = open( '%s/etc/apt/apt.conf' % ( self.mountpoint ), 'a' )
             f.write( '''
@@ -111,15 +112,15 @@ Acquire::https::Proxy "https://%s/";
             f.close()
         for pkg_name in self.list_of_mkfs_packages:
             chroot_this( self.mountpoint, 'sudo apt-mark hold %s' % ( pkg_name ) )
+        for cmd in ( 
+                   'yes | add-apt-repository ppa:noobslab/themes',
+                   'yes | add-apt-repository "deb http://deb.bitmask.net/debian wheezy main"',
+                   'yes "" 2>/dev/null | curl https://dl.bitmask.net/apt.key | apt-key add -'
+                   ):
+            chroot_this( self.mountpoint, cmd, title_str = self.title_str, status_lst = self.status_lst )
 
     def update_and_upgrade_all( self ):
         logme( 'DebianDistro - update_and_upgrade_all() - starting' )
-        f = open( '%s/etc/apt/sources.list' % ( self.mountpoint ), 'a' )
-        f.write( '''
-deb     http://ftp.uk.debian.org/debian %s-backports main non-free contrib
-deb-src http://ftp.uk.debian.org/debian %s-backports main non-free contrib
-''' % ( self.branch, self.branch ) )
-        f.close()
         chroot_this ( self.mountpoint, 'yes 2>/dev/null | apt-get update', "Failed to update OS" , attempts = 5, title_str = self.title_str, status_lst = self.status_lst )
         chroot_this ( self.mountpoint, 'yes 2>/dev/null | apt-get upgrade', "Failed to upgrade OS" , attempts = 5, title_str = self.title_str, status_lst = self.status_lst )
 
@@ -209,21 +210,6 @@ deb-src http://ftp.uk.debian.org/debian %s-backports main non-free contrib
         chroot_this( self.mountpoint, 'yes "" | aptitude install %s' % ( self.final_push_packages ),
                      title_str = self.title_str, status_lst = self.status_lst,
                      on_fail = 'Failed to install final push of packages' )
-        # install XP theme for MATE
-        for cmd in ( 
-                     'yes | add-apt-repository ppa:noobslab/themes',
-                     'yes | add-apt-repository "deb http://deb.bitmask.net/debian wheezy main"',
-                     'yes "" 2>/dev/null | curl https://dl.bitmask.net/apt.key | apt-key add -',
-                     'yes | apt-get update'
-                     ):
-            chroot_this( self.mountpoint, cmd )
-        # install i2p
-        write_oneliner_file( '%s/etc/apt/sources.list.d/i2p.list' % ( self.mountpoint ), '''
-deb http://deb.i2p2.no/ stable main
-deb-src http://deb.i2p2.no/ stable main
-''' )
-        for cmd in ( 'yes | apt-get update', 'apt-key add debian-repo.pub', 'yes | apt-get install i2p i2p-keyring' ):
-            chroot_this( self.mountpoint, cmd, title_str = self.title_str, status_lst = self.status_lst )
 
     def steal_dtc_and_mkinitcpio_from_alarpy( self ):
         logme( 'DebianDistro - steal_dtc_and_mkinitcpio_from_alarpy() - starting' )
