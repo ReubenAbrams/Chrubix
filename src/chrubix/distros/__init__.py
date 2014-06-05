@@ -4,19 +4,11 @@
 
 
 # TODO: Make sure memory is getting wiped at shutdown (play a tune?). See https://bbs.archlinux.org/viewtopic.php?id=136283
-import os
-import sys
-import shutil
-import hashlib
-import getpass
-import random
-import pickle
-import time
-import chrubix.utils
+import os, sys, shutil, hashlib, getpass, random, pickle, time, chrubix.utils
 from chrubix.utils import rootcryptdevice, mount_device, mount_sys_tmp_proc_n_dev, logme, unmount_sys_tmp_proc_n_dev, failed, \
-            chroot_this, wget, do_a_sed, system_or_die, write_oneliner_file, read_oneliner_file, call_binary, \
-            generate_temporary_filename, save_distro_record, backup_the_resolvconf_file, install_gpg_applet, \
-            fix_broken_hyperlinks, patch_kernel, disable_root_password, install_windows_xp_theme_stuff, install_mp3_files
+            chroot_this, wget, do_a_sed, system_or_die, write_oneliner_file, read_oneliner_file, call_binary, install_mp3_files, \
+            generate_temporary_filename, save_distro_record, backup_the_resolvconf_file, install_gpg_applet, patch_kernel, \
+            fix_broken_hyperlinks, disable_root_password, install_windows_xp_theme_stuff
 from chrubix.utils.postinst import append_lxdm_post_login_script, append_lxdm_pre_login_script, append_lxdm_post_logout_script, \
             append_lxdm_xresources_addendum, generate_wifi_manual_script, generate_wifi_auto_script, write_ersatz_lxdm, \
             install_guest_browser_script, configure_privoxy, add_speech_synthesis_script, configure_lxdm_login_manager, \
@@ -30,7 +22,7 @@ class Distro():
     '''
     '''
     # Class-level consts
-    hewwo = '2014/06/04 @ 16:20'
+    hewwo = '2014/06/05 @ 09:27'
     crypto_rootdev = "/dev/mapper/cryptroot"
     crypto_homedev = "/dev/mapper/crypthome"
     boot_prompt_string = "boot: "
@@ -633,9 +625,7 @@ exit 0
         self.status_lst[-1] += '...removed.'
 
     def migrate_or_squash_OS( self ):  # FYI, the Alarmist distro (subclass) redefines this subroutine to disable root pw and squash the OS
-        os.system( 'clear' )
-        os.system( 'sync;sync;sync' )
-        os.system( 'clear' )
+        chroot_this( '/', 'clear; sleep 1; sync;sync;sync; clear' )
         print( '''Would you prefer a temporary setup or a permanent one? Before you choose, consider your options.
 
 TEMPORARY: When you boot, you will see a little popup window that asks you about mimicking Windows XP,
@@ -651,7 +641,7 @@ MEH: No encryption is employed. No duress password is recorded. Guest Mode is st
 ''' )
         res = 999
         while res != 'T' and res != 'P' and res != 'M':
-            res = input( "(T)emporary or (P)ermanent? " ).strip( '\r\n\r\n\r' ).replace( 't', 'T' ).replace( 'p', 'P' ).replace( 'm', 'M' )
+            res = input( "(T)emporary, (P)ermanent, or (M)eh ? " ).strip( '\r\n\r\n\r' ).replace( 't', 'T' ).replace( 'p', 'P' ).replace( 'm', 'M' )
         if res == 'T':
             disable_root_password( self.mountpoint )
             self.squash_OS()
@@ -705,7 +695,9 @@ MEH: No encryption is employed. No duress password is recorded. Guest Mode is st
             if os.system( 'which %s &>/dev/null' % ( mytool ) ) != 0:
                 system_or_die( 'yes "" 2> /dev/null | pacman -S %s' % ( mytool ), title_str = self.title_str, status_lst = self.status_lst )
         if not os.path.isdir( '%s/%s' % ( self.mountpoint, self.kernel_src_basedir ) ):
-            failed( "Seriously, by this point, we should have the whole git repo in %s, either from the precompiled tarball or from our locally built code in %s" % ( self.kernel_src_basedir, self.sources_basedir ) )
+            chroot_this( self.mountpoint, 'cd %s && git clone git://github.com/archlinuxarm/PKGBUILDs.git' % ( self.ryo_tempdir ), \
+                             on_fail = "Failed to git clone kernel source", title_str = self.title_str, status_lst = self.status_lst )
+#            failed( "Seriously, by this point, we should have the whole git repo in %s, either from the precompiled tarball or from our locally built code in %s" % ( self.kernel_src_basedir, self.sources_basedir ) )
 #            self.download_kernel_source()     # NO!!! This would create recursion. No, no, no.
 #            system_or_die( 'cd %s/%s && tar -cz * > ../temp.tgz 2> /dev/null && rm -Rf *' % ( self.mountpoint , self.ryo_tempdir ) )
 #            system_or_die( 'rm -Rf %s/%s' % ( self.mountpoint, self.ryo_tempdir ) )
