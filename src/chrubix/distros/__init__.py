@@ -619,13 +619,17 @@ exit 0
 
     def remove_all_junk( self ):
         # Tidy up the actual OS
+        if not os.path.exists( '%s%s' % ( self.mountpoint, self.kernel_src_basedir ) ):
+            failed( 'For some reason, the linux-chromebook folder is missing from the bootstrap OS. That is not good!' )
         self.status_lst.append( ['Removing superfluous files and diretories from OS'] )
         remove_junk( self.mountpoint, self.kernel_src_basedir )
+        if not os.path.exists( '%s%s' % ( self.mountpoint, self.kernel_src_basedir ) ):
+            failed( 'remove_junk() deletes the linux-chromebook folder from the bootstrap OS. That is not good!' )
         # Tidy up Alarpy, the (bootstrap) mini-OS
-        # FYI, these next three lines are utterly pointless if we delete the bootstrap & use the new, 'native'
-        os.system( 'cd /usr/share/locale 2>/dev/null && mkdir -p _ 2>/dev/null && mv [a-d,f-z]* _ 2>/dev/null && mv e[a-m,o-z]* _ 2>/dev/null && rm -Rf _' )
-        os.system( 'rm -Rf /usr/include /usr/lib/gcc /usr/lib/python2.7' )
-        os.system( 'rm -Rf /usr/share/perl5 /usr/share/xml' )
+        # FYI, these next three lines are utterly pointless if we delete the bootstrap & use the new, 'native' bootstrap distro
+#        os.system( 'cd /usr/share/locale 2>/dev/null && mkdir -p _ 2>/dev/null && mv [a-d,f-z]* _ 2>/dev/null && mv e[a-m,o-z]* _ 2>/dev/null && rm -Rf _' )
+#        os.system( 'rm -Rf /usr/include /usr/lib/gcc /usr/lib/python2.7' )
+#        os.system( 'rm -Rf /usr/share/perl5 /usr/share/xml' )
         self.status_lst[-1] += '...removed.'
 
     def migrate_or_squash_OS( self ):  # FYI, the Alarmist distro (subclass) redefines this subroutine to disable root pw and squash the OS
@@ -835,6 +839,8 @@ MEH: No encryption is employed. No duress password is recorded. Guest Mode is st
                      on_fail = 'Failed to run locale-gen to initialize the new locale' )
 
     def install_chrubix( self ):
+        if not os.path.exists( '%s%s' % ( self.mountpoint, self.kernel_src_basedir ) ):
+            failed( 'Where is the linux-chromebook folder in the bootstrap OS? I am scared. Hold me.' )
         self.status_lst.append( ['Installing Chrubix in bootstrapped OS'] )
         # Save the old-but-grooby chrubix.sh; it was modified (its vars resolved) by chrubix_stage1.sh
 #        groovy_chrubix_sh_file = generate_temporary_filename( 'tmp' )
