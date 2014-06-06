@@ -35,7 +35,7 @@ class Distro():
     loglevel = "2"
     tempdir = "/tmp"
     initial_default_gui = chrubix.utils.g_default_window_manager
-    important_packages = 'xmlto man intltool squashfs-tools aircrack-ng gnome-keyring \
+    important_packages = 'xmlto man xmltoman intltool squashfs-tools aircrack-ng gnome-keyring \
 liferea gobby busybox bzr cpio cryptsetup curl lzop ed parted libtool patch git nano bc pv pidgin \
 python3 python-pip python-setuptools python-crypto python-yaml python-gobject rng-tools \
 sudo tzdata unzip wget flex gcc bison autoconf uboot-mkimage dillo \
@@ -655,7 +655,12 @@ MEH: No encryption is employed. No duress password is recorded. Guest Mode is st
                        self.mountpoint, self.mountpoint, self.mountpoint, self.mountpoint, self.mountpoint, self.mountpoint,
                        self.mountpoint ) )
         save_distro_record( distro_rec = self )
-        self.redo_mbr_for_plain_root( self.mountpoint )
+        system_or_die( 'mkdir -p /tmp/ro /tmp/squashfs_dir' )
+        system_or_die( 'mount -o loop,squashfs %s/.squashfs.sqfs /tmp/ro' % ( self.mountpoint ) )
+        system_or_die( 'mount -t unionfs -o dirs=/tmp/ro=rw unionfs /tmp/squashfs_dir' )
+        self.redo_mbr_for_plain_root( '/tmp/squashfs_dir' )
+        system_or_die( 'umount /tmp/squashfs_dir' )
+        system_or_die( 'umount /tmp/ro' )
 
     def migrate_OS( self ):  # ....unless you're the Alarmist subclass, which redefines this as SQUASH MY OS! :-)
         system_or_die( 'cd /' )

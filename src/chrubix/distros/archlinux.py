@@ -20,7 +20,7 @@ libreoffice-en-US libreoffice-common libreoffice-gnome \
 xorg-server xorg-xinit xf86-input-synaptics xf86-video-fbdev xf86-video-armsoc xlockmore \
 mate mate-themes-extras mate-nettool mate-mplayer mate-accountsdialog \
 xorg-server-utils xorg-xmessage librsvg icedtea-web-java7 gconf hunspell-en chromium thunderbird windowmaker'
-    install_from_AUR = 'ttf-ms-fonts gtk-theme-adwaita-x win-xp-theme wmsystemtray python2-pyptlib hachoir-core hachoir-parser mat obfsproxy java-service-wrapper i2p ssss'  # pulseaudio-ctl pasystray-git
+    install_from_AUR = 'ttf-ms-fonts gtk-theme-adwaita-x win-xp-theme wmsystemtray python2-pyptlib hachoir-core hachoir-parser mat obfsproxy java-service-wrapper i2p'  # pulseaudio-ctl pasystray-git ssss florence
     final_push_packages = Distro.final_push_packages + 'lxdm network-manager-applet'
 
     def __init__( self , *args, **kwargs ):
@@ -59,6 +59,8 @@ xorg-server-utils xorg-xmessage librsvg icedtea-web-java7 gconf hunspell-en chro
 
     def install_package_manager_tweaks( self ):
         logme( 'ArchlinuxDistro - install_package_manager_tweaks() - starting' )
+        if not os.path.exists( 'cp /usr/local/bin/Chrubix/blobs/apps/florence-0.6.2-1-armv7h.pkg.tar.xz' % ( self.mountpoint ) ):
+            failed( 'Where is florence?!' )
         do_a_sed( '%s/etc/pacman.d/mirrorlist' % ( self.mountpoint ), '#.*Server =', 'Server =' )
         friendly_list_of_packages_to_exclude = ''.join( r + ' ' for r in self.list_of_mkfs_packages ) + os.path.basename( self.kernel_src_basedir )
         do_a_sed( '%s/etc/pacman.conf' % ( self.mountpoint ), '#.*IgnorePkg.*', 'IgnorePkg = %s' % ( friendly_list_of_packages_to_exclude ) )
@@ -157,11 +159,18 @@ xorg-server-utils xorg-xmessage librsvg icedtea-web-java7 gconf hunspell-en chro
         chroot_this( self.mountpoint, '/bin/easy_install-2.* leap.bitmask', title_str = self.title_str, status_lst = self.status_lst )
         self.status_lst[-1] += ' bitmask'
 #        chroot_this( self.mountpoint, """yes "" | perl -MCPAN -e 'install XML::Parser'""" )  # for florence
-        system_or_die( 'cp /usr/local/bin/Chrubix/blobs/apps/florence-0.6.2-1-armv7h.pkg.tar.xz %s/tmp' % ( self.mountpoint ) )
-        if 0 == chroot_this( self.mountpoint, 'yes "" | pacman -U %s/tmp/florence-0.6.2-1-armv7h.pkg.tar.xz' % ( self.mountpoint ) ):
-            self.status_lst[-1] += ' florence'
+        for my_fname in ( 'ssss-0.5-3-armv7h.pkg.tar.xz', 'florence-0.6.2-1-armv7h.pkg.tar.xz' ):
+            try:
+                system_or_die( 'cp /usr/local/bin/Chrubix/blobs/apps/%s /%s/tmp/' % ( my_fname, self.mountpoint ) )
+            except RuntimeError:
+                wget( url = 'https://dl.dropboxusercontent.com/u/59916027/chrubix/%s' % ( my_fname ),
+                 save_as_file = '%s/tmp/%s' % ( self.mountpoint, my_fname ),
+                 status_lst = self.status_lst,
+                 title_str = self.title_str )
+        if 0 == chroot_this( self.mountpoint, 'yes "" | pacman -U /tmp/%s' % ( my_fname ) ):
+            self.status_lst[-1] += ' ' + my_fname.split( '-' )[0]
         else:
-            failed( 'Failed to install florence' )
+            failed( 'Failed to install ' + my_fname.split( '-' )[0] )
         failed_pkgs = self.install_from_AUR
         attempts = 0
         while failed_pkgs != '' and attempts < 5:
