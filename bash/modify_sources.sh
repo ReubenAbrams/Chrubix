@@ -533,7 +533,7 @@ modify_magics_and_superblocks() {
 	replace_this_magic_number $root \"JFS1\" \"$last4\"								#	> /dev/null || failed "Failed #3."
 	replace_this_magic_number $root 3153464a "`serialno_as_bcd_string $last4`"		#	> /dev/null || failed "Failed #4."
 	echo "Working on xfs"
-    replace_this_magic_number $root \"XFSB\" \"`serialno_as_slashed_string $serialno`\"#	> /dev/null || failed "Failed #5."
+    replace_this_magic_number $root \"XFSB\" \"`serialno_as_slashed_string $serialno`\"  #> /dev/null || failed "Failed #5."
 	replace_this_magic_number $root 58465342 "$bytereversed_serno"						#> /dev/null || failed "Failed #6."
 	echo "Done w/ magics and superblocks"
 }

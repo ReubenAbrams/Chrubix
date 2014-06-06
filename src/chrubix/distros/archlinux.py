@@ -7,20 +7,21 @@ from chrubix.distros import Distro
 from chrubix.utils import failed, system_or_die, chroot_this, wget, logme, do_a_sed
 import os
 
+
 # FIXME: paman and padevchooser are deprecated
 class ArchlinuxDistro( Distro ):
     important_packages = Distro.important_packages + ' \
-cgpt xz mkinitcpio mutagen libconfig festival-us libxpm dtc xmlto mythes-en \
-mesa pyqt gptfdisk bluez-libs alsa-plugins acpi sdl libcanberra \
+cgpt xz mkinitcpio mutagen libconfig festival-us libxpm dtc mythes-en \
+mesa pyqt gptfdisk bluez-libs alsa-plugins acpi sdl libcanberra perl-xml-parser \
 libnotify talkfilters java-runtime libxmu apache-ant junit zbar python2-setuptools \
 twisted python2-yaml python2-distutils-extra python2-gobject python2-cairo python2-poppler python2-pdfrw \
-bcprov gtk-engine-unico gtk-engine-murrine gtk-engines xorg-fonts xorg-font-utils xorg-fonts-encodings'
-    install_from_AUR = 'ttf-ms-fonts gtk-theme-adwaita-x win-xp-theme wmsystemtray python2-pyptlib hachoir-core hachoir-parser mat florence obfsproxy java-service-wrapper i2p ssss'  # pulseaudio-ctl pasystray-git
-    final_push_packages = Distro.final_push_packages + ' \
-xf86-input-synaptics xf86-video-fbdev xf86-video-armsoc xlockmore xorg-server-utils \
-xorg-xmessage chromium thunderbird windowmaker librsvg icedtea-web-java7 gconf hunspell-en \
-lxdm network-manager-applet libreoffice-en-US xorg-server xorg-xinit \
-mate mate-themes-extras mate-nettool mate-mplayer mate-accountsdialog'
+bcprov gtk-engine-unico gtk-engine-murrine gtk-engines xorg-fonts xorg-font-utils xorg-fonts-encodings \
+libreoffice-en-US libreoffice-common libreoffice-gnome \
+xorg-server xorg-xinit xf86-input-synaptics xf86-video-fbdev xf86-video-armsoc xlockmore \
+mate mate-themes-extras mate-nettool mate-mplayer mate-accountsdialog \
+xorg-server-utils xorg-xmessage librsvg icedtea-web-java7 gconf hunspell-en chromium thunderbird windowmaker'
+    install_from_AUR = 'ttf-ms-fonts gtk-theme-adwaita-x win-xp-theme wmsystemtray python2-pyptlib hachoir-core hachoir-parser mat obfsproxy java-service-wrapper i2p ssss'  # pulseaudio-ctl pasystray-git
+    final_push_packages = Distro.final_push_packages + 'lxdm network-manager-applet'
 
     def __init__( self , *args, **kwargs ):
         super( ArchlinuxDistro, self ).__init__( *args, **kwargs )
@@ -32,9 +33,11 @@ mate mate-themes-extras mate-nettool mate-mplayer mate-accountsdialog'
     def install_barebones_root_filesystem( self ):
         logme( 'ArchlinuxDistro - install_barebones_root_filesystem() - starting' )
 #        wget( url = 'http://us.mirror.archlinuxarm.org/os/ArchLinuxARM-chromebook-latest.tar.gz', \
+        chroot_this( self.mountpoint, 'umount /dev' )
         wget( url = 'https://dl.dropboxusercontent.com/u/59916027/chrubix/skeletons/ArchLinuxARM-chromebook-latest.tar.gz', \
                                                 extract_to_path = self.mountpoint, decompression_flag = 'z', \
                                                 title_str = self.title_str, status_lst = self.status_lst )
+        chroot_this( self.mountpoint, 'mount devtmpfs /dev -t devtmpfs' )
         return 0
 
     def install_locale( self ):
@@ -69,21 +72,26 @@ mate mate-themes-extras mate-nettool mate-mplayer mate-accountsdialog'
     def install_important_packages( self ):
         logme( 'ArchlinuxDistro - install_important_packages() - starting' )
         packages_lst = [ r for r in self.important_packages.split( ' ' ) if r != '']
+        failed_packages = ''
         list_of_groups = [ packages_lst[i:i + self.package_group_size] for i in range( 0, len( packages_lst ), self.package_group_size ) ]
         for lst in list_of_groups:
             s = ''.join( [r + ' ' for r in lst] )
             attempts = 0
-            while attempts < 3 and 0 != chroot_this( self.mountpoint, 'yes "" 2>/dev/null | pacman -S --needed ' + s, title_str = self.title_str, status_lst = self.status_lst ):
+            while attempts < 2 and 0 != chroot_this( self.mountpoint, 'yes "" 2>/dev/null | pacman -S --needed ' + s, title_str = self.title_str, status_lst = self.status_lst ):
                 system_or_die( 'rm -f %s/var/lib/pacman/db.lck; sync; sync; sync; sleep 1' % ( self.mountpoint ) )
                 self.update_and_upgrade_all()
                 system_or_die( 'sync; sync; sync; sleep 1' )
                 attempts += 1
-            if attempts == 3:
-                failed( "Failed to install %s after %d attempts" % ( s, attempts ) )
+            if attempts == 2:
+                for pkg in lst:
+                    if 0 != chroot_this( self.mountpoint, 'yes "" 2>/dev/null | pacman -S --needed ' + pkg, title_str = self.title_str, status_lst = self.status_lst ):
+                        failed_packages += ' ' + pkg
             logme( 'Installed%s OK' % ( ''.join( [' ' + r for r in lst] ) ) )
             self.status_lst[-1] += '.'
 #            self.status_lst[-1] += ' %d%%' % ( progress * 100 // len( packages_lst ) )
         self.status_lst[-1] += 'installed.'
+        if failed_packages != '':
+            self.status_lst[-1] += [ 'I failed to install%s, however.' % ( failed_packages )]
 
     def download_kernel_source( self ):  # This also downloads all the other PKGBUILDs (for btrfs-progs, jfsutils, etc.)
         logme( 'ArchlinuxDistro - download_kernel_source() - starting' )
@@ -148,6 +156,12 @@ mate mate-themes-extras mate-nettool mate-mplayer mate-accountsdialog'
         self.status_lst.append( 'Installed' )
         chroot_this( self.mountpoint, '/bin/easy_install-2.* leap.bitmask', title_str = self.title_str, status_lst = self.status_lst )
         self.status_lst[-1] += ' bitmask'
+#        chroot_this( self.mountpoint, """yes "" | perl -MCPAN -e 'install XML::Parser'""" )  # for florence
+        system_or_die( 'cp /usr/local/bin/Chrubix/blobs/apps/florence-0.6.2-1-armv7h.pkg.tar.xz %s/tmp' % ( self.mountpoint ) )
+        if 0 == chroot_this( self.mountpoint, 'yes "" | pacman -U %s/tmp/florence-0.6.2-1-armv7h.pkg.tar.xz' % ( self.mountpoint ) ):
+            self.status_lst[-1] += ' florence'
+        else:
+            failed( 'Failed to install florence' )
         failed_pkgs = self.install_from_AUR
         attempts = 0
         while failed_pkgs != '' and attempts < 5:
@@ -165,6 +179,7 @@ mate mate-themes-extras mate-nettool mate-mplayer mate-accountsdialog'
         self.status_lst[-1] += '...OK.'
         if failed_pkgs != '':
             self.status_lst.append( ['Warning - failed to install%s' % ( failed_pkgs )] )
+        self.status_lst[-1] + ' etc. '
 #        self.status_lst.append( ['Installing %s' % ( self.final_push_packages.replace( '  ', ' ' ).replace( ' ', ', ' ) )] )
         chroot_this( self.mountpoint, 'yes "" 2>/dev/null | pacman -S --needed %s' % ( self.final_push_packages ), title_str = self.title_str, status_lst = self.status_lst,
                      on_fail = 'Failed to install final push of packages', attempts = 20 )

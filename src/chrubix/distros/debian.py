@@ -17,17 +17,19 @@ class DebianDistro( Distro ):
 libattr1-dev build-essential fakeroot oss-compat devscripts equivs lintian libglib2.0-dev po-debconf \
 iso-codes debconf cdbs debhelper uuid-dev quilt openjdk-7-jre ant xz-utils libxmu-dev \
 default-jre dpatch festival dialog libck-connector-dev libpam0g-dev python-mutagen libconfig-auto-perl \
-libgtk2.0-dev librsvg2-common librsvg2-dev pyqt4-dev-tools libreoffice \
+libgtk2.0-dev librsvg2-common librsvg2-dev pyqt4-dev-tools libreoffice-help-en-us libreoffice \
 firmware-libertas libxpm-dev libreadline-dev libblkid-dev python-distutils-extra \
+gtk2-engines-pixbuf libsnappy-dev libgcrypt-dev iceweasel icedove gconf2 \
+x11-utils xbase-clients bitmask leap-keyring ssss mat florence monkeysign \
+wmaker python-cairo python-pdfrw libconfig-dev libx11-dev python-hachoir-core python-hachoir-parser \
+mat myspell-en-us msttcorefonts xorg xserver-xorg-input-synaptics xul-ext-https-everywhere \
+pulseaudio paprefs pulseaudio-module-jack pavucontrol paman alsa-tools-gui alsa-oss mythes-en-us \
+libpisock-dev libetpan15 uno-libs3 libgtk-3-bin libbcprov-java gtk2-engines-murrine \
 e2fslibs-dev debhelper'  # Warning! Monkeysign pkg might be broken.
 # gtk-engines-unico python-distutil-extra ? python-yaml python-distusil-extra python-gobject python-qrencode python-imaging  python-crypto ?
-    final_push_packages = Distro.final_push_packages + 'gtk2-engines-pixbuf lxsession libx11-dev \
-libsnappy-dev libgcrypt-dev iceweasel icedove gconf2 wireless-tools wpasupplicant xul-ext-https-everywhere \
-pulseaudio paprefs pulseaudio-module-jack pavucontrol paman alsa-tools-gui alsa-oss mythes-en-us \
-mat myspell-en-us msttcorefonts monkeysign xserver-xorg-input-synaptics ssss python-hachoir-core python-hachoir-parser \
-xul-ext-https-everywhere mat florence mat florence xorg obfsproxy wmaker python-cairo python-pdfrw libconfig-dev \
-libpisock-dev libetpan15 uno-libs3 libgtk-3-bin libbcprov-java gtk2-engines-murrine network-manager-gnome \
-x11-utils xbase-clients win-xp-theme bitmask leap-keyring mate-desktop-environment-extras i2p i2p-keyring'  # FYI, freenet is handled by install_final_push...()
+    final_push_packages = Distro.final_push_packages + 'lxsession \
+wireless-tools wpasupplicant obfsproxy network-manager-gnome \
+mate-desktop-environment-extras win-xp-theme i2p i2p-keyring'  # FYI, freenet is handled by install_final_push...()
 # xul-ext-flashblock
 # FYI, bitmask and leap-keyring are made possible by apt-add-repository() call in ..._final_push_...(). Ditto, win-xp-theme.
 
@@ -183,7 +185,7 @@ Acquire::https::Proxy "https://%s/";
         package_name = os.path.basename( source_pathname )
         package_path = os.path.dirname( source_pathname )
 #        generate_and_incorporate_patch_for_debian( self.mountpoint, source_pathname )
-        chroot_this( self.mountpoint, 'cd %s/%s-* && make' % ( source_pathname, package_name ),
+        chroot_this( self.mountpoint, 'cd %s/%s-* && ./configure && make' % ( source_pathname, package_name ),
                     on_fail = 'Failed to build %s in %s' % ( package_name, package_path ),
                     title_str = self.title_str,
                     status_lst = self.status_lst )
@@ -370,7 +372,7 @@ class JessieDebianDistro( DebianDistro ):
     important_pages = DebianDistro.important_packages
     def __init__( self , *args, **kwargs ):
         super( JessieDebianDistro, self ).__init__( *args, **kwargs )
-        self.branch = 'sid'  # lowercase; yes, it matters
+        self.branch = 'jessie'  # lowercase; yes, it matters
         self.architecture = 'armhf'
 
 

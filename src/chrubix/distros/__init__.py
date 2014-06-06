@@ -22,7 +22,7 @@ class Distro():
     '''
     '''
     # Class-level consts
-    hewwo = '2014/06/05 @ 09:27'
+    hewwo = '2014/06/05 @ 22:18'
     crypto_rootdev = "/dev/mapper/cryptroot"
     crypto_homedev = "/dev/mapper/crypthome"
     boot_prompt_string = "boot: "
@@ -35,26 +35,24 @@ class Distro():
     loglevel = "2"
     tempdir = "/tmp"
     initial_default_gui = chrubix.utils.g_default_window_manager
-    important_packages = 'xmltoman squashfs-tools aircrack-ng gnome-keyring dillo \
+    important_packages = 'xmlto man intltool squashfs-tools aircrack-ng gnome-keyring \
 liferea gobby busybox bzr cpio cryptsetup curl lzop ed parted libtool patch git nano bc pv pidgin \
-python-pip python-setuptools python-crypto python-yaml python-gobject python3 rng-tools \
-sudo tzdata unzip wget flex gcc bison autoconf uboot-mkimage \
+python3 python-pip python-setuptools python-crypto python-yaml python-gobject rng-tools \
+sudo tzdata unzip wget flex gcc bison autoconf uboot-mkimage dillo \
+gnupg mpg123 pavucontrol ttf-dejavu bluez pulseaudio ffmpeg mplayer notification-daemon ttf-liberation \
 ntfs-3g autogen automake docbook-xsl pkg-config dosfstools expect acpid make pwgen asciidoc \
+xterm xscreensaver rxvt rxvt-unicode smem libxfixes python-qrencode python-imaging \
+gimp inkscape scribus audacity pitivi poedit alsa-utils libcanberra-pulse sound-juicer \
+simple-scan macchanger brasero pm-utils mousepad keepassx claws-mail bluez-utils \
 '  # palimpsest gnome-session-fallback mate-settings-daemon-pulseaudio
-    final_push_packages = 'claws-mail bluez-utils \
-sound-juicer keepassx gnupg mpg123 libreoffice-common libreoffice-gnome \
-mousepad libcanberra-pulse xterm xscreensaver rxvt rxvt-unicode smem intltool libxfixes \
-ttf-dejavu bluez pulseaudio ffmpeg mplayer notification-daemon ttf-liberation \
-gimp inkscape scribus audacity pitivi poedit alsa-utils simple-scan macchanger brasero pm-utils  \
-python-qrencode python-imaging lxde pavucontrol tor privoxy vidalia systemd syslog-ng \
-gnome-tweak-tool'  # Install these, all at once, when we're ready to break the Internet :)
+    final_push_packages = 'lxde tor privoxy vidalia systemd syslog-ng gnome-tweak-tool'  # Install these, all at once, when we're ready to break the Internet :)
     # Instance-level attributes
     def __init__( self, *args, **kwargs ):
         self.name = None
         self.branch = None
         self.__args = args
-        self.__pheasants = True  # If True, the new kernel will reject all USB/MMC until the one is found on which the OS resides
-        self.__kthx = True  # if True, the new kernel will use regular (not randomized) markers for filesystems
+        self.__pheasants = False  # If True, the new kernel will reject all USB/MMC until the one is found on which the OS resides
+        self.__kthx = False  # if True, the new kernel will use regular (not randomized) markers for filesystems
         self.__crypto_filesystem_format = 'ext4'
         self.__device = '/dev/null'  # e.g. /dev/mmcblk1
         self.__kernel_dev = '/dev/null'  # e.g. /dev/mmcblk1p1
@@ -62,9 +60,9 @@ gnome-tweak-tool'  # Install these, all at once, when we're ready to break the I
         self.__root_dev = '/dev/null'  # e.g. /dev/mmcblk1p3
         self.__boom_pw_hash = None
         self.architecture = None
-        self.kernel_rebuild_required = False
+        self.kernel_rebuild_required = True  # Will be set False by redo_mbr(), which will recompile kernel etc.
         self.randomized_serial_number = None
-        self.package_group_size = 5
+        self.package_group_size = 8
         self.status_lst = []
         self.mountpoint = None  # not mounted yet :)
         self.list_of_mkfs_packages = None  # This will be defined by subclass
@@ -195,6 +193,7 @@ gnome-tweak-tool'  # Install these, all at once, when we're ready to break the I
         raise AttributeError( 'Do not ask for the boom password. It is hashed. Ask for the hash instead.' )
     @boom_password.setter
     def boom_password( self, value ):
+        self.kernel_rebuild_required = True
         hexdig = hashlib.sha512( value.encode( 'utf-8' ) ).hexdigest()
         outval = hexdig.encode( 'utf-8' )
         if type( outval ) is bytes:
@@ -226,46 +225,57 @@ yes "" 2>/dev/null | make oldconfig && \
 make' % ( self.sources_basedir ), title_str = self.title_str, status_lst = self.status_lst )
         self.status_lst[-1] += '...kernel built.'
 
-    def redo_kernel_for_encrypted_root( self, chroot_here ):
-        self.redo_kernel( root_partition_device = self.crypto_rootdev, chroot_here = chroot_here )
+    def redo_mbr_for_encrypted_root( self, chroot_here ):
+        self.redo_mbr( root_partition_device = self.crypto_rootdev, chroot_here = chroot_here )
 
-    def redo_kernel_for_plain_root( self, chroot_here ):
-        self.redo_kernel( root_partition_device = self.root_dev, chroot_here = chroot_here )
+    def redo_mbr_for_plain_root( self, chroot_here ):
+        self.redo_mbr( root_partition_device = self.root_dev, chroot_here = chroot_here )
 
-    def redo_kernel( self, root_partition_device, chroot_here ):  # ,root_partition_dev             ... Also generates hybrid initramfs
-        if not os.path.isdir( '%s%s' % ( chroot_here, self.kernel_src_basedir ) ):
-            failed( "The kernel's source folder is missing. Please install it." )
-        system_or_die( 'mkdir -p %s/%s' % ( chroot_here, self.initramfs_directory ) )
-        system_or_die( 'tar -zxvf /tmp/.vbkeys.tgz -C %s' % ( chroot_here ), status_lst = self.status_lst, title_str = self.title_str )  # FIXME: remove this line after 6/1/2014 and see what happens
-        write_oneliner_file( '%s%s' % ( chroot_here, self.boom_pw_hash_fname ), '' if self.boom_pw_hash is None else self.boom_pw_hash )
-        #                                            redo_mbr.sh <mmcblk1 or sda> <mountpoint> <root device or crypto root dev>
-        res = system_or_die( 'bash %s/usr/local/bin/redo_mbr.sh %s %s %s' % ( chroot_here,
-                                                    self.device, chroot_here, root_partition_device ),
-                                                    errtxt = 'Failed to redo kernel & mbr',
-                                                    title_str = self.title_str, status_lst = self.status_lst )
+    def redo_mbr( self, root_partition_device, chroot_here ):  # ,root_partition_dev             ... Also generates hybrid initramfs
+        system_or_die( 'tar -zxvf /tmp/.vbkeys.tgz -C %s' % ( chroot_here ),
+                       status_lst = self.status_lst, title_str = self.title_str )
+        if self.kernel_rebuild_required:
+            logme( 'Rebuilding kernel' )
+            if not os.path.isdir( '%s%s' % ( chroot_here, self.kernel_src_basedir ) ):
+                failed( "The kernel's source folder is missing. Please install it." )
+            system_or_die( 'mkdir -p %s/%s' % ( chroot_here, self.initramfs_directory ) )
+            write_oneliner_file( '%s%s' % ( chroot_here, self.boom_pw_hash_fname ), '' if self.boom_pw_hash is None else self.boom_pw_hash )
+            #                                            redo_mbr.sh <mmcblk1 or sda> <mountpoint> <root device or crypto root dev>
+            res = system_or_die( 'bash %s/usr/local/bin/redo_mbr.sh %s %s %s' % ( chroot_here,
+                                                        self.device, chroot_here, root_partition_device ),
+                                                        errtxt = 'Failed to redo kernel & mbr',
+                                                        title_str = self.title_str, status_lst = self.status_lst )
+            self.kernel_rebuild_required = False
+        else:
+            logme( 'No need to rebuild kernel. Merely signing existing kernel' )
+            if root_partition_device.find( '/dev/mapper' ) >= 0:
+                param_A = 'cryptdevice=%s:%s' % ( self.spare_dev, os.path.basename( root_partition_device ) )
+            else:
+                param_A = self.root_dev
+            param_B = ''
+            res = self.sign_and_write_custom_kernel( root_partition_device, param_A, param_B )
         return res
 
-    def install_vbutils_etc_from_cbook( self ):
-        # Install YOUR private keys etc., which were placed in /tmp/.vbkeys.tgz by chrubix_stage_1.sh
+    def sign_and_write_custom_kernel( self, my_root_device, extra_params_A, extra_params_B ):
+        print( "Writing kernel to boot device (replacing nv_u-boot)..." )
+        kernel_flags_fname = '%s/root/.kernel.flags' % ( self.mountpoint )
+        raw_kernel_fname = '%s/%s/src/chromeos-3.4/arch/arm/boot/vmlinux.uimg' % ( self.mountpoint, self.kernel_src_basedir )
+        signed_kernel_fname = '%s/root/.vmlinuz.signed' % ( self.mountpoint )
+        readwrite = 'rw'
+        loglevel_str = 'loglevel=%s' % ( self.loglevel )
+        write_oneliner_file( 'console=tty1 %s root=%s rootwait %s quiet systemd.show_status=0 %s lsm.module_locking=0 init=/sbin/init %s' \
+                            % ( extra_params_A, my_root_device, readwrite, loglevel_str, extra_params_B ), kernel_flags_fname )
+        system_or_die( 'dd if=/dev/zero of=%s bs=1k 2> /dev/null' % ( self.kernel_dev ) )
+        system_or_die( 'vbutil_kernel --pack %s --keyblock /usr/share/vboot/devkeys/kernel.keyblock --version 1 --signprivate /usr/share/vboot/devkeys/kernel_data_key.vbprivk --config $root/root/.kernel.flags --vmlinuz %s --arch arm' \
+                            % ( signed_kernel_fname, raw_kernel_fname ) )
+        system_or_die( 'dd if=%s of=%s' % ( signed_kernel_fname, self.kernel_dev ), "Failed to write kernel" )
+        return 0
+
+    def install_vbutils_from_cbook( self ):
         system_or_die( 'tar -zxvf /tmp/.hipxorg.tgz -C %s' % ( self.mountpoint ),
                       status_lst = self.status_lst, title_str = self.title_str )
-        system_or_die( 'tar -zxvf /tmp/.vbkeys.tgz -C %s' % ( self.mountpoint ),
+        system_or_die( 'tar -zxvf /tmp/.vbtools.tgz -C %s' % ( self.mountpoint ),
                       status_lst = self.status_lst, title_str = self.title_str )
-
-#     def sign_and_write_custom_kernel( self, my_root_device, extra_params_A, extra_params_B ):
-#         print( "Writing kernel to boot device (replacing nv_u-boot)..." )
-#         kernel_flags_fname = '%s/root/.kernel.flags' % ( self.mountpoint )
-#         raw_kernel_fname = '%s/%s/src/chromeos-3.4/arch/arm/boot/vmlinux.uimg' % ( self.mountpoint, self.kernel_src_basedir )
-#         signed_kernel_fname = '%s/root/.vmlinuz.signed' % ( self.mountpoint )
-#         readwrite = 'rw'
-#         loglevel_str = 'loglevel=%s' % ( self.loglevel )
-#         write_oneliner_file( 'console=tty1 %s root=%s rootwait %s quiet systemd.show_status=0 %s lsm.module_locking=0 init=/sbin/init %s' \
-#                             % ( extra_params_A, my_root_device, readwrite, loglevel_str, extra_params_B ), kernel_flags_fname )
-#         system_or_die( 'dd if=/dev/zero of=%s bs=1k 2> /dev/null' % ( self.kernel_dev ) )
-#         system_or_die( 'vbutil_kernel --pack %s --keyblock /usr/share/vboot/devkeys/kernel.keyblock --version 1 --signprivate /usr/share/vboot/devkeys/kernel_data_key.vbprivk --config $root/root/.kernel.flags --vmlinuz %s --arch arm' \
-#                             % ( signed_kernel_fname, raw_kernel_fname ) )
-#         system_or_die( 'dd if=%s of=%s' % ( signed_kernel_fname, self.kernel_dev ), "Failed to write kernel" )
-#         return 0
 
     def set_disk_password( self ):
         if self.mountpoint in ( None, '', '/' ):
@@ -472,24 +482,7 @@ Choose the 'boom' password : """ ).strip( '\r\n\r\n\r' )
 
     def generate_tarball_of_my_rootfs( self, output_file ):
         self.status_lst.append( ['Creating tarball %s of my rootfs' % ( output_file )] )
-        if output_file.find( '_D' ) >= 0:
-            system_or_die( 'cd %s && tar -cJ bin boot etc home lib mnt opt root run sbin srv usr var \
-| dd bs=32k > %s/temp.data' % ( self.mountpoint, os.path.dirname( output_file ) ), title_str = self.title_str, status_lst = self.status_lst )
-        else:
-            system_or_die( 'cd %s && tar -cz \
-.bootstrap/bin  bin  \
-.bootstrap/boot boot \
-.bootstrap/etc  etc  \
-.bootstrap/home home \
-.bootstrap/lib  lib  \
-.bootstrap/mnt  mnt  \
-.bootstrap/opt  opt  \
-.bootstrap/root root \
-.bootstrap/run  run  \
-.bootstrap/sbin sbin \
-.bootstrap/srv  srv  \
-.bootstrap/usr  usr  \
-.bootstrap/var  var  \
+        system_or_die( 'cd %s && tar -cJ bin boot etc home lib mnt opt root run sbin srv usr var \
 | dd bs=32k > %s/temp.data' % ( self.mountpoint, os.path.dirname( output_file ) ), title_str = self.title_str, status_lst = self.status_lst )
         system_or_die( 'mv %s/temp.data %s' % ( os.path.dirname( output_file ), output_file ) )
         self.status_lst[-1] += '...created.'
@@ -527,6 +520,9 @@ Choose the 'boom' password : """ ).strip( '\r\n\r\n\r' )
     def install_all_important_packages_in_OS( self ):
         self.status_lst.append( ['Installing OS' ] )
         self.install_important_packages()
+        chroot_this( self.mountpoint, 'easy_install urwid',
+            status_lst = self.status_lst,
+            title_str = self.title_str )
         for my_executable in ( 'mkinitcpio', 'dtc' ):
             chroot_this( self.mountpoint, 'which %s &> /dev/null' % ( my_executable ), on_fail = 'Programmer forgot to install %s as part of %s distro' % ( my_executable, self.name ) )
         wget( url = 'https://raw.github.com/andreafabrizi/Dropbox-Uploader/master/dropbox_uploader.sh', save_as_file = self.mountpoint + '/usr/local/bin/dropbox_uploader.sh', \
@@ -643,26 +639,34 @@ MEH: No encryption is employed. No duress password is recorded. Guest Mode is st
         while res != 'T' and res != 'P' and res != 'M':
             res = input( "(T)emporary, (P)ermanent, or (M)eh ? " ).strip( '\r\n\r\n\r' ).replace( 't', 'T' ).replace( 'p', 'P' ).replace( 'm', 'M' )
         if res == 'T':
-            disable_root_password( self.mountpoint )
             self.squash_OS()
-        elif res == 'P':
+        elif res == 'P' or res == 'M':
             self.set_root_password()
-            self.migrate_OS()
-        else:
-            self.set_root_password()
-            self.redo_kernel_for_plain_root( self.mountpoint )
+            system_or_die( 'rm -f %s/.squashfs.sqfs' % ( self.mountpoint ) )
+            if res == 'P':
+                self.migrate_OS()
+            else:
+                self.redo_mbr_for_plain_root( self.mountpoint )
 
     def squash_OS( self ):
         self.generate_squashfs_of_my_OS()
+        system_or_die( 'rm -Rf %s/bin %s/boot %s/etc %s/home %s/lib %s/mnt %s/opt %s/root %s/run %s/sbin %s/srv %s/usr %s/var' %
+                      ( self.mountpoint, self.mountpoint, self.mountpoint, self.mountpoint, self.mountpoint, self.mountpoint,
+                       self.mountpoint, self.mountpoint, self.mountpoint, self.mountpoint, self.mountpoint, self.mountpoint,
+                       self.mountpoint ) )
         save_distro_record( distro_rec = self )
-        self.redo_kernel_for_plain_root( self.mountpoint )
+        self.redo_mbr_for_plain_root( self.mountpoint )
 
     def migrate_OS( self ):  # ....unless you're the Alarmist subclass, which redefines this as SQUASH MY OS! :-)
         system_or_die( 'cd /' )
         new_mtpt = '/tmp/_enc_root'
         os.system( 'mkdir -p %s' % ( new_mtpt ) )  # errtxt = 'Failed to create new mountpoint %s ' % ( new_mtpt ) )
         self.migrate_all_data( new_mtpt )  # also mounts new_mtpt and rejigs kernel
-        self.redo_kernel_for_encrypted_root( self.mountpoint )
+        chroot_this( new_mtpt, 'mount devtmpfs /dev -t devtmpfs', title_str = self.title_str, status_lst = self.status_lst )
+        chroot_this( new_mtpt, 'mount proc /proc -t proc', title_str = self.title_str, status_lst = self.status_lst )
+        chroot_this( new_mtpt, 'mount sysfs /sys -t sysfs', title_str = self.title_str, status_lst = self.status_lst )
+        chroot_this( new_mtpt, 'mount tmpfs /tmp -t tmpfs', title_str = self.title_str, status_lst = self.status_lst )
+        self.redo_mbr_for_encrypted_root( new_mtpt )
         save_distro_record( distro_rec = self, mountpoint = new_mtpt )  # save distro record to new disk (not old mountpoint)
         try:
             unmount_sys_tmp_proc_n_dev( new_mtpt )
@@ -870,9 +874,6 @@ MEH: No encryption is employed. No duress password is recorded. Guest Mode is st
         system_or_die( 'ln -sf Chrubix/bash/chrubix.sh %s/usr/local/bin/chrubix.sh' % ( self.mountpoint ) )
         for f in ( 'chrubix.sh', 'CHRUBIX', 'greeter.sh', 'preboot_configurer.sh', 'modify_sources.sh', 'redo_mbr.sh' ):
             system_or_die( 'ln -sf Chrubix/bash/%s %s/usr/local/bin/%s' % ( f, self.mountpoint, f ) )
-        chroot_this( self.mountpoint, 'easy_install urwid',
-                    status_lst = self.status_lst,
-                    title_str = self.title_str )
         mytitle = ( self.name + ( '' if self.branch is None else ' ' + self.branch ) ).title()
         do_a_sed( '%s/usr/local/bin/Chrubix/src/ui/AlarmistGreeter.ui' % ( self.mountpoint ), 'W E L C O M E', 'Welcome to %s' % ( mytitle ) )
         write_oneliner_file( '%s/usr/local/bin/greeter.sh' % ( self.mountpoint ), '''#!/bin/sh
@@ -912,6 +913,14 @@ exit $?
         logme( "This sanity-checker is incomplete. Please improve it." )
 
     def generate_squashfs_of_my_OS( self ):
+        if 0 == os.system( 'mount /dev/sda4 /tmp/posterity &> /dev/null' ) \
+        or 0 == os.system( 'mount /dev/sdb4 /tmp/posterity &> /dev/null' ):
+            if os.path.exists( '/tmp/posterity/%s.sqfs' % ( self.name + ( '' if self.branch is None else self.branch ) ) ):
+                self.status_lst.append( ['Restoring squashfs of this OS from posterity'] )
+                system_or_die( 'cp -f /tmp/posterity/%s.sqfs %s/.squashfs.sqfs' % ( self.name + ( '' if self.branch is None else self.branch ) , self.mountpoint ) )
+            system_or_die( 'umount /tmp/posterity &> /dev/null' )
+            self.status_lst[-1] += '...restored.'
+            return
         self.status_lst.append( ['Generating squashfs of this OS'] )
         # Create squashfs; save it in {root_dev}/.alarmist.sqfs
         chroot_this( self.mountpoint, r'mksquashfs /{bin,boot,etc,home,lib,mnt,opt,sbin,usr,srv,var} /.squashfs.sqfs -comp xz',
@@ -920,6 +929,13 @@ exit $?
         chroot_this( self.mountpoint, 'mksquashfs /_to_add_to_squashfs/* /.squashfs.sqfs',
                                  status_lst = self.status_lst, title_str = self.title_str, on_fail = 'Failed to generate squashfs' )
         self.status_lst[-1] += '...generated.'
+        if 0 == os.system( 'mount /dev/sda4 /tmp/posterity &> /dev/null' ) \
+        or 0 == os.system( 'mount /dev/sdb4 /tmp/posterity &> /dev/null' ):
+            self.status_lst.append( 'Backing up the squashed fs' )
+            system_or_die( 'cp -f %s/.squashfs.sqfs /tmp/posterity/%s.sqfs' % ( self.mountpoint, self.name + ( '' if self.branch is None else self.branch ) ) )
+            os.sync(); os.sync(); os.sync()
+            self.status_lst[-1] += '...backed up.'
+            system_or_die( 'umount /tmp/posterity &> /dev/null' )
 
     def download_kernel_source( self ):
         self.build_and_install_software_from_archlinux_git( package_name = os.path.basename( self.kernel_src_basedir ),
@@ -1059,8 +1075,7 @@ WantedBy=multi-user.target
                                 self.add_shutdown_user,
                                 self.add_guest_user,
                                 self.configure_hostname,
-                                self.update_barebones_OS,
-                                self.save_for_posterity_if_possible_A )  # self.nop
+                                self.update_barebones_OS )
         second_stage = ( 
                                 self.install_all_important_packages_in_OS,
                                 self.save_for_posterity_if_possible_B )  # self.nop
@@ -1071,7 +1086,7 @@ WantedBy=multi-user.target
         fourth_stage = ( 
                                 self.install_chrubix,
                                 self.install_timezone,
-#                                self.install_vbutils_etc_from_cbook,  # FIXME: Is this superfluous? I don't know.
+                                self.install_vbutils_from_cbook,
                                 self.install_freenet,
                                 self.tweak_xwindow_for_chromebook,
                                 self.install_mkinitcpio_ramwipe_hooks,
@@ -1089,9 +1104,10 @@ WantedBy=multi-user.target
                                 self.configure_distrospecific_tweaks,
                                 self.remove_all_junk,
                                 self.check_sanity_of_distro,
-                                self.save_for_posterity_if_possible_D )  # self.nop )  #
+                                self.save_for_posterity_if_possible_D,
+                                self.generate_squashfs_of_my_OS )  # Create stage_D file. THEN create & back up the squash fs file.
         fifth_stage = ( 
-                                self.install_vbutils_etc_from_cbook,
+                                self.install_vbutils_from_cbook,  # just in case the new user's tools differ from the original builder's tools
                                 self.migrate_or_squash_OS,  # Every class but Alarmist will use migrate. Alarmist uses squash.
                                 self.unmount_and_clean_up
                                 )

@@ -224,11 +224,15 @@ install_chrubix() {
 restore_from_backup() {
 	local distroname device root
 	distroname=$1
-	device=/dev/$2
+	fname=$2
 	root=$3
-	echo "Restoring $distroname (stage D) from $device"
-		pv /tmp/a/"$distroname"__D.xz | tar -Jx -C $root
-	echo "Restored ($distroname, stage D) from $device"
+	echo "Using $distroname midpoint file $fname"
+	if echo "$fname" | fgrep "_D." &> /dev/null ; then
+		pv $fname | tar -Jx -C $root || failed "Failed to unzip $fname --- J err?"
+	else
+		pv $fname | tar -zx -C $root || failed "Failed to unzip $fname --- z err?"
+	fi
+	echo "Restored ($distroname, stage D) from $fname"
 	rm -Rf $root/usr/local/bin/Chrubix
 }
 
@@ -247,35 +251,7 @@ hack_something_together() {
 }
 
 
-
-##################################################################################################################################
-
-
-
-
-echo "Chrubix ------ starting now"
-set -e
-
-mount | grep /dev/mapper/encstateful &> /dev/null || failed "Run under ChromeOS, please."
-mydevbyid=`deduce_my_dev`
-[ "$mydevbyid" = "" ] && failed "I am unable to figure out which device you want me to prep. Sorry..."
-[ -e "$mydevbyid" ] || failed "Please insert a thumb drive or SD card and try again. Please DO NOT INSERT your keychain thumb drive."
-dev=`deduce_dev_name $mydevbyid`
-dev_p=`deduce_dev_stamen $dev`
-petname=`find_boot_drive | cut -d'-' -f3 | tr '_' '\n' | tail -n1 | awk '{print substr($0,length($0)-7);}' | tr '[:upper:]' '[:lower:]'`
-fstab_opts="defaults,noatime,nodiratime" #commit=100
-mount_opts="-o $fstab_opts"
-format_opts="-v"
-fstype=ext4
-root=/tmp/_root.`basename $dev`		# Don't monkey with this...
-boot=/tmp/_boot.`basename $dev`		# ...or this...
-kern=/tmp/_kern.`basename $dev`		# ...or this!
-
-
-lockfile=/tmp/.chrubix.distro.`basename $dev`
-if [ -e "$lockfile" ] ; then
-	distroname=`cat $lockfile`
-else
+get_distro_type_the_user_wants() {
 	url=""
 	while [ "$distroname" = "" ] ; do
 		clear
@@ -307,6 +283,83 @@ Which would you like me to install? "
 	done
 	url=$FINALS_URL/$distroname"__D.tar.xz"
 	echo $distroname > $lockfile
+}
+
+restore_from_backup_if_possible() {
+	mkdir -p /tmp/a /tmp/b
+	mount /dev/sda4 /tmp/a &> /dev/null || echo -en ""
+	mount /dev/sdb4 /tmp/b &> /dev/null || echo -en ""
+	for stage in D C B ; do
+		fnA="/tmp/a/"$distroname"__"$stage".xz"
+		fnB="/tmp/b/"$distroname"__"$stage".xz"
+		for fname in $fnA $fnB ; do
+			if [ -e "$fname" ] ; then
+				restore_from_backup $distroname $fname $root
+				hack_something_together $distroname $root $dev_p
+				btstrap=$root
+				return 0
+			fi
+		done
+	done
+	if wget $url -O - | tar -Jx -C $root ; then
+		echo "Restored ($distroname, stage D) from Dropbox"
+		hack_something_together $distroname $root $dev_p
+		btstrap=$root
+		return 0
+	fi
+	return 1
+}
+
+
+
+oh_well_start_from_beginning() {
+	echo "OK. There was no Stage D available on a thumb drive or online."
+	clear
+	echo "Installing bootstrap filesystem..."
+	if [ -e "/home/chronos/user/Downloads/alarpy.tar.xz" ] ; then
+		tar -Jxf /home/chronos/user/Downloads/alarpy.tar.xz -C $btstrap || failed "Failed to install alarpy.tar.xz"
+	else
+		wget $ALARPY_URL -O - | tar -Jx -C $btstrap || failed "Failed to download/install alarpy.tar.xz"
+	fi
+	echo ""
+	echo "en_US.UTF-8 UTF-8" >> $btstrap/etc/locale.gen
+	chroot_this $btstrap "locale-gen"
+	echo "LANG=\"en_US.UTF-8\"" >> $btstrap/etc/locale.conf
+	mkdir -p $btstrap
+	echo "nameserver 8.8.8.8" >> $btstrap/etc/resolv.conf
+}
+
+
+##################################################################################################################################
+
+
+
+
+echo "Chrubix ------ starting now"
+set -e
+
+mount | grep /dev/mapper/encstateful &> /dev/null || failed "Run under ChromeOS, please."
+mydevbyid=`deduce_my_dev`
+[ "$mydevbyid" = "" ] && failed "I am unable to figure out which device you want me to prep. Sorry..."
+[ -e "$mydevbyid" ] || failed "Please insert a thumb drive or SD card and try again. Please DO NOT INSERT your keychain thumb drive."
+dev=`deduce_dev_name $mydevbyid`
+dev_p=`deduce_dev_stamen $dev`
+petname=`find_boot_drive | cut -d'-' -f3 | tr '_' '\n' | tail -n1 | awk '{print substr($0,length($0)-7);}' | tr '[:upper:]' '[:lower:]'`
+fstab_opts="defaults,noatime,nodiratime" #commit=100
+mount_opts="-o $fstab_opts"
+format_opts="-v"
+fstype=ext4
+root=/tmp/_root.`basename $dev`		# Don't monkey with this...
+boot=/tmp/_boot.`basename $dev`		# ...or this...
+kern=/tmp/_kern.`basename $dev`		# ...or this!
+
+
+lockfile=/tmp/.chrubix.distro.`basename $dev`
+if [ -e "$lockfile" ] ; then
+	distroname=`cat $lockfile`
+else
+get_distro_type_the_user_wants
+
 fi
 
 btstrap=$root/.bootstrap
@@ -325,33 +378,9 @@ mkdir -p /tmp/a
 res=0
 mkdir -p $btstrap/{dev,proc,tmp,sys}
 mkdir -p $root/{dev,proc,tmp,sys}
-if mount /dev/sda4 /tmp/a && [ -e "/tmp/a/"$distroname"__D.xz" ]; then
-	restore_from_backup $distroname sda4 $root
-	hack_something_together $distroname $root $dev_p
-	btstrap=$root
-elif mount /dev/sdb4 /tmp/a && [ -e "/tmp/a/"$distroname"__D.xz" ] ; then
-	restore_from_backup $distroname sdb4 $root
-	hack_something_together $distroname $root $dev_p
-	btstrap=$root
-elif wget $url -O - | tar -Jx -C $root ; then
-	echo "Restored ($distroname, stage D) from Dropbox"
-	hack_something_together $distroname $root $dev_p
-	btstrap=$root
-else
-	echo "OK. There was no Stage D available on a thumb drive or online."
-	clear
-	echo "Installing bootstrap filesystem..."
-	if [ -e "/home/chronos/user/Downloads/alarpy.tar.xz" ] ; then
-		tar -Jxf /home/chronos/user/Downloads/alarpy.tar.xz -C $btstrap || failed "Failed to install alarpy.tar.xz"
-	else
-		wget $ALARPY_URL -O - | tar -Jx -C $btstrap || failed "Failed to download/install alarpy.tar.xz"
-	fi
-	echo ""
-	echo "en_US.UTF-8 UTF-8" >> $btstrap/etc/locale.gen
-	chroot_this $btstrap "locale-gen"
-	echo "LANG=\"en_US.UTF-8\"" >> $btstrap/etc/locale.conf
-	mkdir -p $btstrap
-	echo "nameserver 8.8.8.8" >> $btstrap/etc/resolv.conf
+
+if ! restore_from_backup_if_possible ; then
+	oh_well_start_from_beginning
 fi
 
 mount devtmpfs  $btstrap/dev -t devtmpfs|| echo -en ""
@@ -367,8 +396,8 @@ if ! mount | fgrep $btstrap/tmp/_root ; then
 	mount proc $btstrap/tmp/_root/proc -t proc
 	mount sys $btstrap/tmp/_root/sys -t sysfs
 fi
-install_chrubix $btstrap $dev "$dev_p"3 "$dev_p"2 "$dev_p"1 $distroname
 
+install_chrubix $btstrap $dev "$dev_p"3 "$dev_p"2 "$dev_p"1 $distroname
 
 echo "************ Calling CHRUBIX, the Python powerhouse of pulchritudinous perfection ************"
 
@@ -379,7 +408,8 @@ tar -cz /usr/lib/xorg/modules/drivers/armsoc_drv.so \
 		/usr/lib/libmali.so* \
 		/usr/lib/libEGL.so* \
 		/usr/lib/libGLESv2.so* > $btstrap/tmp/.hipxorg.tgz 2>/dev/null
-tar -cz /usr/share/vboot /usr/bin/vbutil* /usr/bin/old_bins /usr/bin/futility > $btstrap/tmp/.vbkeys.tgz 2>/dev/null #### MAKE SURE CHRUBIX HAS ACCESS TO Y-O-U-R KEYS and YOUR vbutil* binaries ####
+tar -cz /usr/bin/vbutil* /usr/bin/old_bins /usr/bin/futility > $btstrap/tmp/.vbtools.tgz 2>/dev/null
+tar -cz /usr/share/vboot > $btstrap/tmp/.vbkeys.tgz 2>/dev/null #### MAKE SURE CHRUBIX HAS ACCESS TO Y-O-U-R KEYS and YOUR vbutil* binaries ####
 
 chmod +x $btstrap/usr/local/bin/*
 chroot_this     $btstrap "/usr/local/bin/chrubix.sh" && res=0 || res=$?
