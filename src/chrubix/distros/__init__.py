@@ -671,7 +671,7 @@ MEH: No encryption. No duress password. Changes are permanent. Guest Mode is sti
         chroot_this( new_mtpt, 'mount proc /proc -t proc', title_str = self.title_str, status_lst = self.status_lst )
         chroot_this( new_mtpt, 'mount sysfs /sys -t sysfs', title_str = self.title_str, status_lst = self.status_lst )
         chroot_this( new_mtpt, 'mount tmpfs /tmp -t tmpfs', title_str = self.title_str, status_lst = self.status_lst )
-        self.redo_mbr_for_encrypted_root( new_mtpt )
+        self.redo_mbr_for_encrypted_root( self.mountpoint )  # new_mtpt )
         save_distro_record( distro_rec = self, mountpoint = new_mtpt )  # save distro record to new disk (not old mountpoint)
         try:
             unmount_sys_tmp_proc_n_dev( new_mtpt )
@@ -851,13 +851,13 @@ MEH: No encryption. No duress password. Changes are permanent. Guest Mode is sti
 #        groovy_chrubix_sh_file = generate_temporary_filename( 'tmp' )
 #        system_or_die( 'cp /usr/local/bin/chrubix.sh %s' % ( self.mountpoint, groovy_chrubix_sh_file ) )
         # Delete old copy of Chrubix from mountpoint.
-        system_or_die( 'rm -Rf %s/usr/local/bin/Chrubix' % ( self.mountpoint ) )
-        # Download and install latest copy from the GitHub website.
-        if 0 != wget( url = 'https://github.com/ReubenAbrams/Chrubix/archive/master.tar.gz',
-                                extract_to_path = '%s/usr/local/bin' % ( self.mountpoint ), decompression_flag = 'z',
-                                quiet = True, status_lst = self.status_lst, title_str = self.title_str ):
-            failed( 'Failed to install Chrubix in bootstrap OS' )
-        system_or_die( 'mv %s/usr/local/bin/Chrubix* %s/usr/local/bin/Chrubix' % ( self.mountpoint, self.mountpoint ) )
+#         system_or_die( 'rm -Rf %s/usr/local/bin/Chrubix' % ( self.mountpoint ) )
+#         # Download and install latest copy from the GitHub website.
+#         if 0 != wget( url = 'https://github.com/ReubenAbrams/Chrubix/archive/master.tar.gz',
+#                                 extract_to_path = '%s/usr/local/bin' % ( self.mountpoint ), decompression_flag = 'z',
+#                                 quiet = True, status_lst = self.status_lst, title_str = self.title_str ):
+#             failed( 'Failed to install Chrubix in bootstrap OS' )
+#         system_or_die( 'mv %s/usr/local/bin/Chrubix* %s/usr/local/bin/Chrubix' % ( self.mountpoint, self.mountpoint ) )
         # Try to install latest-latest version (on top of GitHub version) from Dropbox.
         try:
             wget( url = 'https://dl.dropboxusercontent.com/u/59916027/chrubix/_chrubix.tar.xz',
