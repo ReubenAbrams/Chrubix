@@ -361,7 +361,7 @@ modify_kernel_config_file() {
 | sed s/CONFIG_SQUASHFS=.*/CONFIG_SQUASHFS=y/ \
 | sed s/.*CONFIG_SQUASHFS_XZ.*/CONFIG_SQUASHFS_XZ=y/ \
 | sed s/UNION_FS=.*/UNION_FS=y/ \
-| sed s/CONFIG_CGROUPS=y/CONFIG_CGROUPS=n/ \
+| sed s/CONFIG_CGROUPS=.*/CONFIG_CGROUPS=n/ \
 | sed s/CONFIG_ECRYPT_FS=m/CONFIG_ECRYPT_FS=y/ > $fname
 	echo -en "Modifying kernel makefile..."
 	if [ "$INITRAMFS_DIRECTORY" != "" ] ; then
