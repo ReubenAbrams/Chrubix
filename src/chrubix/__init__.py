@@ -38,14 +38,14 @@ def list_command_line_options():
 
 def generate_distro_record_from_name( name_str ):
     distro_options = {
-                  'alarmist':AlarmistDistro,
-                  'archlinux':ArchlinuxDistro,
-                  'fedora'  :FedoraDistro,
-                  'jessie'  :JessieDebianDistro,
-                  'kali'    :KaliDistro,
-                  'pangolin':PangolinUbuntuDistro,
-                  'suse'    :SuseDistro,
-                  'wheezy'  :WheezyDebianDistro,
+                  'alarmist'      :AlarmistDistro,
+                  'archlinux'     :ArchlinuxDistro,
+                  'fedora'        :FedoraDistro,
+                  'debianjessie'  :JessieDebianDistro,
+                  'kali'          :KaliDistro,
+                  'pangolin'      :PangolinUbuntuDistro,
+                  'suse'          :SuseDistro,
+                  'debianwheezy'  :WheezyDebianDistro,
                   }
     print( "Creating distro record for %s" % ( name_str ) )
     assert( name_str in distro_options.keys() )

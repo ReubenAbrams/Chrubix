@@ -632,7 +632,7 @@ is encrypted. Although you will initially be logged in as a guest whose home dir
 you have the option of creating a permanent user, logging in as that user, and saving files to disk.
 In addition, you will be prompted for a 'logging in under duress' password. Pick a short one.
 
-MEH: No encryption is employed. No duress password is recorded. Guest Mode is still the default.
+MEH: No encryption. No duress password. Changes are permanent. Guest Mode is still the default.
 
 ''' )
         res = 999
@@ -923,8 +923,8 @@ exit $?
             if os.path.exists( '/tmp/posterity/%s.sqfs' % ( self.name + ( '' if self.branch is None else self.branch ) ) ):
                 self.status_lst.append( ['Restoring squashfs of this OS from posterity'] )
                 system_or_die( 'cp -f /tmp/posterity/%s.sqfs %s/.squashfs.sqfs' % ( self.name + ( '' if self.branch is None else self.branch ) , self.mountpoint ) )
+                self.status_lst[-1] += '...restored.'
             system_or_die( 'umount /tmp/posterity &> /dev/null' )
-            self.status_lst[-1] += '...restored.'
             return
         self.status_lst.append( ['Generating squashfs of this OS'] )
         # Create squashfs; save it in {root_dev}/.alarmist.sqfs

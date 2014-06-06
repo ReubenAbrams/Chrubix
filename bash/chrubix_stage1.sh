@@ -221,7 +221,7 @@ install_chrubix() {
 }
 
 
-restore_from_backup() {
+restore_stage_X_from_backup() {
 	local distroname device root
 	distroname=$1
 	fname=$2
@@ -237,13 +237,13 @@ restore_from_backup() {
 }
 
 
-hack_something_together() {
+hack_something_stageX_ish() {
 	local distroname device root dev_p
 	distroname=$1
 	root=$2
 	dev_p=$3
 	echo "9999" > $root/.checkpoint.txt
-	umount /tmp/a
+	umount /tmp/a /tmp/b || echo -en ""
 	bootstraploc=$root/.bootstrap
 	if [ -e "$bootstraploc" ] ; then
 		mv $bootstraploc $bootstraploc.old
@@ -272,20 +272,30 @@ Which would you like me to install? "
 		case $r in
 "A") distroname="archlinux";;
 "F") distroname="fedora";;
-"J") distroname="jessie";;
+"J") distroname="debianjessie";;
 "K") distroname="kali";;
 "S") distroname="suse";;
 "T") distroname="alarmist";;
 "U") distroname="ubuntu";;
-"W") distroname="wheezy";;
+"W") distroname="debianwheezy";;
 *)   echo "Unknown distro";;
 		esac
 	done
 	url=$FINALS_URL/$distroname"__D.tar.xz"
+	squrl=$FINALS_URL/$distroname.sqfs
 	echo $distroname > $lockfile
+	while [ "$temp_or_perm" = "" ] ; do
+		echo "Do you want to be able to save personal data to the thumb drive/memory card (y/n) ?"
+		read line
+		if [ "$line" = "y" ] || [ "$line" = "Y" ] ; then
+			temp_or_perm="perm"
+		elif [ "$line" = "n" ] || [ "$line" = "N" ] ; then
+			temp_or_perm="temp"
+		fi
+	done
 }
 
-restore_from_backup_if_possible() {
+restore_from_stage_X_backup_if_possible() {
 	mkdir -p /tmp/a /tmp/b
 	mount /dev/sda4 /tmp/a &> /dev/null || echo -en ""
 	mount /dev/sdb4 /tmp/b &> /dev/null || echo -en ""
@@ -294,22 +304,64 @@ restore_from_backup_if_possible() {
 		fnB="/tmp/b/"$distroname"__"$stage".xz"
 		for fname in $fnA $fnB ; do
 			if [ -e "$fname" ] ; then
-				restore_from_backup $distroname $fname $root
-				hack_something_together $distroname $root $dev_p
+				restore_stage_X_from_backup $distroname $fname $root
+				hack_something_stageX_ish $distroname $root $dev_p
 				btstrap=$root
 				return 0
 			fi
 		done
 	done
 	if wget $url -O - | tar -Jx -C $root ; then
-		echo "Restored ($distroname, stage D) from Dropbox"
-		hack_something_together $distroname $root $dev_p
+		echo "Restored ($distroname, squashfs) from Dropbox"
+		hack_something_stageX_ish $distroname $root $dev_p
 		btstrap=$root
 		return 0
 	fi
 	return 1
 }
 
+
+restore_from_squash_fs_backup_if_possible() {
+	mkdir -p /tmp/a /tmp/b
+	mount /dev/sda4 /tmp/a &> /dev/null || echo -en ""
+	mount /dev/sdb4 /tmp/b &> /dev/null || echo -en ""
+	
+	fnA=/tmp/a/$distroname.sqfs
+	fnB=/tmp/b/$distroname.sqfs
+	for fname in $fnA $fnB ; do
+		if [ -e "$fname" ] ; then
+			cp -f $fname $root/.squashfs.sqfs
+			hack_something_squishy $distroname $root $dev_p
+			btstrap=$root
+			return 0
+		fi
+	done
+	if wget $squrl -O - > $root/.squashfs.sqfs ; then
+		echo "Restored ($distroname, squash fs) from Dropbox"
+		hack_something_squishy $distroname $root $dev_p
+		btstrap=$root
+		return 0
+	fi
+	return 1
+}
+
+hack_something_squishy() {
+	local distroname root dev_p
+	distroname=$1
+	root=$2
+	dev_p=$3
+	
+	echo "9999" > $root/.checkpoint.txt
+	umount /tmp/a /tmp/b || echo -en ""
+	bootstraploc=$root/.bootstrap
+	if [ -e "$bootstraploc" ] ; then
+		mv $bootstraploc $bootstraploc.old
+	fi
+	mkdir -p $bootstraploc
+	mkdir -p $root/.ro
+	mount -o loop,squashfs $root/.squashfs.sqfs $root/.ro
+	mount -t unionfs -o dirs=$root/.ro=rw unionfs $bootstraploc
+}
 
 
 oh_well_start_from_beginning() {
@@ -353,13 +405,11 @@ root=/tmp/_root.`basename $dev`		# Don't monkey with this...
 boot=/tmp/_boot.`basename $dev`		# ...or this...
 kern=/tmp/_kern.`basename $dev`		# ...or this!
 
-
 lockfile=/tmp/.chrubix.distro.`basename $dev`
 if [ -e "$lockfile" ] ; then
 	distroname=`cat $lockfile`
 else
-get_distro_type_the_user_wants
-
+	get_distro_type_the_user_wants
 fi
 
 btstrap=$root/.bootstrap
@@ -379,8 +429,16 @@ res=0
 mkdir -p $btstrap/{dev,proc,tmp,sys}
 mkdir -p $root/{dev,proc,tmp,sys}
 
-if ! restore_from_backup_if_possible ; then
-	oh_well_start_from_beginning
+if [ "$temp_or_perm" = "perm" ] ; then
+	if ! restore_from_stage_X_backup_if_possible ; then
+		oh_well_start_from_beginning
+	fi
+elif [ "$temp_or_perm" = "temp" ] ; then
+	if ! restore_from_squash_fs_backup_if_possible ; then
+		oh_well_start_from_beginning
+	fi
+else
+	failed "temp_or_perm = '$temp_or_perm' - no good"
 fi
 
 mount devtmpfs  $btstrap/dev -t devtmpfs|| echo -en ""
