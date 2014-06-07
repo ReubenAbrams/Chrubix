@@ -142,7 +142,7 @@ partition_device() {
 	dev=$1
 	dev_p=$2
 
-	clear
+#	clear
 	echo -en "Partitioning "$dev"."
 	sync;sync;sync; umount $root/{dev/pts,dev,proc,sys,tmp} &> /dev/null || echo -en "."
 	sync;sync;sync; umount "$dev_p"* &> /dev/null || echo -en "."
@@ -227,22 +227,20 @@ restore_stage_X_from_backup() {
 	fname=$2
 	root=$3
 	echo "Using $distroname midpoint file $fname"
-	if echo "$fname" | fgrep "_D." &> /dev/null ; then
-		pv $fname | tar -Jx -C $root || failed "Failed to unzip $fname --- J err?"
-	else
-		pv $fname | tar -zx -C $root || failed "Failed to unzip $fname --- z err?"
-	fi
+	pv $fname | tar -Jx -C $root || failed "Failed to unzip $fname --- J err?"
 	echo "Restored ($distroname, stage D) from $fname"
 	rm -Rf $root/usr/local/bin/Chrubix
 }
 
 
 hack_something_stageX_ish() {
-	local distroname device root dev_p
+	local distroname device root dev_p url_or_fname
 	distroname=$1
 	root=$2
 	dev_p=$3
+	url_or_fname=$4
 	echo "9999" > $root/.checkpoint.txt
+	echo "$url_or_fname" > $root/.url_or_fname.txt
 	umount /tmp/a /tmp/b || echo -en ""
 	bootstraploc=$root/.bootstrap
 	if [ -e "$bootstraploc" ] ; then
@@ -293,6 +291,7 @@ Which would you like me to install? "
 			temp_or_perm="temp"
 		fi
 	done
+	echo $temp_or_perm > $lockfile.temp_or_perm
 }
 
 restore_from_stage_X_backup_if_possible() {
@@ -305,15 +304,16 @@ restore_from_stage_X_backup_if_possible() {
 		for fname in $fnA $fnB ; do
 			if [ -e "$fname" ] ; then
 				restore_stage_X_from_backup $distroname $fname $root
-				hack_something_stageX_ish $distroname $root $dev_p
+				hack_something_stageX_ish $distroname $root $dev_p $fname
 				btstrap=$root
+				echo "RESTORED FROM $fname ---- YAY"
 				return 0
 			fi
 		done
 	done
 	if wget $url -O - | tar -Jx -C $root ; then
 		echo "Restored ($distroname, squashfs) from Dropbox"
-		hack_something_stageX_ish $distroname $root $dev_p
+		hack_something_stageX_ish $distroname $root $dev_p $url
 		btstrap=$root
 		return 0
 	fi
@@ -352,7 +352,7 @@ hack_something_squishy() {
 	dev_p=$3
 	
 	echo "9999" > $root/.checkpoint.txt
-	umount /tmp/a /tmp/b || echo -en ""
+	umount /tmp/a /tmp/b &> /dev/null || echo -en ""
 	bootstraploc=$root/.bootstrap
 	if [ -e "$bootstraploc" ] ; then
 		mv $bootstraploc $bootstraploc.old
@@ -366,7 +366,7 @@ hack_something_squishy() {
 
 oh_well_start_from_beginning() {
 	echo "OK. There was no Stage D available on a thumb drive or online."
-	clear
+#	clear
 	echo "Installing bootstrap filesystem..."
 	if [ -e "/home/chronos/user/Downloads/alarpy.tar.xz" ] ; then
 		tar -Jxf /home/chronos/user/Downloads/alarpy.tar.xz -C $btstrap || failed "Failed to install alarpy.tar.xz"
@@ -408,6 +408,7 @@ kern=/tmp/_kern.`basename $dev`		# ...or this!
 lockfile=/tmp/.chrubix.distro.`basename $dev`
 if [ -e "$lockfile" ] ; then
 	distroname=`cat $lockfile`
+	temp_or_perm=`cat $lockfile.temp_or_perm`
 else
 	get_distro_type_the_user_wants
 fi
