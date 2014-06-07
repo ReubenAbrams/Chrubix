@@ -22,7 +22,7 @@ class Distro():
     '''
     '''
     # Class-level consts
-    hewwo = '2014/06/06 @ 05:22'
+    hewwo = '2014/06/07 @ 05:45'
     crypto_rootdev = "/dev/mapper/cryptroot"
     crypto_homedev = "/dev/mapper/crypthome"
     boot_prompt_string = "boot: "
@@ -41,7 +41,7 @@ python3 python-pip python-setuptools python-crypto python-yaml python-gobject rn
 sudo tzdata unzip wget flex gcc bison autoconf uboot-mkimage dillo \
 gnupg mpg123 pavucontrol ttf-dejavu bluez pulseaudio ffmpeg mplayer notification-daemon ttf-liberation \
 ntfs-3g autogen automake docbook-xsl pkg-config dosfstools expect acpid make pwgen asciidoc \
-xterm xscreensaver rxvt rxvt-unicode smem libxfixes python-qrencode python-imaging \
+xterm xscreensaver rxvt rxvt-unicode smem python-qrencode python-imaging \
 gimp inkscape scribus audacity pitivi poedit alsa-utils libcanberra-pulse sound-juicer \
 simple-scan macchanger brasero pm-utils mousepad keepassx claws-mail bluez-utils \
 '  # palimpsest gnome-session-fallback mate-settings-daemon-pulseaudio
@@ -491,7 +491,7 @@ Choose the 'boom' password : """ ).strip( '\r\n\r\n\r' )
     def write_my_rootfs_from_tarball( self, fname ):
         self.status_lst.append( ['Restoring rootfs from %s' % ( fname )] )
         if os.path.exists( fname ):
-            system_or_die( 'tar %s %s -C %s' % ( '-Jxf' if fname.find( '_D' ) >= 0 else '-zxf', fname, self.mountpoint ), title_str = self.title_str, status_lst = self.status_lst )
+            system_or_die( 'tar -Jxf %s -C %s' % ( fname, self.mountpoint ), title_str = self.title_str, status_lst = self.status_lst )
             self.status_lst[-1] += '...restored.'
             return 0
         else:
@@ -520,7 +520,7 @@ Choose the 'boom' password : """ ).strip( '\r\n\r\n\r' )
     def install_all_important_packages_in_OS( self ):
         self.status_lst.append( ['Installing OS' ] )
         self.install_important_packages()
-        chroot_this( self.mountpoint, 'easy_install urwid',
+        chroot_this( self.mountpoint, 'which easy_install3 && easy_install3 urwid || easy_install urwid',
             status_lst = self.status_lst,
             title_str = self.title_str )
         for my_executable in ( 'mkinitcpio', 'dtc' ):
@@ -532,6 +532,8 @@ Choose the 'boom' password : """ ).strip( '\r\n\r\n\r' )
             system_or_die( 'ln -sf /proc/mounts %s/etc/mtab' % ( self.mountpoint ) )
 
     def modify_build_and_install_mkfs_and_kernel_for_OS( self, apply_kali_and_unionfs_patches = False ):  # !!! ArchLinux subclass redefines this, BTW !!!
+        fname = '/tmp/posterity/%s_PKGBUILDs.tgz' % ( self.name + ( '' if self.branch is None else self.branch ) )
+        mounted = False
         diy = False
         logme( 'modify_build_and_install_mkfs_and_kernel_for_OS() --- starting' )
         system_or_die( 'mkdir -p /tmp/posterity' )
@@ -539,13 +541,19 @@ Choose the 'boom' password : """ ).strip( '\r\n\r\n\r' )
         if os.system( 'mount /dev/sda4 /tmp/posterity &> /dev/null' ) != 0:
             if os.system( 'mount /dev/sdb4 /tmp/posterity &> /dev/null' ) != 0:
                 diy = True
+            else:
+                mounted = True
+        else:
+            mounted = True
         if not diy:
-            fname = '/tmp/posterity/%s_PKGBUILDs.tgz' % ( '' if self.branch is None else self.branch )
             if not os.path.exists( fname ):
                 diy = True
         if diy:
             self.modify_kernel_and_mkfs_sources( apply_kali_and_unionfs_patches )
             self.build_kernel_and_mkfs()
+            if mounted:
+                chroot_this( '/', 'cd %s%s && tar -cz PKGBUILDs > %s' % ( self.mountpoint, self.ryo_tempdir, fname ),
+                              status_lst = self.status_lst, title_str = self.title_str )
         else:
             system_or_die( 'tar -zxf %s -C %s' % ( fname, self.ryo_tempdir ),
                            status_lst = self.status_lst, title_str = self.title_str )
@@ -892,6 +900,7 @@ MEH: No encryption. No duress password. Changes are permanent. Guest Mode is sti
                                               ):
             do_a_sed( '%s/usr/local/bin/Chrubix/bash/chrubix.sh' % ( self.mountpoint ), currently_says, ought_to_say )
         system_or_die( 'ln -sf Chrubix/bash/chrubix.sh %s/usr/local/bin/chrubix.sh' % ( self.mountpoint ) )
+        system_or_die( 'chmod +x %s/usr/local/bin/Chrubix/bash/*' % ( self.mountpoint ) )
         for f in ( 'chrubix.sh', 'CHRUBIX', 'greeter.sh', 'preboot_configurer.sh', 'modify_sources.sh', 'redo_mbr.sh' ):
             system_or_die( 'ln -sf Chrubix/bash/%s %s/usr/local/bin/%s' % ( f, self.mountpoint, f ) )
         mytitle = ( self.name + ( '' if self.branch is None else ' ' + self.branch ) ).title()
@@ -957,11 +966,19 @@ exit $?
             self.status_lst[-1] += '...backed up.'
             system_or_die( 'umount /tmp/posterity &> /dev/null' )
 
-    def download_kernel_source( self ):
-        self.build_and_install_software_from_archlinux_git( package_name = os.path.basename( self.kernel_src_basedir ),
-                                                       yes_download = True, yes_build = False, yes_install = False )
-# git clone --depth 1 http://chromium.googlesource.com/chromiumos/third_party/kernel.git \
-# -b chromeos-3.4 ${basedir}/kernel # NO NEED. It gives us nothing that PKGBUILD(s) doesn't give us.
+
+    def download_kernel_source( self ):  # This also downloads all the other PKGBUILDs (for btrfs-progs, jfsutils, etc.)
+        system_or_die( 'cd %s && git clone git://github.com/archlinuxarm/PKGBUILDs.git' % ( self.mountpoint + self.ryo_tempdir ), \
+                             title_str = self.title_str, status_lst = self.status_lst )
+        system_or_die( 'cd %s && makepkg --skipchecksums --asroot --nobuild -f' % ( self.mountpoint + self.ryo_tempdir ),
+                             title_str = self.title_str, status_lst = self.status_lst )
+#        self.download_package_source( os.path.basename( self.kernel_src_basedir ), ( 'PKGBUILD', ) )
+
+#    def download_kernel_source( self ):
+#        self.build_and_install_software_from_archlinux_git( package_name = os.path.basename( self.kernel_src_basedir ),
+#                                                       yes_download = True, yes_build = False, yes_install = False )
+# # git clone --depth 1 http://chromium.googlesource.com/chromiumos/third_party/kernel.git \
+# # -b chromeos-3.4 ${basedir}/kernel # NO NEED. It gives us nothing that PKGBUILD(s) doesn't give us.
 
     def configure_winxp_camo_and_guest_default_files( self ):
         install_windows_xp_theme_stuff( self.mountpoint )
@@ -1135,23 +1152,21 @@ WantedBy=multi-user.target
         try:
             checkpoint_number = int( read_oneliner_file( '%s/.checkpoint.txt' % ( self.mountpoint ) ) )
             if checkpoint_number == 9999:
-                self.status_lst.append( ['I was restored from an online tarball (final stage). OK.'] )
-                mount_sys_tmp_proc_n_dev( self.mountpoint )
-                checkpoint_number = len( first_stage ) + len( second_stage ) + len( third_stage ) + len( fourth_stage )
-#                self.modify_kernel_and_mkfs_sources( apply_kali_and_unionfs_patches = False )
+                url_or_fname = read_oneliner_file( '%s/tmp/.url_or_fname.txt' % ( self.mountpoint ) )
+                self.status_lst.append( ['I was restored from an online tarball (%s). OK.' % ( url_or_fname )] )
+                mount_sys_tmp_proc_n_dev( self.mountpoint )  # FIXME: This line is unnecessary, probably
+                if url_or_fname.find( '_D' ) >= 0:
+                    checkpoint_number = len( first_stage ) + len( second_stage ) + len( third_stage ) + len( fourth_stage )
+                elif url_or_fname.find( '_C' ) >= 0:
+                    checkpoint_number = len( first_stage ) + len( second_stage ) + len( third_stage )
+                elif url_or_fname.find( '_B' ) >= 0:
+                    checkpoint_number = len( first_stage ) + len( second_stage )
+                else:
+                    failed( 'Incomprehensible posterity restore - %s' % ( url_or_fname ) )
             else:
                 self.status_lst.append( ['Cool -- resuming from checkpoint#%d' % ( checkpoint_number )] )
         except FileNotFoundError:
             checkpoint_number = 0
-        if checkpoint_number == 0:
-            if 0 == self.able_to_restore_from_posterity_C():  # C: Kernel & mk*fs --- downloaded, modified, rebuilt, installed OK
-                checkpoint_number = len( first_stage ) + len( second_stage ) + len( third_stage )
-            elif 0 == self.able_to_restore_from_posterity_B():  # B: The OS's major packages --- installed OK
-                checkpoint_number = len( first_stage ) + len( second_stage )
-            elif 0 == self.able_to_restore_from_posterity_A():  # A: barebones -- installed + updated OK
-                checkpoint_number = len( first_stage )
-            else:
-                checkpoint_number = 0
         logme( 'Starting at checkpoint#%d' % ( checkpoint_number ) )
         for myfunc in all_my_funcs[checkpoint_number:]:
             logme( 'Running %s' % ( myfunc.__name__ ) )
