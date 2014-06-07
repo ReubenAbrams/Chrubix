@@ -359,6 +359,8 @@ modify_kernel_config_file() {
 	cat $fname.orig | sed s/XFS_FS=m/XFS_FS=y/ \
 | sed s/JFFS2_FS=m/JFFS2_FS=y/ \
 | sed s/CONFIG_SQUASHFS=.*/CONFIG_SQUASHFS=y/ \
+| sed s/CONFIG_UFS_FS=.*/CONFIG_UFS_FS=y/ \
+| sed s/.*CONFIG_UFS_FS_WRITE.*/CONFIG_UFS_FS_WRITE=y/ \
 | sed s/.*CONFIG_SQUASHFS_XZ.*/CONFIG_SQUASHFS_XZ=y/ \
 | sed s/UNION_FS=.*/UNION_FS=y/ \
 | sed s/CONFIG_ECRYPT_FS=m/CONFIG_ECRYPT_FS=y/ > $fname
