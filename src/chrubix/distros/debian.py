@@ -15,12 +15,12 @@ class DebianDistro( Distro ):
     important_packages = Distro.important_packages + ' ' + \
 'gnu-standards apt-utils libpopt-dev libacl1-dev libcrypto++-dev exo-utils libnotify-bin \
 libattr1-dev build-essential fakeroot oss-compat devscripts equivs lintian libglib2.0-dev po-debconf \
-iso-codes debconf cdbs debhelper uuid-dev quilt openjdk-7-jre ant xz-utils libxmu-dev \
-default-jre dpatch festival dialog libck-connector-dev libpam0g-dev python-mutagen libconfig-auto-perl \
+iso-codes debconf cdbs debhelper uuid-dev quilt openjdk-7-jre ant xz-utils libxmu-dev libconfig-auto-perl \
+python-software-properties default-jre dpatch festival dialog libck-connector-dev libpam0g-dev python-mutagen \
 libgtk2.0-dev librsvg2-common librsvg2-dev pyqt4-dev-tools libreoffice-help-en-us libreoffice \
 firmware-libertas libxpm-dev libreadline-dev libblkid-dev python-distutils-extra \
 gtk2-engines-pixbuf libsnappy-dev libgcrypt-dev iceweasel icedove gconf2 \
-x11-utils xbase-clients bitmask leap-keyring ssss mat florence monkeysign \
+x11-utils xbase-clients ssss mat florence monkeysign libxfixes-dev liblzo2-dev \
 wmaker python-cairo python-pdfrw libconfig-dev libx11-dev python-hachoir-core python-hachoir-parser \
 mat myspell-en-us msttcorefonts xorg xserver-xorg-input-synaptics xul-ext-https-everywhere \
 pulseaudio paprefs pulseaudio-module-jack pavucontrol paman alsa-tools-gui alsa-oss mythes-en-us \
@@ -29,7 +29,8 @@ e2fslibs-dev debhelper'  # Warning! Monkeysign pkg might be broken.
 # gtk-engines-unico python-distutil-extra ? python-yaml python-distusil-extra python-gobject python-qrencode python-imaging  python-crypto ?
     final_push_packages = Distro.final_push_packages + 'lxsession \
 wireless-tools wpasupplicant obfsproxy network-manager-gnome \
-mate-desktop-environment-extras win-xp-theme i2p i2p-keyring'  # FYI, freenet is handled by install_final_push...()
+mate-desktop-environment-extras win-xp-theme i2p i2p-keyring \
+bitmask leap-keyring'  # FYI, freenet is handled by install_final_push...()
 # xul-ext-flashblock
 # FYI, bitmask and leap-keyring are made possible by apt-add-repository() call in ..._final_push_...(). Ditto, win-xp-theme.
 
@@ -39,9 +40,9 @@ mate-desktop-environment-extras win-xp-theme i2p i2p-keyring'  # FYI, freenet is
         self.list_of_mkfs_packages = ( 'jfsutils', 'xfsprogs', 'btrfs-tools' )
         self.typical_install_duration = 16000
 
-    @property
-    def kernel_src_basedir( self ):
-        return self.sources_basedir + "/linux"
+#    @property
+#    def kernel_src_basedir( self ):
+#        return self.sources_basedir + "/linux"
 
     def install_barebones_root_filesystem( self ):
         logme( 'DebianDistro - install_barebones_root_filesystem() - starting' )
@@ -99,11 +100,8 @@ deb-src http://ftp.ca.debian.org/debian %s main non-free contrib
 
 deb     http://ftp.uk.debian.org/debian %s-backports main non-free contrib
 deb-src http://ftp.uk.debian.org/debian %s-backports main non-free contrib
-
-deb http://deb.i2p2.no/ stable main
-deb-src http://deb.i2p2.no/ stable main
-
 ''' % ( self.branch, self.branch, self.branch, self.branch, self.branch, self.branch, self.branch, self.branch ) )
+        chroot_this( self.mountpoint, '' )
         if g_proxy is not None:
             f = open( '%s/etc/apt/apt.conf' % ( self.mountpoint ), 'a' )
             f.write( '''
@@ -114,12 +112,6 @@ Acquire::https::Proxy "https://%s/";
             f.close()
         for pkg_name in self.list_of_mkfs_packages:
             chroot_this( self.mountpoint, 'sudo apt-mark hold %s' % ( pkg_name ) )
-        for cmd in ( 
-                   'yes | add-apt-repository ppa:noobslab/themes',
-                   'yes | add-apt-repository "deb http://deb.bitmask.net/debian wheezy main"',
-                   'yes "" 2>/dev/null | curl https://dl.bitmask.net/apt.key | apt-key add -'
-                   ):
-            chroot_this( self.mountpoint, cmd, title_str = self.title_str, status_lst = self.status_lst )
 
     def update_and_upgrade_all( self ):
         logme( 'DebianDistro - update_and_upgrade_all() - starting' )
@@ -185,7 +177,7 @@ Acquire::https::Proxy "https://%s/";
         package_name = os.path.basename( source_pathname )
         package_path = os.path.dirname( source_pathname )
 #        generate_and_incorporate_patch_for_debian( self.mountpoint, source_pathname )
-        chroot_this( self.mountpoint, 'cd %s/%s-* && ./configure && make' % ( source_pathname, package_name ),
+        chroot_this( self.mountpoint, 'cd %s && [ -e "configure" ] && (./configure&&make) || make' % ( source_pathname + ( '' if package_name == 'linux-chromebook' else '/' + package_name + '-*' ) ),
                     on_fail = 'Failed to build %s in %s' % ( package_name, package_path ),
                     title_str = self.title_str,
                     status_lst = self.status_lst )
@@ -203,11 +195,21 @@ Acquire::https::Proxy "https://%s/";
 
     def install_final_push_of_packages( self ):
         logme( 'DebianDistro - install_final_push_of_packages() - starting' )
+        for cmd in ( 
+                   'yes | add-apt-repository ppa:noobslab/themes',
+                   'yes | add-apt-repository "deb http://deb.bitmask.net/debian %s main"' % ( self.branch ),
+                   'yes "" 2>/dev/null | curl https://dl.bitmask.net/apt.key | apt-key add -',
+                   'yes | add-apt-repository "deb http://deb.i2p2.no/ %s main"' % ( 'unstable' if self.branch == 'jessie' else 'stable' ),
+                   'yes "" 2>/dev/null | curl https://geti2p.net/_static/debian-repo.pub | apt-key add -',
+                   'yes | apt-get update'
+                   ):
+            chroot_this( self.mountpoint, cmd, title_str = self.title_str, status_lst = self.status_lst,
+                         on_fail = "Failed to run %s successfully" % ( cmd ) )
         self.status_lst.append( [ 'Go to https://wiki.freenetproject.org/Installing/POSIX and learn how to install Freenet'] )
         if self.final_push_packages.find( 'wmsystemtray' ) < 0:
             self.install_expatriate_software_into_a_debianish_OS( package_name = 'wmsystemtray', method = 'debian' )
         if self.final_push_packages.find( 'lxdm' ) < 0:
-            self.install_expatriate_software_into_a_debianish_OS( package_name = 'wmsystemtray', method = 'ubuntu' )
+            self.install_expatriate_software_into_a_debianish_OS( package_name = 'lxdm', method = 'ubuntu' )
         self.status_lst.append( ['Installing %s' % ( self.final_push_packages.replace( '  ', ' ' ).replace( ' ', ', ' ) )] )
         chroot_this( self.mountpoint, 'yes "" | aptitude install %s' % ( self.final_push_packages ),
                      title_str = self.title_str, status_lst = self.status_lst,
