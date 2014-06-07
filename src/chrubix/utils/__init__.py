@@ -311,7 +311,8 @@ def save_distro_record( distro_rec = None, mountpoint = '/' ):
 
 def backup_the_resolvconf_file( mountpoint ):
     import shutil
-    os.rename( mountpoint + '/etc/resolv.conf', mountpoint + '/etc/resolv.conf.pristine' )
+    if not os.path.exists( mountpoint + '/etc/resolv.conf.pristine' ):
+        os.rename( mountpoint + '/etc/resolv.conf', mountpoint + '/etc/resolv.conf.pristine' )
     shutil.copy( '/etc/resolv.conf', mountpoint + '/etc/resolv.conf' )
     os.system( 'echo nameserver 8.8.8.8 >> %s/etc/resolv.conf' % ( mountpoint ) )
 
