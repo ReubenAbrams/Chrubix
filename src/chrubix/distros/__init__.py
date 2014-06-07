@@ -968,9 +968,10 @@ exit $?
 
 
     def download_kernel_source( self ):  # This also downloads all the other PKGBUILDs (for btrfs-progs, jfsutils, etc.)
+        # TODO: Consider using ArchlinuxDistro.download_package_source()
         system_or_die( 'cd %s && git clone git://github.com/archlinuxarm/PKGBUILDs.git' % ( self.mountpoint + self.ryo_tempdir ), \
                              title_str = self.title_str, status_lst = self.status_lst )
-        system_or_die( 'cd %s && makepkg --skipchecksums --asroot --nobuild -f' % ( self.mountpoint + self.ryo_tempdir ),
+        system_or_die( 'cd %s && makepkg --skipchecksums --asroot --nobuild -f' % ( self.mountpoint + self.kernel_src_basedir ),
                              title_str = self.title_str, status_lst = self.status_lst )
 #        self.download_package_source( os.path.basename( self.kernel_src_basedir ), ( 'PKGBUILD', ) )
 
@@ -1149,10 +1150,10 @@ WantedBy=multi-user.target
                                 self.unmount_and_clean_up
                                 )
         all_my_funcs = first_stage + second_stage + third_stage + fourth_stage + fifth_stage
-        try:
+        if os.path.exists( '%s/.checkpoint.txt' % ( self.mountpoint ) ):
             checkpoint_number = int( read_oneliner_file( '%s/.checkpoint.txt' % ( self.mountpoint ) ) )
             if checkpoint_number == 9999:
-                url_or_fname = read_oneliner_file( '%s/tmp/.url_or_fname.txt' % ( self.mountpoint ) )
+                url_or_fname = read_oneliner_file( '%s/.url_or_fname.txt' % ( self.mountpoint ) )
                 self.status_lst.append( ['I was restored from an online tarball (%s). OK.' % ( url_or_fname )] )
                 mount_sys_tmp_proc_n_dev( self.mountpoint )  # FIXME: This line is unnecessary, probably
                 if url_or_fname.find( '_D' ) >= 0:
@@ -1165,7 +1166,7 @@ WantedBy=multi-user.target
                     failed( 'Incomprehensible posterity restore - %s' % ( url_or_fname ) )
             else:
                 self.status_lst.append( ['Cool -- resuming from checkpoint#%d' % ( checkpoint_number )] )
-        except FileNotFoundError:
+        else:
             checkpoint_number = 0
         logme( 'Starting at checkpoint#%d' % ( checkpoint_number ) )
         for myfunc in all_my_funcs[checkpoint_number:]:
