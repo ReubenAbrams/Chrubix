@@ -44,7 +44,7 @@ echo "$USER" > $liu
 
 start-pulseaudio-x11 &
 
-[ -e "/etc/lxdm/lxdm.conf.first.non-camo" ] && soundfile=winxp || soundfile=pghere
+ps wax | fgrep mate-session | fgrep -v grep && soundfile=winxp || soundfile=pghere
 mpg123 /etc/.mp3/$soundfile.mp3 &
 
 sleep 1
