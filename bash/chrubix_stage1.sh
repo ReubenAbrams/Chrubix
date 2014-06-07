@@ -456,7 +456,7 @@ if ! mount | fgrep $btstrap/tmp/_root ; then
 fi
 
 install_chrubix $btstrap $dev "$dev_p"3 "$dev_p"2 "$dev_p"1 $distroname
-sudo crossystem dev_usb_boot=1 dev_boot_signed_only=1 || echo "WARNING - failed to configure USB and MMC to be bootable"	# dev_boot_signed_only=0
+sudo crossystem dev_boot_usb=1 dev_boot_signed_only=0 || echo "WARNING - failed to configure USB and MMC to be bootable"	# dev_boot_signed_only=0
 
 echo "************ Calling CHRUBIX, the Python powerhouse of pulchritudinous perfection ************"
 
