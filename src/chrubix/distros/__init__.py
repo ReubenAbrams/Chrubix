@@ -549,12 +549,14 @@ Choose the 'boom' password : """ ).strip( '\r\n\r\n\r' )
             if not os.path.exists( fname ):
                 diy = True
         if diy:
+            logme( 'qqq OK. Doing it myself. Modifying kernel myself.' )
             self.modify_kernel_and_mkfs_sources( apply_kali_and_unionfs_patches )
             self.build_kernel_and_mkfs()
             if mounted:
                 chroot_this( '/', 'cd %s%s && tar -cz PKGBUILDs > %s' % ( self.mountpoint, self.ryo_tempdir, fname ),
                               status_lst = self.status_lst, title_str = self.title_str )
         else:
+            logme( 'qqq oK. Restoring PKGBUILDs from posterior tarball.' )
             system_or_die( 'tar -zxf %s -C %s' % ( fname, self.ryo_tempdir ),
                            status_lst = self.status_lst, title_str = self.title_str )
             system_or_die( 'sync;sync;sync;umount /tmp/posterity' )
@@ -644,6 +646,7 @@ exit 0
         self.status_lst[-1] += '...removed.'
 
     def migrate_or_squash_OS( self ):  # FYI, the Alarmist distro (subclass) redefines this subroutine to disable root pw and squash the OS
+        assert( os.path.exists( '%s/.squashfs.sqfs' % ( self.mountpoint ) ) )
         chroot_this( '/', 'clear; sleep 1; sync;sync;sync; clear' )
         print( '''Would you prefer a temporary setup or a permanent one? Before you choose, consider your options.
 
@@ -673,6 +676,7 @@ MEH: No encryption. No duress password. Changes are permanent. Guest Mode is sti
 
     def squash_OS( self ):
         self.generate_squashfs_of_my_OS()
+        assert( os.path.exists( '%s/.squashfs.sqfs' % ( self.mountpoint ) ) )
         system_or_die( 'rm -Rf %s/bin %s/boot %s/etc %s/home %s/lib %s/mnt %s/opt %s/root %s/run %s/sbin %s/srv %s/usr %s/var' %
                       ( self.mountpoint, self.mountpoint, self.mountpoint, self.mountpoint, self.mountpoint, self.mountpoint,
                        self.mountpoint, self.mountpoint, self.mountpoint, self.mountpoint, self.mountpoint, self.mountpoint,
@@ -871,8 +875,8 @@ MEH: No encryption. No duress password. Changes are permanent. Guest Mode is sti
             failed( 'Where is the linux-chromebook folder in the bootstrap OS? I am scared. Hold me.' )
         self.status_lst.append( ['Installing Chrubix in bootstrapped OS'] )
         # Save the old-but-grooby chrubix.sh; it was modified (its vars resolved) by chrubix_stage1.sh
-#        groovy_chrubix_sh_file = generate_temporary_filename( 'tmp' )
-#        system_or_die( 'cp /usr/local/bin/chrubix.sh %s' % ( self.mountpoint, groovy_chrubix_sh_file ) )
+        groovy_chrubix_sh_file = generate_temporary_filename( 'tmp' )
+        system_or_die( 'cp /usr/local/bin/chrubix.sh %s' % ( groovy_chrubix_sh_file ) )
         # Delete old copy of Chrubix from mountpoint.
         system_or_die( 'rm -Rf %s/usr/local/bin/Chrubix' % ( self.mountpoint ) )
         # Download and install latest copy from the GitHub website.
@@ -890,16 +894,17 @@ MEH: No encryption. No duress password. Changes are permanent. Guest Mode is sti
 #        # Finally, restore old-but-groovy chrubix.sh from backup.
 #        system_or_die( 'cp -f %s %s/usr/local/bin/chrubix.sh.old-but-groovy' % ( groovy_chrubix_sh_file, self.mountpoint ) )
         # But wait! We can use the latest-latest chrubix.sh.orig if we want...
-        system_or_die( 'cp -f %s/usr/local/bin/Chrubix/bash/chrubix.sh.orig %s/usr/local/bin/Chrubix/bash/chrubix.sh' % ( self.mountpoint, self.mountpoint ) )
-        for currently_says, ought_to_say in ( 
-                                              ( '$dev', self.device ),
-                                              ( '$rootdev', self.root_dev ),
-                                              ( '$sparedev', self.spare_dev ),
-                                              ( '$kerndev', self.kernel_dev ),
-                                              ( '$distroname', self.name )
-                                              ):
-            do_a_sed( '%s/usr/local/bin/Chrubix/bash/chrubix.sh' % ( self.mountpoint ), currently_says, ought_to_say )
+#        system_or_die( 'cp -f %s/usr/local/bin/Chrubix/bash/chrubix.sh.orig %s/usr/local/bin/Chrubix/bash/chrubix.sh' % ( self.mountpoint, self.mountpoint ) )
+#        for currently_says, ought_to_say in (
+#                                              ( '$dev', self.device ),
+#                                              ( '$rootdev', self.root_dev ),
+#                                              ( '$sparedev', self.spare_dev ),
+#                                              ( '$kerndev', self.kernel_dev ),
+#                                              ( '$distroname', self.name )
+#                                              ):
+#            do_a_sed( '%s/usr/local/bin/Chrubix/bash/chrubix.sh' % ( self.mountpoint ), currently_says, ought_to_say )
         system_or_die( 'ln -sf Chrubix/bash/chrubix.sh %s/usr/local/bin/chrubix.sh' % ( self.mountpoint ) )
+        system_or_die( 'cp %s %s/usr/local/bin/chrubix.sh', groovy_chrubix_sh_file, self.mountpoint )
         system_or_die( 'chmod +x %s/usr/local/bin/Chrubix/bash/*' % ( self.mountpoint ) )
         for f in ( 'chrubix.sh', 'CHRUBIX', 'greeter.sh', 'preboot_configurer.sh', 'modify_sources.sh', 'redo_mbr.sh' ):
             system_or_die( 'ln -sf Chrubix/bash/%s %s/usr/local/bin/%s' % ( f, self.mountpoint, f ) )
@@ -942,37 +947,54 @@ exit $?
         logme( "This sanity-checker is incomplete. Please improve it." )
 
     def generate_squashfs_of_my_OS( self ):
+        logme( 'qqq generate_squashfs_of_my_OS() --- hi' )
         if 0 == os.system( 'mount /dev/sda4 /tmp/posterity &> /dev/null' ) \
         or 0 == os.system( 'mount /dev/sdb4 /tmp/posterity &> /dev/null' ):
+            logme( 'qqq alpha' )
             if os.path.exists( '/tmp/posterity/%s.sqfs' % ( self.name + ( '' if self.branch is None else self.branch ) ) ):
                 self.status_lst.append( ['Restoring squashfs of this OS from posterity'] )
                 system_or_die( 'cp -f /tmp/posterity/%s.sqfs %s/.squashfs.sqfs' % ( self.name + ( '' if self.branch is None else self.branch ) , self.mountpoint ) )
                 self.status_lst[-1] += '...restored.'
             system_or_die( 'umount /tmp/posterity &> /dev/null' )
+            logme( 'qqq bravo' )
             return
+        logme( 'qqq charlie' )
         self.status_lst.append( ['Generating squashfs of this OS'] )
         # Create squashfs; save it in {root_dev}/.alarmist.sqfs
         chroot_this( self.mountpoint, r'mksquashfs /{bin,boot,etc,home,lib,mnt,opt,sbin,usr,srv,var} /.squashfs.sqfs -comp xz',
-                                 status_lst = self.status_lst, title_str = self.title_str, on_fail = 'Failed to generate squashfs' )
+                                 status_lst = self.status_lst, title_str = self.title_str,
+                                 attempts = 1, on_fail = 'Failed to generate squashfs' )
         system_or_die( 'mkdir -p %s/_to_add_to_squashfs/{dev,proc,sys,tmp}' % ( self.mountpoint ) )
         chroot_this( self.mountpoint, 'mksquashfs /_to_add_to_squashfs/* /.squashfs.sqfs',
-                                 status_lst = self.status_lst, title_str = self.title_str, on_fail = 'Failed to generate squashfs' )
+                                 status_lst = self.status_lst, title_str = self.title_str,
+                                 attempts = 1, on_fail = 'Failed to generate squashfs' )
         self.status_lst[-1] += '...generated.'
+        logme( 'qqq delta' )
+        system_or_die( 'mkdir -p /tmp/posterity' )
         if 0 == os.system( 'mount /dev/sda4 /tmp/posterity &> /dev/null' ) \
-        or 0 == os.system( 'mount /dev/sdb4 /tmp/posterity &> /dev/null' ):
+        or 0 == os.system( 'mount /dev/sdb4 /tmp/posterity &> /dev/null' ) \
+        or 0 == os.system( 'mount | grep /tmp/posterity &> /dev/null' ):
             self.status_lst.append( 'Backing up the squashed fs' )
+            logme( 'qqq backing up squashs' )
             system_or_die( 'cp -f %s/.squashfs.sqfs /tmp/posterity/%s.sqfs' % ( self.mountpoint, self.name + ( '' if self.branch is None else self.branch ) ) )
             os.sync(); os.sync(); os.sync()
             self.status_lst[-1] += '...backed up.'
             system_or_die( 'umount /tmp/posterity &> /dev/null' )
-
+        assert( os.path.exists( '%s/.squashfs.sqfs' % ( self.mountpoint ) ) )
 
     def download_kernel_source( self ):  # This also downloads all the other PKGBUILDs (for btrfs-progs, jfsutils, etc.)
         # TODO: Consider using ArchlinuxDistro.download_package_source()
-        system_or_die( 'cd %s && git clone git://github.com/archlinuxarm/PKGBUILDs.git' % ( self.mountpoint + self.ryo_tempdir ), \
+        attempt = 0
+        while attempt <= 2:
+            try:
+                system_or_die( 'cd %s && git clone git://github.com/archlinuxarm/PKGBUILDs.git' % ( self.mountpoint + self.ryo_tempdir ), \
                              title_str = self.title_str, status_lst = self.status_lst )
-        system_or_die( 'cd %s && makepkg --skipchecksums --asroot --nobuild -f' % ( self.mountpoint + self.kernel_src_basedir ),
+                system_or_die( 'cd %s && makepkg --skipchecksums --asroot --nobuild -f' % ( self.mountpoint + self.kernel_src_basedir ),
                              title_str = self.title_str, status_lst = self.status_lst )
+            except ( RuntimeError, FileNotFoundError ):
+                attempt += 1
+        if attempt == 2:
+            failed( 'Failed to download kernel source' )
 #        self.download_package_source( os.path.basename( self.kernel_src_basedir ), ( 'PKGBUILD', ) )
 
 #    def download_kernel_source( self ):
@@ -1142,9 +1164,9 @@ WantedBy=multi-user.target
                                 self.configure_distrospecific_tweaks,
                                 self.remove_all_junk,
                                 self.check_sanity_of_distro,
-                                self.save_for_posterity_if_possible_D,
-                                self.generate_squashfs_of_my_OS )  # Create stage_D file. THEN create & back up the squash fs file.
+                                self.save_for_posterity_if_possible_D )
         fifth_stage = ( 
+                                self.generate_squashfs_of_my_OS,
                                 self.install_vbutils_from_cbook,  # just in case the new user's tools differ from the original builder's tools
                                 self.migrate_or_squash_OS,  # Every class but Alarmist will use migrate. Alarmist uses squash.
                                 self.unmount_and_clean_up
