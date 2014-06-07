@@ -16,7 +16,7 @@ mesa pyqt gptfdisk bluez-libs alsa-plugins acpi sdl libcanberra perl-xml-parser 
 libnotify talkfilters java-runtime libxmu apache-ant junit zbar python2-setuptools \
 twisted python2-yaml python2-distutils-extra python2-gobject python2-cairo python2-poppler python2-pdfrw \
 bcprov gtk-engine-unico gtk-engine-murrine gtk-engines xorg-fonts xorg-font-utils xorg-fonts-encodings \
-libreoffice-en-US libreoffice-common libreoffice-gnome \
+libreoffice-en-US libreoffice-common libreoffice-gnome libxfixes \
 xorg-server xorg-xinit xf86-input-synaptics xf86-video-fbdev xf86-video-armsoc xlockmore \
 mate mate-themes-extras mate-nettool mate-mplayer mate-accountsdialog \
 xorg-server-utils xorg-xmessage librsvg icedtea-web-java7 gconf hunspell-en chromium thunderbird windowmaker'
@@ -93,11 +93,11 @@ xorg-server-utils xorg-xmessage librsvg icedtea-web-java7 gconf hunspell-en chro
         if failed_packages != '':
             self.status_lst[-1] += [ 'I failed to install%s, however.' % ( failed_packages )]
 
-    def download_kernel_source( self ):  # This also downloads all the other PKGBUILDs (for btrfs-progs, jfsutils, etc.)
-        logme( 'ArchlinuxDistro - download_kernel_source() - starting' )
-        chroot_this( self.mountpoint, 'cd %s && git clone git://github.com/archlinuxarm/PKGBUILDs.git' % ( self.ryo_tempdir ), \
-                             on_fail = "Failed to git clone kernel source", title_str = self.title_str, status_lst = self.status_lst )
-        self.download_package_source( os.path.basename( self.kernel_src_basedir ), ( 'PKGBUILD', ) )
+#    def download_kernel_source( self ):  # This also downloads all the other PKGBUILDs (for btrfs-progs, jfsutils, etc.)
+#        logme( 'ArchlinuxDistro - download_kernel_source() - starting' )
+#        chroot_this( self.mountpoint, 'cd %s && git clone git://github.com/archlinuxarm/PKGBUILDs.git' % ( self.ryo_tempdir ), \
+#                             on_fail = "Failed to git clone kernel source", title_str = self.title_str, status_lst = self.status_lst )
+#        self.download_package_source( os.path.basename( self.kernel_src_basedir ), ( 'PKGBUILD', ) )
 
     def download_mkfs_sources( self ):
         logme( 'ArchlinuxDistro - download_mkfs_sources() - starting' )
@@ -151,6 +151,19 @@ xorg-server-utils xorg-xmessage librsvg icedtea-web-java7 gconf hunspell-en chro
         logme( 'FYI, ArchLinux has no distro-specific post-install tweaks at present' )
         self.status_lst[-1] += '...tweaked.'
 
+    def downgrade_systemd_if_necessary( self, bad_verno ):
+        if 0 == chroot_this( self.mountpoint, 'pacman -Q systemd | fgrep "systemd %s"' % ( bad_verno ) ):
+            wget( url = 'https://dl.dropboxusercontent.com/u/59916027/chrubix/systemd-212-3-armv7h.pkg.tar.xz',
+#            wget( url = 'http://rollback.adminempire.com/2014/06/03/armv7h/core/systemd-212-3-armv7h.pkg.tar.xz',
+                            save_as_file = '%s/tmp/systemd-212-3-armv7h.pkg.tar.xz' % ( self.mountpoint ),
+                            status_lst = self.status_lst, title_str = self.title_str )
+            chroot_this( self.mountpoint, 'yes "" | pacman -U /tmp/systemd-212-3-armv7h.pkg.tar.xz',
+                            status_lst = self.status_lst, title_str = self.title_str,
+                            on_fail = 'Failed to downgrade systemd' )
+            self.status_lst[-1] += ' (downgraded systemd)'
+        else:
+            failed( 'For the moment, there is a bug. I need you to work.' )
+
     def install_final_push_of_packages( self ):
         logme( 'ArchlinuxDistro - install_final_push_of_packages() - starting' )
         self.status_lst.append( 'Installed' )
@@ -164,9 +177,9 @@ xorg-server-utils xorg-xmessage librsvg icedtea-web-java7 gconf hunspell-en chro
                 system_or_die( 'cp /usr/local/bin/Chrubix/blobs/apps/%s /%s/tmp/' % ( my_fname, self.mountpoint ) )
             except RuntimeError:
                 wget( url = 'https://dl.dropboxusercontent.com/u/59916027/chrubix/%s' % ( my_fname ),
-                 save_as_file = '%s/tmp/%s' % ( self.mountpoint, my_fname ),
-                 status_lst = self.status_lst,
-                 title_str = self.title_str )
+                save_as_file = '%s/tmp/%s' % ( self.mountpoint, my_fname ),
+                status_lst = self.status_lst,
+                title_str = self.title_str )
             if 0 == chroot_this( self.mountpoint, 'yes "" | pacman -U /tmp/%s' % ( my_fname ) ):
                 self.status_lst[-1] += ' ' + my_fname.split( '-' )[0]
             else:
@@ -174,6 +187,7 @@ xorg-server-utils xorg-xmessage librsvg icedtea-web-java7 gconf hunspell-en chro
         failed_pkgs = self.install_from_AUR
         attempts = 0
         while failed_pkgs != '' and attempts < 5:
+            self.update_and_upgrade_all()
             attempts += 1
             packages_to_install = failed_pkgs
             failed_pkgs = ''
@@ -188,9 +202,12 @@ xorg-server-utils xorg-xmessage librsvg icedtea-web-java7 gconf hunspell-en chro
         self.status_lst[-1] += '...OK.'
         if failed_pkgs != '':
             self.status_lst.append( ['Warning - failed to install%s' % ( failed_pkgs )] )
-        self.status_lst[-1] + ' etc. '
+        self.status_lst[-1] += ' etc. '
 #        self.status_lst.append( ['Installing %s' % ( self.final_push_packages.replace( '  ', ' ' ).replace( ' ', ', ' ) )] )
         chroot_this( self.mountpoint, 'yes "" 2>/dev/null | pacman -S --needed %s' % ( self.final_push_packages ), title_str = self.title_str, status_lst = self.status_lst,
                      on_fail = 'Failed to install final push of packages', attempts = 20 )
         self.update_and_upgrade_all()
+        self.downgrade_systemd_if_necessary( '213-5' )
         self.status_lst[-1] += '...complete.'
+
+
