@@ -24,6 +24,6 @@ elif [ "$1" = "greeter" ] ; then
 	echo "exec python3 greeter.py" > /usr/local/bin/greeter.rc
 	startx /usr/local/bin/greeter.rc
 else
-	python3 main.py -Kon -Pon -d$dev -r$rootdev -s$sparedev -k$kerndev -D$distroname
+	python3 main.py -Koff -Poff -d$dev -r$rootdev -s$sparedev -k$kerndev -D$distroname
 fi
 exit $?
