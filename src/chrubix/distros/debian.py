@@ -13,7 +13,7 @@ from chrubix.distros import Distro
 # FIXME: paman and padevchooser are deprecated
 class DebianDistro( Distro ):
     important_packages = Distro.important_packages + ' ' + \
-'gnu-standards apt-utils libpopt-dev libacl1-dev libcrypto++-dev exo-utils libnotify-bin \
+'python3-setuptools gnu-standards apt-utils libpopt-dev libacl1-dev libcrypto++-dev exo-utils libnotify-bin \
 libattr1-dev build-essential fakeroot oss-compat devscripts equivs lintian libglib2.0-dev po-debconf \
 iso-codes debconf cdbs debhelper uuid-dev quilt openjdk-7-jre ant xz-utils libxmu-dev libconfig-auto-perl \
 python-software-properties default-jre dpatch festival dialog libck-connector-dev libpam0g-dev python-mutagen \
