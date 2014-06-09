@@ -22,7 +22,7 @@ class Distro():
     '''
     '''
     # Class-level consts
-    hewwo = '2014/06/09 @ 00:50'
+    hewwo = '2014/06/09 @ 13:48'
     crypto_rootdev = "/dev/mapper/cryptroot"
     crypto_homedev = "/dev/mapper/crypthome"
     boot_prompt_string = "boot: "
