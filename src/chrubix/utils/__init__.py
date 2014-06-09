@@ -135,7 +135,7 @@ def call_binary_and_show_progress( binary_info, title_str, foot_str, status_lst,
 
     make_an_alarm()
     loop.run()
-    logme( 'call_binary_and_show_progress() is returning' )
+#    logme( 'call_binary_and_show_progress() is returning' )
     return proc.poll()
 #    proc.kill()
 
@@ -148,13 +148,13 @@ def wget( url, save_as_file = None, extract_to_path = None, decompression_flag =
         if save_as_file and not extract_to_path:
             system_or_die( 'mkdir -p %s' % ( os.path.dirname( save_as_file ) ) )
             cmd = 'wget %s %s -O %s' % ( extra_params, url, save_as_file )
-            logme( 'cmd = %s' % ( cmd ) )
+#            logme( 'cmd = %s' % ( cmd ) )
         elif extract_to_path and not save_as_file:
             system_or_die( 'mkdir -p %s' % ( extract_to_path ) )
             if decompression_flag not in ( 'J', 'z' ):
                 raise SyntaxError( 'Specify compression flag: J for xz, z for gzip' )
             cmd = 'wget %s %s -O - | tar -%s -C %s' % ( extra_params, url, decompression_flag + 'x', extract_to_path )
-            logme( 'cmd = %s' % ( cmd ) )
+#            logme( 'cmd = %s' % ( cmd ) )
             if decompression_flag not in ( 'J', 'z' ):
                 raise SyntaxError( 'Are you sure %s is a valid decompression flag?' % ( decompression_flag ) )
         else:
@@ -165,7 +165,7 @@ def wget( url, save_as_file = None, extract_to_path = None, decompression_flag =
             logme( 'wget => %s => successful' % ( cmd ) )
             return res
         else:
-            logme( "Retrying" )
+#            logme( "Retrying" )
             os.sync(); os.sync(); os.sync()
             os.system( 'sleep 1' )
             time.sleep( 5 )
@@ -247,7 +247,7 @@ def generate_temporary_filename( dirpath = None ):
 
 
 def system_or_die( cmd, errtxt = None, title_str = None, status_lst = None ):
-    logme( 'system_or_die => %s' % ( cmd ) )
+#    logme( 'system_or_die => %s' % ( cmd ) )
     if title_str is not None and status_lst is not None:
         res = chroot_this( '/', cmd, title_str = title_str, status_lst = status_lst )
     else:
@@ -258,20 +258,20 @@ def system_or_die( cmd, errtxt = None, title_str = None, status_lst = None ):
         else:
             failed( '%s failed\n%s\nres=%d' % ( cmd, errtxt, res ) )
         os.system( 'clear' )
-        logme( "%s failed" % ( cmd, ) )
-    logme( 'system_or_die() is returning w/ res=%d' % ( res ) )
+#        logme( "%s failed" % ( cmd, ) )
+    logme( 'system_or_die(%s) is returning w/ res=%d' % ( cmd, res ) )
     return res
 
 
 def chroot_this( mountpoint, cmd, on_fail = None, attempts = 4, title_str = None, status_lst = None, pauses_len = 5, user = 'root' ):
-    logme( 'chroot_this (%s) ==> %s' % ( mountpoint, cmd ) )
+#    logme( 'chroot_this (%s) ==> %s' % ( mountpoint, cmd ) )
     proxy_info = '' if g_proxy in ( None, '' ) else 'export http_proxy=http://%s;' % ( g_proxy )
     my_executable_script = generate_temporary_filename( '/tmp' )
     if not os.path.isdir( mountpoint ):
         failed( '%s not found --- are you sure the chroot is operational?' % ( mountpoint ) )
     f = open( mountpoint + my_executable_script, 'wb' )
     outstr = '#!/bin/sh\n%s\n%s\nexit $?\n' % ( proxy_info, cmd )
-    logme( 'outstr = %s' % ( outstr ) )
+#    logme( 'outstr = %s' % ( outstr ) )
     f.write( outstr.encode( 'utf-8' ) )
     f.close()
     system_or_die( 'chmod +x %s' % ( mountpoint + my_executable_script ) )
@@ -285,6 +285,8 @@ def chroot_this( mountpoint, cmd, on_fail = None, attempts = 4, title_str = None
             res = os.system( 'chroot --userspec=%s %s %s' % ( user, mountpoint, my_executable_script ) )
         if res == 0:
             break
+        else:
+            time.sleep( 5 )
     if res != 0 and on_fail is not None:
         failed( '%s chroot in %s of "%s" failed after several attempts; %s' % ( proxy_info, mountpoint, cmd, on_fail ) )
     os.unlink( mountpoint + my_executable_script )
@@ -352,13 +354,15 @@ def fix_broken_hyperlinks( dir_to_fix ):
             else:
                 raise FileNotFoundError( 'Unable to fix %s/%s' % ( dir_to_fix, filename ) )
 
-def patch_kernel( mountpoint, basedir, url ):
+def patch_kernel( mountpoint, folder, url ):
     tmpfile = generate_temporary_filename( '/tmp' )
-    wget( url = url, save_as_file = tmpfile, quiet = True )
+    wget( url = url, save_as_file = '%s%s' % ( mountpoint, tmpfile ), quiet = True )
     if url[-3:] == '.gz':
-        system_or_die( 'mv %s %s.gz' % ( tmpfile, tmpfile ) )
-        system_or_die( 'gunzip %s.gz' % ( tmpfile ) )
-    if 0 != chroot_this( mountpoint, 'cd %s/src/chromeos-3.4 && patch  -p1 --no-backup-if-mismatch < %s' % ( basedir, tmpfile ), attempts = 1 ):
+        system_or_die( 'mv %s%s %s%s.gz' % ( mountpoint, tmpfile, mountpoint, tmpfile ) )
+        system_or_die( 'gunzip %s%s.gz' % ( mountpoint, tmpfile ) )
+    assert( os.path.isdir( '%s%s' % ( mountpoint, folder ) ) )
+    assert( os.path.isfile( '%s%s' % ( mountpoint, tmpfile ) ) )
+    if 0 != chroot_this( mountpoint, 'patch -p1 --no-backup-if-mismatch -d %s < %s' % ( folder, tmpfile ), attempts = 1 ):
         failed( 'Failed to apply %s patch to kernel.' % ( url ) )
 
 
@@ -480,4 +484,14 @@ def install_mp3_files( mountpoint ):
 #        and os.path.exists( '%s/opt/freenet/run.sh' % ( self.mountpoint ) ):
 #            chroot_this( self.mountpoint, 'ln -sf /opt/freenet/run.sh /usr/local/bin/start-freenet.sh' )
 #        chroot_this( self.mountpoint, 'chown -R freenet.freenet /opt/freenet' )
+
+
+
+
+def running_on_a_test_rig():
+    well_am_i = os.path.exists( '/home/chronos/user/Downloads/reubenabrams.txt' )
+    if not well_am_i:
+        logme( 'running_on_a_test_rig() is broken' )
+        well_am_i = True
+    return well_am_i
 
