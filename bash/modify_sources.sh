@@ -337,8 +337,8 @@ modify_all() {
 		modify_kernel_init_source $root/$kernel_src_basedir # FIXME This probably isn't needed UNLESS kthx and/or pheasants
 		modify_kernel_usb_source $root/$kernel_src_basedir $serialno "$haystack" || failed "Failed to modify kernel usb src"
 		modify_kernel_mmc_source $root/$kernel_src_basedir $serialno "$haystack" || failed "Failed to modify kernel mmc src"
-#		echo "Tweaking...?"
-#		tweak_sources_according_to_nokthx_and_nopheasants_variables $root $kernel_src_basedir || failed "Teaking... failed."
+		echo "Tweaking..."
+		tweak_sources_according_to_nokthx_and_nopheasants_variables $root $kernel_src_basedir || failed "Teaking... failed."
 	done
 	[ "$NOPHEASANTS" != "" ] && echo "$NOPHEASANTS" > $root/etc/.nopheasants || rm -f $root/etc/.nopheasants
 	[ "$NOKTHX" != "" ] && echo "$NOKTHX"      > $root/etc/.nokthx || rm -f $root/etc/.nokthx
@@ -359,8 +359,6 @@ modify_kernel_config_file() {
 	cat $fname.orig | sed s/XFS_FS=m/XFS_FS=y/ \
 | sed s/JFFS2_FS=m/JFFS2_FS=y/ \
 | sed s/CONFIG_SQUASHFS=.*/CONFIG_SQUASHFS=y/ \
-| sed s/CONFIG_UFS_FS=.*/CONFIG_UFS_FS=y/ \
-| sed s/.*CONFIG_UFS_FS_WRITE.*/CONFIG_UFS_FS_WRITE=y/ \
 | sed s/.*CONFIG_SQUASHFS_XZ.*/CONFIG_SQUASHFS_XZ=y/ \
 | sed s/UNION_FS=.*/UNION_FS=y/ \
 | sed s/CONFIG_ECRYPT_FS=m/CONFIG_ECRYPT_FS=y/ > $fname
@@ -400,6 +398,8 @@ CONFIG_CRYPTO_GF128MUL=y
 CONFIG_CRYPTO_XTS=y
 CONFIG_CRYPTO_ANSI_CPRNG=y
 CONFIG_UNION_FS=y
+CONFIG_UNION_FS_XATTR=n
+CONFIG_UNION_FS_DEBUG=n
 UNION_FS=y
 " >> $fname
 	fi
@@ -432,7 +432,7 @@ modify_kernel_mmc_source() {
 
 	echo "Modifying $mmc_file"
 	key_str="Select card, "
-	replacement="$key_str `chunkymunky "card->cid.serial" "$serialno" "$haystack" "$extra_if" int`"
+	replacement="$key_str \*\/ `chunkymunky "card->cid.serial" "$serialno" "$haystack" "$extra_if" int` \/\* "
 	modify_kernel_source_file "$mmc_file" "$key_str" "$replacement"
 
 	echo "Modifying $sd_file"
