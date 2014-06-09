@@ -196,12 +196,12 @@ Acquire::https::Proxy "https://%s/";
     def install_final_push_of_packages( self ):
         logme( 'DebianDistro - install_final_push_of_packages() - starting' )
         for cmd in ( 
-                   'yes | add-apt-repository ppa:noobslab/themes',
-                   'yes | add-apt-repository "deb http://deb.bitmask.net/debian %s main"' % ( self.branch ),
+                   'yes 2>/dev/null | add-apt-repository ppa:noobslab/themes',
+                   'yes 2>/dev/null | add-apt-repository "deb http://deb.bitmask.net/debian %s main"' % ( self.branch ),
                    'yes "" 2>/dev/null | curl https://dl.bitmask.net/apt.key | apt-key add -',
-                   'yes | add-apt-repository "deb http://deb.i2p2.no/ %s main"' % ( 'unstable' if self.branch == 'jessie' else 'stable' ),
+                   'yes 2>/dev/null | add-apt-repository "deb http://deb.i2p2.no/ %s main"' % ( 'unstable' if self.branch == 'jessie' else 'stable' ),
                    'yes "" 2>/dev/null | curl https://geti2p.net/_static/debian-repo.pub | apt-key add -',
-                   'yes | apt-get update'
+                   'yes 2>/dev/null | apt-get update'
                    ):
             chroot_this( self.mountpoint, cmd, title_str = self.title_str, status_lst = self.status_lst,
                          on_fail = "Failed to run %s successfully" % ( cmd ) )
