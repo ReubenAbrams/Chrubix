@@ -17,12 +17,21 @@
 ###################################################################################
 
 
+if [ "$USER" != "root" ] ; then
+	SCRIPTPATH=$( cd $(dirname $0) ; pwd -P )
+	fname=$SCRIPTPATH/`basename $0`
+	sudo bash $fname
+	exit $?
+fi
 
 
 ALARPY_URL="https://dl.dropboxusercontent.com/u/59916027/chrubix/skeletons/alarpy.tar.xz"
 FINALS_URL="https://dl.dropboxusercontent.com/u/59916027/chrubix/finals"
 CHRUBIX_URL=https://github.com/ReubenAbrams/Chrubix/archive/master.tar.gz
 OVERLAY_URL=https://dl.dropboxusercontent.com/u/59916027/chrubix/_chrubix.tar.xz
+RYO_TEMPDIR=/root/.rmo
+SOURCES_BASEDIR=$RYO_TEMPDIR/PKGBUILDs/core
+KERNEL_SRC_BASEDIR=$SOURCES_BASEDIR/linux-chromebook
 
 
 if ping -W2 -c1 192.168.1.66 &>/dev/null ; then
@@ -282,16 +291,6 @@ Which would you like me to install? "
 	url=$FINALS_URL/$distroname"__D.tar.xz"
 	squrl=$FINALS_URL/$distroname.sqfs
 	echo $distroname > $lockfile
-	while [ "$temp_or_perm" = "" ] ; do
-		echo -en "Do you want to be able to save personal data to the thumb drive/memory card (y/n) ?"
-		read line
-		if [ "$line" = "y" ] || [ "$line" = "Y" ] ; then
-			temp_or_perm="perm"
-		elif [ "$line" = "n" ] || [ "$line" = "N" ] ; then
-			temp_or_perm="temp"
-		fi
-	done
-	echo $temp_or_perm > $lockfile.temp_or_perm
 }
 
 restore_from_stage_X_backup_if_possible() {
@@ -330,20 +329,66 @@ restore_from_squash_fs_backup_if_possible() {
 	fnB=/tmp/b/$distroname.sqfs
 	for fname in $fnA $fnB ; do
 		if [ -e "$fname" ] ; then
-			cp -f $fname $root/.squashfs.sqfs
+			ask_if_user_wants_temporary_or_permanent
+			if [ "$temp_or_perm" = "temp" ] ; then	
+				cp -f $fname $root/.squashfs.sqfs
+				hack_something_squishy $distroname $root $dev_p
+				btstrap=$root
+				return 0
+			fi
+		fi
+	done
+	if wget --spider $squrl -O - > $root/.squashfs.sqfs ; then
+		ask_if_user_wants_temporary_or_permanent
+		if [ "$temp_or_perm" = "temp" ] ; then
+			wget $squrl -O - > $root/.squashfs.sqfs || failed "Failed to restrieve squashfs file from URL"
+			echo "Restored ($distroname, squash fs) from Dropbox"
 			hack_something_squishy $distroname $root $dev_p
 			btstrap=$root
 			return 0
 		fi
-	done
-	if wget $squrl -O - > $root/.squashfs.sqfs ; then
-		echo "Restored ($distroname, squash fs) from Dropbox"
-		hack_something_squishy $distroname $root $dev_p
-		btstrap=$root
-		return 0
 	fi
 	return 1
 }
+
+
+sign_and_write_custom_kernel() {
+	local writehere rootdev extra_params_A extra_params_B readwrite root
+	root=$1
+	writehere=$2
+	rootdev=$3
+	extra_params_A=$4
+	extra_params_B=$5
+# echo "sign_and_write_custom_kernel() -- writehere=$writehere rootdev=$rootdev "
+
+	echo -en "Writing kernel to boot device (replacing nv_u-boot)..."
+	dd if=/dev/zero of=$writehere bs=1k 2> /dev/null || echo -en "..."
+	echo "$extra_params_A $extra_params_b" | grep crypt &> /dev/null && readwrite=ro || readwrite=rw # TODO Shouldn't it be rw always?
+	echo "console=tty1  $extra_params_A root=$rootdev rootwait $readwrite quiet systemd.show_status=0 loglevel=$LOGLEVEL lsm.module_locking=0 init=/sbin/init $extra_params_B" > /tmp/kernel.flags
+	vbutil_kernel --pack /tmp/vmlinuz.signed --keyblock /usr/share/vboot/devkeys/kernel.keyblock --version 1 \
+--signprivate /usr/share/vboot/devkeys/kernel_data_key.vbprivk --config /tmp/kernel.flags \
+--vmlinuz $root$KERNEL_SRC_BASEDIR/src/chromeos-3.4/arch/arm/boot/vmlinux.uimg --arch arm && echo -en "..." || failed "Failed to sign kernel"
+	sync;sync;sync;sleep 1
+	dd if=/tmp/vmlinuz.signed of=$writehere &> /dev/null && echo -en "..." || failed "Failed to write kernel to $writehere"
+	echo "OK."
+}
+
+
+
+ask_if_user_wants_temporary_or_permanent() {
+	temp_or_perm=""
+	while [ "$temp_or_perm" = "" ] ; do
+		echo -en "Would you like me to avoid the complexities and do things the easy way instead (y/n) ?"
+		read line
+		if [ "$line" = "n" ] || [ "$line" = "n" ] ; then
+			temp_or_perm="unknown"			# temp or perm; you decide later
+		elif [ "$line" = "Y" ] || [ "$line" = "Y" ] ; then
+			temp_or_perm="temp"
+		fi
+	done
+}
+
+
 
 hack_something_squishy() {
 	local distroname root dev_p
@@ -353,20 +398,20 @@ hack_something_squishy() {
 	
 	echo "9999" > $root/.checkpoint.txt
 	umount /tmp/a /tmp/b &> /dev/null || echo -en ""
-	bootstraploc=$root/.bootstrap
-	if [ -e "$bootstraploc" ] ; then
-		mv $bootstraploc $bootstraploc.old
-	fi
-	mkdir -p $bootstraploc
+	# FYI, $root is mounted on /dev/mmcblk1p3 (or similar).
 	mkdir -p $root/.ro
 	mount -o loop,squashfs $root/.squashfs.sqfs $root/.ro
-	mount -t unionfs -o dirs=$root/.ro=rw unionfs $bootstraploc
+	for f in bin boot etc home lib mnt opt root run sbin srv usr var ; do
+		[ -e "$root/.ro/$f" ] && ln -sf .ro/$f $root/$f || mkdir -p $root/$f
+	done	
+#	mount -t unionfs -o dirs=$root/.ro=rw unionfs $bootstraploc
 }
 
 
 oh_well_start_from_beginning() {
+	cd /
 	echo "OK. There was no Stage D available on a thumb drive or online."
-#	clear
+	clear
 	echo "Installing bootstrap filesystem..."
 	if [ -e "/home/chronos/user/Downloads/alarpy.tar.xz" ] ; then
 		tar -Jxf /home/chronos/user/Downloads/alarpy.tar.xz -C $btstrap || failed "Failed to install alarpy.tar.xz"
@@ -382,8 +427,22 @@ oh_well_start_from_beginning() {
 }
 
 
+call_redo_mbr_and_make_it_squishy() {
+	sign_and_write_custom_kernel $root "$dev_p"1 "dev_p"3 "" || failed "Failed to sign/write custm kernel"
+}
+
+
 ##################################################################################################################################
 
+
+#dev=/dev/mmcblk1
+#dev_p="$dev"p
+#root=/tmp/_root.`basename $dev`		# Don't monkey with this...
+#boot=/tmp/_boot.`basename $dev`		# ...or this...
+#kern=/tmp/_kern.`basename $dev`		# ...or this!
+#btstrap=$root
+#call_redo_mbr_and_make_it_squishy
+#exit $?
 
 
 
@@ -408,7 +467,6 @@ kern=/tmp/_kern.`basename $dev`		# ...or this!
 lockfile=/tmp/.chrubix.distro.`basename $dev`
 if [ -e "$lockfile" ] ; then
 	distroname=`cat $lockfile`
-	temp_or_perm=`cat $lockfile.temp_or_perm`
 else
 	get_distro_type_the_user_wants
 fi
@@ -430,16 +488,10 @@ res=0
 mkdir -p $btstrap/{dev,proc,tmp,sys}
 mkdir -p $root/{dev,proc,tmp,sys}
 
-if [ "$temp_or_perm" = "perm" ] ; then
+if ! restore_from_squash_fs_backup_if_possible ; then
 	if ! restore_from_stage_X_backup_if_possible ; then
 		oh_well_start_from_beginning
 	fi
-elif [ "$temp_or_perm" = "temp" ] ; then
-	if ! restore_from_squash_fs_backup_if_possible ; then
-		oh_well_start_from_beginning
-	fi
-else
-	failed "temp_or_perm = '$temp_or_perm' - no good"
 fi
 
 mount devtmpfs  $btstrap/dev -t devtmpfs|| echo -en ""
@@ -447,33 +499,33 @@ mount sysfs     $btstrap/sys -t sysfs		|| echo -en ""
 mount proc      $btstrap/proc -t proc		|| echo -en ""
 mount tmpfs     $btstrap/tmp -t tmpfs		|| echo -en ""
 
-if ! mount | fgrep $btstrap/tmp/_root ; then
-	mkdir -p $btstrap/tmp/_root
-	mount "$dev_p"3 $btstrap/tmp/_root
-	mount devtmpfs $btstrap/tmp/_root/dev -t devtmpfs
-	mount tmpfs $btstrap/tmp/_root/tmp -t tmpfs
-	mount proc $btstrap/tmp/_root/proc -t proc
-	mount sys $btstrap/tmp/_root/sys -t sysfs
-fi
+mkdir -p $btstrap/tmp/_root
+mount "$dev_p"3 $btstrap/tmp/_root					|| echo -en ""
+mount devtmpfs $btstrap/tmp/_root/dev -t devtmpfs	|| echo -en ""
+mount tmpfs $btstrap/tmp/_root/tmp -t tmpfs			|| echo -en ""
+mount proc $btstrap/tmp/_root/proc -t proc			|| echo -en ""
+mount sys $btstrap/tmp/_root/sys -t sysfs			|| echo -en ""
 
-install_chrubix $btstrap $dev "$dev_p"3 "$dev_p"2 "$dev_p"1 $distroname
 sudo crossystem dev_boot_usb=1 dev_boot_signed_only=0 || echo "WARNING - failed to configure USB and MMC to be bootable"	# dev_boot_signed_only=0
 
-echo "************ Calling CHRUBIX, the Python powerhouse of pulchritudinous perfection ************"
-
-tar -cz /usr/lib/xorg/modules/drivers/armsoc_drv.so \
+if mount | grep $root | grep squashfs ; then
+	call_redo_mbr_and_make_it_squishy
+else
+	echo "************ Calling CHRUBIX, the Python powerhouse of pulchritudinous perfection ************"
+	install_chrubix $btstrap $dev "$dev_p"3 "$dev_p"2 "$dev_p"1 $distroname
+	tar -cz /usr/lib/xorg/modules/drivers/armsoc_drv.so \
 		/usr/lib/xorg/modules/input/cmt_drv.so /usr/lib/libgestures.so.0 \
 		/usr/lib/libevdev* \
 		/usr/lib/libbase*.so \
 		/usr/lib/libmali.so* \
 		/usr/lib/libEGL.so* \
 		/usr/lib/libGLESv2.so* > $btstrap/tmp/.hipxorg.tgz 2>/dev/null
-tar -cz /usr/bin/vbutil* /usr/bin/old_bins /usr/bin/futility > $btstrap/tmp/.vbtools.tgz 2>/dev/null
-tar -cz /usr/share/vboot > $btstrap/tmp/.vbkeys.tgz 2>/dev/null #### MAKE SURE CHRUBIX HAS ACCESS TO Y-O-U-R KEYS and YOUR vbutil* binaries ####
-
-chmod +x $btstrap/usr/local/bin/*
-chroot_this     $btstrap "/usr/local/bin/chrubix.sh" && res=0 || res=$?
-[ "$res" -ne "0" ] && failed "Because chrubix reported an error, I'm aborting... and I'm leaving everything mounted."
+	tar -cz /usr/bin/vbutil* /usr/bin/old_bins /usr/bin/futility > $btstrap/tmp/.vbtools.tgz 2>/dev/null
+	tar -cz /usr/share/vboot > $btstrap/tmp/.vbkeys.tgz 2>/dev/null #### MAKE SURE CHRUBIX HAS ACCESS TO Y-O-U-R KEYS and YOUR vbutil* binaries ####
+	chmod +x $btstrap/usr/local/bin/*
+	chroot_this     $btstrap "/usr/local/bin/chrubix.sh" && res=0 || res=$?
+	[ "$res" -ne "0" ] && failed "Because chrubix reported an error, I'm aborting... and I'm leaving everything mounted."
+fi
 
 sync; umount $btstrap/tmp/_root/{tmp,proc,sys,dev} 2> /dev/null || echo -en ""
 sync; umount $btstrap/tmp/_root/{tmp,proc,sys,dev} 2> /dev/null || echo -en ""
