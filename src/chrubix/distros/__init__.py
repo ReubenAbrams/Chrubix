@@ -661,7 +661,19 @@ exit 0
     def migrate_or_squash_OS( self ):  # FYI, the Alarmist distro (subclass) redefines this subroutine to disable root pw and squash the OS
         os.system( 'clear; sleep 1; sync;sync;sync; clear' )
         system_or_die( 'rm -f %s/.squashfs.sqfs /.squashfs.sqfs' % ( self.mountpoint ) )
-        print( '''Would you prefer a temporary setup or a permanent one? Before you choose, consider your options.
+        if os.path.exists( '%s/.temp_or_perm.txt' % ( self.mountpoint ) ):
+            logme( 'Found a temp_or_perm file that was created by stage 1 sh file.' )
+            r = read_oneliner_file( '%s/.temp_or_perm.txt' % ( self.mountpoint ) )
+            if r == 'perm':
+                res = 'P'
+            elif r == 'temp':
+                res = 'T'
+            elif r == 'meh':
+                res = 'M'
+            else:
+                failed( 'I do not understand this temp-or-mount file contents - %s' % ( r ) )
+        else:
+            print( '''Would you prefer a temporary setup or a permanent one? Before you choose, consider your options.
 
 TEMPORARY: When you boot, you will see a little popup window that asks you about mimicking Windows XP,
 spoofing your MAC address, etc. Whatever you do while the OS is running, nothing will be saved to disk.
@@ -674,9 +686,9 @@ In addition, you will be prompted for a 'logging in under duress' password. Pick
 MEH: No encryption. No duress password. Changes are permanent. Guest Mode is still the default.
 
 ''' )
-        res = 999
-        while res != 'T' and res != 'P' and res != 'M':
-            res = input( "(T)emporary, (P)ermanent, or (M)eh ? " ).strip( '\r\n\r\n\r' ).replace( 't', 'T' ).replace( 'p', 'P' ).replace( 'm', 'M' )
+            res = 999
+            while res != 'T' and res != 'P' and res != 'M':
+                res = input( "(T)emporary, (P)ermanent, or (M)eh ? " ).strip( '\r\n\r\n\r' ).replace( 't', 'T' ).replace( 'p', 'P' ).replace( 'm', 'M' )
         if res == 'T':
             self.squash_OS()
         elif res == 'P' or res == 'M':
@@ -709,6 +721,7 @@ MEH: No encryption. No duress password. Changes are permanent. Guest Mode is sti
         new_mtpt = '/tmp/_enc_root'
         os.system( 'mkdir -p %s' % ( new_mtpt ) )  # errtxt = 'Failed to create new mountpoint %s ' % ( new_mtpt ) )
         self.migrate_all_data( new_mtpt )  # also mounts new_mtpt and rejigs kernel
+        system_or_die( 'mkdir -p %s/{dev,proc,sys,tmp}' % ( self.mountpoint ) )
         chroot_this( new_mtpt, 'mount devtmpfs /dev -t devtmpfs', attempts = 1, title_str = self.title_str, status_lst = self.status_lst )
         chroot_this( new_mtpt, 'mount proc /proc -t proc', attempts = 1, title_str = self.title_str, status_lst = self.status_lst )
         chroot_this( new_mtpt, 'mount sysfs /sys -t sysfs', attempts = 1, title_str = self.title_str, status_lst = self.status_lst )

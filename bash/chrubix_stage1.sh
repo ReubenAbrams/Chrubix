@@ -378,12 +378,27 @@ sign_and_write_custom_kernel() {
 ask_if_user_wants_temporary_or_permanent() {
 	temp_or_perm=""
 	while [ "$temp_or_perm" = "" ] ; do
-		echo -en "\n\nWould you like me to avoid the complexities and do things the easy way instead (y/n) ?"
+		echo "
+Would you prefer a temporary setup or a permanent one? Before you choose, consider your options.
+
+TEMPORARY: When you boot, you will see a little popup window that asks you about mimicking Windows XP,
+spoofing your MAC address, etc. Whatever you do while the OS is running, nothing will be saved to disk.
+
+PERMANENT: When you boot, you will be prompted for a password. No password? No access. The whole disk
+is encrypted. Although you will initially be logged in as a guest whose home directory is on a ramdisk,
+you have the option of creating a permanent user, logging in as that user, and saving files to disk.
+In addition, you will be prompted for a 'logging in under duress' password. Pick a short one.
+
+MEH: No encryption. No duress password. Changes are permanent. Guest Mode is still the default.
+"
+		echo -en "(T)emporary, (P)ermanent, or (M)eh ? "
 		read line
-		if [ "$line" = "n" ] || [ "$line" = "n" ] ; then
-			temp_or_perm="unknown"			# temp or perm; you decide later
-		elif [ "$line" = "Y" ] || [ "$line" = "Y" ] ; then
+		if [ "$line" = "t" ] || [ "$line" = "T" ] ; then
 			temp_or_perm="temp"
+		elif [ "$line" = "p" ] || [ "$line" = "P" ] ; then
+			temp_or_perm="perm"
+		elif [ "$line" = "m" ] || [ "$line" = "M" ] ; then
+			temp_or_perm="meh"
 		fi
 	done
 }
@@ -523,6 +538,7 @@ else
 	tar -cz /usr/bin/vbutil* /usr/bin/old_bins /usr/bin/futility > $btstrap/tmp/.vbtools.tgz 2>/dev/null
 	tar -cz /usr/share/vboot > $btstrap/tmp/.vbkeys.tgz 2>/dev/null #### MAKE SURE CHRUBIX HAS ACCESS TO Y-O-U-R KEYS and YOUR vbutil* binaries ####
 	chmod +x $btstrap/usr/local/bin/*
+	echo "$temp_or_perm" > $btstrap/.temp_or_perm.txt
 	chroot_this     $btstrap "/usr/local/bin/chrubix.sh" && res=0 || res=$?
 	[ "$res" -ne "0" ] && failed "Because chrubix reported an error, I'm aborting... and I'm leaving everything mounted."
 fi
