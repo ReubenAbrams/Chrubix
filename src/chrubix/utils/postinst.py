@@ -9,7 +9,7 @@ Created on May 9, 2014
 '''
 
 import os
-from chrubix.utils import write_oneliner_file, failed, wget, system_or_die, logme, do_a_sed, chroot_this
+from chrubix.utils import write_oneliner_file, failed, system_or_die, logme, do_a_sed, chroot_this
 
 def append_startx_addendum( outfile ):
     f = open( outfile, 'a' )
