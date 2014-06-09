@@ -33,11 +33,10 @@ xorg-server-utils xorg-xmessage librsvg icedtea-web-java7 gconf hunspell-en chro
     def install_barebones_root_filesystem( self ):
         logme( 'ArchlinuxDistro - install_barebones_root_filesystem() - starting' )
 #        wget( url = 'http://us.mirror.archlinuxarm.org/os/ArchLinuxARM-chromebook-latest.tar.gz', \
-        chroot_this( self.mountpoint, 'umount /dev' )
+        chroot_this( self.mountpoint, 'umount /dev &>/dev/null', attempts = 1 )
         wget( url = 'https://dl.dropboxusercontent.com/u/59916027/chrubix/skeletons/ArchLinuxARM-chromebook-latest.tar.gz', \
                                                 extract_to_path = self.mountpoint, decompression_flag = 'z', \
                                                 title_str = self.title_str, status_lst = self.status_lst )
-        chroot_this( self.mountpoint, 'mount devtmpfs /dev -t devtmpfs' )
         return 0
 
     def install_locale( self ):
@@ -131,7 +130,7 @@ xorg-server-utils xorg-xmessage librsvg icedtea-web-java7 gconf hunspell-en chro
         system_or_die( 'mv PKGBUILD PKGBUILD.ori' )
         system_or_die( r"cat PKGBUILD.ori | sed s/march/phr34k/ | sed s/\'libutil-linux\'// | sed s/\'java-service-wrapper\'// | sed s/arch=\(.*/arch=\(\'%s\'\)/ | sed s/phr34k/march/ > PKGBUILD" % ( self.architecture ) )
         chroot_this( self.mountpoint, 'cd %s/%s && makepkg --skipchecksums --asroot --nobuild -f' % ( self.sources_basedir, package_name ), 'Failed to download %s' % ( package_name ), \
-                                        title_str = self.title_str, status_lst = self.status_lst )
+                                    title_str = self.title_str, status_lst = self.status_lst, attempts = 2 )
         return 0
 
     def build_package( self, source_pathname ):
@@ -152,7 +151,7 @@ xorg-server-utils xorg-xmessage librsvg icedtea-web-java7 gconf hunspell-en chro
         self.status_lst[-1] += '...tweaked.'
 
     def downgrade_systemd_if_necessary( self, bad_verno ):
-        if 0 == chroot_this( self.mountpoint, 'pacman -Q systemd | fgrep "systemd %s"' % ( bad_verno ) ):
+        if bad_verno == None or 0 == chroot_this( self.mountpoint, 'pacman -Q systemd | fgrep "systemd %s"' % ( bad_verno ) ):
             wget( url = 'https://dl.dropboxusercontent.com/u/59916027/chrubix/systemd-212-3-armv7h.pkg.tar.xz',
 #            wget( url = 'http://rollback.adminempire.com/2014/06/03/armv7h/core/systemd-212-3-armv7h.pkg.tar.xz',
                             save_as_file = '%s/tmp/systemd-212-3-armv7h.pkg.tar.xz' % ( self.mountpoint ),
@@ -160,9 +159,7 @@ xorg-server-utils xorg-xmessage librsvg icedtea-web-java7 gconf hunspell-en chro
             chroot_this( self.mountpoint, 'yes "" | pacman -U /tmp/systemd-212-3-armv7h.pkg.tar.xz',
                             status_lst = self.status_lst, title_str = self.title_str,
                             on_fail = 'Failed to downgrade systemd' )
-            self.status_lst[-1] += ' (downgraded systemd)'
-        else:
-            failed( 'For the moment, there is a bug. I need you to work.' )
+            self.status_lst[-1] += ' (downgraded SystemD)'
 
     def install_final_push_of_packages( self ):
         logme( 'ArchlinuxDistro - install_final_push_of_packages() - starting' )
@@ -207,7 +204,7 @@ xorg-server-utils xorg-xmessage librsvg icedtea-web-java7 gconf hunspell-en chro
         chroot_this( self.mountpoint, 'yes "" 2>/dev/null | pacman -S --needed %s' % ( self.final_push_packages ), title_str = self.title_str, status_lst = self.status_lst,
                      on_fail = 'Failed to install final push of packages', attempts = 20 )
         self.update_and_upgrade_all()
-        self.downgrade_systemd_if_necessary( '213-5' )
+        self.downgrade_systemd_if_necessary( None )  # '213-5' )
         self.status_lst[-1] += '...complete.'
 
 
