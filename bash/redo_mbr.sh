@@ -264,7 +264,7 @@ make_initramfs_homemade() {
 	mkdir -p dev etc etc/init.d bin proc mnt tmp var var/shm bin sbin sys run
 	chmod 755 . dev etc etc/init.d bin proc mnt tmp var var/shm
 
-	cp $root$BOOM_PW_FILE $root$INITRAMFS_DIRECTORY/$RAMFS_BOOMFILE
+	cp $root$BOOM_PW_FILE $root$INITRAMFS_DIRECTORY/$RAMFS_BOOMFILE || echo "Warning - no boom pw file" > /dev/stderr
 	cd $root$INITRAMFS_DIRECTORY/dev
 	mknod tty c 5 0
 	mknod console c 5 1
@@ -464,7 +464,8 @@ redo_mbr() {
 #	echo "Looking for $root$BOOM_PW_FILE"
 #	echo "Here's what 'ls' says..."
 #	ls $root$BOOM_PW_FILE || echo -en ""
-	[ -e "$root$BOOM_PW_FILE" ] || failed "No boom pw cksum file"
+
+#	[ -e "$root$BOOM_PW_FILE" ] || echo "WARNING - No boom pw cksum file"
 	[ -e "$root$KERNEL_SRC_BASEDIR/src" ] || failed "Cannot find $root$KERNEL_SRC_BASEDIR/src source folder"
 	rm -f $root$KERNEL_SRC_BASEDIR/src/chromeos-3.4/arch/arm/boot/vmlinux.uimg
 	rm -f $root/root/.vmlinuz.signed
@@ -472,10 +473,10 @@ redo_mbr() {
 	make_initramfs_hybrid $root $rootdev
 	chroot_pkgs_make $root $KERNEL_SRC_BASEDIR 39600
 	if echo "$rootdev" | grep /dev/mapper &>/dev/null ; then
-		sign_and_write_custom_kernel $root "$dev_p"1 $rootdev "cryptdevice="$dev_p"2:`basename $rootdev`" "" || failed "Failed to sign/write custm kernl"
+		sign_and_write_custom_kernel $root "$dev_p"1 $rootdev "cryptdevice="$dev_p"2:`basename $rootdev`" "" || failed "Failed to sign/write custm kernel"
 	else
 # I assume rootdev == "$dev_p"2
-		sign_and_write_custom_kernel $root "$dev_p"1 $rootdev "" || failed "Failed to sign/write custm kernl"
+		sign_and_write_custom_kernel $root "$dev_p"1 $rootdev "" || failed "Failed to sign/write custm kernel"
 	fi
 }
 
@@ -518,9 +519,8 @@ sign_and_write_custom_kernel() {
 export PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin # Just in case phase 3 forgets to pass $PATH to the xterm call to me
 set -e
 if [ "$#" -ne "3" ] ; then
-	failed "redo_mbr.sh <dev> <mountpoint> <root device or crypto root dev> ----- e.g. redo_mbr.sh /dev/mmcblk1 /mount/_root no no /dev/mapper/cryptroot"
+	failed "redo_mbr.sh <dev> <mountpoint> <root device or crypto root dev> ----- e.g. redo_mbr.sh /dev/mmcblk1 /tmp/_root /dev/mapper/cryptroot"
 fi
-
 
 dev=$1					# disk, e.g. /dev/mmcblk1
 root=$2					# root folder
