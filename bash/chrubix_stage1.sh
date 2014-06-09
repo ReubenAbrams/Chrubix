@@ -378,7 +378,7 @@ sign_and_write_custom_kernel() {
 ask_if_user_wants_temporary_or_permanent() {
 	temp_or_perm=""
 	while [ "$temp_or_perm" = "" ] ; do
-		echo -en "Would you like me to avoid the complexities and do things the easy way instead (y/n) ?"
+		echo -en "\n\nWould you like me to avoid the complexities and do things the easy way instead (y/n) ?"
 		read line
 		if [ "$line" = "n" ] || [ "$line" = "n" ] ; then
 			temp_or_perm="unknown"			# temp or perm; you decide later
