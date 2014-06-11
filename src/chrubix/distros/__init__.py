@@ -1256,8 +1256,8 @@ WantedBy=multi-user.target
                                 self.configure_speech_synthesis_and_font_cache,
                                 self.configure_winxp_camo_and_guest_default_files,
                                 self.configure_distrospecific_tweaks,
-                                self.forcibly_rebuild_initramfs_and_vmlinux,
                                 self.remove_all_junk,
+                                self.forcibly_rebuild_initramfs_and_vmlinux,
                                 self.check_sanity_of_distro,
                                 self.save_for_posterity_if_possible_D )
         third_stage = ( 
