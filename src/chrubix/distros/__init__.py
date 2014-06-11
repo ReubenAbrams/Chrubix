@@ -256,7 +256,6 @@ make' % ( self.sources_basedir ), title_str = self.title_str, status_lst = self.
                                                         self.device, chroot_here, root_partition_device ),
                                                         errtxt = 'Failed to redo kernel & mbr',
                                                         title_str = self.title_str, status_lst = self.status_lst )
-            self.kernel_rebuild_required = False
             f = '%s%s/src/chromeos-3.4/drivers/mmc/core/mmc.c' % ( self.mountpoint, self.kernel_src_basedir )
             g = '%s%s/src/chromeos-3.4/fs/btrfs/ctree.h' % ( self.mountpoint, self.kernel_src_basedir )
             assert( os.path.exists( f ) )
@@ -268,6 +267,7 @@ make' % ( self.sources_basedir ), title_str = self.title_str, status_lst = self.
             else:
                 assert( not os.path.exists( '%s.kthxSullied' % g ) )
                 self.status_lst.append( ['Warning - source code was never modified. I hope that is not a bad sign.'] )
+            self.kernel_rebuild_required = False
         else:
             logme( 'qqq No need to rebuild kernel. Merely signing existing kernel' )
             if root_partition_device.find( '/dev/mapper' ) >= 0:
@@ -695,6 +695,7 @@ exit 0
 
     def migrate_or_squash_OS( self ):  # FYI, the Alarmist distro (subclass) redefines this subroutine to disable root pw and squash the OS
         os.system( 'clear; sleep 1; sync;sync;sync; clear' )
+        self.status_lst.append( ['Migrating/squashing OS'] )
         system_or_die( 'rm -f %s/.squashfs.sqfs /.squashfs.sqfs' % ( self.mountpoint ) )
         if os.path.exists( '%s/.temp_or_perm.txt' % ( self.mountpoint ) ):
 #            logme( 'Found a temp_or_perm file that was created by sh file.' )
@@ -724,7 +725,7 @@ MEH: No encryption. No duress password. Changes are permanent. Guest Mode is sti
             res = 999
             while res != 'T' and res != 'P' and res != 'M':
                 res = input( "(T)emporary, (P)ermanent, or (M)eh ? " ).strip( '\r\n\r\n\r' ).replace( 't', 'T' ).replace( 'p', 'P' ).replace( 'm', 'M' )
-        assert( 0 == chroot_this( self.mountpoint, 'which %s/.temp_or_perm.txt' % ( self.mountpoint ) ) )
+        assert( 0 == chroot_this( self.mountpoint, 'ls -l /.temp_or_perm.txt', status_lst = self.status_lst, title_str = self.title_str ) )  # ...to force the display to work
         if res == 'T':
             self.squash_OS()
         elif res == 'P' or res == 'M':
@@ -1204,6 +1205,12 @@ WantedBy=multi-user.target
     def install_mkinitcpio_ramwipe_hooks( self ):  # See https://bbs.archlinux.org/viewtopic.php?id=136283
         install_initcpio_wiperamonshutdown_files( self.mountpoint )
 
+    def forcibly_rebuild_initramfs_and_vmlinux( self ):
+        self.status_lst.append( ['Forcibly rebuilding kernel and vmlinux'] )
+        self.kernel_rebuild_required = True
+        self.redo_mbr( root_partition_device = self.root_dev, chroot_here = self.mountpoint )
+        self.status_lst[-1] += '...rebuilt.'
+
     def quit( self ):
         failed( 'NEFARIOUS PORPOISES' )
 
@@ -1249,10 +1256,12 @@ WantedBy=multi-user.target
                                 self.configure_speech_synthesis_and_font_cache,
                                 self.configure_winxp_camo_and_guest_default_files,
                                 self.configure_distrospecific_tweaks,
+                                self.forcibly_rebuild_initramfs_and_vmlinux,
                                 self.remove_all_junk,
                                 self.check_sanity_of_distro,
                                 self.save_for_posterity_if_possible_D )
         third_stage = ( 
+#                                self.forcibly_rebuild_initramfs_and_vmlinux,
                                 self.install_vbutils_from_cbook,  # just in case the new user's tools differ from the original builder's tools
                                 self.migrate_or_squash_OS,  # Every class but Alarmist will use migrate. Alarmist uses squash.
                                 self.unmount_and_clean_up

@@ -91,6 +91,7 @@ xorg-server-utils xorg-xmessage librsvg icedtea-web-java7 gconf hunspell-en chro
         self.status_lst[-1] += 'installed.'
         if failed_packages != '':
             self.status_lst[-1] += [ 'I failed to install%s, however.' % ( failed_packages )]
+        chroot_this( self.mountpoint, '/bin/easy_install-2.7 leap.bitmask', title_str = self.title_str, status_lst = self.status_lst )
         system_or_die( 'rm -Rf %s/var/cache/apt/archives/*' % ( self.mountpoint ) )
 
 #    def download_kernel_source( self ):  # This also downloads all the other PKGBUILDs (for btrfs-progs, jfsutils, etc.)
@@ -168,8 +169,6 @@ xorg-server-utils xorg-xmessage librsvg icedtea-web-java7 gconf hunspell-en chro
 #        chroot_this( self.mountpoint, 'rm -Rf /usr/share/man/*/*perl* /usr/*/*perl*' )
 #        chroot_this( self.mountpoint, 'yes "" | pacman -S perl intltool perlxml' )
 #        self.status_lst[-1] += ' perl (reinstalled)'
-        chroot_this( self.mountpoint, '/bin/easy_install-2.* leap.bitmask', title_str = self.title_str, status_lst = self.status_lst )
-        self.status_lst[-1] += ' bitmask'
         for my_fname in ( 'ssss-0.5-3-armv7h.pkg.tar.xz', 'florence-0.6.2-1-armv7h.pkg.tar.xz' ):
             try:
                 system_or_die( 'cp /usr/local/bin/Chrubix/blobs/apps/%s /%s/tmp/' % ( my_fname, self.mountpoint ) )

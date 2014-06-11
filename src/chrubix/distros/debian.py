@@ -4,7 +4,6 @@
 
 # TODO: aptitude --download-only ... Should I install it at end of important pkg func, or should I do it during final push?
 
-
 from chrubix.utils import generate_temporary_filename, g_proxy, failed, system_or_die, write_oneliner_file, wget, logme, \
                           chroot_this, read_oneliner_file, do_a_sed  # , generate_and_incorporate_patch_for_debian
 import os
@@ -25,12 +24,12 @@ wmaker python-cairo python-pdfrw libconfig-dev libx11-dev python-hachoir-core py
 mat myspell-en-us msttcorefonts xorg xserver-xorg-input-synaptics xul-ext-https-everywhere \
 pulseaudio paprefs pulseaudio-module-jack pavucontrol paman alsa-tools-gui alsa-oss mythes-en-us \
 libpisock-dev libetpan15 uno-libs3 libgtk-3-bin libbcprov-java gtk2-engines-murrine \
-e2fslibs-dev debhelper'  # Warning! Monkeysign pkg might be broken.
+e2fslibs-dev debhelper python-dev libffi-dev python-dev libffi-dev libsqlite3-dev \
+'  # Warning! Monkeysign pkg might be broken.
 # gtk-engines-unico python-distutil-extra ? python-distusil-extra python-gobject python-qrencode python-imaging
-    final_push_packages = Distro.final_push_packages + 'lxsession \
+    final_push_packages = Distro.final_push_packages + 'iputils-ping lxsession \
 wireless-tools wpasupplicant obfsproxy network-manager-gnome \
-mate-desktop-environment-extras win-xp-theme i2p i2p-keyring \
-bitmask leap-keyring'  # FYI, freenet is handled by install_final_push...()
+mate-desktop-environment-extras i2p i2p-keyring'  # FYI, freenet is handled by install_final_push...()
 # xul-ext-flashblock
 # FYI, bitmask and leap-keyring are made possible by apt-add-repository() call in ..._final_push_...(). Ditto, win-xp-theme.
 
@@ -54,6 +53,7 @@ bitmask leap-keyring'  # FYI, freenet is handled by install_final_push...()
         chroot_this( '/', "%s debootstrap --no-check-gpg --verbose --arch=%s --variant=buildd --include=aptitude,netbase,ifupdown,net-tools,linux-base %s %s http://ftp.uk.debian.org/debian/"
                         % ( my_proxy_call, self.architecture, self.branch, self.mountpoint ),
                         title_str = self.title_str, status_lst = self.status_lst, on_fail = "Failed to bootstrap into Debian" )
+        logme( 'DebianDistro - install_barebones_root_filesystem() - leaving' )
 
     def install_locale( self ):
         logme( 'DebianDistro - install_locale() - starting' )
@@ -63,6 +63,7 @@ bitmask leap-keyring'  # FYI, freenet is handled by install_final_push...()
 #        chroot_this( self.mountpoint, "dpkg-reconfigure locales", title_str = self.title_str, status_lst = self.status_lst )
         chroot_this( self.mountpoint, 'dpkg --configure -a' )
         self.do_generic_locale_configuring()
+        logme( 'DebianDistro - install_locale() - leaving' )
 
     def install_kernel_and_mkfs ( self ):
         logme( 'DebianDistro - install_kernel_and_mkfs() - starting' )
@@ -85,6 +86,7 @@ bitmask leap-keyring'  # FYI, freenet is handled by install_final_push...()
             chroot_this( self.mountpoint, "cd %s/src/chromeos-3.4 && make install && make modules_install" % ( self.kernel_src_basedir ),
                                                             title_str = self.title_str, status_lst = self.status_lst,
                                                             on_fail = "Failed to install the tweaked kernel and/or modules" )
+        logme( 'DebianDistro - install_kernel_and_mkfs() - leaving' )
 
     def install_package_manager_tweaks( self ):
         logme( 'DebianDistro - install_package_manager_tweaks() - starting' )
@@ -112,11 +114,13 @@ Acquire::https::Proxy "https://%s/";
             f.close()
         for pkg_name in self.list_of_mkfs_packages:
             chroot_this( self.mountpoint, 'sudo apt-mark hold %s' % ( pkg_name ) )
+        logme( 'DebianDistro - install_package_manager_tweaks() - leaving' )
 
     def update_and_upgrade_all( self ):
         logme( 'DebianDistro - update_and_upgrade_all() - starting' )
         chroot_this ( self.mountpoint, 'yes 2>/dev/null | apt-get update', "Failed to update OS" , attempts = 5, title_str = self.title_str, status_lst = self.status_lst )
         chroot_this ( self.mountpoint, 'yes 2>/dev/null | apt-get upgrade', "Failed to upgrade OS" , attempts = 5, title_str = self.title_str, status_lst = self.status_lst )
+        logme( 'DebianDistro - update_and_upgrade_all() - leaving' )
 
     def install_important_packages( self ):
         logme( 'DebianDistro - install_important_packages() - starting' )
@@ -154,8 +158,11 @@ Acquire::https::Proxy "https://%s/";
                          status_lst = self.status_lst, title_str = self.title_str,
                          on_fail = 'Failed to install formerly failed packages' )
         if os.path.exists( '%s/usr/bin/python3' % ( self.mountpoint ) ):
-            chroot_this( self.mountpoint, 'ln -sf /usr/bin/python3 /usr/local/bin/python3' )
+            chroot_this( self.mountpoint, 'ln -sf ../../bin/python3 /usr/local/bin/python3' )
         system_or_die( 'rm -Rf %s/var/cache/apt/archives/*' % ( self.mountpoint ) )
+        chroot_this( self.mountpoint, 'pip install leap.bitmask', status_lst = self.status_lst, title_str = self.title_str )
+        self.steal_dtc_and_mkinitcpio_from_alarpy()
+        logme( 'DebianDistro - install_important_packages() - leaving' )
 
 #        for pkg_name in 'python2-pyptlib xul-ext-torbutton'.split( ' ' ):
 #            self.build_and_install_package_from_debian_source( pkg_name )
@@ -169,6 +176,7 @@ Acquire::https::Proxy "https://%s/";
         system_or_die( 'mkdir -p %s' % ( self.sources_basedir ) )
         for pkg_name in self.list_of_mkfs_packages:
             self.download_package_source( destination_directory = '%s' % ( self.sources_basedir ), package_name = pkg_name )
+        logme( 'DebianDistro - download_mkfs_sources() - leaving' )
 
     def download_package_source( self, destination_directory, package_name, filenames_lst = None ):
         logme( 'DebianDistro - download_package_source() - starting' )
@@ -177,6 +185,7 @@ Acquire::https::Proxy "https://%s/";
         system_or_die( 'mkdir -p %s/%s' % ( self.mountpoint, pathname ) )
         chroot_this( self.mountpoint, 'mkdir -p %s && cd %s && yes 2>/dev/null | apt-get source %s' % ( pathname, pathname, package_name ), \
                             on_fail = "Failed to download source for %s " % ( package_name ), title_str = self.title_str, status_lst = self.status_lst )
+        logme( 'DebianDistro - download_package_source() - leaving' )
 
     def build_package( self, source_pathname ):
         logme( 'DebianDistro - build_package() - starting' )
@@ -191,6 +200,7 @@ Acquire::https::Proxy "https://%s/";
 #                    on_fail = 'Failed to build %s in %s' % ( package_name, package_path ),
 #                    title_str = self.title_str,
 #                    status_lst = self.status_lst )
+        logme( 'DebianDistro - build_package() - leaving' )
 
     def configure_distrospecific_tweaks( self ):
         logme( 'DebianDistro - configure_distrospecific_tweaks() - starting' )
@@ -198,20 +208,21 @@ Acquire::https::Proxy "https://%s/";
         for to_remove in ( 'ftp', 'http' ):
             do_a_sed( '%s/etc/apt/apt.conf' % ( self.mountpoint ), 'Acquire::%s::Proxy.*' % ( to_remove ), '' )
         self.status_lst[-1] += '...installed.'
+        logme( 'DebianDistro - configure_distrospecific_tweaks() - leaving' )
 
     def install_final_push_of_packages( self ):
         logme( 'DebianDistro - install_final_push_of_packages() - starting' )
+        wget( url = 'http://ppa.launchpad.net/noobslab/themes/ubuntu/pool/main/w/win-xp-theme/win-xp-theme_1.3.1~saucy~Noobslab.com_all.deb',
+             save_as_file = '%s/tmp/win-xp-themes.deb' % ( self.mountpoint ), status_lst = self.status_lst, title_str = self.title_str )
         for cmd in ( 
-                   'yes 2>/dev/null | add-apt-repository ppa:noobslab/themes',
-                   'yes 2>/dev/null | add-apt-repository "deb http://deb.bitmask.net/debian %s main"' % ( self.branch ),
-                   'yes "" 2>/dev/null | curl https://dl.bitmask.net/apt.key | apt-key add -',
-                   'yes 2>/dev/null | add-apt-repository "deb http://deb.i2p2.no/ %s main"' % ( 'unstable' if self.branch == 'jessie' else 'stable' ),
-                   'yes "" 2>/dev/null | curl https://geti2p.net/_static/debian-repo.pub | apt-key add -',
-                   'yes 2>/dev/null | apt-get update'
+                    'yes 2>/dev/null | dpkg -i /tmp/win-xp-themes.deb',
+                    'yes 2>/dev/null | add-apt-repository "deb http://deb.i2p2.no/ %s main"' % ( 'unstable' if self.branch == 'jessie' else 'stable' ),
+                    'yes "" 2>/dev/null | curl https://geti2p.net/_static/debian-repo.pub | apt-key add -',
+                    'yes 2>/dev/null | apt-get update'
                    ):
             chroot_this( self.mountpoint, cmd, title_str = self.title_str, status_lst = self.status_lst,
                          on_fail = "Failed to run %s successfully" % ( cmd ) )
-        self.status_lst.append( [ 'Go to https://wiki.freenetproject.org/Installing/POSIX and learn how to install Freenet'] )
+#        self.status_lst.append( [ 'Go to https://wiki.freenetproject.org/Installing/POSIX and learn how to install Freenet'] )
         if self.final_push_packages.find( 'wmsystemtray' ) < 0:
             self.install_expatriate_software_into_a_debianish_OS( package_name = 'wmsystemtray', method = 'debian' )
         if self.final_push_packages.find( 'lxdm' ) < 0:
@@ -220,15 +231,18 @@ Acquire::https::Proxy "https://%s/";
         chroot_this( self.mountpoint, 'yes "" | aptitude install %s' % ( self.final_push_packages ),
                      title_str = self.title_str, status_lst = self.status_lst,
                      on_fail = 'Failed to install final push of packages' )
+        logme( 'DebianDistro - install_final_push_of_packages() - leaving' )
 
     def steal_dtc_and_mkinitcpio_from_alarpy( self ):
         logme( 'DebianDistro - steal_dtc_and_mkinitcpio_from_alarpy() - starting' )
         system_or_die( '''tar -cz `find /{usr,etc} | grep mkinit` `find /{usr,etc} | grep initcpio` `find /{usr,etc,bin} -name lz4` 2>/dev/null | tar -zx -C %s 2>/dev/null''' % ( self.mountpoint ), errtxt = "Unable to steal xz, mkinitcpio, etc. from Alarpy and install it in your distro" )
         system_or_die( 'cp /bin/dtc %s/bin/' % ( self.mountpoint ) )
+        logme( 'DebianDistro - steal_dtc_and_mkinitcpio_from_alarpy() - leaving' )
 
     def steal_chromium_from_alarpy( self ):  # the '-k' is important ;)
         logme( 'DebianDistro - steal_chromium_from_alarpy() - starting' )
         system_or_die( '''tar -cz `find /{etc,usr,usr/bin,usr/lib,usr/local/bin,usr/local/lib}/chromium*` /{usr/lib,lib,usr/local/lib}/{libevent,libpng,libopus,libharfbuzz,libsnappy,libgcrypt,libspeechd,libudev,libXss,libicuuc,libicudata,libgraphite2}* 2>/dev/null | tar -zx -k -C %s 2>/dev/null''' % ( self.mountpoint ), errtxt = "Unable to steal chromium from Alarpy and install it in your distro" )
+        logme( 'DebianDistro - steal_chromium_from_alarpy() - leaving' )
 
     def install_expatriate_software_into_a_debianish_OS( self, package_name, method = None ):
         logme( 'DebianDistro - install_expatriate_software_into_a_debianish_OS() - starting' )
@@ -260,16 +274,19 @@ Acquire::https::Proxy "https://%s/";
                 if package_name == 'chromium':
                     self.status_lst[-1] += ' (which takes a while)'
             myfunc( package_name = package_name )
+        logme( 'DebianDistro - install_expatriate_software_into_a_debianish_OS() - leaving' )
 
     def build_and_install_package_from_ubuntu_source( self, package_name ):
         logme( 'DebianDistro - build_and_install_package_from_ubuntu_source() - starting' )
         self.build_and_install_package_from_deb_or_ubu_source( package_name, \
                                                         'http://packages.ubuntu.com/precise' )
+        logme( 'DebianDistro - build_and_install_package_from_ubuntu_source() - leaving' )
 
     def build_and_install_package_from_debian_source( self, package_name ):
         logme( 'DebianDistro - build_and_install_package_from_debian_source() - starting' )
         self.build_and_install_package_from_deb_or_ubu_source( package_name, \
                                                         'https://packages.debian.org/jessie' )
+        logme( 'DebianDistro - build_and_install_package_from_debian_source() - leaving' )
 
     def build_and_install_package_from_deb_or_ubu_source( self, package_name, src_url ):
         logme( 'DebianDistro - build_and_install_package_from_deb_or_ubu_source() - starting' )
@@ -296,6 +313,7 @@ Acquire::https::Proxy "https://%s/";
                                                                         on_fail = 'Failed to install %s' % ( package_name ) )
         if self.status_lst is not None:                      self.status_lst[-1] += '...Yay.'
         system_or_die( 'rm -f %s%s/*.deb' % ( self.mountpoint, self.sources_basedir ) )
+        logme( 'DebianDistro - build_and_install_package_from_deb_or_ubu_source() - leaving' )
         return 0
 
     def deduce_filelist_from_website( self, src_url, package_name ):
@@ -313,6 +331,7 @@ Acquire::https::Proxy "https://%s/";
                     actual_url = [ r for r in http_path if r.find( 'http' ) >= 0][0]
                     files_i_want.append( actual_url )
         os.unlink( tmpfile )
+        logme( 'DebianDistro - deduce_filelist_from_website() - leaving' )
         return files_i_want
 
     def download_pkgfiles_from_website( self, package_name, files_i_want ):
@@ -321,6 +340,7 @@ Acquire::https::Proxy "https://%s/";
         for url in files_i_want:
             outfile = '%s%s/%s/%s' % ( self.mountpoint, self.sources_basedir, package_name, os.path.basename( url ) )
             wget( url = url, save_as_file = outfile, title_str = self.title_str, status_lst = self.status_lst )
+        logme( 'DebianDistro - download_pkgfiles_from_website() - leaving' )
 
     def extract_pkgfiles_accordingly( self, package_name, files_i_want ):
         logme( 'DebianDistro - extract_pkgfiles_accordingly() - starting' )
@@ -336,6 +356,7 @@ Acquire::https::Proxy "https://%s/";
                                  ( self.sources_basedir, package_name, package_name, package_name ), \
                                  on_fail = 'Failed to patch %s thingumabob' % ( package_name ), \
                                  title_str = self.title_str, status_lst = self.status_lst )
+        logme( 'DebianDistro - extract_pkgfiles_accordingly() - leaving' )
 
     def tweak_pkgfiles_accordingly( self, package_name ):
         logme( 'DebianDistro - tweak_pkgfiles_accordingly() - starting' )
@@ -346,7 +367,7 @@ Acquire::https::Proxy "https://%s/";
             if not os.path.isfile( '%s.orig' % ( f ) ):
                 system_or_die( 'mv %s %s.orig' % ( f, f ) )
             system_or_die( 'cat %s.orig | grep -v x11-utils | grep -v gtk2-engines | grep -v libpam | grep -v librsvg | grep -v xbase > %s' % ( f, f ) )
-
+        logme( 'DebianDistro - tweak_pkgfiles_accordingly() - leaving' )
 
     def build_package_from_fileset( self, package_name ):
         logme( 'DebianDistro - build_package_from_fileset() - starting' )
@@ -365,6 +386,7 @@ Acquire::https::Proxy "https://%s/";
                                                 on_fail = "Failed to install the build deps of %s" % ( package_name ) , \
                                                 title_str = self.title_str, status_lst = self.status_lst )
                 att += 1
+        logme( 'DebianDistro - build_package_from_fileset() - leaving' )
         return res
 
 
