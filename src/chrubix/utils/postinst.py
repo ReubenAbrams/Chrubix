@@ -14,18 +14,11 @@ from chrubix.utils import write_oneliner_file, failed, system_or_die, logme, do_
 def append_startx_addendum( outfile ):
     f = open( outfile, 'a' )
     f.write( '''
-logger "QQQ start of startx addendum"
 export DISPLAY=:0.0
-xhost +
-logger "QQQ startx 0000"
 localectl set-locale en_US.utf8
 localectl set-keymap us
-logger "QQQ startx aaaa"
 setxkbmap us
 localectl set-x11-keymap us
-xset s off
-logger "QQQ startx bbbb"
-xset -dpms
 xset -b        # dpms, no audio bell; see https://www.notabilisfactum.com/blog/?page_id=7
 xset m 30/10 3
 logger "QQQ startx cccc"
@@ -37,16 +30,15 @@ logger "QQQ startx end of startx addendum"
 def append_lxdm_post_login_script( outfile ):
     f = open( outfile, 'a' )
     f.write( '''
+. /etc/bash.bashrc
+. /etc/profile
+
 liu=/tmp/.logged_in_user
 logger "QQQ start of postlogin script"
-export DISPLAY=:0.0
 echo "$USER" > $liu
 
+export DISPLAY=:0.0
 start-pulseaudio-x11 &
-
-ps wax | fgrep mate-session | fgrep -v grep && soundfile=winxp || soundfile=pghere
-mpg123 /etc/.mp3/$soundfile.mp3 &
-
 sleep 1
 if ps -o pid -C wmaker &>/dev/null; then
   wmsystemtray &
@@ -60,7 +52,26 @@ which start-freenet.sh &> /dev/null && start-freenet.sh start &
 
 #nm-connection-editor &
 
+ps wax | fgrep mate-session | fgrep -v grep && soundfile=winxp || soundfile=pghere
+mpg123 /etc/.mp3/$soundfile.mp3 &
+
+sleep 1
+if which florence &> /dev/null ; then
+  florence &
+  sleep 2
+  florence hide &
+fi
+
 [ -e "/tmp/.do-not-automatically-connect" ] && exit 0
+
+if ! ps wax | fgrep nm-applet | fgrep -v grep &> /dev/null ; then
+  nm-applet &
+  sleep 1
+fi
+
+if [ "`ps wax | grep nm-applet | grep -v grep | cut -d' ' -f1,2 | tr ' ' '\n' | grep "[0-9][0-9]" | wc -l`" -ge "2" ]; then
+ kill `ps wax | grep nm-applet | grep -v grep | cut -d' ' -f1,2 | tr ' ' '\n' | grep "[0-9][0-9]" | tail -n1`
+fi
 
 r=0
 while [ "$r" -le "3" ] ; do
@@ -70,21 +81,6 @@ while [ "$r" -le "3" ] ; do
   r=$(($r+1))
   sleep 1
 done
-
-if ! ps -o pid -C nm-applet &>/dev/null; then
-  sleep 1
-  if ! ps wax | grep nm-applet | grep -v grep &>/dev/null; then
-    nm-applet &
-    sleep 0.3
-  fi
-fi
-
-sleep 1
-if which florence &> /dev/null ; then
-  florence &
-  sleep 2
-  florence hide &
-fi
 
 r=0
 while [ "$r" -le "3" ] ; do
@@ -115,13 +111,6 @@ fi
 #if [ -e "$vidalia_rc_file" ] ; then
 #    mv $
 #fi
-
-. /etc/bash.bashrc
-. /etc/profile
-
-export DISPLAY=:0.0
-xset s off
-xset -dpms
 
 #xscreensaver -no-splash &
 
@@ -272,17 +261,13 @@ exit $?
 def write_ersatz_lxdm( outfile ):
 # Setup ersatz lxdm
     write_oneliner_file( outfile, r'''#!/bin/bash
+. /etc/bash.bashrc
+. /etc/profile
+
 GUEST_HOMEDIR=/tmp/.guest
 STOP_JFS_HANGUPS="echo 0 > /proc/sys/kernel/hung_task_timeout_secs"
 f=/etc/lxdm/lxdm.conf
 liu=/tmp/.logged_in_user
-
-. /etc/bash.bashrc
-. /etc/profile
-
-export DISPLAY=:0.0
-xset s off
-xset -dpms
 
 if [ -e "/etc/.first_time_ever" ] ; then
     echo "`date` -- FIRST EVER" >> /tmp/log.txt
@@ -529,6 +514,38 @@ def remove_junk( mountpoint, kernel_src_basedir ):
     chroot_this( mountpoint, 'cd /usr/lib/firmware && cp s5p-mfc/s5p-mfc-v6.fw ../mfc_fw.bin && cp mrvl/sd8797_uapsta.bin .. && rm -Rf * && mkdir -p mrvl && mv ../sd8797_uapsta.bin mrvl/ && mv ../mfc_fw.bin .' )
 
 
+def setup_timer_to_keep_dpms_switched_off( mountpoint ):
+    write_oneliner_file( mountpoint + '/usr/local/bin/i_run_every_minute.sh', '''#!/bin/bash
+export DISPLAY=:0.0
+xhost +
+xset s off || echo "xset x off FAILED" >> /tmp/log.txt
+xset -dpms || echo "xset -dpms FAILED" >> /tmp/log.txt
+''' )
+    system_or_die( 'chmod +x %s%s' % ( mountpoint, '/usr/local/bin/i_run_every_minute.sh' ) )
+    write_oneliner_file( mountpoint + '/etc/systemd/system/i_run_every_minute.service', '''
+[Unit]
+Description=RunMeEveryMinute
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/i_run_every_minute.sh
+''' )
+    write_oneliner_file( mountpoint + '/etc/systemd/system/multi-user.target.wants/i_run_every_minute.timer', '''
+[Unit]
+Description=Runs RunMeEveryMinute every minute
+
+[Timer]
+# Time to wait after booting before we run first time
+OnBootSec=1min
+# Time between running each consecutive time
+OnUnitActiveSec=1min
+Unit=i_run_every_minute.service
+
+[Install]
+WantedBy=multi-user.target
+''' )
+
+
 def tweak_xwindow_for_cbook( mountpoint ):
 #        print( "Installing GUI tweaks" )
     system_or_die( 'rm -Rf %s/etc/X11/xorg.conf.d/' % ( mountpoint, ) )
@@ -544,58 +561,23 @@ def tweak_xwindow_for_cbook( mountpoint ):
 (Parameter.set 'Audio_Method 'Audio_Command)
 (Parameter.set 'Audio_Command "aplay -q -c 1 -t raw -f s16 -r $SR $FILE")
 ''' )
+#    chroot_this( mountpoint, 'systemctl enable i_run_every_minute.timer' )
     f = open( '%s/etc/X11/xorg.conf' % ( mountpoint ), 'a' )
     system_or_die( 'cp -f %s/usr/local/bin/Chrubix/blobs/apps/mtrack_drv.so %s/usr/lib/mtrack.so' % ( mountpoint, mountpoint ) )
     f.write( '''
     Section "Device"
         Identifier "card0"
         Driver "armsoc"
-#       Driver "fbdev"
         Screen 0
         Option          "fbdev"                 "/dev/fb0"
         Option          "Fimg2DExa"             "false"
         Option          "DRI2"                  "true"
         Option          "DRI2_PAGE_FLIP"        "false"
         Option          "DRI2_WAIT_VSYNC"       "true"
-#       Option          "Fimg2DExaSolid"        "false"
-#       Option          "Fimg2DExaCopy"         "false"
-#       Option          "Fimg2DExaComposite"    "false"
         Option          "SWcursorLCD"           "false"
 EndSection
-
-#Section "InputClass"
-#    Identifier      "touchpad"
-#    MatchIsTouchpad "on"
-#    MatchDevicePath "/dev/input/event*"
-#    Driver          "cmt"
-#    Option          "AccelerationProfile" "-1"
-#    Option          "Pressure Calibration Offset" "-1.73338827637399"
-#    Option          "Pressure Calibration Slope" "2.06326787767144"
-#    # Disable some causes of delay on daisy
-#    Option          "IIR b0" "1"
-#    Option          "IIR b1" "0"
-#    Option          "IIR b2" "0"
-#    Option          "IIR b3" "0"
-#    Option          "IIR a1" "0"
-#    Option          "IIR a2" "0"
-#    Option          "IIR Distance Threshold" "1000"
-#    Option          "Input Queue Delay" "0"
-#    # Extra filters for Daisy
-#    Option          "Box Width" "1.0"
-#    Option          "Sensor Jump Filter Enable" "1"
-#    Option          "Sensor Jump Min Dist Non-Move" "0.3"
-#    Option          "Sensor Jump Min Dist Move" "0.9"
-#    Option          "Sensor Jump Similar Multiplier Move" "1.5"
-#    Option          "Split Merge Max Movement" "6.5"
-#    Option          "Merge Max Ratio" "0.5"
-#    Option          "Max Allowed Pressure Change Per Sec" "4000"
-#    Option          "Max Hysteresis Pressure Per Sec" "4000"
-#    Option          "Tap Drag Lock Enable" "1"
-#    Option          "Three Finger Click Enable" "1"
-#EndSection
 ''' )
     f.close()
-
 
 
 def install_panicbutton( mountpoint, boomfname ):

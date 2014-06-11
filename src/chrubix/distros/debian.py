@@ -26,7 +26,7 @@ mat myspell-en-us msttcorefonts xorg xserver-xorg-input-synaptics xul-ext-https-
 pulseaudio paprefs pulseaudio-module-jack pavucontrol paman alsa-tools-gui alsa-oss mythes-en-us \
 libpisock-dev libetpan15 uno-libs3 libgtk-3-bin libbcprov-java gtk2-engines-murrine \
 e2fslibs-dev debhelper'  # Warning! Monkeysign pkg might be broken.
-# gtk-engines-unico python-distutil-extra ? python-yaml python-distusil-extra python-gobject python-qrencode python-imaging  python-crypto ?
+# gtk-engines-unico python-distutil-extra ? python-distusil-extra python-gobject python-qrencode python-imaging
     final_push_packages = Distro.final_push_packages + 'lxsession \
 wireless-tools wpasupplicant obfsproxy network-manager-gnome \
 mate-desktop-environment-extras win-xp-theme i2p i2p-keyring \
@@ -149,8 +149,12 @@ Acquire::https::Proxy "https://%s/";
             self.status_lst[-1] += "All OK."
         else:
             self.status_lst.append( ['Installed %d packages successfully' % ( len( packages_installed_succesfully ) )] )
-            self.status_lst[-1] += '...but we failed to install %s' % str( packages_that_we_failed_to_install )
-        self.steal_dtc_and_mkinitcpio_from_alarpy()
+            self.status_lst[-1] += '...but we failed to install%s. Retrying...' % ( ''.join( [' ' + r for r in packages_that_we_failed_to_install] ) )
+            chroot_this( self.mountpoint, 'yes | aptitude install%s' % ( ''.join( [' ' + r for r in packages_that_we_failed_to_install] ) ),
+                         status_lst = self.status_lst, title_str = self.title_str,
+                         on_fail = 'Failed to install formerly failed packages' )
+        if os.path.exists( '%s/usr/bin/python3' % ( self.mountpoint ) ):
+            chroot_this( self.mountpoint, 'ln -sf /usr/bin/python3 /usr/local/bin/python3' )
 #        for pkg_name in 'python2-pyptlib xul-ext-torbutton'.split( ' ' ):
 #            self.build_and_install_package_from_debian_source( pkg_name )
 

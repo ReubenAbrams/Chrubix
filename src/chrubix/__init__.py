@@ -47,6 +47,7 @@ def generate_distro_record_from_name( name_str ):
                   'suse'          :SuseDistro,
                   'debianwheezy'  :WheezyDebianDistro,
                   }
+    os.system( 'cd /' )
     print( "Creating distro record for %s" % ( name_str ) )
     assert( name_str in distro_options.keys() )
     rec = distro_options[name_str]()  # rec itself handles the naming (......self.name)        #    rec.name = name_str
@@ -125,10 +126,10 @@ def exec_cli( argv ):
 #        raise EnvironmentError( 'Do not call me if you are running under an OS other than Linux, please.' )
     elif read_oneliner_file( '/proc/cmdline' ).find( 'cros_secure' ) < 0:
         raise EnvironmentError( 'Boot into ChromeOS if you want to run me, please.' )
-    elif os.system( 'mount | grep /dev/mapper/encstateful &> /dev/null' ) == 0:
+    elif os.system( 'mount | grep /dev/mapper/encstateful &> /dev/null' ) == 0 and len( argv ) == 0:
         raise EnvironmentError( 'OK, you are in ChromeOS; now, chroot into the bootstrap and run me again, please.' )
     else:
-        os.system( 'clear' )
+#        os.system( 'clear' )
         distro = process_command_line( argv, )  # returns a record (instance) of the appropriate Linux distro subclass
         res = distro.install()
         if res is None:
