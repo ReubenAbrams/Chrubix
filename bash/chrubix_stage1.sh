@@ -235,6 +235,7 @@ restore_stage_X_from_backup() {
 	distroname=$1
 	fname=$2
 	root=$3
+	clear
 	echo "Using $distroname midpoint file $fname"
 	pv $fname | tar -Jx -C $root || failed "Failed to unzip $fname --- J err?"
 	echo "Restored ($distroname, stage D) from $fname"
@@ -310,11 +311,15 @@ restore_from_stage_X_backup_if_possible() {
 			fi
 		done
 	done
-	if wget $url -O - | tar -Jx -C $root ; then
-		echo "Restored ($distroname, squashfs) from Dropbox"
-		hack_something_stageX_ish $distroname $root $dev_p $url
-		btstrap=$root
-		return 0
+	if wget --spider $url -O - | tar -Jx -C $root &> /dev/null ; then
+		if wget $url -O - | tar -Jx -C $root ; then
+			echo "Restored ($distroname, squashfs) from Dropbox"
+			hack_something_stageX_ish $distroname $root $dev_p $url
+			btstrap=$root
+			return 0
+		fi
+	else
+		echo "Online stage D not found." > /dev/stderr
 	fi
 	return 1
 }
@@ -329,7 +334,6 @@ restore_from_squash_fs_backup_if_possible() {
 	fnB=/tmp/b/$distroname.sqfs
 	for fname in $fnA $fnB ; do
 		if [ -e "$fname" ] ; then
-			ask_if_user_wants_temporary_or_permanent
 			if [ "$temp_or_perm" = "temp" ] ; then	
 				cp -f $fname $root/.squashfs.sqfs
 				hack_something_squishy $distroname $root $dev_p
@@ -338,8 +342,7 @@ restore_from_squash_fs_backup_if_possible() {
 			fi
 		fi
 	done
-	if wget --spider $squrl -O - > $root/.squashfs.sqfs ; then
-		ask_if_user_wants_temporary_or_permanent
+	if wget --spider $squrl -O - > $root/.squashfs.sqfs &> /dev/null ; then
 		if [ "$temp_or_perm" = "temp" ] ; then
 			wget $squrl -O - > $root/.squashfs.sqfs || failed "Failed to restrieve squashfs file from URL"
 			echo "Restored ($distroname, squash fs) from Dropbox"
@@ -347,6 +350,8 @@ restore_from_squash_fs_backup_if_possible() {
 			btstrap=$root
 			return 0
 		fi
+	else
+		echo "Online squashfs not found." > /dev/stderr
 	fi
 	return 1
 }
@@ -375,33 +380,6 @@ sign_and_write_custom_kernel() {
 
 
 
-ask_if_user_wants_temporary_or_permanent() {
-	temp_or_perm=""
-	while [ "$temp_or_perm" = "" ] ; do
-		echo "
-Would you prefer a temporary setup or a permanent one? Before you choose, consider your options.
-
-TEMPORARY: When you boot, you will see a little popup window that asks you about mimicking Windows XP,
-spoofing your MAC address, etc. Whatever you do while the OS is running, nothing will be saved to disk.
-
-PERMANENT: When you boot, you will be prompted for a password. No password? No access. The whole disk
-is encrypted. Although you will initially be logged in as a guest whose home directory is on a ramdisk,
-you have the option of creating a permanent user, logging in as that user, and saving files to disk.
-In addition, you will be prompted for a 'logging in under duress' password. Pick a short one.
-
-MEH: No encryption. No duress password. Changes are permanent. Guest Mode is still the default.
-"
-		echo -en "(T)emporary, (P)ermanent, or (M)eh ? "
-		read line
-		if [ "$line" = "t" ] || [ "$line" = "T" ] ; then
-			temp_or_perm="temp"
-		elif [ "$line" = "p" ] || [ "$line" = "P" ] ; then
-			temp_or_perm="perm"
-		elif [ "$line" = "m" ] || [ "$line" = "M" ] ; then
-			temp_or_perm="meh"
-		fi
-	done
-}
 
 
 
@@ -447,6 +425,37 @@ call_redo_mbr_and_make_it_squishy() {
 }
 
 
+
+
+ask_if_user_wants_temporary_or_permanent() {
+	temp_or_perm=""
+	while [ "$temp_or_perm" = "" ] ; do
+		echo "
+Would you prefer a temporary setup or a permanent one? Before you choose, consider your options.
+
+TEMPORARY: When you boot, you will see a little popup window that asks you about mimicking Windows XP,
+spoofing your MAC address, etc. Whatever you do while the OS is running, nothing will be saved to disk.
+
+PERMANENT: When you boot, you will be prompted for a password. No password? No access. The whole disk
+is encrypted. Although you will initially be logged in as a guest whose home directory is on a ramdisk,
+you have the option of creating a permanent user, logging in as that user, and saving files to disk.
+In addition, you will be prompted for a 'logging in under duress' password. Pick a short one.
+
+MEH: No encryption. No duress password. Changes are permanent. Guest Mode is still the default.
+"
+		echo -en "(T)emporary, (P)ermanent, or (M)eh ? "
+		read line
+		if [ "$line" = "t" ] || [ "$line" = "T" ] ; then
+			temp_or_perm="temp"
+		elif [ "$line" = "p" ] || [ "$line" = "P" ] ; then
+			temp_or_perm="perm"
+		elif [ "$line" = "m" ] || [ "$line" = "M" ] ; then
+			temp_or_perm="meh"
+		fi
+	done
+}
+
+
 ##################################################################################################################################
 
 
@@ -482,8 +491,11 @@ kern=/tmp/_kern.`basename $dev`		# ...or this!
 lockfile=/tmp/.chrubix.distro.`basename $dev`
 if [ -e "$lockfile" ] ; then
 	distroname=`cat $lockfile`
+	temp_or_perm=`cat /temp_or_perm`
 else
 	get_distro_type_the_user_wants
+	ask_if_user_wants_temporary_or_permanent
+	echo "$temp_or_perm" > /tmp/temp_or_perm
 fi
 
 btstrap=$root/.bootstrap
