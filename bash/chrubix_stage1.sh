@@ -162,7 +162,7 @@ partition_device() {
 	cgpt add -i  1 -t kernel -b  8192 -s 32768 -l U-Boot -S 1 -T 5 -P 10 $dev
 	cgpt add -i 12 -t data   -b 40960 -s 32768 -l Script $dev
 	lastblock=`cgpt show $dev | tail -n3 | grep "Sec GPT table" | tr -s ' ' '\t' | cut -f2`
-	lastblock=$(($lastblock-19999))	# FIXME Why do I do this?
+#	lastblock=$(($lastblock-19999))	# FIXME Why do I do this?
 	splitpoint=$(($lastblock/2))
 
 	cgpt add -i  2 -t data   -b 73728 -s `expr $splitpoint - 73728` -l Kernel $dev
@@ -298,7 +298,7 @@ restore_from_stage_X_backup_if_possible() {
 	mkdir -p /tmp/a /tmp/b
 	mount /dev/sda4 /tmp/a &> /dev/null || echo -en ""
 	mount /dev/sdb4 /tmp/b &> /dev/null || echo -en ""
-	for stage in D C B ; do
+	for stage in D C ; do
 		fnA="/tmp/a/"$distroname"__"$stage".xz"
 		fnB="/tmp/b/"$distroname"__"$stage".xz"
 		for fname in $fnA $fnB ; do
@@ -538,7 +538,6 @@ sudo crossystem dev_boot_usb=1 dev_boot_signed_only=0 || echo "WARNING - failed 
 if mount | grep $root | grep squashfs ; then
 	call_redo_mbr_and_make_it_squishy
 else
-	echo "************ Calling CHRUBIX, the Python powerhouse of pulchritudinous perfection ************"
 	install_chrubix $btstrap $dev "$dev_p"3 "$dev_p"2 "$dev_p"1 $distroname
 	tar -cz /usr/lib/xorg/modules/drivers/armsoc_drv.so \
 		/usr/lib/xorg/modules/input/cmt_drv.so /usr/lib/libgestures.so.0 \
@@ -551,6 +550,8 @@ else
 	tar -cz /usr/share/vboot > $btstrap/tmp/.vbkeys.tgz 2>/dev/null #### MAKE SURE CHRUBIX HAS ACCESS TO Y-O-U-R KEYS and YOUR vbutil* binaries ####
 	chmod +x $btstrap/usr/local/bin/*
 	echo "$temp_or_perm" > $btstrap/.temp_or_perm.txt
+	ln -sf ../../bin/python3 $btstrap/usr/local/bin/python3
+	echo "************ Calling CHRUBIX, the Python powerhouse of pulchritudinous perfection ************"
 	chroot_this     $btstrap "/usr/local/bin/chrubix.sh" && res=0 || res=$?
 	[ "$res" -ne "0" ] && failed "Because chrubix reported an error, I'm aborting... and I'm leaving everything mounted."
 fi
