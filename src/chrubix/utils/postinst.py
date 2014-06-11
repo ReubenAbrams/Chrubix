@@ -552,10 +552,10 @@ WantedBy=multi-user.target
 
 def tweak_xwindow_for_cbook( mountpoint ):
 #        print( "Installing GUI tweaks" )
-    system_or_die( 'rm -Rf %s/etc/X11/xorg.conf.d/' % ( mountpoint, ) )
-    system_or_die( 'mkdir -p %s/etc/X11/xorg.conf.d/' % ( mountpoint, ) )
+    system_or_die( 'rm -Rf %s/etc/X11/xorg.conf.d/' % ( mountpoint ) )
+    system_or_die( 'mkdir -p %s/etc/X11/xorg.conf.d/' % ( mountpoint ) )
     system_or_die( 'unzip %s/usr/local/bin/Chrubix/blobs/settings/x_alarm_chrubuntu.zip -d %s/etc/X11/xorg.conf.d/ &> /dev/null' % ( mountpoint, mountpoint, ), "Failed to extract X11 settings from Chrubuntu" )
-    f = '%s/etc/X11/xorg.conf.d/10-keyboard.conf' % ( mountpoint, )
+    f = '%s/etc/X11/xorg.conf.d/10-keyboard.conf' % ( mountpoint )
     if not os.path.isfile( f ):
         failed( '%s not found --- cannot tweak X' % ( f ) )
     do_a_sed( f, 'gb', 'us' )
