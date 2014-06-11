@@ -91,6 +91,7 @@ xorg-server-utils xorg-xmessage librsvg icedtea-web-java7 gconf hunspell-en chro
         self.status_lst[-1] += 'installed.'
         if failed_packages != '':
             self.status_lst[-1] += [ 'I failed to install%s, however.' % ( failed_packages )]
+        system_or_die( 'rm -Rf %s/var/cache/apt/archives/*' % ( self.mountpoint ) )
 
 #    def download_kernel_source( self ):  # This also downloads all the other PKGBUILDs (for btrfs-progs, jfsutils, etc.)
 #        logme( 'ArchlinuxDistro - download_kernel_source() - starting' )

@@ -155,6 +155,8 @@ Acquire::https::Proxy "https://%s/";
                          on_fail = 'Failed to install formerly failed packages' )
         if os.path.exists( '%s/usr/bin/python3' % ( self.mountpoint ) ):
             chroot_this( self.mountpoint, 'ln -sf /usr/bin/python3 /usr/local/bin/python3' )
+        system_or_die( 'rm -Rf %s/var/cache/apt/archives/*' % ( self.mountpoint ) )
+
 #        for pkg_name in 'python2-pyptlib xul-ext-torbutton'.split( ' ' ):
 #            self.build_and_install_package_from_debian_source( pkg_name )
 
