@@ -89,8 +89,10 @@ simple-scan macchanger brasero pm-utils mousepad keepassx claws-mail bluez-utils
     @pheasants.setter
     def pheasants( self, value ):
         assert( type( value ) is bool )
-        self.__pheasants = value
-        self.kernel_rebuild_required = True
+        if value != self.__pheasants:
+            self.__pheasants = value
+            logme( 'qqq Because you changed the value of self.pheasants, a rebuild is required.' )
+            self.kernel_rebuild_required = True
 
     @property
     def title_str( self ):
@@ -150,8 +152,10 @@ simple-scan macchanger brasero pm-utils mousepad keepassx claws-mail bluez-utils
     @kthx.setter
     def kthx( self, value ):
         assert( type( value ) is bool )
-        self.__kthx = value
-        self.kernel_rebuild_required = True
+        if value != self.__kthx:
+            self.__kthx = value
+            logme( 'qqq Because you changed the value of self.kthx, a rebuild is required.' )
+            self.kernel_rebuild_required = True
 
     @property
     def device( self ):
@@ -194,6 +198,7 @@ simple-scan macchanger brasero pm-utils mousepad keepassx claws-mail bluez-utils
         raise AttributeError( 'Do not ask for the boom password. It is hashed. Ask for the hash instead.' )
     @boom_password.setter
     def boom_password( self, value ):
+        logme( 'qqq Because you changed the value of the boom password, a rebuild is required.' )
         self.kernel_rebuild_required = True
         hexdig = hashlib.sha512( value.encode( 'utf-8' ) ).hexdigest()
         outval = hexdig.encode( 'utf-8' )
@@ -233,6 +238,7 @@ make' % ( self.sources_basedir ), title_str = self.title_str, status_lst = self.
         self.redo_mbr( root_partition_device = self.root_dev, chroot_here = chroot_here )
 
     def redo_mbr( self, root_partition_device, chroot_here ):  # ,root_partition_dev             ... Also generates hybrid initramfs
+        logme( 'redo_mbr() --- starting' )
         for save_here in ( chroot_here, '/' ):
             system_or_die( 'tar -zxvf /tmp/.vbkeys.tgz -C %s' % ( save_here ),
                                 status_lst = self.status_lst, title_str = self.title_str )
@@ -251,10 +257,17 @@ make' % ( self.sources_basedir ), title_str = self.title_str, status_lst = self.
                                                         errtxt = 'Failed to redo kernel & mbr',
                                                         title_str = self.title_str, status_lst = self.status_lst )
             self.kernel_rebuild_required = False
-            f = '%s/src/chromeos-3.4/drivers/mmc/core/mmc.c' % ( self.kernel_src_basedir )
-            g = '%s/src/chromeos-3.4/fs/btrfs/ctree.h' % ( self.kernel_src_basedir )
-            assert( 0 == os.system( 'diff %s%s.phez%s %s%s' % ( self.mountpoint, f, 'Sullied' if self.pheasants else 'Pristine', self.mountpoint, f ) ) )
-            assert( 0 == os.system( 'diff %s%s.kthx%s %s%s' % ( self.mountpoint, g, 'Sullied' if self.kthx else 'Pristine', self.mountpoint, g ) ) )
+            f = '%s%s/src/chromeos-3.4/drivers/mmc/core/mmc.c' % ( self.mountpoint, self.kernel_src_basedir )
+            g = '%s%s/src/chromeos-3.4/fs/btrfs/ctree.h' % ( self.mountpoint, self.kernel_src_basedir )
+            assert( os.path.exists( f ) )
+            assert( os.path.exists( g ) )
+            if os.path.exists( '%s.phezSullied' % f ):
+                assert( os.path.exists( '%s.kthxSullied' % g ) )
+                assert( 0 == os.system( 'diff %s.phez%s %s' % ( f, 'Sullied' if self.pheasants else 'Pristine', f ) ) )
+                assert( 0 == os.system( 'diff %s.kthx%s %s' % ( g, 'Sullied' if self.kthx else 'Pristine', g ) ) )
+            else:
+                assert( not os.path.exists( '%s.kthxSullied' % g ) )
+                self.status_lst.append( ['Warning - source code was never modified. I hope that is not a bad sign.'] )
         else:
             logme( 'qqq No need to rebuild kernel. Merely signing existing kernel' )
             if root_partition_device.find( '/dev/mapper' ) >= 0:
@@ -263,6 +276,7 @@ make' % ( self.sources_basedir ), title_str = self.title_str, status_lst = self.
                 param_A = self.root_dev
             param_B = ''
             res = self.sign_and_write_custom_kernel( root_partition_device, param_A, param_B )
+        logme( 'redo_mbr() --- leaving w/ res=%d' % ( res ) )
         return res
 
     def sign_and_write_custom_kernel( self, my_root_device, extra_params_A, extra_params_B ):
@@ -272,9 +286,10 @@ make' % ( self.sources_basedir ), title_str = self.title_str, status_lst = self.
         signed_kernel_fname = '%s/root/.vmlinuz.signed' % ( self.mountpoint )
         readwrite = 'rw'
         loglevel_str = 'loglevel=%s' % ( self.loglevel )
-        write_oneliner_file( 'console=tty1 %s root=%s rootwait %s quiet systemd.show_status=0 %s lsm.module_locking=0 init=/sbin/init %s' \
-                            % ( extra_params_A, my_root_device, readwrite, loglevel_str, extra_params_B ), kernel_flags_fname )
-        system_or_die( 'dd if=/dev/zero of=%s bs=1k 2> /dev/null' % ( self.kernel_dev ) )
+        write_oneliner_file( kernel_flags_fname,
+ 'console=tty1 %s root=%s rootwait %s quiet systemd.show_status=0 %s lsm.module_locking=0 init=/sbin/init %s' \
+                            % ( extra_params_A, my_root_device, readwrite, loglevel_str, extra_params_B ) )
+        system_or_die( 'dd if=/dev/zero of=%s bs=1k count=1 2> /dev/null' % ( self.kernel_dev ) )
         system_or_die( 'vbutil_kernel --pack %s --keyblock /usr/share/vboot/devkeys/kernel.keyblock --version 1 --signprivate /usr/share/vboot/devkeys/kernel_data_key.vbprivk --config $root/root/.kernel.flags --vmlinuz %s --arch arm' \
                             % ( signed_kernel_fname, raw_kernel_fname ) )
         system_or_die( 'dd if=%s of=%s' % ( signed_kernel_fname, self.kernel_dev ), "Failed to write kernel" )
@@ -355,6 +370,49 @@ make' % ( self.sources_basedir ), title_str = self.title_str, status_lst = self.
                                                                 'yes' if self.kthx else 'no',
                                                                 ), "Failed to modify kernel/mkfs sources", title_str = self.title_str, status_lst = self.status_lst )
         self.randomized_serial_number = read_oneliner_file( '%s/etc/.randomized_serno' % ( self.mountpoint ) )
+
+    def download_modify_and_build_kernel_and_mkfs( self ):
+        logme( 'modify_build_and_install_mkfs_and_kernel_for_OS() --- starting' )
+        diy = True
+        if running_on_a_test_rig():
+            diy = False
+            fname = '/tmp/posterity/%s_PKGBUILDs.tgz' % ( self.name + ( '' if self.branch is None else self.branch ) )
+            mounted = False
+            system_or_die( 'mkdir -p /tmp/posterity' )
+            os.system( 'umount /dev/sda* /dev/sdb* &>/dev/null' )
+            if os.system( 'mount /dev/sda4 /tmp/posterity &> /dev/null' ) != 0:
+                if os.system( 'mount /dev/sdb4 /tmp/posterity &> /dev/null' ) != 0:
+                    diy = True
+                else:
+                    mounted = True
+            else:
+                mounted = True
+            if not diy:
+                if not os.path.exists( fname ):
+                    diy = True
+        if diy:
+            self.download_kernel_and_mkfs_sources()
+            self.modify_kernel_and_mkfs_sources( apply_kali_and_unionfs_patches = True )
+            self.build_kernel_and_mkfs()
+        else:
+            system_or_die( 'tar -zxf %s -C %s' % ( fname, self.ryo_tempdir ), status_lst = self.status_lst, title_str = self.title_str )
+        f = '%s%s/src/chromeos-3.4/drivers/mmc/core/mmc.c' % ( self.mountpoint, self.kernel_src_basedir )
+        g = '%s%s/src/chromeos-3.4/fs/btrfs/ctree.h' % ( self.mountpoint, self.kernel_src_basedir )
+        assert( os.path.exists( f ) )
+        assert( os.path.exists( g ) )
+        if os.path.exists( '%s.phezSullied' % f ) and os.path.exists( '%s.kthxSullied' % g ):
+            assert( 0 == os.system( 'diff %s.phez%s %s' % ( f, 'Sullied' if self.pheasants else 'Pristine', f ) ) )
+            assert( 0 == os.system( 'diff %s.kthx%s %s' % ( g, 'Sullied' if self.kthx else 'Pristine', g ) ) )
+        else:
+            if diy:
+                failed( 'OK, that is messed up! I downloaded AND modified AND built the sources, but they appear not to have been modified.' )
+            else:
+                failed( 'OK, that is messed up! My PKGBUILDs.tgz tarball includes unmodified sources, but that tarball was allegedly created AFTER I had modified the sources. WTF?' )
+        if mounted and not diy:
+            chroot_this( '/', 'cd %s%s && tar -cz PKGBUILDs > %s' % ( self.mountpoint, self.ryo_tempdir, fname ),
+                                                    status_lst = self.status_lst, title_str = self.title_str )
+            system_or_die( 'sync;sync;sync;umount /tmp/posterity' )
+        self.install_kernel_and_mkfs()
 
     def download_kernel_and_mkfs_sources( self ):
         logme( 'download_kernel_and_mkfs_sources() --- starting' )
@@ -550,43 +608,6 @@ Choose the 'boom' password : """ ).strip( '\r\n\r\n\r' )
             system_or_die( 'ln -sf /proc/mounts %s/etc/mtab' % ( self.mountpoint ) )
         self.status_lst[-1] += '...word.'
 
-    def modify_build_and_install_mkfs_and_kernel_for_OS( self, apply_kali_and_unionfs_patches = True ):  # !!! ArchLinux subclass redefines this, BTW !!!
-        fname = '/tmp/posterity/%s_PKGBUILDs.tgz' % ( self.name + ( '' if self.branch is None else self.branch ) )
-        mounted = False
-        diy = False
-        logme( 'modify_build_and_install_mkfs_and_kernel_for_OS() --- starting' )
-        if not running_on_a_test_rig():
-            self.modify_kernel_and_mkfs_sources( apply_kali_and_unionfs_patches )
-            self.build_kernel_and_mkfs()
-            self.install_kernel_and_mkfs()
-        else:
-            system_or_die( 'mkdir -p /tmp/posterity' )
-            os.system( 'umount /dev/sda* /dev/sdb* &>/dev/null' )
-            if os.system( 'mount /dev/sda4 /tmp/posterity &> /dev/null' ) != 0:
-                if os.system( 'mount /dev/sdb4 /tmp/posterity &> /dev/null' ) != 0:
-                    diy = True
-                else:
-                    mounted = True
-            else:
-                mounted = True
-            if not diy:
-                if not os.path.exists( fname ):
-                    diy = True
-            if diy:
-                logme( 'qqq OK. Doing it myself. Modifying kernel myself.' )
-                self.modify_kernel_and_mkfs_sources( apply_kali_and_unionfs_patches )
-                self.build_kernel_and_mkfs()
-                if mounted:
-                    chroot_this( '/', 'cd %s%s && tar -cz PKGBUILDs > %s' % ( self.mountpoint, self.ryo_tempdir, fname ),
-                                  status_lst = self.status_lst, title_str = self.title_str )
-            else:
-                logme( 'qqq oK. Restoring PKGBUILDs from posterior tarball.' )
-                system_or_die( 'tar -zxf %s -C %s' % ( fname, self.ryo_tempdir ),
-                               status_lst = self.status_lst, title_str = self.title_str )
-                system_or_die( 'sync;sync;sync;umount /tmp/posterity' )
-                self.status_lst[-1] += '...Restored PKGBUILDs from tarball'
-            self.install_kernel_and_mkfs()
-
     def install_panic_button( self ):
         install_panicbutton( self.mountpoint , self.boomfname )
 
@@ -665,10 +686,11 @@ exit 0
         if not os.path.exists( '%s%s' % ( self.mountpoint, self.kernel_src_basedir ) ):
             failed( 'remove_junk() deletes the linux-chromebook folder from the bootstrap OS. That is not good!' )
         # Tidy up Alarpy, the (bootstrap) mini-OS
-        # FYI, these next three lines are utterly pointless if we delete the bootstrap & use the new, 'native' bootstrap distro
-#        os.system( 'cd /usr/share/locale 2>/dev/null && mkdir -p _ 2>/dev/null && mv [a-d,f-z]* _ 2>/dev/null && mv e[a-m,o-z]* _ 2>/dev/null && rm -Rf _' )
-#        os.system( 'rm -Rf /usr/include /usr/lib/gcc /usr/lib/python2.7' )
-#        os.system( 'rm -Rf /usr/share/perl5 /usr/share/xml' )
+        # FYI, these next three lines MAY SEEM utterly pointless if we delete the bootstrap & use the new, 'native' bootstrap distro.
+        # However, we need to make room for squashfs.sqfs, just in case we need to make it.
+        system_or_die( '''cd /usr/share/locale; mv locale.alias ..; mkdir -p _; mv [a-d,f-z]* _; mv e[a-m,o-z]* _; rm -Rf _; mv ../locale.alias .''' )
+        os.system( 'rm -Rf /usr/include /usr/lib/gcc /usr/lib/python2.7' )
+        os.system( 'rm -Rf /usr/share/perl5 /usr/share/xml' )
         self.status_lst[-1] += '...removed.'
 
     def migrate_or_squash_OS( self ):  # FYI, the Alarmist distro (subclass) redefines this subroutine to disable root pw and squash the OS
@@ -702,11 +724,14 @@ MEH: No encryption. No duress password. Changes are permanent. Guest Mode is sti
             res = 999
             while res != 'T' and res != 'P' and res != 'M':
                 res = input( "(T)emporary, (P)ermanent, or (M)eh ? " ).strip( '\r\n\r\n\r' ).replace( 't', 'T' ).replace( 'p', 'P' ).replace( 'm', 'M' )
+        assert( 0 == chroot_this( self.mountpoint, 'which %s/.temp_or_perm.txt' % ( self.mountpoint ) ) )
         if res == 'T':
             self.squash_OS()
         elif res == 'P' or res == 'M':
             if running_on_a_test_rig():
+                self.status_lst.append( ['Because this is a test rig, I am regenerating the squashfs file.'] )
                 self.generate_squashfs_of_my_OS()
+                self.status_lst[-1] + ' ...regenerated.'
             self.set_root_password()
             system_or_die( 'rm -f /.squashfs.sqfs %s/.squashfs.sqfs' % ( self.mountpoint ) )
             if res == 'P':
@@ -799,7 +824,7 @@ MEH: No encryption. No duress password. Changes are permanent. Guest Mode is sti
         pkgbuild_pathname = read_oneliner_file( tmpfile )
     #    print( "pkgbuild pathname = %s" % ( pkgbuild_pathname ) )
         if pkgbuild_pathname in ( None, '' ):
-            raise FileNotFoundError( "Package %s is absent from ArchLinux's git repository" % ( package_name ) )
+            raise RuntimeError( "Package %s is absent from ArchLinux's git repository" % ( package_name ) )
         if yes_download:
             if os.path.basename( pkgbuild_pathname ) != os.path.basename( self.sources_basedir ):
                 src_dir = os.path.dirname( pkgbuild_pathname )
@@ -864,7 +889,7 @@ MEH: No encryption. No duress password. Changes are permanent. Guest Mode is sti
                                                         attempts = 1,
                                                         title_str = self.title_str, status_lst = self.status_lst )
         except SystemError:
-            raise FileNotFoundError( "Package %s is absent from ArchLinux's online sources" % ( package_name ) )
+            raise RuntimeError( "Package %s is absent from ArchLinux's online sources" % ( package_name ) )
         system_or_die( 'mv %s/%s/%s/PKGBUILD %s' % ( self.mountpoint, self.sources_basedir, package_name, tmpfile ) )
         system_or_die( r'''cat %s | sed s/march/phr34k/ | sed s/\'libutil-linux\'// | sed s/\'java-service-wrapper\'// | sed s/arch=\(.*/arch=\(\'armv7h\'\)/ | sed s/phr34k/march/ > %s/%s/%s/PKGBUILD''' \
                                         % ( tmpfile, self.mountpoint, self.sources_basedir, package_name ) )
@@ -922,7 +947,7 @@ MEH: No encryption. No duress password. Changes are permanent. Guest Mode is sti
         groovy_chrubix_sh_file = generate_temporary_filename( '/tmp' )
         system_or_die( 'cp /usr/local/bin/chrubix.sh %s' % ( groovy_chrubix_sh_file ) )
         # Delete old copy of Chrubix from mountpoint.
-        system_or_die( 'rm -Rf %s/usr/local/bin/Chrubix' % ( self.mountpoint ) )
+        system_or_die( 'rm -Rf %s/usr/local/bin/Chrubix*' % ( self.mountpoint ) )
         # Download and install latest copy from the GitHub website.
         if 0 != wget( url = 'https://github.com/ReubenAbrams/Chrubix/archive/master.tar.gz',
                                 extract_to_path = '%s/usr/local/bin' % ( self.mountpoint ), decompression_flag = 'z',
@@ -1043,7 +1068,7 @@ r'mksquashfs /{bin,boot,etc,home,lib,mnt,opt,root,sbin,usr,srv,var} /_to_add_to_
                 system_or_die( 'cd %s && makepkg --skipchecksums --asroot --nobuild -f' % ( self.mountpoint + self.kernel_src_basedir ),
                                                         title_str = self.title_str, status_lst = self.status_lst )
                 return 0
-            except ( RuntimeError, FileNotFoundError ):
+            except RuntimeError:
                 self.status_lst[-1] += ' git or makepkg failed. Retrying...'
         failed( 'Failed to download kernel source' )
 #        self.download_package_source( os.path.basename( self.kernel_src_basedir ), ( 'PKGBUILD', ) )
@@ -1071,17 +1096,18 @@ r'mksquashfs /{bin,boot,etc,home,lib,mnt,opt,root,sbin,usr,srv,var} /_to_add_to_
         for file_stub in ( 'group', 'passwd', 'shadow' ):
             do_a_sed( '%s/etc/%s' % ( self.mountpoint, file_stub ), 'freenet:.*', '' )
         logme( 'Adding freenet user and disabling its login' )
-        if 0 != os.system( 'cat %s/etc/passwd | grep freenet &> /dev/null' % ( self.mountpoint ) ):
+        try:
+#        if 0 != chroot_this( self.mountpoint, 'cat /etc/passwd | grep freenet &> /dev/null' ):
             chroot_this( self.mountpoint, 'useradd -d /opt/freenet -m -U freenet',
                           status_lst = self.status_lst, title_str = self.title_str, on_fail = 'Failed to add freenet user' )
+        except RuntimeError:
+            pass
         chroot_this( self.mountpoint, 'passwd -l freenet',
                           status_lst = self.status_lst, title_str = self.title_str, on_fail = 'Failed to disable freenet user login' )
-        logme( 'Installing freenet from Java jar file' )
-        wget( url = 'https://freenetproject.org/jnlp/freenet_installer.jar', save_as_file = '%s/.new_installer_offline.jar' % ( self.mountpoint ), quiet = True )
         write_oneliner_file( '%s/.install_freenet_like_this.sh' % ( self.mountpoint ), '''#!/bin/sh
 rm -Rf /opt/freenet/.[a-z]*
 rm -Rf /opt/freenet/*
-echo -en "/opt/freenet\n1\n1\n1\n" | java -jar /.new_installer_offline.jar
+echo -en "/opt/freenet\n1\n1\n1\n" | java -jar /.new_installer_offline.jar -console
 res=$?
 if [ "$res" -le "1" ] ; then
   exit 0
@@ -1103,30 +1129,24 @@ WorkingDirectory=/opt/freenet
 [Install]
 WantedBy=multi-user.target
 ''' )
-        res = chroot_this( self.mountpoint, 'su -l freenet /.install_freenet_like_this.sh', attempts = 1,
-                          status_lst = self.status_lst, title_str = self.title_str, on_fail = 'Failed to install freenet via Java' )
+#        logme( 'Installing freenet from Java jar file' )
+#        wget( url = 'https://freenetproject.org/jnlp/freenet_installer.jar', save_as_file = '%s/.new_installer_offline.jar' % ( self.mountpoint ),
+#                                                        status_lst = self.status_lst, title_str = self.title_str )
+#        res = chroot_this( self.mountpoint, 'su -l freenet /.install_freenet_like_this.sh', attempts = 1,
+#                          status_lst = self.status_lst, title_str = self.title_str, on_fail = 'Failed to install freenet via Java' )
         system_or_die( 'rm -f %s/.new_installer_offline.jar' % ( self.mountpoint ) )
         system_or_die( 'rm -f %s/.install_freenet_like_this.sh' % ( self.mountpoint ) )
-        system_or_die( 'ln -sf wrapper-linux-armhf-32 %s/opt/freenet/bin/wrapper' % ( self.mountpoint ) )
-        return res
-
-    def save_for_posterity_if_possible_A( self ):
-        return self.save_for_posterity_if_possible( '_A' )
-
-    def save_for_posterity_if_possible_B( self ):
-        return self.save_for_posterity_if_possible( '_B' )
+        if os.path.exists( '%s/opt/freenet/bin/wrapper' % ( self.mountpoint ) ) and os.path.exists( '%s/opt/freenet/run.sh' % ( self.mountpoint ) ):
+            system_or_die( 'ln -sf wrapper-linux-armhf-32 %s/opt/freenet/bin/wrapper' % ( self.mountpoint ) )
+        else:
+            logme( 'OK. Traditional install of freenet failed. I shall do it from tarball instead.' )
+            chroot_this( self.mountpoint, 'tar -Jxf /usr/local/bin/Chrubix/blobs/apps/freenet.tar.xz' )
 
     def save_for_posterity_if_possible_C( self ):
         return self.save_for_posterity_if_possible( '_C' )
 
     def save_for_posterity_if_possible_D( self ):
         return self.save_for_posterity_if_possible( '_D' )
-
-    def able_to_restore_from_posterity_A( self ):
-        return self.able_to_restore_from_posterity( '_A' )
-
-    def able_to_restore_from_posterity_B( self ):
-        return self.able_to_restore_from_posterity( '_B' )
 
     def able_to_restore_from_posterity_C( self ):
         return self.able_to_restore_from_posterity( '_C' )
@@ -1205,16 +1225,12 @@ WantedBy=multi-user.target
                                 self.add_shutdown_user,
                                 self.add_guest_user,
                                 self.configure_hostname,
-                                self.update_barebones_OS )
-        second_stage = ( 
+                                self.update_barebones_OS,
                                 self.install_all_important_packages_in_OS,
                                 self.install_urwid_and_dropbox_uploader,
-                                self.save_for_posterity_if_possible_B )  # self.nop
-        third_stage = ( 
-                                self.download_kernel_and_mkfs_sources,
-                                self.modify_build_and_install_mkfs_and_kernel_for_OS,
+                                self.download_modify_and_build_kernel_and_mkfs,
                                 self.save_for_posterity_if_possible_C )  # self.nop
-        fourth_stage = ( 
+        second_stage = ( 
                                 self.install_chrubix,
                                 self.install_timezone,
                                 self.install_vbutils_from_cbook,
@@ -1236,12 +1252,12 @@ WantedBy=multi-user.target
                                 self.remove_all_junk,
                                 self.check_sanity_of_distro,
                                 self.save_for_posterity_if_possible_D )
-        fifth_stage = ( 
+        third_stage = ( 
                                 self.install_vbutils_from_cbook,  # just in case the new user's tools differ from the original builder's tools
                                 self.migrate_or_squash_OS,  # Every class but Alarmist will use migrate. Alarmist uses squash.
                                 self.unmount_and_clean_up
                                 )
-        all_my_funcs = first_stage + second_stage + third_stage + fourth_stage + fifth_stage
+        all_my_funcs = first_stage + second_stage + third_stage
         if os.path.exists( '%s/.checkpoint.txt' % ( self.mountpoint ) ):
             checkpoint_number = int( read_oneliner_file( '%s/.checkpoint.txt' % ( self.mountpoint ) ) )
             if checkpoint_number == 9999:
@@ -1249,11 +1265,9 @@ WantedBy=multi-user.target
                 self.status_lst.append( ['I was restored from an online tarball (%s). OK.' % ( url_or_fname )] )
                 mount_sys_tmp_proc_n_dev( self.mountpoint )  # FIXME: This line is unnecessary, probably
                 if url_or_fname.find( '_D' ) >= 0:
-                    checkpoint_number = len( first_stage ) + len( second_stage ) + len( third_stage ) + len( fourth_stage )
-                elif url_or_fname.find( '_C' ) >= 0:
-                    checkpoint_number = len( first_stage ) + len( second_stage ) + len( third_stage )
-                elif url_or_fname.find( '_B' ) >= 0:
                     checkpoint_number = len( first_stage ) + len( second_stage )
+                elif url_or_fname.find( '_C' ) >= 0:
+                    checkpoint_number = len( first_stage )
                 else:
                     failed( 'Incomprehensible posterity restore - %s' % ( url_or_fname ) )
             else:
