@@ -489,9 +489,9 @@ def install_mp3_files( mountpoint ):
 
 
 def running_on_a_test_rig():
-    well_am_i = os.path.exists( '/home/chronos/user/Downloads/reubenabrams.txt' )
-    if not well_am_i:
-        logme( 'running_on_a_test_rig() is broken' )
-        well_am_i = True
-    return well_am_i
+    for a_rig_serno in ( '09278f79', '203a61bc' ):
+        a_rig = '/dev/disk/by-id/mmc-SEM16G_0x%s' % ( a_rig_serno )
+        if os.path.exists( a_rig ):
+            return True
+    return False
 
