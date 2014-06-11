@@ -40,6 +40,8 @@ echo "$USER" > $liu
 export DISPLAY=:0.0
 start-pulseaudio-x11 &
 sleep 1
+pulseaudio -k
+
 if ps -o pid -C wmaker &>/dev/null; then
   wmsystemtray &
   sleep 0.5
