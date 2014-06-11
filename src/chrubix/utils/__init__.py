@@ -166,9 +166,7 @@ def wget( url, save_as_file = None, extract_to_path = None, decompression_flag =
             return res
         else:
 #            logme( "Retrying" )
-            os.sync(); os.sync(); os.sync()
-            os.system( 'sleep 1' )
-            time.sleep( 5 )
+            os.system( 'sync;sync;sync;sleep 1' )
         attempt_number += 1
     raise SystemError( "Failed to run '%s'" % ( cmd ) )
 
@@ -290,7 +288,7 @@ def chroot_this( mountpoint, cmd, on_fail = None, attempts = 4, title_str = None
     if res != 0 and on_fail is not None:
         failed( '%s chroot in %s of "%s" failed after several attempts; %s' % ( proxy_info, mountpoint, cmd, on_fail ) )
     os.unlink( mountpoint + my_executable_script )
-    os.sync(); os.sync(); os.sync()
+    os.system( 'sync;sync;sync' )
     logme( 'chroot("%s") is returning w/ res=%d' % ( cmd, res ) )
     return res
 
@@ -471,7 +469,7 @@ def install_windows_xp_theme_stuff( mountpoint ):
 def install_mp3_files( mountpoint ):
     mydir = '%s/etc/.mp3' % ( mountpoint )
     system_or_die( 'mkdir -p %s' % ( mydir ) )
-    for myname in ( 'boom', 'error1', 'error2', 'MacStartUp', 'online', 'pg2back', 'pgclean', 'pghere', 'welcome', 'wrongCB', 'wrongSD' ):
+    for myname in ( 'boom', 'error1', 'error2', 'MacStartUp', 'online', 'pg2back', 'pgclean', 'pghere', 'welcome', 'wrongCB', 'wrongSD', 'xpshutdown' ):
         system_or_die( 'cp -f %s/usr/local/bin/Chrubix/blobs/audio/%s.mp3.gz %s/' % ( mountpoint, myname, mydir ) )
         system_or_die( 'gunzip %s/%s.mp3.gz' % ( mydir, myname ) )
     wget( url = 'http://www.winhistory.de/more/winstart/mp3/winxp.mp3', save_as_file = '%s/winxp.mp3' % ( mydir ), quiet = True )
