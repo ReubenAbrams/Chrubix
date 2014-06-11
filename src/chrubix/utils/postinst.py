@@ -127,6 +127,8 @@ logger "QQQ end of postlogin script"
 def append_lxdm_post_logout_script( outfile ):
     f = open( outfile, 'a' )
     f.write( '''
+ps wax | fgrep mate-session | fgrep -v grep && mpg123 /etc/.mp3/xpshutdown.mp3 &
+
 liu=/tmp/.logged_in_user
 rm -f $liu
 logger "QQQ - terminating current user session and restarting lxdm"
