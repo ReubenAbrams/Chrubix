@@ -1100,8 +1100,8 @@ r'mksquashfs /{bin,boot,etc,home,lib,mnt,opt,root,sbin,usr,srv,var} /_to_add_to_
         f = open( '%s/tmp/install_leap_bitmask.sh' % ( self.mountpoint ), 'w' )
         f.write( '''#!/bin/bash
 set -e
-easy_install pip2
-pip2 install leap-mail keyring pyOpenSSL pysqlcipher
+pip2 install keyring pyOpenSSL pysqlcipher
+easy_install-2.7 u1db
 cd %s
 rm -Rf soledad
 git clone https://github.com/leapcode/soledad.git
@@ -1110,7 +1110,7 @@ git fetch origin
 git checkout develop
 cd client
 python2 setup.py install
-pip2 intall leap-bitmask
+pip2 install --no-dependencies leap.bitmask
 exit 0
 ''' % ( self.sources_basedir ) )
         f.close()
