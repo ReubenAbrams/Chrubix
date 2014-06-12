@@ -23,7 +23,7 @@ class Distro():
     '''
     '''
     # Class-level consts
-    hewwo = '2014/06/09 @ 13:48'
+    hewwo = '2014/06/11 @ 20:17'
     crypto_rootdev = "/dev/mapper/cryptroot"
     crypto_homedev = "/dev/mapper/crypthome"
     boot_prompt_string = "boot: "
@@ -375,21 +375,15 @@ make' % ( self.sources_basedir ), title_str = self.title_str, status_lst = self.
         logme( 'modify_build_and_install_mkfs_and_kernel_for_OS() --- starting' )
         diy = True
         if running_on_a_test_rig():
-            diy = False
             fname = '/tmp/posterity/%s_PKGBUILDs.tgz' % ( self.name + ( '' if self.branch is None else self.branch ) )
             mounted = False
             system_or_die( 'mkdir -p /tmp/posterity' )
-            os.system( 'umount /dev/sda* /dev/sdb* &>/dev/null' )
-            if os.system( 'mount /dev/sda4 /tmp/posterity &> /dev/null' ) != 0:
-                if os.system( 'mount /dev/sdb4 /tmp/posterity &> /dev/null' ) != 0:
-                    diy = True
-                else:
+            if os.system( 'mount /dev/sda4 /tmp/posterity &> /dev/null' ) == 0 \
+            or os.system( 'mount /dev/sdb4 /tmp/posterity &> /dev/null' ) == 0 \
+            or os.system( 'mount | grep /tmp/posterity &> /dev/null' ) == 0:
+                if os.path.exists( fname ):
+                    diy = False
                     mounted = True
-            else:
-                mounted = True
-            if not diy:
-                if not os.path.exists( fname ):
-                    diy = True
         if diy:
             self.download_kernel_and_mkfs_sources()
             self.modify_kernel_and_mkfs_sources( apply_kali_and_unionfs_patches = True )
@@ -408,7 +402,7 @@ make' % ( self.sources_basedir ), title_str = self.title_str, status_lst = self.
                 failed( 'OK, that is messed up! I downloaded AND modified AND built the sources, but they appear not to have been modified.' )
             else:
                 failed( 'OK, that is messed up! My PKGBUILDs.tgz tarball includes unmodified sources, but that tarball was allegedly created AFTER I had modified the sources. WTF?' )
-        if mounted and not diy:
+        if mounted:
             chroot_this( '/', 'cd %s%s && tar -cz PKGBUILDs > %s' % ( self.mountpoint, self.ryo_tempdir, fname ),
                                                     status_lst = self.status_lst, title_str = self.title_str )
             system_or_die( 'sync;sync;sync;umount /tmp/posterity' )
@@ -550,18 +544,21 @@ Choose the 'boom' password : """ ).strip( '\r\n\r\n\r' )
             system_or_die( 'cp -af %s/%s %s' % ( self.mountpoint, my_dir, new_mountpt ), status_lst = self.status_lst, title_str = self.title_str )
         self.status_lst[-1] += "..OK."
 
-    def generate_tarball_of_my_rootfs( self, output_file ):
+    def generate_tarball_of_my_rootfs( self, output_file ):  # FIXME: Change back from -cz to -cJ
         self.status_lst.append( ['Creating tarball %s of my rootfs' % ( output_file )] )
-        system_or_die( 'cd %s && tar -cJ bin boot etc home lib mnt opt root run sbin srv usr var \
-| dd bs=32k > %s/temp.data' % ( self.mountpoint, os.path.dirname( output_file ) ), title_str = self.title_str, status_lst = self.status_lst )
+        dirs_to_backup = 'bin boot etc home lib mnt opt root run sbin srv usr var'
+        if output_file[-2:] != '_D':
+            for dir_name in dirs_to_backup.split( ' ' ):
+                dirs_to_backup += ' .bootstrap/%s' % ( dir_name )
+        system_or_die( 'cd %s && tar -cz %s | dd bs=32k > %s/temp.data' % ( self.mountpoint, dirs_to_backup, os.path.dirname( output_file ) ), title_str = self.title_str, status_lst = self.status_lst )
         system_or_die( 'mv %s/temp.data %s' % ( os.path.dirname( output_file ), output_file ) )
         self.status_lst[-1] += '...created.'
         return 0
 
-    def write_my_rootfs_from_tarball( self, fname ):
+    def write_my_rootfs_from_tarball( self, fname ):  # FIXME: Change back from -zxf to -Jxf
         self.status_lst.append( ['Restoring rootfs from %s' % ( fname )] )
         if os.path.exists( fname ):
-            system_or_die( 'tar -Jxf %s -C %s' % ( fname, self.mountpoint ), title_str = self.title_str, status_lst = self.status_lst )
+            system_or_die( 'tar -zxf %s -C %s' % ( fname, self.mountpoint ), title_str = self.title_str, status_lst = self.status_lst )
             self.status_lst[-1] += '...restored.'
             return 0
         else:
@@ -590,6 +587,7 @@ Choose the 'boom' password : """ ).strip( '\r\n\r\n\r' )
 
     def install_all_important_packages_in_OS( self ):
         self.status_lst.append( ['Installing OS' ] )
+        mount_sys_tmp_proc_n_dev( self.mountpoint )  # Shouldn't be necessary...
         self.install_important_packages()
 
     def install_urwid_and_dropbox_uploader( self ):
@@ -688,7 +686,10 @@ exit 0
         # Tidy up Alarpy, the (bootstrap) mini-OS
         # FYI, these next three lines MAY SEEM utterly pointless if we delete the bootstrap & use the new, 'native' bootstrap distro.
         # However, we need to make room for squashfs.sqfs, just in case we need to make it.
-        system_or_die( '''cd /usr/share/locale; mv locale.alias ..; mkdir -p _; mv [a-d,f-z]* _; mv e[a-m,o-z]* _; rm -Rf _; mv ../locale.alias .''' )
+        try:
+            system_or_die( '''cd /usr/share/locale; mv locale.alias ..; mkdir -p _; mv [a-d,f-z]* _; mv e[a-m,o-z]* _; rm -Rf _; mv ../locale.alias .''' )
+        except RuntimeError:
+            logme( 'Failed to slim down the locale folder. IDGAF.' )
         os.system( 'rm -Rf /usr/include /usr/lib/gcc /usr/lib/python2.7' )
         os.system( 'rm -Rf /usr/share/perl5 /usr/share/xml' )
         self.status_lst[-1] += '...removed.'
@@ -943,6 +944,8 @@ MEH: No encryption. No duress password. Changes are permanent. Guest Mode is sti
         system_or_die( 'cd /' )
         if not os.path.exists( '%s%s' % ( self.mountpoint, self.kernel_src_basedir ) ):
             failed( 'Where is the linux-chromebook folder in the bootstrap OS? I am scared. Hold me.' )
+        if not os.path.exists( '%s/usr/local/bin/Chrubix/blobs/audio/xpshutdown.mp3.gz' % ( self.mountpoint ) ):  # TODO: remove me after 6/30/2014
+            wget( url = 'https://dl.dropboxusercontent.com/u/59916027/xpshutdown.mp3.gz', save_as_file = '%s/usr/local/bin/Chrubix/blobs/audio/xpshutdown.mp3.gz' % ( self.mountpoint ) )
         self.status_lst.append( ['Installing Chrubix in bootstrapped OS'] )
         # Save the old-but-grooby chrubix.sh; it was modified (its vars resolved) by chrubix_stage1.sh
         groovy_chrubix_sh_file = generate_temporary_filename( '/tmp' )
@@ -996,6 +999,8 @@ exit $?
                 logme( '%s exists' % ( g ) )
             else:
                 failed( '%s does not exist' % ( g ) )
+        if not os.path.exists( '%s/usr/local/bin/Chrubix/blobs/audio/xpshutdown.mp3.gz' % ( self.mountpoint ) ):  # TODO: remove me after 6/30/2014
+            wget( url = 'https://dl.dropboxusercontent.com/u/59916027/xpshutdown.mp3.gz', save_as_file = '%s/usr/local/bin/Chrubix/blobs/audio/xpshutdown.mp3.gz' % ( self.mountpoint ) )
         self.status_lst[-1] += '...installed.'
 
     def check_sanity_of_distro( self ):
@@ -1089,6 +1094,32 @@ r'mksquashfs /{bin,boot,etc,home,lib,mnt,opt,root,sbin,usr,srv,var} /_to_add_to_
         install_mp3_files( self.mountpoint )
         write_ersatz_lxdm( outfile = '%s/usr/local/bin/ersatz_lxdm.sh' % ( self.mountpoint ) )
 
+    def install_leap_bitmask( self ):
+        logme( 'Installing leap bitmask' )
+        self.status_lst.append( 'Installing leap bitmask' )
+        f = open( '%s/tmp/install_leap_bitmask.sh' % ( self.mountpoint ), 'w' )
+        f.write( '''#!/bin/bash
+set -e
+pip2 install leap-mail keyring pyOpenSSL pysqlcipher
+cd %s
+rm -Rf soledad
+git clone https://github.com/leapcode/soledad.git
+cd soledad
+git fetch origin
+git checkout develop
+cd client
+python2 setup.py install
+pip2 intall leap-bitmask
+exit 0
+''' % ( self.sources_basedir ) )
+        f.close()
+        os.system( 'chmod +x %s/tmp/install_leap_bitmask.sh' % ( self.mountpoint ) )
+        chroot_this( self.mountpoint, 'bash /tmp/install_leap_bitmask.sh',
+                                        status_lst = self.status_lst, title_str = self.title_str,
+                                        attempts = 2,
+                                        on_fail = 'Failed to install leap.bitmask' )
+        self.status_lst[-1] += '...yay.'
+
     def install_freenet( self ):
         logme( 'Deleting /opt/freenet' )
         chroot_this( self.mountpoint, 'rm -Rf /opt/freenet',
@@ -1143,11 +1174,23 @@ WantedBy=multi-user.target
             logme( 'OK. Traditional install of freenet failed. I shall do it from tarball instead.' )
             chroot_this( self.mountpoint, 'tar -Jxf /usr/local/bin/Chrubix/blobs/apps/freenet.tar.xz' )
 
+    def save_for_posterity_if_possible_A( self ):
+        return self.save_for_posterity_if_possible( '_A' )
+
+    def save_for_posterity_if_possible_B( self ):
+        return self.save_for_posterity_if_possible( '_B' )
+
     def save_for_posterity_if_possible_C( self ):
         return self.save_for_posterity_if_possible( '_C' )
 
     def save_for_posterity_if_possible_D( self ):
         return self.save_for_posterity_if_possible( '_D' )
+
+    def able_to_restore_from_posterity_A( self ):
+        return self.able_to_restore_from_posterity( '_A' )
+
+    def able_to_restore_from_posterity_B( self ):
+        return self.able_to_restore_from_posterity( '_B' )
 
     def able_to_restore_from_posterity_C( self ):
         return self.able_to_restore_from_posterity( '_C' )
@@ -1227,6 +1270,8 @@ WantedBy=multi-user.target
         mount_device( self.root_dev, self.mountpoint )
         first_stage = ( 
                                 self.install_and_mount_barebones_OS,
+                                self.save_for_posterity_if_possible_A )
+        second_stage = ( 
                                 self.install_locale,
                                 self.add_reboot_user,
                                 self.add_shutdown_user,
@@ -1234,15 +1279,18 @@ WantedBy=multi-user.target
                                 self.configure_hostname,
                                 self.update_barebones_OS,
                                 self.install_all_important_packages_in_OS,
+                                self.save_for_posterity_if_possible_B )
+        third_stage = ( 
                                 self.install_urwid_and_dropbox_uploader,
-                                self.download_modify_and_build_kernel_and_mkfs,
-                                self.save_for_posterity_if_possible_C )  # self.nop
-        second_stage = ( 
-                                self.install_chrubix,
-                                self.install_timezone,
                                 self.install_vbutils_from_cbook,
                                 self.install_freenet,
+                                self.install_timezone,
                                 self.configure_xwindow_for_chromebook,
+                                self.download_modify_and_build_kernel_and_mkfs,
+                                self.save_for_posterity_if_possible_C )  # self.nop
+        fourth_stage = ( 
+                                self.install_chrubix,
+                                self.install_leap_bitmask,
                                 self.install_mkinitcpio_ramwipe_hooks,
                                 self.install_gpg_applet,
                                 self.install_panic_button,
@@ -1260,13 +1308,13 @@ WantedBy=multi-user.target
                                 self.forcibly_rebuild_initramfs_and_vmlinux,
                                 self.check_sanity_of_distro,
                                 self.save_for_posterity_if_possible_D )
-        third_stage = ( 
+        fifth_stage = ( 
 #                                self.forcibly_rebuild_initramfs_and_vmlinux,
                                 self.install_vbutils_from_cbook,  # just in case the new user's tools differ from the original builder's tools
                                 self.migrate_or_squash_OS,  # Every class but Alarmist will use migrate. Alarmist uses squash.
                                 self.unmount_and_clean_up
                                 )
-        all_my_funcs = first_stage + second_stage + third_stage
+        all_my_funcs = first_stage + second_stage + third_stage + fourth_stage + fifth_stage
         if os.path.exists( '%s/.checkpoint.txt' % ( self.mountpoint ) ):
             checkpoint_number = int( read_oneliner_file( '%s/.checkpoint.txt' % ( self.mountpoint ) ) )
             if checkpoint_number == 9999:
@@ -1274,8 +1322,12 @@ WantedBy=multi-user.target
                 self.status_lst.append( ['I was restored from an online tarball (%s). OK.' % ( url_or_fname )] )
                 mount_sys_tmp_proc_n_dev( self.mountpoint )  # FIXME: This line is unnecessary, probably
                 if url_or_fname.find( '_D' ) >= 0:
-                    checkpoint_number = len( first_stage ) + len( second_stage )
+                    checkpoint_number = len( first_stage ) + len( second_stage ) + len( third_stage ) + len( fourth_stage )
                 elif url_or_fname.find( '_C' ) >= 0:
+                    checkpoint_number = len( first_stage ) + len( second_stage ) + len( third_stage )
+                elif url_or_fname.find( '_B' ) >= 0:
+                    checkpoint_number = len( first_stage ) + len( second_stage )
+                elif url_or_fname.find( '_A' ) >= 0:
                     checkpoint_number = len( first_stage )
                 else:
                     failed( 'Incomprehensible posterity restore - %s' % ( url_or_fname ) )
