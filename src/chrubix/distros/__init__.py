@@ -1173,7 +1173,7 @@ WantedBy=multi-user.target
             system_or_die( 'ln -sf wrapper-linux-armhf-32 %s/opt/freenet/bin/wrapper' % ( self.mountpoint ) )
         else:
             logme( 'OK. Traditional install of freenet failed. I shall do it from tarball instead.' )
-            chroot_this( self.mountpoint, 'tar -Jxf /usr/local/bin/Chrubix/blobs/apps/freenet.tar.xz' )
+            chroot_this( self.mountpoint, 'tar -Jxf /usr/local/bin/Chrubix/blobs/apps/freenet.tar.xz -C %s' % ( self.mountpoint ) )
 
     def save_for_posterity_if_possible_A( self ):
         return self.save_for_posterity_if_possible( '_A' )
@@ -1286,12 +1286,12 @@ WantedBy=multi-user.target
                                 self.install_vbutils_from_cbook,
                                 self.install_freenet,
                                 self.install_timezone,
-                                self.configure_xwindow_for_chromebook,
                                 self.download_modify_and_build_kernel_and_mkfs,
                                 self.save_for_posterity_if_possible_C )  # self.nop
         fourth_stage = ( 
-                                self.install_chrubix,
                                 self.install_leap_bitmask,
+                                self.install_chrubix,
+                                self.configure_xwindow_for_chromebook,
                                 self.install_mkinitcpio_ramwipe_hooks,
                                 self.install_gpg_applet,
                                 self.install_panic_button,
