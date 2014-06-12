@@ -545,6 +545,7 @@ Choose the 'boom' password : """ ).strip( '\r\n\r\n\r' )
         self.status_lst[-1] += "..OK."
 
     def generate_tarball_of_my_rootfs( self, output_file ):  # FIXME: Change back from -cz to -cJ
+        logme( 'generate_tarball_of_my_rootfs() - started - output_file=%s' % ( output_file ) )
         self.status_lst.append( ['Creating tarball %s of my rootfs' % ( output_file )] )
         dirs_to_backup = 'bin boot etc home lib mnt opt root run sbin srv usr var'
         if output_file[-2:] != '_D':
@@ -553,6 +554,7 @@ Choose the 'boom' password : """ ).strip( '\r\n\r\n\r' )
         system_or_die( 'cd %s && tar -cz %s | dd bs=32k > %s/temp.data' % ( self.mountpoint, dirs_to_backup, os.path.dirname( output_file ) ), title_str = self.title_str, status_lst = self.status_lst )
         system_or_die( 'mv %s/temp.data %s' % ( os.path.dirname( output_file ), output_file ) )
         self.status_lst[-1] += '...created.'
+        logme( 'generate_tarball_of_my_rootfs() - leaving' )
         return 0
 
     def write_my_rootfs_from_tarball( self, fname ):  # FIXME: Change back from -zxf to -Jxf
