@@ -381,9 +381,9 @@ make' % ( self.sources_basedir ), title_str = self.title_str, status_lst = self.
             if os.system( 'mount /dev/sda4 /tmp/posterity &> /dev/null' ) == 0 \
             or os.system( 'mount /dev/sdb4 /tmp/posterity &> /dev/null' ) == 0 \
             or os.system( 'mount | grep /tmp/posterity &> /dev/null' ) == 0:
+                mounted = True
                 if os.path.exists( fname ):
                     diy = False
-                    mounted = True
         if diy:
             self.download_kernel_and_mkfs_sources()
             self.modify_kernel_and_mkfs_sources( apply_kali_and_unionfs_patches = True )
