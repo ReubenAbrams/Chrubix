@@ -237,7 +237,7 @@ restore_stage_X_from_backup() {
 	root=$3
 	clear
 	echo "Using $distroname midpoint file $fname"
-	pv $fname | tar -Jx -C $root || failed "Failed to unzip $fname --- J err?"
+	pv $fname | tar -zx -C $root || failed "Failed to unzip $fname --- J err?"
 	echo "Restored ($distroname, stage D) from $fname"
 	rm -Rf $root/usr/local/bin/Chrubix
 }
@@ -298,7 +298,7 @@ restore_from_stage_X_backup_if_possible() {
 	mkdir -p /tmp/a /tmp/b
 	mount /dev/sda4 /tmp/a &> /dev/null || echo -en ""
 	mount /dev/sdb4 /tmp/b &> /dev/null || echo -en ""
-	for stage in D ; do
+	for stage in D C B ; do
 		fnA="/tmp/a/"$distroname"__"$stage".xz"
 		fnB="/tmp/b/"$distroname"__"$stage".xz"
 		for fname in $fnA $fnB ; do
@@ -311,8 +311,8 @@ restore_from_stage_X_backup_if_possible() {
 			fi
 		done
 	done
-	if wget --spider $url -O - | tar -Jx -C $root &> /dev/null ; then
-		if wget $url -O - | tar -Jx -C $root ; then
+	if wget --spider $url -O /dev/null ; then
+		if wget $url -O - | tar -zx -C $root ; then
 			echo "Restored ($distroname, squashfs) from Dropbox"
 			hack_something_stageX_ish $distroname $root $dev_p $url
 			btstrap=$root
