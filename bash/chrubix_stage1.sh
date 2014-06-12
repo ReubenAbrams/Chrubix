@@ -284,7 +284,7 @@ Which would you like me to install? "
 "K") distroname="kali";;
 "S") distroname="suse";;
 "T") distroname="alarmist";;
-"U") distroname="ubuntu";;
+"U") distroname="ubuntupangolin";;
 "W") distroname="debianwheezy";;
 *)   echo "Unknown distro";;
 		esac

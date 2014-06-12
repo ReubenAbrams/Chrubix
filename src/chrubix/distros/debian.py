@@ -189,7 +189,7 @@ Acquire::https::Proxy "https://%s/";
         package_name = os.path.basename( source_pathname )
         package_path = os.path.dirname( source_pathname )
 #        generate_and_incorporate_patch_for_debian( self.mountpoint, source_pathname )
-        chroot_this( self.mountpoint, 'cd %s && [ -e "configure" ] && (./configure&&make) || make' % ( source_pathname + ( '' if package_name == 'linux-chromebook' else '/' + package_name + '-*' ) ),
+        chroot_this( self.mountpoint, 'cd %s; [ -e "configure" ] && (./configure&&make) || make' % ( source_pathname + ( '/src/chromeos-3.4' if package_name == 'linux-chromebook' else '/' + package_name + '-*' ) ),
                     on_fail = 'Failed to build %s in %s' % ( package_name, package_path ),
                     title_str = self.title_str,
                     status_lst = self.status_lst )

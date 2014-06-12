@@ -105,7 +105,7 @@ elif argv[2] == 'clone-guest':
 .xscreensaver \
 .themes \
 .gtkrc-2.0 \
-.config/dhromium'
+.config/chromium'
     distro = generate_distro_record_from_name( argv[3] )
     system_or_die( 'cd /tmp/.guest; tar -cJ %s > %s' % ( files_to_save, outfile ) )
     print( 'Saved /tmp/.guest/.* goodies to %s' % ( outfile ) )

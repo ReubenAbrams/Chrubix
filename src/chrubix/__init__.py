@@ -43,7 +43,7 @@ def generate_distro_record_from_name( name_str ):
                   'fedora'        :FedoraDistro,
                   'debianjessie'  :JessieDebianDistro,
                   'kali'          :KaliDistro,
-                  'pangolin'      :PangolinUbuntuDistro,
+                  'ubuntupangolin':PangolinUbuntuDistro,
                   'suse'          :SuseDistro,
                   'debianwheezy'  :WheezyDebianDistro,
                   }
