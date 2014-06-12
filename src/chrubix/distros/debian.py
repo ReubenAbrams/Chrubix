@@ -31,7 +31,7 @@ e2fslibs-dev debhelper python-dev libffi-dev python-dev libffi-dev libsqlite3-de
 wireless-tools wpasupplicant obfsproxy network-manager-gnome \
 mate-desktop-environment-extras i2p i2p-keyring'  # FYI, freenet is handled by install_final_push...()
 # xul-ext-flashblock
-# FYI, bitmask and leap-keyring are made possible by apt-add-repository() call in ..._final_push_...(). Ditto, win-xp-theme.
+# FYI, win-xp-theme is made possible by apt-add-repository() call in ..._final_push_...().
 
     def __init__( self , *args, **kwargs ):
         super( DebianDistro, self ).__init__( *args, **kwargs )
@@ -112,8 +112,6 @@ Acquire::ftp::Proxy  "ftp://%s/";
 Acquire::https::Proxy "https://%s/";
 ''' % ( g_proxy, g_proxy, g_proxy ) )
             f.close()
-        for pkg_name in self.list_of_mkfs_packages:
-            chroot_this( self.mountpoint, 'sudo apt-mark hold %s' % ( pkg_name ) )
         logme( 'DebianDistro - install_package_manager_tweaks() - leaving' )
 
     def update_and_upgrade_all( self ):
@@ -160,7 +158,6 @@ Acquire::https::Proxy "https://%s/";
         if os.path.exists( '%s/usr/bin/python3' % ( self.mountpoint ) ):
             chroot_this( self.mountpoint, 'ln -sf ../../bin/python3 /usr/local/bin/python3' )
         system_or_die( 'rm -Rf %s/var/cache/apt/archives/*' % ( self.mountpoint ) )
-        chroot_this( self.mountpoint, 'pip install leap.bitmask', status_lst = self.status_lst, title_str = self.title_str )
         self.steal_dtc_and_mkinitcpio_from_alarpy()
         logme( 'DebianDistro - install_important_packages() - leaving' )
 
@@ -207,11 +204,15 @@ Acquire::https::Proxy "https://%s/";
         self.status_lst.append( ['Installing distro-specific tweaks'] )
         for to_remove in ( 'ftp', 'http' ):
             do_a_sed( '%s/etc/apt/apt.conf' % ( self.mountpoint ), 'Acquire::%s::Proxy.*' % ( to_remove ), '' )
+        for pkg_name in self.list_of_mkfs_packages:
+            chroot_this( self.mountpoint, 'sudo apt-mark hold %s' % ( pkg_name ) )
         self.status_lst[-1] += '...installed.'
         logme( 'DebianDistro - configure_distrospecific_tweaks() - leaving' )
 
     def install_final_push_of_packages( self ):
         logme( 'DebianDistro - install_final_push_of_packages() - starting' )
+#        chroot_this( self.mountpoint, 'pip install leap.bitmask', status_lst = self.status_lst, title_str = self.title_str,
+#                     on_fail = 'Failed to install leap.bitmask' )
         wget( url = 'http://ppa.launchpad.net/noobslab/themes/ubuntu/pool/main/w/win-xp-theme/win-xp-theme_1.3.1~saucy~Noobslab.com_all.deb',
              save_as_file = '%s/tmp/win-xp-themes.deb' % ( self.mountpoint ), status_lst = self.status_lst, title_str = self.title_str )
         for cmd in ( 
