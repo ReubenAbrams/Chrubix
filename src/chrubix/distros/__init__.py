@@ -1100,6 +1100,7 @@ r'mksquashfs /{bin,boot,etc,home,lib,mnt,opt,root,sbin,usr,srv,var} /_to_add_to_
         f = open( '%s/tmp/install_leap_bitmask.sh' % ( self.mountpoint ), 'w' )
         f.write( '''#!/bin/bash
 set -e
+easy_install pip2
 pip2 install leap-mail keyring pyOpenSSL pysqlcipher
 cd %s
 rm -Rf soledad
