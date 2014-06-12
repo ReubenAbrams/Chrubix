@@ -127,8 +127,6 @@ logger "QQQ end of postlogin script"
 def append_lxdm_post_logout_script( outfile ):
     f = open( outfile, 'a' )
     f.write( '''
-ps wax | fgrep mate-session | fgrep -v grep && mpg123 /etc/.mp3/xpshutdown.mp3 &
-
 liu=/tmp/.logged_in_user
 rm -f $liu
 logger "QQQ - terminating current user session and restarting lxdm"
@@ -388,6 +386,7 @@ def configure_lxdm_login_manager( mountpoint, guest_window_manager ):
     do_a_sed( f + '.first', '.*session=.*', 'session=%s' % ( guest_window_manager ) )
     system_or_die( 'cat %s | sed s/.*autologin=.*/###autologin=/ | sed s/.*skip_password=.*/skip_password=1/ > %s.second' % ( f, f ) )
 #    system_or_die( 'cp -f %s.first %s' % ( f, f ) )
+    system_or_die( 'echo "ps wax | fgrep mate-session | fgrep -v grep && mpg123 /etc/.mp3/xpshutdown.mp3" >> %s/etc/lxdm/PreLogout' % ( mountpoint ) )
     append_lxdm_post_login_script( '%s/etc/lxdm/PostLogin' % ( mountpoint ) )  # Append. Don't replace.
     append_startx_addendum( '%s/etc/lxdm/Xsession' % ( mountpoint ) )  # Append. Don't replace.
     append_startx_addendum( '%s/etc/X11/xinit/xinitrc' % ( mountpoint ) )  # Append. Don't replace.
