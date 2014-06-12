@@ -13,7 +13,7 @@ class ArchlinuxDistro( Distro ):
     important_packages = Distro.important_packages + ' \
 cgpt xz mkinitcpio mutagen libconfig festival-us libxpm dtc mythes-en \
 mesa pyqt gptfdisk bluez-libs alsa-plugins acpi sdl libcanberra perl-xml-parser \
-libnotify talkfilters java-runtime libxmu apache-ant junit zbar python2-setuptools \
+libnotify talkfilters java-runtime libxmu apache-ant junit zbar python2-setuptools python2-pip \
 twisted python2-yaml python2-distutils-extra python2-gobject python2-cairo python2-poppler python2-pdfrw \
 bcprov gtk-engine-unico gtk-engine-murrine gtk-engines xorg-fonts xorg-font-utils xorg-fonts-encodings \
 libreoffice-en-US libreoffice-common libreoffice-gnome libxfixes \
