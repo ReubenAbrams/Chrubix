@@ -1270,14 +1270,14 @@ WantedBy=multi-user.target
         mount_device( self.root_dev, self.mountpoint )
         first_stage = ( 
                                 self.install_and_mount_barebones_OS,
-                                self.save_for_posterity_if_possible_A )
-        second_stage = ( 
                                 self.install_locale,
                                 self.add_reboot_user,
                                 self.add_shutdown_user,
                                 self.add_guest_user,
                                 self.configure_hostname,
                                 self.update_barebones_OS,
+                                self.save_for_posterity_if_possible_A )
+        second_stage = ( 
                                 self.install_all_important_packages_in_OS,
                                 self.save_for_posterity_if_possible_B )
         third_stage = ( 
