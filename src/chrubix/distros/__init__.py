@@ -290,8 +290,8 @@ make' % ( self.sources_basedir ), title_str = self.title_str, status_lst = self.
  'console=tty1 %s root=%s rootwait %s quiet systemd.show_status=0 %s lsm.module_locking=0 init=/sbin/init %s' \
                             % ( extra_params_A, my_root_device, readwrite, loglevel_str, extra_params_B ) )
         system_or_die( 'dd if=/dev/zero of=%s bs=1k count=1 2> /dev/null' % ( self.kernel_dev ) )
-        system_or_die( 'vbutil_kernel --pack %s --keyblock /usr/share/vboot/devkeys/kernel.keyblock --version 1 --signprivate /usr/share/vboot/devkeys/kernel_data_key.vbprivk --config $root/root/.kernel.flags --vmlinuz %s --arch arm' \
-                            % ( signed_kernel_fname, raw_kernel_fname ) )
+        system_or_die( 'vbutil_kernel --pack %s --keyblock /usr/share/vboot/devkeys/kernel.keyblock --version 1 --signprivate /usr/share/vboot/devkeys/kernel_data_key.vbprivk --config %s/root/.kernel.flags --vmlinuz %s --arch arm' \
+                            % ( signed_kernel_fname, self.mountpoint, raw_kernel_fname ) )
         system_or_die( 'dd if=%s of=%s' % ( signed_kernel_fname, self.kernel_dev ), "Failed to write kernel" )
         return 0
 
@@ -726,14 +726,20 @@ MEH: No encryption. No duress password. Changes are permanent. Guest Mode is sti
             res = 999
             while res != 'T' and res != 'P' and res != 'M':
                 res = input( "(T)emporary, (P)ermanent, or (M)eh ? " ).strip( '\r\n\r\n\r' ).replace( 't', 'T' ).replace( 'p', 'P' ).replace( 'm', 'M' )
-        assert( 0 == chroot_this( self.mountpoint, 'ls -l /.temp_or_perm.txt', status_lst = self.status_lst, title_str = self.title_str ) )  # ...to force the display to work
+            if res == 'T':
+                write_oneliner_file( '%s/.temp_or_perm.txt' % ( self.mountpoint ), 'temp' )
+            elif res == 'P':
+                write_oneliner_file( '%s/.temp_or_perm.txt' % ( self.mountpoint ), 'perm' )
+            else:
+                write_oneliner_file( '%s/.temp_or_perm.txt' % ( self.mountpoint ), 'meh' )
+        assert( 0 == chroot_this( self.mountpoint, 'ls -l /.temp_or_perm.txt > /dev/null', status_lst = self.status_lst, title_str = self.title_str ) )  # ...to force the display to work
         if res == 'T':
             self.squash_OS()
         elif res == 'P' or res == 'M':
             if running_on_a_test_rig():
                 self.status_lst.append( ['Because this is a test rig, I am regenerating the squashfs file.'] )
                 self.generate_squashfs_of_my_OS()
-                self.status_lst[-1] + ' ...regenerated.'
+                self.status_lst[-1] += ' ...regenerated.'
             self.set_root_password()
             system_or_die( 'rm -f /.squashfs.sqfs %s/.squashfs.sqfs' % ( self.mountpoint ) )
             if res == 'P':
@@ -1100,6 +1106,7 @@ r'mksquashfs /{bin,boot,etc,home,lib,mnt,opt,root,sbin,usr,srv,var} /_to_add_to_
         f = open( '%s/tmp/install_leap_bitmask.sh' % ( self.mountpoint ), 'w' )
         f.write( '''#!/bin/bash
 set -e
+which pip2 || ln -sf pip-2.7 /usr/bin/pip2
 pip2 install keyring pyOpenSSL pysqlcipher
 easy_install-2.7 u1db
 cd %s
