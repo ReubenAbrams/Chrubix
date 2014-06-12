@@ -298,7 +298,7 @@ restore_from_stage_X_backup_if_possible() {
 	mkdir -p /tmp/a /tmp/b
 	mount /dev/sda4 /tmp/a &> /dev/null || echo -en ""
 	mount /dev/sdb4 /tmp/b &> /dev/null || echo -en ""
-	for stage in D C ; do
+	for stage in D ; do
 		fnA="/tmp/a/"$distroname"__"$stage".xz"
 		fnB="/tmp/b/"$distroname"__"$stage".xz"
 		for fname in $fnA $fnB ; do
@@ -521,13 +521,13 @@ if ! restore_from_squash_fs_backup_if_possible ; then
 	fi
 fi
 
-mount devtmpfs  $btstrap/dev -t devtmpfs|| echo -en ""
+mount devtmpfs  $btstrap/dev -t devtmpfs	|| echo -en ""
 mount sysfs     $btstrap/sys -t sysfs		|| echo -en ""
 mount proc      $btstrap/proc -t proc		|| echo -en ""
 mount tmpfs     $btstrap/tmp -t tmpfs		|| echo -en ""
 
 mkdir -p $btstrap/tmp/_root
-mount "$dev_p"3 $btstrap/tmp/_root					|| echo -en ""
+mount -o noatime "$dev_p"3 $btstrap/tmp/_root		|| echo -en ""
 mount devtmpfs $btstrap/tmp/_root/dev -t devtmpfs	|| echo -en ""
 mount tmpfs $btstrap/tmp/_root/tmp -t tmpfs			|| echo -en ""
 mount proc $btstrap/tmp/_root/proc -t proc			|| echo -en ""
