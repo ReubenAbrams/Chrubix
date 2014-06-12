@@ -214,7 +214,7 @@ def call_binary( func_call ):
 
 
 def mount_device( device, mountpoint ):
-    cmd = 'mount ' + device + ' ' + mountpoint
+    cmd = 'mount -o noatime ' + device + ' ' + mountpoint
     if os.system( 'mount | grep " %s " &>/dev/null' % ( mountpoint ) ) != 0:
         if ( os.system( cmd ) != 0 ):
             failed( 'Failed to ' + cmd )
