@@ -389,7 +389,7 @@ make' % ( self.sources_basedir ), title_str = self.title_str, status_lst = self.
             self.modify_kernel_and_mkfs_sources( apply_kali_and_unionfs_patches = True )
             self.build_kernel_and_mkfs()
         else:
-            system_or_die( 'tar -zxf %s -C %s' % ( fname, self.ryo_tempdir ), status_lst = self.status_lst, title_str = self.title_str )
+            system_or_die( 'tar -zxf %s -C %s%s' % ( fname, self.mountpoint, self.ryo_tempdir ), status_lst = self.status_lst, title_str = self.title_str )
         f = '%s%s/src/chromeos-3.4/drivers/mmc/core/mmc.c' % ( self.mountpoint, self.kernel_src_basedir )
         g = '%s%s/src/chromeos-3.4/fs/btrfs/ctree.h' % ( self.mountpoint, self.kernel_src_basedir )
         assert( os.path.exists( f ) )
@@ -1330,7 +1330,7 @@ WantedBy=multi-user.target
             checkpoint_number = int( read_oneliner_file( '%s/.checkpoint.txt' % ( self.mountpoint ) ) )
             if checkpoint_number == 9999:
                 url_or_fname = read_oneliner_file( '%s/.url_or_fname.txt' % ( self.mountpoint ) )
-                self.status_lst.append( ['I was restored from an online tarball (%s). OK.' % ( url_or_fname )] )
+                self.status_lst.append( ['I was restored by the stage 1 bash script from %s; cool.' % ( url_or_fname )] )
                 mount_sys_tmp_proc_n_dev( self.mountpoint )  # FIXME: This line is unnecessary, probably
                 if url_or_fname.find( '_D' ) >= 0:
                     checkpoint_number = len( first_stage ) + len( second_stage ) + len( third_stage ) + len( fourth_stage )
