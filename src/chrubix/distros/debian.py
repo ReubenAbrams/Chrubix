@@ -12,7 +12,7 @@ from chrubix.distros import Distro
 # FIXME: paman and padevchooser are deprecated
 class DebianDistro( Distro ):
     important_packages = Distro.important_packages + ' ' + \
-'python3-setuptools gnu-standards apt-utils libpopt-dev libacl1-dev libcrypto++-dev exo-utils libnotify-bin \
+'iputils-ping python3-setuptools gnu-standards apt-utils libpopt-dev libacl1-dev libcrypto++-dev exo-utils libnotify-bin \
 libattr1-dev build-essential fakeroot oss-compat devscripts equivs lintian libglib2.0-dev po-debconf \
 iso-codes debconf cdbs debhelper uuid-dev quilt openjdk-7-jre ant xz-utils libxmu-dev libconfig-auto-perl \
 python-software-properties default-jre dpatch festival dialog libck-connector-dev libpam0g-dev python-mutagen \
@@ -27,7 +27,7 @@ libpisock-dev libetpan15 uno-libs3 libgtk-3-bin libbcprov-java gtk2-engines-murr
 e2fslibs-dev debhelper python-dev libffi-dev python-dev libffi-dev libsqlite3-dev \
 '  # Warning! Monkeysign pkg might be broken.
 # gtk-engines-unico python-distutil-extra ? python-distusil-extra python-gobject python-qrencode python-imaging
-    final_push_packages = Distro.final_push_packages + 'iputils-ping lxsession \
+    final_push_packages = Distro.final_push_packages + ' lxsession \
 wireless-tools wpasupplicant obfsproxy network-manager-gnome \
 mate-desktop-environment-extras i2p i2p-keyring'  # FYI, freenet is handled by install_final_push...()
 # xul-ext-flashblock
@@ -152,7 +152,7 @@ Acquire::https::Proxy "https://%s/";
         else:
             self.status_lst.append( ['Installed %d packages successfully' % ( len( packages_installed_succesfully ) )] )
             self.status_lst[-1] += '...but we failed to install%s. Retrying...' % ( ''.join( [' ' + r for r in packages_that_we_failed_to_install] ) )
-            chroot_this( self.mountpoint, 'yes | aptitude install%s' % ( ''.join( [' ' + r for r in packages_that_we_failed_to_install] ) ),
+            chroot_this( self.mountpoint, 'yes 2>/dev/null | aptitude install%s' % ( ''.join( [' ' + r for r in packages_that_we_failed_to_install] ) ),
                          status_lst = self.status_lst, title_str = self.title_str,
                          on_fail = 'Failed to install formerly failed packages' )
         if os.path.exists( '%s/usr/bin/python3' % ( self.mountpoint ) ):
@@ -211,10 +211,14 @@ Acquire::https::Proxy "https://%s/";
 
     def install_final_push_of_packages( self ):
         logme( 'DebianDistro - install_final_push_of_packages() - starting' )
+        chroot_this( self.mountpoint, 'which ping && echo "Ping installed OK" || yes 2>/dev/null | apt-get install iputils-ping', on_fail = 'Failed to install ping' )
 #        chroot_this( self.mountpoint, 'pip install leap.bitmask', status_lst = self.status_lst, title_str = self.title_str,
 #                     on_fail = 'Failed to install leap.bitmask' )
-        wget( url = 'http://ppa.launchpad.net/noobslab/themes/ubuntu/pool/main/w/win-xp-theme/win-xp-theme_1.3.1~saucy~Noobslab.com_all.deb',
-             save_as_file = '%s/tmp/win-xp-themes.deb' % ( self.mountpoint ), status_lst = self.status_lst, title_str = self.title_str )
+        if 0 != os.system( 'cp %s/usr/local/bin/Chrubix/blobs/xp/win-xp-theme_1.3.1~saucy~Noobslab.com_all.deb /tmp/win-xp-themes.deb' % ( self.mountpoint ) ):
+            if 0 != os.system( 'cp /usr/local/bin/Chrubix/blobs/xp/win-xp-theme_1.3.1~saucy~Noobslab.com_all.deb /tmp/win-xp-themes.deb' ):
+                failed( 'Failed to grab Noobslab XP theme' )
+#        wget( url = 'http://ppa.launchpad.net/noobslab/themes/ubuntu/pool/main/w/win-xp-theme/win-xp-theme_1.3.1~saucy~Noobslab.com_all.deb',
+#             save_as_file = '%s/tmp/win-xp-themes.deb' % ( self.mountpoint ), status_lst = self.status_lst, title_str = self.title_str )
         for cmd in ( 
                     'yes 2>/dev/null | dpkg -i /tmp/win-xp-themes.deb',
                     'yes 2>/dev/null | add-apt-repository "deb http://deb.i2p2.no/ %s main"' % ( 'unstable' if self.branch == 'jessie' else 'stable' ),

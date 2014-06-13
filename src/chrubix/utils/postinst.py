@@ -400,7 +400,9 @@ def configure_lxdm_login_manager( mountpoint, guest_window_manager ):
 #    system_or_die( 'echo "exec /usr/local/bin/greeter.sh" >> %s/etc/xinitrc/xinitrc' % ( mountpoint ) ) # start (Python) greeter at end of
     write_oneliner_file( '%s/etc/.first_time_ever' % ( mountpoint ), 'yep' )
     write_ersatz_lxdm( outfile = '%s/usr/local/bin/ersatz_lxdm.sh' % ( mountpoint ) )
-    chroot_this( mountpoint, 'systemctl enable lxdm', on_fail = "Failed to activate lxdm display manager" )
+    if 0 != chroot_this( mountpoint, 'systemctl enable lxdm', attempts = 1 ):
+        if 0 != chroot_this( mountpoint, 'ln -sf /usr/lib/systemd/system/lxdm.service /etc/systemd/system/display-manager.service' ):
+            failed( 'Failed to enable lxdm' )
     system_or_die( r'cat %s/usr/lib/systemd/system/lxdm.service | sed s/ExecStart=.*/ExecStart=\\/usr\\/local\\/bin\\/ersatz_lxdm.sh/ > /tmp/.t.t' % ( mountpoint ) )
     system_or_die( r'cat /tmp/.t.t > %s/usr/lib/systemd/system/lxdm.service # $root/usr/lib/systemd/system/lxdm.service' % ( mountpoint ) )
     chroot_this( mountpoint, 'which lxdm &> /dev/null', on_fail = 'I cannot find lxdm. This is not good.' )
