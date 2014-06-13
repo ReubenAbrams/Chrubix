@@ -346,6 +346,7 @@ if [ -e \"/newroot/$SQUASHFS_FNAME\" ]; then
   mount $rootdev /deviceroot
   mkdir -p /ro /rw
   mount -o loop,squashfs /deviceroot/$SQUASHFS_FNAME /ro
+  mount -t tmpfs -o size=1024m tmpfs /rw
   mount -t unionfs -o dirs=/rw:/ro=ro none /newroot        # mount -t unionfs -o dirs=/home/rw.fs=rw:/newroot=ro unionfs user1
 #  mount tmpfs /newroot/tmp -t tmpfs
 #  for mydir in etc var root ; do
