@@ -143,7 +143,7 @@ def call_binary_and_show_progress( binary_info, title_str, foot_str, status_lst,
 def wget( url, save_as_file = None, extract_to_path = None, decompression_flag = None, quiet = False, title_str = None, status_lst = None, attempts = 5 ):
     attempt_number = 0
     while attempt_number < attempts:
-        extra_params = '' if ( g_proxy is None and attempt_number == 0 ) else '-e use_proxy=yes -e http_proxy=' + g_proxy
+        extra_params = '-e use_proxy=yes -e http_proxy=' + g_proxy if g_proxy is not None and attempt_number == 0 else''
         extra_params += ' --quiet' if quiet else ''
         if save_as_file and not extract_to_path:
             system_or_die( 'mkdir -p %s' % ( os.path.dirname( save_as_file ) ) )
@@ -261,7 +261,7 @@ def system_or_die( cmd, errtxt = None, title_str = None, status_lst = None ):
     return res
 
 
-def chroot_this( mountpoint, cmd, on_fail = None, attempts = 4, title_str = None, status_lst = None, pauses_len = 5, user = 'root' ):
+def chroot_this( mountpoint, cmd, on_fail = None, attempts = 3, title_str = None, status_lst = None, pauses_len = 1, user = 'root' ):
 #    logme( 'chroot_this (%s) ==> %s' % ( mountpoint, cmd ) )
     proxy_info = '' if g_proxy in ( None, '' ) else 'export http_proxy=http://%s;' % ( g_proxy )
     my_executable_script = generate_temporary_filename( '/tmp' )
@@ -284,7 +284,8 @@ def chroot_this( mountpoint, cmd, on_fail = None, attempts = 4, title_str = None
         if res == 0:
             break
         else:
-            time.sleep( 5 )
+            os.system( 'sync;sync;sync' )
+            time.sleep( pauses_len )
     if res != 0 and on_fail is not None:
         failed( '%s chroot in %s of "%s" failed after several attempts; %s' % ( proxy_info, mountpoint, cmd, on_fail ) )
     os.unlink( mountpoint + my_executable_script )
