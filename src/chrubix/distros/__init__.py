@@ -463,7 +463,8 @@ Name=org.freedesktop.Notifications
 Exec=/usr/lib/notification-daemon-1.0/notification-daemon
 ''' )  # See https://wiki.archlinux.org/index.php/Desktop_notifications
         system_or_die( 'echo -en "\n%%wheel ALL=(ALL) ALL\nALL ALL=(ALL) NOPASSWD: /usr/bin/systemctl poweroff,/usr/bin/systemctl halt,/usr/bin/systemctl reboot,/usr/local/bin/tweak_lxdm_and_reboot,/usr/local/bin/tweak_lxdm_and_shutdown,/usr/local/bin/run_as_guest.sh,/usr/local/bin/chrubix.sh\n" >> %s/etc/sudoers' % ( self.mountpoint ) )
-        for group_to_add_me_to in ( 'tor', 'freenet', 'audio', 'pulse-access' ):
+        for group_to_add_me_to in ( '%s' % ( 'debian-tor' if self.name == 'debian' else 'tor' ), 'freenet', 'audio', 'pulse-access' ):
+            logme( 'Adding guest to %s' % ( group_to_add_me_to ) )
             if group_to_add_me_to != 'pulse-access' and 0 != chroot_this( 
                                         self.mountpoint, 'usermod -a -G %s guest' % ( group_to_add_me_to ),
                                         title_str = self.title_str, status_lst = self.status_lst ):
@@ -472,7 +473,6 @@ Exec=/usr/lib/notification-daemon-1.0/notification-daemon
     def configure_networking( self ):
         for pretend_name, real_name in ( 
                                         ( 'syslog', 'syslog-ng' ),
-                                        ( 'display-manager', 'lxdm' ),
                                         ( 'dbus-org.freedesktop.NetworkManager', 'NetworkManager' ),
                                         ( 'dbus-org.freedesktop.nm-dispatcher', 'NetworkManager-dispatcher' ),
                                         ( 'multi-user.target.wants/privoxy', 'privoxy' ),
@@ -949,7 +949,6 @@ MEH: No encryption. No duress password. Changes are permanent. Guest Mode is sti
                      on_fail = 'Failed to run locale-gen to initialize the new locale' )
 
     def install_chrubix( self ):
-        system_or_die( 'cd /' )
         if not os.path.exists( '%s%s' % ( self.mountpoint, self.kernel_src_basedir ) ):
             failed( 'Where is the linux-chromebook folder in the bootstrap OS? I am scared. Hold me.' )
         if not os.path.exists( '%s/usr/local/bin/Chrubix/blobs/audio/xpshutdown.mp3.gz' % ( self.mountpoint ) ):  # TODO: remove me after 6/30/2014
@@ -1298,9 +1297,8 @@ WantedBy=multi-user.target
                                 self.download_modify_and_build_kernel_and_mkfs,
                                 self.save_for_posterity_if_possible_C )  # self.nop
         fourth_stage = ( 
-                                self.install_leap_bitmask,
                                 self.install_chrubix,
-                                self.configure_xwindow_for_chromebook,
+                                self.install_leap_bitmask,
                                 self.install_mkinitcpio_ramwipe_hooks,
                                 self.install_gpg_applet,
                                 self.install_panic_button,
@@ -1313,6 +1311,7 @@ WantedBy=multi-user.target
                                 self.configure_networking,
                                 self.configure_speech_synthesis_and_font_cache,
                                 self.configure_winxp_camo_and_guest_default_files,
+                                self.configure_xwindow_for_chromebook,
                                 self.configure_distrospecific_tweaks,
                                 self.remove_all_junk,
                                 self.forcibly_rebuild_initramfs_and_vmlinux,
