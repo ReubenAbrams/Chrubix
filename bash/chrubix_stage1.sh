@@ -14,6 +14,9 @@
 #
 # To run me, type:-
 # # cd && rm -f that && wget bit.do/that && sudo bash that
+#
+# To force from-the-ground-up rebuild & to forgo online (Dropbox) URLs:-
+# # touch /tmp/FROMSCRATCH
 ###################################################################################
 
 
@@ -280,6 +283,9 @@ Which would you like me to install? "
 }
 
 restore_from_stage_X_backup_if_possible() {
+	if [ -e "/tmp/FROMSCRATCH" ] ; then
+		return 99
+	fi
 	mkdir -p /tmp/a /tmp/b
 	mount /dev/sda4 /tmp/a &> /dev/null || echo -en ""
 	mount /dev/sdb4 /tmp/b &> /dev/null || echo -en ""
@@ -311,6 +317,9 @@ restore_from_stage_X_backup_if_possible() {
 
 
 restore_from_squash_fs_backup_if_possible() {
+	if [ -e "/tmp/FROMSCRATCH" ] ; then
+		return 99
+	fi
 	mkdir -p /tmp/a /tmp/b
 	mount /dev/sda4 /tmp/a &> /dev/null || echo -en ""
 	mount /dev/sdb4 /tmp/b &> /dev/null || echo -en ""
@@ -505,7 +514,7 @@ mount sys $btstrap/tmp/_root/sys -t sysfs			|| echo -en ""
 
 sudo crossystem dev_boot_usb=1 dev_boot_signed_only=0 || echo "WARNING - failed to configure USB and MMC to be bootable"	# dev_boot_signed_only=0
 
-if mount | grep $root | grep squashfs ; then
+if mount | grep $root | grep squashfs && [ ! -e "/tmp/FROMSCRATCH" ] ; then
 	call_redo_mbr_and_make_it_squishy
 else
 	if ! restore_from_squash_fs_backup_if_possible ; then
