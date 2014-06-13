@@ -306,7 +306,7 @@ chown -R guest.guest $GUEST_HOMEDIR
 
 $STOP_JFS_HANGUPS
 
-[ -e "/.squashfs.sqfs" ] && /usr/local/bin/greeter.sh    # Don't use greeter unless we're trying to be Alarmist/Tails/whatever.
+mount | grep " / " | grep unionfs 2>/dev/null && /usr/local/bin/greeter.sh    # Don't use greeter unless we're trying to be Alarmist/Tails/whatever.
 lxdm
 echo "`date` BACK FROM greeter or lxdm" >> /tmp/log.txt
 
