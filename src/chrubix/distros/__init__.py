@@ -594,9 +594,9 @@ Choose the 'boom' password : """ ).strip( '\r\n\r\n\r' )
 
     def install_urwid_and_dropbox_uploader( self ):
         self.status_lst.append( ['Installing dropbox uploader, Python easy_install, and urwid' ] )
-        chroot_this( self.mountpoint, 'which easy_install3 && easy_install3 urwid', status_lst = self.status_lst, title_str = self.title_str )
+        chroot_this( self.mountpoint, 'which easy_install3 2>/dev/null && easy_install3 urwid', status_lst = self.status_lst, title_str = self.title_str )
         self.status_lst[-1] += '.'
-        chroot_this( self.mountpoint, 'which easy_install  && easy_install  urwid', status_lst = self.status_lst, title_str = self.title_str )
+        chroot_this( self.mountpoint, 'which easy_install  2>/dev/null && easy_install  urwid', status_lst = self.status_lst, title_str = self.title_str )
         self.status_lst[-1] += '.'
         for my_executable in ( 'mkinitcpio', 'dtc' ):
             chroot_this( self.mountpoint, 'which %s &> /dev/null' % ( my_executable ), on_fail = 'Programmer forgot to install %s as part of %s distro' % ( my_executable, self.name ) )
@@ -790,10 +790,6 @@ MEH: No encryption. No duress password. Changes are permanent. Guest Mode is sti
         unmount_sys_tmp_proc_n_dev( self.mountpoint )
         logme( 'leaving phase 6 of 6. FYI, total number of lines = %d' % ( chrubix.utils.get_total_lines_so_far() ) )
         chrubix.utils.set_total_lines_so_far( chrubix.utils.get_expected_duration_of_install() )
-#        self.status_lst.append( ['Installed %s%s OK. In 60 seconds, I shall reboot. Press CTRL-C to prevent that.' % ( self.name, '' if self.branch is None else ' (' + self.branch + ')' )] )
-#        time.sleep( 60 )
-#        os.system( 'sync; sync; sync; reboot' )
-#        time.sleep( 5 )
 
     def build_and_install_software_from_archlinux_git( self, package_name, yes_download = True, yes_build = True, yes_install = True, quiet = False ):
     #    pkgbuild_url_template = 'https://projects.archlinux.org/svntogit/packages.git/plain/trunk/%s?h=packages/%s'
