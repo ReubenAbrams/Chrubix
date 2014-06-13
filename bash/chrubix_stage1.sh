@@ -243,21 +243,6 @@ restore_stage_X_from_backup() {
 }
 
 
-hack_something_stageX_ish() {
-	local distroname device root dev_p url_or_fname
-	distroname=$1
-	root=$2
-	dev_p=$3
-	url_or_fname=$4
-	echo "9999" > $root/.checkpoint.txt
-	echo "$url_or_fname" > $root/.url_or_fname.txt
-	umount /tmp/a /tmp/b || echo -en ""
-	bootstraploc=$root/.bootstrap
-	if [ -e "$bootstraploc" ] ; then
-		mv $bootstraploc $bootstraploc.old
-	fi
-}
-
 
 get_distro_type_the_user_wants() {
 	url=""
@@ -298,24 +283,24 @@ restore_from_stage_X_backup_if_possible() {
 	mkdir -p /tmp/a /tmp/b
 	mount /dev/sda4 /tmp/a &> /dev/null || echo -en ""
 	mount /dev/sdb4 /tmp/b &> /dev/null || echo -en ""
-	for stage in D C B ; do
+	for stage in D C B A ; do
 		fnA="/tmp/a/"$distroname"__"$stage".xz"
 		fnB="/tmp/b/"$distroname"__"$stage".xz"
 		for fname in $fnA $fnB ; do
 			if [ -e "$fname" ] ; then
 				restore_stage_X_from_backup $distroname $fname $root
-				hack_something_stageX_ish $distroname $root $dev_p $fname
-				btstrap=$root
-				echo "RESTORED FROM $fname ---- YAY"
+				echo "9999" > $root/.checkpoint.txt
+				echo "$fname" > $root/.url_or_fname.txt
 				return 0
 			fi
 		done
 	done
 	if wget --spider $url -O /dev/null ; then
+		url=$FINALS_URL/$distroname"__D.tar.xz"
 		if wget $url -O - | tar -zx -C $root ; then
 			echo "Restored ($distroname, squashfs) from Dropbox"
-			hack_something_stageX_ish $distroname $root $dev_p $url
-			btstrap=$root
+			echo "9999" > $root/.checkpoint.txt
+			echo "$url_or_fname" > $root/.url_or_fname.txt
 			return 0
 		fi
 	else
@@ -335,19 +320,18 @@ restore_from_squash_fs_backup_if_possible() {
 	for fname in $fnA $fnB ; do
 		if [ -e "$fname" ] ; then
 			if [ "$temp_or_perm" = "temp" ] ; then	
-				cp -f $fname $root/.squashfs.sqfs
+				cp -f $fname $root/.squashfs.sqfs && echo "Squashfs file copied across OK" || failed "Failed to copy the squashfs file across."
 				hack_something_squishy $distroname $root $dev_p
-				btstrap=$root
 				return 0
 			fi
 		fi
 	done
+	squrl=$FINALS_URL/$distroname.sqfs
 	if wget --spider $squrl -O - > $root/.squashfs.sqfs &> /dev/null ; then
 		if [ "$temp_or_perm" = "temp" ] ; then
-			wget $squrl -O - > $root/.squashfs.sqfs || failed "Failed to restrieve squashfs file from URL"
+			wget $squrl -O - > $root/.squashfs.sqfs && echo "Squashfs file downloaded and installed OK" || failed "Failed to restrieve squashfs file from URL"
 			echo "Restored ($distroname, squash fs) from Dropbox"
 			hack_something_squishy $distroname $root $dev_p
-			btstrap=$root
 			return 0
 		fi
 	else
@@ -397,7 +381,6 @@ hack_something_squishy() {
 	for f in bin boot etc home lib mnt opt root run sbin srv usr var ; do
 		[ -e "$root/.ro/$f" ] && ln -sf .ro/$f $root/$f || mkdir -p $root/$f
 	done	
-#	mount -t unionfs -o dirs=$root/.ro=rw unionfs $bootstraploc
 }
 
 
@@ -406,6 +389,7 @@ oh_well_start_from_beginning() {
 	echo "OK. There was no Stage D available on a thumb drive or online."
 	clear
 	echo "Installing bootstrap filesystem..."
+	mkdir -p $btstrap
 	if [ -e "/home/chronos/user/Downloads/alarpy.tar.xz" ] ; then
 		tar -Jxf /home/chronos/user/Downloads/alarpy.tar.xz -C $btstrap || failed "Failed to install alarpy.tar.xz"
 	else
@@ -415,7 +399,6 @@ oh_well_start_from_beginning() {
 	echo "en_US.UTF-8 UTF-8" >> $btstrap/etc/locale.gen
 	chroot_this $btstrap "locale-gen"
 	echo "LANG=\"en_US.UTF-8\"" >> $btstrap/etc/locale.conf
-	mkdir -p $btstrap
 	echo "nameserver 8.8.8.8" >> $btstrap/etc/resolv.conf
 }
 
@@ -459,20 +442,13 @@ MEH: No encryption. No duress password. Changes are permanent. Guest Mode is sti
 ##################################################################################################################################
 
 
-#dev=/dev/mmcblk1
-#dev_p="$dev"p
-#root=/tmp/_root.`basename $dev`		# Don't monkey with this...
-#boot=/tmp/_boot.`basename $dev`		# ...or this...
-#kern=/tmp/_kern.`basename $dev`		# ...or this!
-#btstrap=$root
-#call_redo_mbr_and_make_it_squishy
-#exit $?
-
-
-
 echo "Chrubix ------ starting now"
+umount /tmp/_root*/.bootstrap/tmp/_root/{dev,tmp,proc,sys}
+umount /tmp/_root*/.bootstrap/tmp/_root
+umount /tmp/_root*/.bootstrap/{dev,tmp,proc,sys}
+umount /tmp/_root*/.bootstrap
 set -e
-
+clear
 mount | grep /dev/mapper/encstateful &> /dev/null || failed "Run under ChromeOS, please."
 mydevbyid=`deduce_my_dev`
 [ "$mydevbyid" = "" ] && failed "I am unable to figure out which device you want me to prep. Sorry..."
@@ -489,9 +465,9 @@ boot=/tmp/_boot.`basename $dev`		# ...or this...
 kern=/tmp/_kern.`basename $dev`		# ...or this!
 
 lockfile=/tmp/.chrubix.distro.`basename $dev`
-if [ -e "$lockfile" ] ; then
+if [ -e "$lockfile" ] && [ -e "/tmp/temp_or_perm" ] ; then
 	distroname=`cat $lockfile`
-	temp_or_perm=`cat /temp_or_perm`
+	temp_or_perm=`cat /tmp/temp_or_perm`
 else
 	get_distro_type_the_user_wants
 	ask_if_user_wants_temporary_or_permanent
@@ -501,7 +477,7 @@ fi
 btstrap=$root/.bootstrap
 installer_fname=/tmp/$RANDOM$RANDOM$RANDOM	# Script to install tarball and/or OS... *and* mount dev, sys, tmp, etc.
 if mount | grep "$dev" | grep "$root" &> /dev/null ; then
-	echo "Already partitioned and mounted. Reboot and try again..."
+	umount "$dev"* &> /dev/null || echo "Already partitioned and mounted. Reboot and try again..."
 fi
 sudo stop powerd || echo -en ""
 partition_device $dev $dev_p
@@ -514,12 +490,6 @@ mkdir -p /tmp/a
 res=0
 mkdir -p $btstrap/{dev,proc,tmp,sys}
 mkdir -p $root/{dev,proc,tmp,sys}
-
-if ! restore_from_squash_fs_backup_if_possible ; then
-	if ! restore_from_stage_X_backup_if_possible ; then
-		oh_well_start_from_beginning
-	fi
-fi
 
 mount devtmpfs  $btstrap/dev -t devtmpfs	|| echo -en ""
 mount sysfs     $btstrap/sys -t sysfs		|| echo -en ""
@@ -538,6 +508,12 @@ sudo crossystem dev_boot_usb=1 dev_boot_signed_only=0 || echo "WARNING - failed 
 if mount | grep $root | grep squashfs ; then
 	call_redo_mbr_and_make_it_squishy
 else
+	if ! restore_from_squash_fs_backup_if_possible ; then
+		if ! restore_from_stage_X_backup_if_possible ; then
+			failed "Yikes,baby"
+			oh_well_start_from_beginning
+		fi
+	fi
 	install_chrubix $btstrap $dev "$dev_p"3 "$dev_p"2 "$dev_p"1 $distroname
 	tar -cz /usr/lib/xorg/modules/drivers/armsoc_drv.so \
 		/usr/lib/xorg/modules/input/cmt_drv.so /usr/lib/libgestures.so.0 \
