@@ -510,7 +510,6 @@ if mount | grep $root | grep squashfs ; then
 else
 	if ! restore_from_squash_fs_backup_if_possible ; then
 		if ! restore_from_stage_X_backup_if_possible ; then
-			failed "Yikes,baby"
 			oh_well_start_from_beginning
 		fi
 	fi
