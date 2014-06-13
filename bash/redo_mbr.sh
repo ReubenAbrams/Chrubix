@@ -344,9 +344,9 @@ if [ -e \"/newroot/$SQUASHFS_FNAME\" ]; then
   umount /newroot
   mkdir -p /deviceroot
   mount $rootdev /deviceroot
-  mkdir -p /ro
+  mkdir -p /ro /rw
   mount -o loop,squashfs /deviceroot/$SQUASHFS_FNAME /ro
-  mount -t unionfs -o dirs=/ro=rw unionfs /newroot        # mount -t unionfs -o dirs=/home/rw.fs=rw:/newroot=ro unionfs user1
+  mount -t unionfs -o dirs=/rw:/ro=ro none /newroot        # mount -t unionfs -o dirs=/home/rw.fs=rw:/newroot=ro unionfs user1
 #  mount tmpfs /newroot/tmp -t tmpfs
 #  for mydir in etc var root ; do
 #    cp -af /newroot/\$mydir /newroot/tmp/.squashfs.rw.ahoy/

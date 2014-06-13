@@ -751,12 +751,12 @@ MEH: No encryption. No duress password. Changes are permanent. Guest Mode is sti
 
     def squash_OS( self ):
         save_distro_record( distro_rec = self )
-#        self.generate_squashfs_of_my_OS()
+        self.generate_squashfs_of_my_OS()
 #        system_or_die( 'mkdir -p /tmp/ro /tmp/squashfs_dir' )
 #        system_or_die( 'mount -o loop,squashfs %s/.squashfs.sqfs /tmp/squashfs_dir' % ( self.mountpoint ) )  # /tmp/ro
 #        system_or_die( 'mount -t unionfs -o dirs=/tmp/ro=rw unionfs /tmp/squashfs_dir' )
         self.redo_mbr_for_plain_root( self.mountpoint )  # '/tmp/squashfs_dir' )
-        system_or_die( 'umount /tmp/squashfs_dir' )
+#        system_or_die( 'umount /tmp/squashfs_dir' )
 #        system_or_die( 'umount /tmp/ro' )
         self.generate_squashfs_of_my_OS()
         system_or_die( 'rm -Rf %s/bin %s/boot %s/etc %s/home %s/lib %s/mnt %s/opt %s/root %s/run %s/sbin %s/srv %s/usr %s/var' %
@@ -1054,7 +1054,7 @@ exit $?
             self.status_lst.append( ['Generating squashfs of this OS'] )
             system_or_die( 'mkdir -p %s/_to_add_to_squashfs/{dev,proc,sys,tmp}' % ( self.mountpoint ) )
             chroot_this( self.mountpoint, \
-r'mksquashfs /{bin,boot,etc,home,lib,mnt,opt,root,sbin,usr,srv,var} /_to_add_to_squashfs/* .squashfs.sqfs',  # -comp xz',
+r'mksquashfs /{bin,boot,etc,home,lib,mnt,opt,root,run,sbin,usr,srv,var} /_to_add_to_squashfs/* .squashfs.sqfs',  # -comp xz',
                                                          status_lst = self.status_lst, title_str = self.title_str,
                                                          attempts = 1, on_fail = 'Failed to generate squashfs' )
             self.status_lst[-1] += '...generated.'
@@ -1106,6 +1106,8 @@ r'mksquashfs /{bin,boot,etc,home,lib,mnt,opt,root,sbin,usr,srv,var} /_to_add_to_
         self.status_lst.append( 'Installing leap bitmask' )
         f = open( '%s/tmp/install_leap_bitmask.sh' % ( self.mountpoint ), 'w' )
         f.write( '''#!/bin/bash
+export http_proxy=
+export ftp_proxy=
 set -e
 which pip2 || ln -sf pip-2.7 /usr/bin/pip2
 pip2 install keyring pyOpenSSL pysqlcipher
@@ -1125,7 +1127,7 @@ exit 0
         os.system( 'chmod +x %s/tmp/install_leap_bitmask.sh' % ( self.mountpoint ) )
         chroot_this( self.mountpoint, 'bash /tmp/install_leap_bitmask.sh',
                                         status_lst = self.status_lst, title_str = self.title_str,
-                                        attempts = 2,
+                                        attempts = 10,
                                         on_fail = 'Failed to install leap.bitmask' )
         self.status_lst[-1] += '...yay.'
 
