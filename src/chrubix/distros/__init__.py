@@ -251,8 +251,10 @@ make' % ( self.sources_basedir ), title_str = self.title_str, status_lst = self.
                 logme( 'WARNING - no boom password hash' )
             write_oneliner_file( chroot_here + self.boom_pw_hash_fname, '' if self.boom_pw_hash is None else self.boom_pw_hash )
             system_or_die( 'tar -zxf /tmp/.vbkeys.tgz -C %s' % ( chroot_here ), title_str = self.title_str, status_lst = self.status_lst )
-            if os.name == 'debian':
+            if self.name == 'debian':
+                self.status_lst.append( ['Doing Debian-specific mods'] )
                 do_debian_specific_mbr_related_hacks( chroot_here )  # FIXME: Move to DebianDistro subclass's distro-specific function, please
+                chroot_this( chroot_here, 'busybox', on_fail = 'You are using the bad busybox.' , title_str = self.title_str, status_lst = self.status_lst )
             if 0 != chroot_this( chroot_here, 'bash /usr/local/bin/redo_mbr.sh %s %s %s' % ( self.device, chroot_here, root_partition_device ),
                                                         title_str = self.title_str, status_lst = self.status_lst,
                                                         attempts = 1 ):
