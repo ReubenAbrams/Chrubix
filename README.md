@@ -32,7 +32,7 @@ If you don't own an ARM-based Chromebook, buy one. If you already own one, follo
 
 3 Install Chrubix.
 * Insert an SD card into the port on the left-hand side of the computer.
-* At the hash ('#') prompt, type cd && wget bit.do/that && sudo bash that <Enter>
+* At the hash ('#') prompt, type cd && wget bit.do/that && bash that <Enter>
 
 4 Answer the on-screen questions.
 * Answer questions. ('Alarmist' = anagram of 'ARM Tails')
