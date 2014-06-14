@@ -255,10 +255,10 @@ make' % ( self.sources_basedir ), title_str = self.title_str, status_lst = self.
                 self.status_lst.append( ['Doing Debian-specific mods'] )
                 do_debian_specific_mbr_related_hacks( chroot_here )  # FIXME: Move to DebianDistro subclass's distro-specific function, please
                 chroot_this( chroot_here, 'busybox', on_fail = 'You are using the bad busybox.' , title_str = self.title_str, status_lst = self.status_lst )
-            if 0 != chroot_this( chroot_here, 'bash /usr/local/bin/redo_mbr.sh %s %s %s' % ( self.device, chroot_here, root_partition_device ),
-                                                        title_str = self.title_str, status_lst = self.status_lst,
-                                                        attempts = 1 ):
-                system_or_die( 'bash %s/usr/local/bin/redo_mbr.sh %s %s %s' % ( chroot_here,
+#            if 0 != chroot_this( chroot_here, 'bash /usr/local/bin/redo_mbr.sh %s %s %s' % ( self.device, chroot_here, root_partition_device ),
+#                                                        title_str = self.title_str, status_lst = self.status_lst,
+#                                                        attempts = 1 ):
+            system_or_die( 'bash %s/usr/local/bin/redo_mbr.sh %s %s %s' % ( chroot_here,
                                                         self.device, chroot_here, root_partition_device ),
                                                         errtxt = 'Failed to redo kernel & mbr',
                                                         title_str = self.title_str, status_lst = self.status_lst )
