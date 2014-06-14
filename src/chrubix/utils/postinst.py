@@ -316,8 +316,13 @@ if mount | grep " / " | grep unionfs 2>/dev/null; then
     cp -f $f.first $f
 fi
 echo "`date` --- ersatz_lxdm --- running lxdm" >> /tmp/log.txt
-[ -e "/etc/.first_time_ever" ] && rm -f /etc/.first_time_ever || lxdm
-res=$?
+if [ -e "/etc/.first_time_ever" ] ;then
+    rm -f /etc/.first_time_ever
+    res=0
+else
+    lxdm
+    res=$?
+fi
 echo "`date` --- ersatz_lxdm --- back from lxdm; res=$res" >> /tmp/log.txt
 exit $res
 ''' )
