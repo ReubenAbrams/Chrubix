@@ -438,7 +438,9 @@ redo_mbr() {
 	rm -f $root/root/.vmlinuz.signed
 	rm -f `find $root$KERNEL_SRC_BASEDIR | grep initramfs | grep lzma | grep -vx ".*\.h"`
 	make_initramfs_hybrid $root $rootdev
-	chroot_this $root "cd $KERNEL_SRC_BASEDIR/src/chromeos-3.4 && make"	# && make install
+	chroot_this $root "cd $KERNEL_SRC_BASEDIR/src/chromeos-3.4 && make"
+	chroot_this $root "cd $KERNEL_SRC_BASEDIR/src/chromeos-3.4 && make zImage modules dtbs"
+	chroot_this $root "cd $KERNEL_SRC_BASEDIR/src/chromeos-3.4 && make modules_install"
 	if echo "$rootdev" | grep /dev/mapper &>/dev/null ; then
 		sign_and_write_custom_kernel $root "$dev_p"1 $rootdev "cryptdevice="$dev_p"2:`basename $rootdev`" "" || failed "Failed to sign/write custm kernel"
 	else
