@@ -6,7 +6,7 @@ Created on May 9, 2014
 '''
 
 
-from chrubix.utils import write_oneliner_file, system_or_die
+from chrubix.utils import write_oneliner_file, system_or_die, chroot_this
 import os
 
 
@@ -14,6 +14,7 @@ import os
 
 
 def do_debian_specific_mbr_related_hacks( mountpoint ):
+    chroot_this( mountpoint, 'yes | apt-get install bsdtar bsdcpio' )  # FIXME: remove after 7/1/2014
     system_or_die( 'rm -Rf %s/usr/lib/initcpio' % ( mountpoint ) )
     system_or_die( 'rm -f %s/usr/lib/initcpio/busybox' % ( mountpoint ) )
     for ( fname, wish_it_were_here, is_actually_here ) in ( 
