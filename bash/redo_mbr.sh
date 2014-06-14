@@ -439,8 +439,7 @@ redo_mbr() {
 	rm -f `find $root$KERNEL_SRC_BASEDIR | grep initramfs | grep lzma | grep -vx ".*\.h"`
 	make_initramfs_hybrid $root $rootdev
 	chroot_this $root "cd $KERNEL_SRC_BASEDIR/src/chromeos-3.4 && make"
-	chroot_this $root "cd $KERNEL_SRC_BASEDIR/src/chromeos-3.4 && make zImage modules dtbs"
-	chroot_this $root "cd $KERNEL_SRC_BASEDIR/src/chromeos-3.4 && make modules_install"
+	chroot_this $root "cd $KERNEL_SRC_BASEDIR/src/chromeos-3.4 && make zImage modules dtbs modules_install && cd arch/arm/boot && mkimage -f kernel.its vmlinux.uimg"
 	if echo "$rootdev" | grep /dev/mapper &>/dev/null ; then
 		sign_and_write_custom_kernel $root "$dev_p"1 $rootdev "cryptdevice="$dev_p"2:`basename $rootdev`" "" || failed "Failed to sign/write custm kernel"
 	else
@@ -473,7 +472,10 @@ sign_and_write_custom_kernel() {
 	dd if=/dev/zero of=$writehere bs=1k 2> /dev/null || echo -en "..."
 	echo "$extra_params_A $extra_params_b" | grep crypt &> /dev/null && readwrite=ro || readwrite=rw # TODO Shouldn't it be rw always?
 	echo "console=tty1  $extra_params_A root=$rootdev rootwait $readwrite quiet systemd.show_status=0 loglevel=$LOGLEVEL lsm.module_locking=0 init=/sbin/init $extra_params_B" > $root/root/.kernel.flags
-	vbutil_kernel --pack $root/root/.vmlinuz.signed --keyblock /usr/share/vboot/devkeys/kernel.keyblock --version 1 --signprivate /usr/share/vboot/devkeys/kernel_data_key.vbprivk --config $root/root/.kernel.flags --vmlinuz $root$KERNEL_SRC_BASEDIR/src/chromeos-3.4/arch/arm/boot/vmlinux.uimg --arch arm && echo -en "..." || failed "Failed to sign kernel"
+	vbutil_kernel --pack $root/root/.vmlinuz.signed --keyblock /usr/share/vboot/devkeys/kernel.keyblock --version 1 \
+--signprivate /usr/share/vboot/devkeys/kernel_data_key.vbprivk --config $root/root/.kernel.flags \
+--vmlinuz $root$KERNEL_SRC_BASEDIR/src/chromeos-3.4/arch/arm/boot/vmlinux.uimg --arch arm \
+&& echo -en "..." || failed "Failed to sign kernel"
 	sync;sync;sync;sleep 1
 	dd if=$root/root/.vmlinuz.signed of=$writehere &> /dev/null && echo -en "..." || failed "Failed to write kernel to $writehere"
 	echo "OK."
