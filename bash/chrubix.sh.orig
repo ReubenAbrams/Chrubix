@@ -6,7 +6,7 @@
 #
 #################################################################################
 
-if [ "$USER" != "root" ] ; then
+if [ "$USER" != "root" ] && [ "$USER" != "" ] ; then
  	echo "Please type sudo in front of the call to run me."
  	exit 1
 fi
