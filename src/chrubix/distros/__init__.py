@@ -389,6 +389,8 @@ make' % ( self.sources_basedir ), title_str = self.title_str, status_lst = self.
             self.modify_kernel_and_mkfs_sources( apply_kali_and_unionfs_patches = True )
             self.build_kernel_and_mkfs()
         else:
+            system_or_die( 'rm -Rf %s%s' % ( self.mountpoint, self.ryo_tempdir ) )
+            system_or_die( 'mkdir -p %s%s' % ( self.mountpoint, self.ryo_tempdir ) )
             system_or_die( 'tar -zxf %s -C %s%s' % ( fname, self.mountpoint, self.ryo_tempdir ), status_lst = self.status_lst, title_str = self.title_str )
         f = '%s%s/src/chromeos-3.4/drivers/mmc/core/mmc.c' % ( self.mountpoint, self.kernel_src_basedir )
         g = '%s%s/src/chromeos-3.4/fs/btrfs/ctree.h' % ( self.mountpoint, self.kernel_src_basedir )

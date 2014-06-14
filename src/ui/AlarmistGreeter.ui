@@ -72,6 +72,9 @@
     <property name="alignment">
      <set>Qt::AlignHCenter|Qt::AlignTop</set>
     </property>
+    <property name="wordWrap">
+     <bool>true</bool>
+    </property>
    </widget>
    <widget class="QPushButton" name="btnMoreoptions">
     <property name="geometry">

@@ -329,7 +329,8 @@ restore_from_squash_fs_backup_if_possible() {
 	for fname in $fnA $fnB ; do
 		if [ -e "$fname" ] ; then
 			if [ "$temp_or_perm" = "temp" ] ; then	
-				cp -f $fname $root/.squashfs.sqfs && echo "Squashfs file copied across OK" || failed "Failed to copy the squashfs file across."
+				echo "Installing squashfs file"
+				pv $fname > $root/.squashfs.sqfs && echo "...copied across OK" || failed "Failed to copy the squashfs file across."
 				hack_something_squishy $distroname $root $dev_p
 				return 0
 			fi
@@ -389,7 +390,9 @@ hack_something_squishy() {
 	mount -o loop,squashfs $root/.squashfs.sqfs $root/.ro
 	for f in bin boot etc home lib mnt opt root run sbin srv usr var ; do
 		[ -e "$root/.ro/$f" ] && ln -sf .ro/$f $root/$f || mkdir -p $root/$f
-	done	
+	done
+	echo "Signing and writing kernel"
+	sign_and_write_custom_kernel $root "$dev_p"1 "dev_p"3 "" || failed "Failed to sign/write custm kernel"	
 }
 
 
@@ -409,11 +412,6 @@ oh_well_start_from_beginning() {
 	chroot_this $btstrap "locale-gen"
 	echo "LANG=\"en_US.UTF-8\"" >> $btstrap/etc/locale.conf
 	echo "nameserver 8.8.8.8" >> $btstrap/etc/resolv.conf
-}
-
-
-call_redo_mbr_and_make_it_squishy() {
-	sign_and_write_custom_kernel $root "$dev_p"1 "dev_p"3 "" || failed "Failed to sign/write custm kernel"
 }
 
 
@@ -455,7 +453,7 @@ echo "Chrubix ------ starting now"
 umount /tmp/_root*/.bootstrap/tmp/_root/{dev,tmp,proc,sys}
 umount /tmp/_root*/.bootstrap/tmp/_root
 umount /tmp/_root*/.bootstrap/{dev,tmp,proc,sys}
-umount /tmp/_root*/.bootstrap
+umount /tmp/_root*/.bootstrap /tmp/_root*/.ro /tmp/_root.*/.*
 set -e
 clear
 mount | grep /dev/mapper/encstateful &> /dev/null || failed "Run under ChromeOS, please."
@@ -489,6 +487,7 @@ if mount | grep "$dev" | grep "$root" &> /dev/null ; then
 	umount "$dev"* &> /dev/null || echo "Already partitioned and mounted. Reboot and try again..."
 fi
 sudo stop powerd || echo -en ""
+
 partition_device $dev $dev_p
 format_partitions $dev $dev_p
 mkdir -p $root
@@ -514,13 +513,14 @@ mount sys $btstrap/tmp/_root/sys -t sysfs			|| echo -en ""
 
 sudo crossystem dev_boot_usb=1 dev_boot_signed_only=0 || echo "WARNING - failed to configure USB and MMC to be bootable"	# dev_boot_signed_only=0
 
-if mount | grep $root | grep squashfs && [ ! -e "/tmp/FROMSCRATCH" ] ; then
-	call_redo_mbr_and_make_it_squishy
+if restore_from_squash_fs_backup_if_possible ; then
+	echo "Restored from squashfs. Good."
 else
-	if ! restore_from_squash_fs_backup_if_possible ; then
-		if ! restore_from_stage_X_backup_if_possible ; then
-			oh_well_start_from_beginning
-		fi
+	if restore_from_stage_X_backup_if_possible ; then
+		echo "Restored from stage X. Good."
+	else
+		echo "OK. Starting from beginning."
+		oh_well_start_from_beginning
 	fi
 	install_chrubix $btstrap $dev "$dev_p"3 "$dev_p"2 "$dev_p"1 $distroname
 	tar -cz /usr/lib/xorg/modules/drivers/armsoc_drv.so \
