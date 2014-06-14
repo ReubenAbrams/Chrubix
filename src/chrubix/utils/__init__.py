@@ -473,7 +473,6 @@ def install_mp3_files( mountpoint ):
     for myname in ( 'boom', 'error1', 'error2', 'MacStartUp', 'online', 'pg2back', 'pgclean', 'pghere', 'welcome', 'wrongCB', 'wrongSD', 'xpshutdown' ):
         system_or_die( 'cp -f %s/usr/local/bin/Chrubix/blobs/audio/%s.mp3.gz %s/' % ( mountpoint, myname, mydir ) )
         system_or_die( 'gunzip %s/%s.mp3.gz' % ( mydir, myname ) )
-    wget( url = 'http://www.winhistory.de/more/winstart/mp3/winxp.mp3', save_as_file = '%s/winxp.mp3' % ( mydir ), quiet = True )
 
 
 #        chroot_this( self.mountpoint, 'ln -sf /opt/freenet/run.sh /usr/local/bin/start-freenet.sh' )
@@ -493,4 +492,5 @@ def running_on_a_test_rig():
         if os.path.exists( a_rig ):
             return True
     return False
+
 

@@ -18,7 +18,7 @@ iso-codes debconf cdbs debhelper uuid-dev quilt openjdk-7-jre ant xz-utils libxm
 python-software-properties default-jre dpatch festival dialog libck-connector-dev libpam0g-dev python-mutagen \
 libgtk2.0-dev librsvg2-common librsvg2-dev pyqt4-dev-tools libreoffice-help-en-us libreoffice \
 firmware-libertas libxpm-dev libreadline-dev libblkid-dev python-distutils-extra \
-gtk2-engines-pixbuf libsnappy-dev libgcrypt-dev iceweasel icedove gconf2 \
+gtk2-engines-pixbuf libsnappy-dev libgcrypt-dev iceweasel icedove gconf2 bsdcpio bsdtar \
 x11-utils xbase-clients ssss mat florence monkeysign libxfixes-dev liblzo2-dev \
 wmaker python-cairo python-pdfrw libconfig-dev libx11-dev python-hachoir-core python-hachoir-parser \
 mat myspell-en-us msttcorefonts xorg xserver-xorg-input-synaptics xul-ext-https-everywhere \
@@ -202,8 +202,9 @@ Acquire::https::Proxy "https://%s/";
     def configure_distrospecific_tweaks( self ):
         logme( 'DebianDistro - configure_distrospecific_tweaks() - starting' )
         self.status_lst.append( ['Installing distro-specific tweaks'] )
-        for to_remove in ( 'ftp', 'http' ):
-            do_a_sed( '%s/etc/apt/apt.conf' % ( self.mountpoint ), 'Acquire::%s::Proxy.*' % ( to_remove ), '' )
+        if os.path.exists( '%s/etc/apt/apt.conf' % ( self.mountpoint ) ):
+            for to_remove in ( 'ftp', 'http' ):
+                do_a_sed( '%s/etc/apt/apt.conf' % ( self.mountpoint ), 'Acquire::%s::Proxy.*' % ( to_remove ), '' )
         for pkg_name in self.list_of_mkfs_packages:
             chroot_this( self.mountpoint, 'sudo apt-mark hold %s' % ( pkg_name ) )
         self.status_lst[-1] += '...installed.'

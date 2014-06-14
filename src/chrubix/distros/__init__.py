@@ -15,7 +15,7 @@ from chrubix.utils.postinst import append_lxdm_post_login_script, append_lxdm_pr
             install_chrome_or_iceweasel_privoxy_wrapper, remove_junk, tweak_xwindow_for_cbook, install_panicbutton, \
             check_and_if_necessary_fix_password_file, install_insecure_browser, append_proxy_details_to_environment_file, \
             setup_timer_to_keep_dpms_switched_off
-from chrubix.utils.mbr import install_initcpio_wiperamonshutdown_files
+from chrubix.utils.mbr import install_initcpio_wiperamonshutdown_files, do_debian_specific_mbr_related_hacks
 from xml.dom import NotFoundErr
 
 # FIXME: paman and padevchooser are deprecated
@@ -250,14 +250,18 @@ make' % ( self.sources_basedir ), title_str = self.title_str, status_lst = self.
             if self.boom_pw_hash is None:
                 logme( 'WARNING - no boom password hash' )
             write_oneliner_file( chroot_here + self.boom_pw_hash_fname, '' if self.boom_pw_hash is None else self.boom_pw_hash )
-            #                                            redo_mbr.sh <mmcblk1 or sda> <mountpoint> <root device or crypto root dev>
             system_or_die( 'tar -zxf /tmp/.vbkeys.tgz -C %s' % ( chroot_here ), title_str = self.title_str, status_lst = self.status_lst )
-            res = system_or_die( 'bash %s/usr/local/bin/redo_mbr.sh %s %s %s' % ( chroot_here,
+            if os.name == 'debian':
+                do_debian_specific_mbr_related_hacks( chroot_here )  # FIXME: Move to DebianDistro subclass's distro-specific function, please
+            if 0 != chroot_this( chroot_here, 'bash /usr/local/bin/redo_mbr.sh %s %s %s' % ( self.device, chroot_here, root_partition_device ),
+                                                        title_str = self.title_str, status_lst = self.status_lst,
+                                                        attempts = 1 ):
+                system_or_die( 'bash %s/usr/local/bin/redo_mbr.sh %s %s %s' % ( chroot_here,
                                                         self.device, chroot_here, root_partition_device ),
                                                         errtxt = 'Failed to redo kernel & mbr',
                                                         title_str = self.title_str, status_lst = self.status_lst )
-            f = '%s%s/src/chromeos-3.4/drivers/mmc/core/mmc.c' % ( self.mountpoint, self.kernel_src_basedir )
-            g = '%s%s/src/chromeos-3.4/fs/btrfs/ctree.h' % ( self.mountpoint, self.kernel_src_basedir )
+            f = '%s%s/src/chromeos-3.4/drivers/mmc/core/mmc.c' % ( chroot_here, self.kernel_src_basedir )
+            g = '%s%s/src/chromeos-3.4/fs/btrfs/ctree.h' % ( chroot_here, self.kernel_src_basedir )
             assert( os.path.exists( f ) )
             assert( os.path.exists( g ) )
             if os.path.exists( '%s.phezSullied' % f ):
@@ -699,12 +703,22 @@ exit 0
         self.status_lst[-1] += '...removed.'
 
     def migrate_or_squash_OS( self ):  # FYI, the Alarmist distro (subclass) redefines this subroutine to disable root pw and squash the OS
+        if not os.path.exists( '%s/usr/local/bin/Chrubix' % ( self.mountpoint ) ) :
+            self.status_lst.append( ['Someone deleted Chrubix from bootstrapped OS. Fine. I shall reinstall it.'] )
+            if 0 != wget( url = 'https://github.com/ReubenAbrams/Chrubix/archive/master.tar.gz',
+                                extract_to_path = '%s/usr/local/bin' % ( self.mountpoint ), decompression_flag = 'z',
+                                quiet = True, status_lst = self.status_lst, title_str = self.title_str ):
+                failed( 'Failed to install Chrubix in bootstrap OS' )
+            system_or_die( 'mv %s/usr/local/bin/Chrubix* %s/usr/local/bin/Chrubix' % ( self.mountpoint, self.mountpoint ) )
+            system_or_die( 'cp -f /usr/local/bin/Chrubix/bash/chrubix.sh.orig %s/usr/local/bin/Chrubix/bash/chrubix.sh' % ( self.mountpoint ) )
+            system_or_die( 'chmod +x %s/usr/local/bin/*' % ( self.mountpoint ) )
         os.system( 'clear; sleep 1; sync;sync;sync; clear' )
-        self.status_lst.append( ['Migrating/squashing OS'] )
+        self.status_lst.append( ['Migrating/squashing OS --- FYI, trying new ersatz_lxdm file, too'] )
+        write_ersatz_lxdm( outfile = '%s/usr/local/bin/ersatz_lxdm.sh' % ( self.mountpoint ) )  # TODO: Remove after 7/1/2013
         system_or_die( 'rm -f %s/.squashfs.sqfs /.squashfs.sqfs' % ( self.mountpoint ) )
-        if os.path.exists( '%s/.temp_or_perm.txt' % ( self.mountpoint ) ):
+        if os.path.exists( '/.temp_or_perm.txt' ):
 #            logme( 'Found a temp_or_perm file that was created by sh file.' )
-            r = read_oneliner_file( '%s/.temp_or_perm.txt' % ( self.mountpoint ) )
+            r = read_oneliner_file( '/.temp_or_perm.txt' )
             if r == 'perm':
                 res = 'P'
             elif r == 'temp':
@@ -736,7 +750,6 @@ MEH: No encryption. No duress password. Changes are permanent. Guest Mode is sti
                 write_oneliner_file( '%s/.temp_or_perm.txt' % ( self.mountpoint ), 'perm' )
             else:
                 write_oneliner_file( '%s/.temp_or_perm.txt' % ( self.mountpoint ), 'meh' )
-        assert( 0 == chroot_this( self.mountpoint, 'ls -l /.temp_or_perm.txt > /dev/null', status_lst = self.status_lst, title_str = self.title_str ) )  # ...to force the display to work
         if res == 'T':
             self.squash_OS()
         elif res == 'P' or res == 'M':
@@ -1032,7 +1045,9 @@ exit $?
 
     def generate_squashfs_of_my_OS( self ):
         logme( 'qqq generate_squashfs_of_my_OS() --- hi' )
-        system_or_die( 'mkdir -p /tmp/posterity' )
+        assert( os.path.isdir( '%s/usr/local/bin/Chrubix' % ( self.mountpoint ) ) )
+
+        system_or_die( 'mkdir -p /tmp/posterity' )  # FIXME: remove? If I remove this, does everything (M, T, P) still work?
         system_or_die( 'rm -f %s/.squashfs.sqfs /.squashfs.sqfs' % ( self.mountpoint ) )
         if running_on_a_test_rig() or ( True is True ):
             logme( 'I am running on a test rig. Is there a backup of sqfs available?' )

@@ -68,24 +68,6 @@ deduce_dev_stamen() {
 
 
 
-chroot_pkgs_make() {
-	local pwd builddir buildcmd tmpfile verno pvparam what_am_i_building
-	[ "$3" = "" ] && pvparam="" || pvparam="-s $3"
-	tmpfile=/tmp/$RANDOM$RANDOM$RANDOM
-	what_am_i_building="`basename $2`"
-	if [ "$what_am_i_building" = "linux-chromebook" ]; then
-		echo "Rebuilding the kernel and its initial rootfs"
-	else
-		echo "Building $what_am_i_building"
-	fi
-	[ -e "$1$2" ] || failed "Because $2 (in $1) does not exist. I cannot chroot into it or even build it."
-	chroot_this $1 "cd $2; makepkg --skipchecksums --asroot --noextract -f" || failed "Failed to chroot make $2 within $1"
-# 2>&1 | pv $pvparam > $tmpfile|| failed "`cat $tmpfile` --- failed to chroot make $2 within $1"
-	rm -f $tmpfile
-}
-
-
-
 deduce_homedrive() {
 	homedev=`mount | grep " / " | cut -d' ' -f1`
 	ls -l /dev/disk/by-id/* | grep "`basename $homedev`" | tr ' ' '\n' | grep /dev/disk/by-id | sed s/\-part[0-9]*//
@@ -218,26 +200,6 @@ get_number_of_cores() {
 }
 
 
-
-
-install_phase1b_all_internally() {
-# Install modified kernel, mkfs binaries, modules, etc. on our local system
-	local bootdev root boot kern dev dev_p tmpfile
-	root=$1
-	boot=$2
-	kern=$3
-	dev=$4
-	dev_p=$5
-	tmpfile=/tmp/$RANDOM$RANDOM$RANDOM
-	echo "Installing kernel+mkfs internally"
-	[ -e "$root/usr/lib/modules.orig" ] && rm -Rf $root/usr/lib/modules.orig
-	[ -e "$root/usr/lib/modules" ] && mv $root/usr/lib/modules $root/usr/lib/modules.orig
-	mkdir -p $root/usr/lib/modules
-	chroot_pkgs_install $root $RYO_TEMPDIR/PKGBUILDs &> $tmpfile || failed "`cat $tmpfile` - Failed to install the recently built packages"
-	cp -f $root/boot/{b,v}* $kern/																# p2
-	cp -f $root/boot/{b,v}* $root/				# shouldn't be necessary
-	rm -f $tmpfile
-}
 
 
 
@@ -390,6 +352,8 @@ fi
 	cd $root$INITRAMFS_DIRECTORY/bin
 	if [ -e "$root/usr/bin/busybox" ] ; then
 		cp $root/usr/bin/busybox busybox
+	elif [ -e "$root/bin/busybox" ] ; then
+		cp $root/bin/busybox busybox
 	else
 		failed "Unable to find busybox on your disk"
 	fi
@@ -474,7 +438,7 @@ redo_mbr() {
 	rm -f $root/root/.vmlinuz.signed
 	rm -f `find $root$KERNEL_SRC_BASEDIR | grep initramfs | grep lzma | grep -vx ".*\.h"`
 	make_initramfs_hybrid $root $rootdev
-	chroot_pkgs_make $root $KERNEL_SRC_BASEDIR 39600
+	chroot_this $root "cd $KERNEL_SRC_BASEDIR/src/chromeos-3.4 && make"	# && make install
 	if echo "$rootdev" | grep /dev/mapper &>/dev/null ; then
 		sign_and_write_custom_kernel $root "$dev_p"1 $rootdev "cryptdevice="$dev_p"2:`basename $rootdev`" "" || failed "Failed to sign/write custm kernel"
 	else

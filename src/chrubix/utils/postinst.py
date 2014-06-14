@@ -267,35 +267,39 @@ def write_ersatz_lxdm( outfile ):
 . /etc/profile
 
 GUEST_HOMEDIR=/tmp/.guest
-STOP_JFS_HANGUPS="echo 0 > /proc/sys/kernel/hung_task_timeout_secs"
 f=/etc/lxdm/lxdm.conf
 liu=/tmp/.logged_in_user
 
-if [ -e "/etc/.first_time_ever" ] ; then
-    echo "`date` -- FIRST EVER" >> /tmp/log.txt
+if [ -e "/tmp/.okConnery.thisle.44" ] ; then
+    echo "`date` -- ersatz_lxdm --- second (or more) time in this boot" >> /tmp/log.txt
+    cp $f.second $f
+    echo "### Second time around, eh?" >> $f
+    echo "`date` END OF SECOND" >> /tmp/log.txt
+elif [ ! -e "/etc/.first_time_ever" ] ; then
+    echo 0 > /proc/sys/kernel/hung_task_timeout_secs
+    echo "`date` -- ersatz_lxdm --- first time in this boot" >> /tmp/log.txt
     cp $f.first $f
+    if ! mount | grep " / " | grep unionfs 2>/dev/null ; then
+        echo "`date` touching okC file" >> /tmp/log.txt
+        touch /tmp/.okConnery.thisle.44
+    fi
+    echo "`date` END OF FIRST" >> /tmp/log.txt
+else
+    cp $f.first $f
+    echo "`date` -- ersatz_lxdm --- start of FIRST TIME EVER" >> /tmp/log.txt
     systemctl start NetworkManager      # Shouldn't be necessary...
     systemctl enable privoxy            # Shouldn't be necessary...
+    echo "`date` -- ersatz_lxdm --- aaa" >> /tmp/log.txt
     amixer sset Speaker unmute &> /dev/null  || echo "WARNING - unable to set speaker on unmute"
     amixer sset Speaker 30%    &> /dev/null  || echo "WARNING - unable to set speaker volume"
     for q in `amixer | grep Speaker | cut -d"'" -f2 | tr ' ' '/'`; do
         g=`echo "$q" | tr '/' ' '`
         amixer sset "$g" unmute
     done
+    echo "`date` -- ersatz_lxdm --- bbb" >> /tmp/log.txt
     which alsactl &> /dev/null && alsactl store &> /dev/null # I've no idea if this helps or not
-    rm -f /etc/.first_time_ever
-    echo "`date` --- END OF FIRST EVER" >> /tmp/log.txt
-elif [ -e "/tmp/.okConnery.thisle.44" ] ; then
-    echo "`date` SECOND" >> /tmp/log.txt
-    cp $f.second $f
-    echo "### Second time around, eh?" >> $f
-    echo "`date` END OF SECOND" >> /tmp/log.txt
-else
-    echo "`date` FIRST" >> /tmp/log.txt
-    cp $f.first $f
-    echo "### Be gentle. It's my first time." >> $f
-    touch /tmp/.okConnery.thisle.44
-    echo "`date` END OF FIRST" >> /tmp/log.txt
+    rm -f /tmp/.okConnery.thisle.44
+    echo "`date` -- ersatz_lxdm --- end of first time ever" >> /tmp/log.txt
 fi
 
 echo "`date` CALLING greeter or lxdm" >> /tmp/log.txt
@@ -303,14 +307,19 @@ mkdir -p $GUEST_HOMEDIR
 chmod 700 $GUEST_HOMEDIR
 tar -Jxf /usr/local/bin/Chrubix/blobs/settings/default_guest_files.tar.xz -C $GUEST_HOMEDIR
 chown -R guest.guest $GUEST_HOMEDIR
+chmod 755 $f
 
-$STOP_JFS_HANGUPS
-
-mount | grep " / " | grep unionfs 2>/dev/null && /usr/local/bin/greeter.sh    # Don't use greeter unless we're trying to be Alarmist/Tails/whatever.
-lxdm
-echo "`date` BACK FROM greeter or lxdm" >> /tmp/log.txt
-
-exit $?
+if mount | grep " / " | grep unionfs 2>/dev/null; then
+    echo "`date` running greeter" >> /tmp/log.txt
+    /usr/local/bin/greeter.sh    # Don't use greeter unless we're trying to be Alarmist/Tails/whatever.
+    echo "`date` back from greeter" >> /tmp/log.txt
+    cp -f $f.first $f
+fi
+echo "`date` --- ersatz_lxdm --- running lxdm" >> /tmp/log.txt
+[ -e "/etc/.first_time_ever" ] && rm -f /etc/.first_time_ever || lxdm
+res=$?
+echo "`date` --- ersatz_lxdm --- back from lxdm; res=$res" >> /tmp/log.txt
+exit $res
 ''' )
     system_or_die( 'chmod +x %s' % ( outfile ) )
 
@@ -381,11 +390,10 @@ def configure_lxdm_login_manager( mountpoint, guest_window_manager ):
         failed( "%s does not exist; configure_lxdm_login_manager() cannot run properly. That sucks." % ( f ) )
 #    system_or_die( r'cat %s | sed s/.*autologin=.*/autologin=guest/ | sed s/.*skip_password=.*/skip_password=1/ | \
 # sed s/.*session=.*/session=\\/usr\\/bin\\/wmaker/ > %s.first' % ( f, f ) )
-
     system_or_die( r'cat %s | sed s/.*autologin=.*/autologin=guest/ | sed s/.*skip_password=.*/skip_password=1/ > %s' % ( f, f + '.first' ) )
     do_a_sed( f + '.first', '.*session=.*', 'session=%s' % ( guest_window_manager ) )
     system_or_die( 'cat %s | sed s/.*autologin=.*/###autologin=/ | sed s/.*skip_password=.*/skip_password=1/ > %s.second' % ( f, f ) )
-#    system_or_die( 'cp -f %s.first %s' % ( f, f ) )
+    system_or_die( 'cp -f %s.first %s' % ( f, f ) )
     system_or_die( 'echo "ps wax | fgrep mate-session | fgrep -v grep && mpg123 /etc/.mp3/xpshutdown.mp3" >> %s/etc/lxdm/PreLogout' % ( mountpoint ) )
     append_lxdm_post_login_script( '%s/etc/lxdm/PostLogin' % ( mountpoint ) )  # Append. Don't replace.
     append_startx_addendum( '%s/etc/lxdm/Xsession' % ( mountpoint ) )  # Append. Don't replace.
@@ -396,7 +404,6 @@ def configure_lxdm_login_manager( mountpoint, guest_window_manager ):
     system_or_die( 'echo ". /etc/X11/xinitrc/xinitrc" >> %s/etc/lxdm/Xsession' % ( mountpoint ) )
     do_a_sed( '%s/etc/X11/xinit/xinitrc' % ( mountpoint ), '.*xterm.*', '' )
     do_a_sed( '%s/etc/X11/xinit/xinitrc' % ( mountpoint ), 'exec .*', '' )  # exec /usr/local/bin/greeter.sh' )
-
 #    system_or_die( 'echo "exec /usr/local/bin/greeter.sh" >> %s/etc/xinitrc/xinitrc' % ( mountpoint ) ) # start (Python) greeter at end of
     write_oneliner_file( '%s/etc/.first_time_ever' % ( mountpoint ), 'yep' )
     write_ersatz_lxdm( outfile = '%s/usr/local/bin/ersatz_lxdm.sh' % ( mountpoint ) )
@@ -408,14 +415,6 @@ def configure_lxdm_login_manager( mountpoint, guest_window_manager ):
     chroot_this( mountpoint, 'which lxdm &> /dev/null', on_fail = 'I cannot find lxdm. This is not good.' )
     if chroot_this( mountpoint, 'which kdm &> /dev/null' ) == 0:
         chroot_this( mountpoint, 'systemctl disable kdm', attempts = 1 )
-
-
-
-
-
-
-
-
 
 
 def install_chrome_or_iceweasel_privoxy_wrapper( mountpoint ):
