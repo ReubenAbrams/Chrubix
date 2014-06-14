@@ -15,6 +15,17 @@ import os
 
 def do_debian_specific_mbr_related_hacks( mountpoint ):
     system_or_die( 'rm -Rf %s/usr/lib/initcpio' % ( mountpoint ) )
+    system_or_die( 'rm -f %s/usr/lib/initcpio/busybox' % ( mountpoint ) )
+    for ( fname, wish_it_were_here, is_actually_here ) in ( 
+                                                  ( 'libnss_files.so', '/usr/lib', '/usr/lib/arm-linux-gnueabihff' ),
+                                                  ( 'modprobe.d', '/usr/lib', '/lib' ),
+                                                  ( 'systemd', '/usr/lib/systemd', '/lib/systemd' ),
+                                                  ( 'systemd-tmpfiles', '/usr/bin', '/bin' ),  # ?
+                                                  ( 'systemd-sysctl', '/usr/lib/systemd', '/lib/systemd' ),
+                                                  ( 'kmod', '/usr/bin', '/bin' ),
+                                                  ):
+        if not os.path.exists( '%s%s/%s' % ( mountpoint, wish_it_were_here, fname ) ):
+            system_or_die( 'ln -sf %s/%s %s%s/' % ( is_actually_here, fname, mountpoint, wish_it_were_here ) )
     for missing_path in ( 
                           '/usr/lib/udev/rules.d',
                           '/usr/lib/systemd/system-generators',
@@ -26,17 +37,10 @@ def do_debian_specific_mbr_related_hacks( mountpoint ):
             system_or_die( 'cp -avf %s %s%s/' % ( missing_path, mountpoint, os.path.dirname( missing_path ) ) )
     system_or_die( 'rm -f %s/usr/lib/initcpio/busybox' % ( mountpoint ) )
     for ( fname, wish_it_were_here, is_actually_here ) in ( 
-                                                  ( 'system-generators', '/usr/lib/systemd', '/lib/systemd' ),
-                                                  ( 'libnss_files.so', '/usr/lib', '/usr/lib/arm-linux-gnueabihff' ),
-                                                  ( 'modprobe.d', '/usr/lib', '/lib' ),
-                                                  ( 'systemd', '/usr/lib/systemd', '/lib/systemd' ),
-                                                  ( 'systemd-tmpfiles', '/usr/bin', '/bin' ),  # ?
-                                                  ( 'systemd-sysctl', '/usr/lib/systemd', '/lib/systemd' ),
                                                   ( 'busybox', '/usr/lib/initcpio', '/bin' ),
-                                                  ( 'kmod', '/usr/bin', '/bin' ),
                                                   ):
-        system_or_die( 'ln -sf %s/%s %s%s/%s' % ( is_actually_here, fname, mountpoint, wish_it_were_here, fname ) )
-
+        if not os.path.exists( '%s%s/%s' % ( mountpoint, wish_it_were_here, fname ) ):
+            system_or_die( 'ln -sf %s/%s %s%s/' % ( is_actually_here, fname, mountpoint, wish_it_were_here ) )
 
 
 def install_initcpio_wiperamonshutdown_files( mountpoint ):
