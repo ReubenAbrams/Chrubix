@@ -470,7 +470,7 @@ def install_windows_xp_theme_stuff( mountpoint ):
 def install_mp3_files( mountpoint ):
     mydir = '%s/etc/.mp3' % ( mountpoint )
     system_or_die( 'mkdir -p %s' % ( mydir ) )
-    for myname in ( 'boom', 'error1', 'error2', 'MacStartUp', 'online', 'pg2back', 'pgclean', 'pghere', 'welcome', 'wrongCB', 'wrongSD', 'xpshutdown' ):
+    for myname in ( 'boom', 'error1', 'error2', 'MacStartUp', 'online', 'pg2back', 'pgclean', 'pghere', 'welcome', 'wrongCB', 'winxp', 'wrongSD', 'xpshutdown' ):
         system_or_die( 'cp -f %s/usr/local/bin/Chrubix/blobs/audio/%s.mp3.gz %s/' % ( mountpoint, myname, mydir ) )
         system_or_die( 'gunzip %s/%s.mp3.gz' % ( mydir, myname ) )
 
