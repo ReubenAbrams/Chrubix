@@ -629,7 +629,7 @@ Choose the 'boom' password : """ ).strip( '\r\n\r\n\r' )
         setup_timer_to_keep_dpms_switched_off ( self.mountpoint )
 
     def configure_lxdm_login_manager( self ):
-        configure_lxdm_login_manager( self.mountpoint, self.initial_default_gui )  # '/usr/bin/wmaker' )
+        configure_lxdm_login_manager( self.mountpoint, self.initial_default_gui )
 
     def tweak_resolv_conf_file( self ):
         system_or_die( 'echo -en "search localhost\nnameserver 8.8.8.8\n" >> %s/etc/resolv.conf' % ( self.mountpoint ) )
@@ -1198,18 +1198,18 @@ WorkingDirectory=/opt/freenet
 [Install]
 WantedBy=multi-user.target
 ''' )
-#        logme( 'Installing freenet from Java jar file' )
-#        wget( url = 'https://freenetproject.org/jnlp/freenet_installer.jar', save_as_file = '%s/.new_installer_offline.jar' % ( self.mountpoint ),
-#                                                        status_lst = self.status_lst, title_str = self.title_str )
-#        res = chroot_this( self.mountpoint, 'su -l freenet /.install_freenet_like_this.sh', attempts = 1,
-#                          status_lst = self.status_lst, title_str = self.title_str, on_fail = 'Failed to install freenet via Java' )
+        logme( 'Installing freenet from Java jar file' )
+        wget( url = 'https://freenetproject.org/jnlp/freenet_installer.jar', save_as_file = '%s/.new_installer_offline.jar' % ( self.mountpoint ),
+                                                        status_lst = self.status_lst, title_str = self.title_str )
+        chroot_this( self.mountpoint, 'su -l freenet /.install_freenet_like_this.sh', attempts = 1,
+                          status_lst = self.status_lst, title_str = self.title_str )
         system_or_die( 'rm -f %s/.new_installer_offline.jar' % ( self.mountpoint ) )
         system_or_die( 'rm -f %s/.install_freenet_like_this.sh' % ( self.mountpoint ) )
         if os.path.exists( '%s/opt/freenet/bin/wrapper' % ( self.mountpoint ) ) and os.path.exists( '%s/opt/freenet/run.sh' % ( self.mountpoint ) ):
             system_or_die( 'ln -sf wrapper-linux-armhf-32 %s/opt/freenet/bin/wrapper' % ( self.mountpoint ) )
         else:
             logme( 'OK. Traditional install of freenet failed. I shall do it from tarball instead.' )
-            chroot_this( self.mountpoint, 'tar -Jxf /usr/local/bin/Chrubix/blobs/apps/freenet.tar.xz -C /' % ( self.mountpoint ) )
+            chroot_this( self.mountpoint, 'tar -Jxf /usr/local/bin/Chrubix/blobs/apps/freenet.tar.xz -C /' )
 
     def save_for_posterity_if_possible_A( self ):
         return self.save_for_posterity_if_possible( '_A' )
@@ -1320,13 +1320,13 @@ WantedBy=multi-user.target
         third_stage = ( 
                                 self.install_urwid_and_dropbox_uploader,
                                 self.install_vbutils_from_cbook,
+                                self.install_mkinitcpio_ramwipe_hooks,
                                 self.install_timezone,
                                 self.download_modify_and_build_kernel_and_mkfs,
                                 self.save_for_posterity_if_possible_C )  # self.nop
         fourth_stage = ( 
                                 self.install_chrubix,
                                 self.install_leap_bitmask,
-                                self.install_mkinitcpio_ramwipe_hooks,
                                 self.install_gpg_applet,
                                 self.install_panic_button,
                                 self.install_freenet,
