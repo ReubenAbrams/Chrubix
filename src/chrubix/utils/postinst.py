@@ -38,8 +38,8 @@ logger "QQQ start of postlogin script"
 echo "$USER" > $liu
 
 export DISPLAY=:0.0
+#start-pulseaudio-x11
 pulseaudio -k
-start-pulseaudio-x11
 
 if ps -o pid -C wmaker &>/dev/null; then
   wmsystemtray &
@@ -56,7 +56,9 @@ which start-freenet.sh &> /dev/null && start-freenet.sh start &
 touch /tmp/.okConnery.thisle.44
 
 ps wax | fgrep mate-session | fgrep -v grep && soundfile=winxp || soundfile="" # pghere
-[ "$soundfile" != "" ] && mpg123 /etc/.mp3/$soundfile.mp3 &
+if [ "$soundfile" != "" ] ; then
+    (pulseaudio -k; sleep 2; mpg123 /etc/.mp3/$soundfile.mp3) &
+fi
 
 xset s off
 xset -dpms
