@@ -15,7 +15,7 @@ from chrubix.utils.postinst import append_lxdm_post_login_script, append_lxdm_pr
             install_chrome_or_iceweasel_privoxy_wrapper, remove_junk, tweak_xwindow_for_cbook, install_panicbutton, \
             check_and_if_necessary_fix_password_file, install_insecure_browser, append_proxy_details_to_environment_file, \
             setup_timer_to_keep_dpms_switched_off, write_lxdm_service_file
-from chrubix.utils.mbr import install_initcpio_wiperamonshutdown_files, do_debian_specific_mbr_related_hacks
+from chrubix.utils.mbr import install_initcpio_wiperamonshutdown_files
 from xml.dom import NotFoundErr
 
 # FIXME: paman and padevchooser are deprecated
@@ -254,7 +254,6 @@ make' % ( self.sources_basedir ), title_str = self.title_str, status_lst = self.
             system_or_die( 'tar -zxf /tmp/.vbkeys.tgz -C %s' % ( chroot_here ), title_str = self.title_str, status_lst = self.status_lst )
             if self.name == 'debian':
                 self.status_lst.append( ['Doing Debian-specific mods'] )
-                do_debian_specific_mbr_related_hacks( chroot_here )  # FIXME: Move to DebianDistro subclass's distro-specific function, please
                 chroot_this( chroot_here, 'busybox', on_fail = 'You are using the bad busybox.' , title_str = self.title_str, status_lst = self.status_lst )
 #            if 0 != chroot_this( chroot_here, 'bash /usr/local/bin/redo_mbr.sh %s %s %s' % ( self.device, chroot_here, root_partition_device ),
 #                                                        title_str = self.title_str, status_lst = self.status_lst,
@@ -400,6 +399,7 @@ make' % ( self.sources_basedir ), title_str = self.title_str, status_lst = self.
             system_or_die( 'rm -Rf %s%s' % ( self.mountpoint, self.ryo_tempdir ) )
             system_or_die( 'mkdir -p %s%s' % ( self.mountpoint, self.ryo_tempdir ) )
             system_or_die( 'tar -zxf %s -C %s%s' % ( fname, self.mountpoint, self.ryo_tempdir ), status_lst = self.status_lst, title_str = self.title_str )
+            system_or_die( 'mkdir -p %s%s/initramfs_dir' % ( self.mountpoint, self.ryo_tempdir ) )
         f = '%s%s/src/chromeos-3.4/drivers/mmc/core/mmc.c' % ( self.mountpoint, self.kernel_src_basedir )
         g = '%s%s/src/chromeos-3.4/fs/btrfs/ctree.h' % ( self.mountpoint, self.kernel_src_basedir )
         assert( os.path.exists( f ) )
@@ -1142,17 +1142,19 @@ cd soledad
 git fetch origin
 git checkout develop
 cd client
-python2 setup.py install || failed "Failed to install soledad"
+if ! python2 setup.py install ; then
+    pip2 install leap.soledad || failed "I think I failed to install soledad"
 pip2 install --no-dependencies leap.bitmask || failed "Failed to install leap.bitmask"
 exit 0
 ''' % ( self.sources_basedir ) )
         f.close()
         os.system( 'chmod +x %s/tmp/install_leap_bitmask.sh' % ( self.mountpoint ) )
-        chroot_this( self.mountpoint, 'bash /tmp/install_leap_bitmask.sh',
+        if 0 != chroot_this( self.mountpoint, 'bash /tmp/install_leap_bitmask.sh',
                                         status_lst = self.status_lst, title_str = self.title_str,
-                                        attempts = 10,
-                                        on_fail = 'Failed to install leap.bitmask' )
-        self.status_lst[-1] += '...yay.'
+                                        attempts = 3 ):
+            self.status_lst[-1] += '...shucks. Failed to install leap.bitmask :-('
+        else:
+            self.status_lst[-1] += '...yay! Succeeded :-)'
 
     def install_freenet( self ):
         logme( 'Deleting /opt/freenet' )
