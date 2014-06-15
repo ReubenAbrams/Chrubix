@@ -165,7 +165,7 @@ class AlarmistGreeter( QtGui.QDialog, Ui_dlgAlarmistGreeter ):
                                         direct = self.direct,
                                         spoof = self.spoof,
                                         camouflage = self.camouflage )
-            sys.exit()  # I assume the program that called me will now call lxdm, which will log in as guest & so on.
+            sys.exit( 0 )  # I assume the program that called me will now call lxdm, which will log in as guest & so on.
 
 
 if __name__ == "__main__":
