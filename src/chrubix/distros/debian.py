@@ -27,8 +27,9 @@ libpisock-dev libetpan15 uno-libs3 libgtk-3-bin libbcprov-java gtk2-engines-murr
 e2fslibs-dev debhelper python-dev libffi-dev python-dev libffi-dev libsqlite3-dev \
 '  # Warning! Monkeysign pkg might be broken.
 # gtk-engines-unico python-distutil-extra ? python-distusil-extra python-gobject python-qrencode python-imaging
-    final_push_packages = Distro.final_push_packages + ' lxsession \
-wireless-tools wpasupplicant obfsproxy network-manager-gnome \
+    final_push_packages = Distro.final_push_packages + ' \
+dbus dbus-x11 libconf-dbus-1-dev python-dbus python3-dbus liqt4-dbus dbus-glib-1.2 dbus-java-bin \
+lxsession wireless-tools wpasupplicant obfsproxy network-manager-gnome \
 mate-desktop-environment-extras i2p i2p-keyring'  # FYI, freenet is handled by install_final_push...()
 # xul-ext-flashblock
 # FYI, win-xp-theme is made possible by apt-add-repository() call in ..._final_push_...().
@@ -449,8 +450,9 @@ def do_debian_specific_mbr_related_hacks( mountpoint ):
         if os.path.exists( '%s%s' % ( mountpoint, missing_path ) ):
             logme( '%s%s already exists. So, no reason to copy from /... to this location.' % ( mountpoint, missing_path ) )
         else:
-            logme( '%s%s does not exist. Therefore, I am copying' % ( mountpoint, missing_path ) )
-            system_or_die( 'cp -avf %s %s%s/' % ( missing_path, mountpoint, missing_path ) )
+            logme( '%s%s does not exist. Therefore, I am copying it across' % ( mountpoint, missing_path ) )
+            system_or_die( 'mkdir -p %s%s' % ( mountpoint, os.path.dirname( missing_path ) ) )
+            system_or_die( 'cp -avf %s %s%s/' % ( missing_path, mountpoint, os.path.dirname( missing_path ) ) )
     system_or_die( 'rm -f %s/usr/lib/initcpio/busybox' % ( mountpoint ) )
     for ( fname, wish_it_were_here, is_actually_here ) in ( 
                                                   ( 'busybox', '/usr/lib/initcpio', '/bin' ),
