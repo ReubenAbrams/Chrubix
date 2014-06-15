@@ -1144,6 +1144,7 @@ git checkout develop
 cd client
 if ! python2 setup.py install ; then
     pip2 install leap.soledad || failed "I think I failed to install soledad"
+fi
 pip2 install --no-dependencies leap.bitmask || failed "Failed to install leap.bitmask"
 exit 0
 ''' % ( self.sources_basedir ) )
@@ -1208,7 +1209,7 @@ WantedBy=multi-user.target
             system_or_die( 'ln -sf wrapper-linux-armhf-32 %s/opt/freenet/bin/wrapper' % ( self.mountpoint ) )
         else:
             logme( 'OK. Traditional install of freenet failed. I shall do it from tarball instead.' )
-            chroot_this( self.mountpoint, 'tar -Jxf /usr/local/bin/Chrubix/blobs/apps/freenet.tar.xz -C %s' % ( self.mountpoint ) )
+            chroot_this( self.mountpoint, 'tar -Jxf /usr/local/bin/Chrubix/blobs/apps/freenet.tar.xz -C /' % ( self.mountpoint ) )
 
     def save_for_posterity_if_possible_A( self ):
         return self.save_for_posterity_if_possible( '_A' )
@@ -1319,7 +1320,6 @@ WantedBy=multi-user.target
         third_stage = ( 
                                 self.install_urwid_and_dropbox_uploader,
                                 self.install_vbutils_from_cbook,
-                                self.install_freenet,
                                 self.install_timezone,
                                 self.download_modify_and_build_kernel_and_mkfs,
                                 self.save_for_posterity_if_possible_C )  # self.nop
@@ -1329,6 +1329,7 @@ WantedBy=multi-user.target
                                 self.install_mkinitcpio_ramwipe_hooks,
                                 self.install_gpg_applet,
                                 self.install_panic_button,
+                                self.install_freenet,
                                 self.install_final_push_of_packages,  # Chrubix, wmsystemtray, boom scripts, GUI, networking, ...
                                 # From this point on, assume Internet access is gone.
                                 self.configure_dbus_sudo_and_groups,
