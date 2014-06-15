@@ -335,11 +335,15 @@ mkdir -p /newroot
 /log_me_in.sh
 if [ \"\$?\" -eq \"0\" ] && [ -x \"/newroot/sbin/init\" ] ; then
 #	$smileydecoder
-#    echo \"\"
+    echo -en \"boot: \"
 #	echo \"'A man is not idle because he is absorbed in thought. There is visible labor and there is invisible labor.' - Victor Hugo\"
 #	umount /sys /proc	#Unmount all other mounts so that the ram used by the initramfs can be cleared after switch_root
-    echo \"Normally, I would call exec switch_root /newroot /sbin/init now; instead, I shall shell out\"
-    sh
+#   echo \"Normally, I would call exec switch_root /newroot /sbin/init now; instead, I shall shell out\"
+	read -t 2 line
+	if [ \"\$line\" = \"x\" ] ; then
+        sh
+    fi
+    clear
 	exec switch_root /newroot /sbin/init
 else
 	echo \"Failed to switch_root, dropping to a shell\"		#This will only be run if the exec above failed
