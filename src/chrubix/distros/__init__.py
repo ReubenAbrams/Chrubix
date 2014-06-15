@@ -259,6 +259,7 @@ make' % ( self.sources_basedir ), title_str = self.title_str, status_lst = self.
 #            if 0 != chroot_this( chroot_here, 'bash /usr/local/bin/redo_mbr.sh %s %s %s' % ( self.device, chroot_here, root_partition_device ),
 #                                                        title_str = self.title_str, status_lst = self.status_lst,
 #                                                        attempts = 1 ):
+            self.status_lst.append( ['Rerunning redo_mbr.sh'] )
             system_or_die( 'bash %s/usr/local/bin/redo_mbr.sh %s %s %s' % ( chroot_here,
                                                         self.device, chroot_here, root_partition_device ),
                                                         errtxt = 'Failed to redo kernel & mbr',
@@ -716,9 +717,10 @@ exit 0
             system_or_die( 'cp -f /usr/local/bin/Chrubix/bash/chrubix.sh.orig %s/usr/local/bin/Chrubix/bash/chrubix.sh' % ( self.mountpoint ) )
             system_or_die( 'chmod +x %s/usr/local/bin/*' % ( self.mountpoint ) )
         os.system( 'clear; sleep 1; sync;sync;sync; clear' )
-        self.status_lst.append( ['Migrating/squashing OS --- FYI, trying new ersatz_lxdm file, too'] )
+        self.status_lst.append( ['Migrating/squashing OS --- FYI, trying new ersatz_lxdm file and postlogin file, too'] )
         write_ersatz_lxdm( outfile = '%s/usr/local/bin/ersatz_lxdm.sh' % ( self.mountpoint ) )  # TODO: Remove after 7/1/2013
-        write_lxdm_service_file( '%s/usr/lib/systemd/system/lxdm.service' % ( self.mountpoint ) )
+        do_a_sed( '%s/etc/lxdm/PostLogin' % ( self.mountpoint ), '.*nm-connection-editor.*', 'touch /tmp/.okConnery.thisle.44' )  # FIXME: Remove this after 7/15/2014
+        write_lxdm_service_file( '%s/usr/lib/systemd/system/lxdm.service' % ( self.mountpoint ) )  # TODO: Remove after 7/1/2013
         system_or_die( 'rm -f %s/.squashfs.sqfs /.squashfs.sqfs' % ( self.mountpoint ) )
         if os.path.exists( '/.temp_or_perm.txt' ):
 #            logme( 'Found a temp_or_perm file that was created by sh file.' )
@@ -1035,7 +1037,7 @@ exit $?
                                     'pidgin', 'gpgApplet', 'macchanger', 'gpg', 'chrubix.sh', 'greeter.sh', \
                                     'run_browser_as_guest.sh', 'dropbox_uploader.sh', 'power_button_pushed.sh', \
                                     'sayit.sh', 'vidalia', 'i2prouter', 'claws-mail', \
-                                    'thunderbird', 'CHRUBIX', 'libreoffice', 'ssss-combine', 'ssss-split', 'dillo'
+                                    'CHRUBIX', 'libreoffice', 'ssss-combine', 'ssss-split', 'dillo'
                                   ):
             self.status_lst[-1] += '.'
             if chroot_this( self.mountpoint, 'which %s' % ( executable_to_find ), title_str = self.title_str, status_lst = self.status_lst, pauses_len = .5 ):
@@ -1127,7 +1129,7 @@ export ftp_proxy=
 set -e
 which pip2 || ln -sf pip-2.7 /usr/bin/pip2
 pip2 install keyring pyOpenSSL pysqlcipher
-easy_install-2.7 u1db
+easy_install-2.7 u1db || echo "Warning - error occurred while installing u1db"
 cd %s
 rm -Rf soledad
 git clone https://github.com/leapcode/soledad.git
