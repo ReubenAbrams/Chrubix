@@ -435,7 +435,7 @@ def configure_paranoidguestmode_before_calling_lxdm( password, direct, spoof, ca
     if camouflage:
         if not os.path.exists( cfg_file + '.first.non-camo' ):
             system_or_die( 'cp -f %s.first %s.first.non-camo' % ( cfg_file, cfg_file ) )
-        do_a_sed( '/etc/lxdm/lxdm.conf.first', 'session=', 'session=/usr/bin/mate-session' )
+        do_a_sed( '/etc/lxdm/lxdm.conf.first', 'session=.*', 'session=/usr/bin/mate-session' )
     else:
         if os.path.exists( cfg_file + '.first.non-camo' ):
             system_or_die( 'mv %s.first.non-camo %s.first' % ( cfg_file, cfg_file ) )
