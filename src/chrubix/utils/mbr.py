@@ -6,7 +6,7 @@ Created on May 9, 2014
 '''
 
 
-from chrubix.utils import write_oneliner_file, system_or_die, chroot_this
+from chrubix.utils import write_oneliner_file, system_or_die, chroot_this, logme
 import os
 
 
@@ -14,6 +14,7 @@ import os
 
 
 def do_debian_specific_mbr_related_hacks( mountpoint ):
+    logme( 'mountpoint = %s' % ( mountpoint ) )
     chroot_this( mountpoint, 'yes | apt-get install bsdtar bsdcpio' )  # FIXME: remove after 7/1/2014
     system_or_die( 'rm -Rf %s/usr/lib/initcpio' % ( mountpoint ) )
     system_or_die( 'rm -f %s/usr/lib/initcpio/busybox' % ( mountpoint ) )
@@ -35,8 +36,11 @@ def do_debian_specific_mbr_related_hacks( mountpoint ):
                           '/bin/makepkg',
                           '/usr/lib/modprobe.d/usb-load-ehci-first.conf'
                            ):
-        if not os.path.exists( '%s%s' % ( mountpoint, missing_path ) ):
-            system_or_die( 'cp -avf %s %s%s/' % ( missing_path, mountpoint, os.path.dirname( missing_path ) ) )
+        if os.path.exists( '%s%s' % ( mountpoint, missing_path ) ):
+            logme( '%s%s already exists. So, no reason to copy from /... to this location.' % ( mountpoint, missing_path ) )
+        else:
+            logme( '%s%s does not exist. Therefore, I am copying' % ( mountpoint, missing_path ) )
+            system_or_die( 'cp -avf %s %s%s/' % ( missing_path, mountpoint, missing_path ) )
     system_or_die( 'rm -f %s/usr/lib/initcpio/busybox' % ( mountpoint ) )
     for ( fname, wish_it_were_here, is_actually_here ) in ( 
                                                   ( 'busybox', '/usr/lib/initcpio', '/bin' ),
