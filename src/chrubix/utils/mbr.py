@@ -23,7 +23,7 @@ def do_debian_specific_mbr_related_hacks( mountpoint ):
                                                   ( 'systemd', '/usr/lib/systemd', '/lib/systemd' ),
                                                   ( 'systemd-tmpfiles', '/usr/bin', '/bin' ),  # ?
                                                   ( 'systemd-sysctl', '/usr/lib/systemd', '/lib/systemd' ),
-                                                  ( 'kmod', '/usr/bin', '/bin' ),
+                                                  ( 'kmod', '/usr/bin', '/bin' )
                                                   ):
         if not os.path.exists( '%s%s/%s' % ( mountpoint, wish_it_were_here, fname ) ):
             system_or_die( 'ln -sf %s/%s %s%s/' % ( is_actually_here, fname, mountpoint, wish_it_were_here ) )
@@ -32,7 +32,8 @@ def do_debian_specific_mbr_related_hacks( mountpoint ):
                           '/usr/lib/systemd/system-generators',
                           '/usr/lib/modprobe.d',
                           '/usr/lib/initcpio',
-                          '/bin/makepkg'
+                          '/bin/makepkg',
+                          '/usr/lib/modprobe.d/usb-load-ehci-first.conf'
                            ):
         if not os.path.exists( '%s%s' % ( mountpoint, missing_path ) ):
             system_or_die( 'cp -avf %s %s%s/' % ( missing_path, mountpoint, os.path.dirname( missing_path ) ) )
