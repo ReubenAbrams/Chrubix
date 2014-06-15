@@ -1124,21 +1124,26 @@ exit $?
         self.status_lst.append( 'Installing leap bitmask' )
         f = open( '%s/tmp/install_leap_bitmask.sh' % ( self.mountpoint ), 'w' )
         f.write( '''#!/bin/bash
+failed() {
+    echo "$1" >> /dev/stderr
+    exit 1
+}
+
 export http_proxy=
 export ftp_proxy=
-set -e
+
 which pip2 || ln -sf pip-2.7 /usr/bin/pip2
-pip2 install keyring pyOpenSSL pysqlcipher
+pip2 install keyring pyOpenSSL pysqlcipher    || failed "Failed to install keyring/pyopenssl/pysqlcipher"
 easy_install-2.7 u1db || echo "Warning - error occurred while installing u1db"
 cd %s
 rm -Rf soledad
-git clone https://github.com/leapcode/soledad.git
+git clone https://github.com/leapcode/soledad.git || failed "Failed to pull soledad from git"
 cd soledad
 git fetch origin
 git checkout develop
 cd client
-python2 setup.py install
-pip2 install --no-dependencies leap.bitmask
+python2 setup.py install || failed "Failed to install soledad"
+pip2 install --no-dependencies leap.bitmask || failed "Failed to install leap.bitmask"
 exit 0
 ''' % ( self.sources_basedir ) )
         f.close()
