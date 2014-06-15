@@ -238,6 +238,7 @@ Acquire::https::Proxy "https://%s/";
         chroot_this( self.mountpoint, 'yes "" | aptitude install %s' % ( self.final_push_packages ),
                      title_str = self.title_str, status_lst = self.status_lst,
                      on_fail = 'Failed to install final push of packages' )
+        do_debian_specific_mbr_related_hacks( self.mountpoint )
         logme( 'DebianDistro - install_final_push_of_packages() - leaving' )
 
     def steal_dtc_and_mkinitcpio_from_alarpy( self ):
@@ -411,5 +412,50 @@ class JessieDebianDistro( DebianDistro ):
         super( JessieDebianDistro, self ).__init__( *args, **kwargs )
         self.branch = 'jessie'  # lowercase; yes, it matters
         self.architecture = 'armhf'
+
+
+
+
+
+
+
+
+
+
+
+def do_debian_specific_mbr_related_hacks( mountpoint ):
+    logme( 'mountpoint = %s' % ( mountpoint ) )
+#    chroot_this( mountpoint, 'yes | apt-get install bsdtar bsdcpio' )  # FIXME: remove after 7/1/2014
+    system_or_die( 'rm -Rf %s/usr/lib/initcpio' % ( mountpoint ) )
+    system_or_die( 'rm -f %s/usr/lib/initcpio/busybox' % ( mountpoint ) )
+    for ( fname, wish_it_were_here, is_actually_here ) in ( 
+                                                  ( 'libnss_files.so', '/usr/lib', '/usr/lib/arm-linux-gnueabihff' ),
+                                                  ( 'modprobe.d', '/usr/lib', '/lib' ),
+                                                  ( 'systemd', '/usr/lib/systemd', '/lib/systemd' ),
+                                                  ( 'systemd-tmpfiles', '/usr/bin', '/bin' ),  # ?
+                                                  ( 'systemd-sysctl', '/usr/lib/systemd', '/lib/systemd' ),
+                                                  ( 'kmod', '/usr/bin', '/bin' )
+                                                  ):
+        if not os.path.exists( '%s%s/%s' % ( mountpoint, wish_it_were_here, fname ) ):
+            system_or_die( 'ln -sf %s/%s %s%s/' % ( is_actually_here, fname, mountpoint, wish_it_were_here ) )
+    for missing_path in ( 
+                          '/usr/lib/udev/rules.d',
+                          '/usr/lib/systemd/system-generators',
+                          '/usr/lib/modprobe.d',
+                          '/usr/lib/initcpio',
+                          '/bin/makepkg',
+                          '/usr/lib/modprobe.d/usb-load-ehci-first.conf'
+                           ):
+        if os.path.exists( '%s%s' % ( mountpoint, missing_path ) ):
+            logme( '%s%s already exists. So, no reason to copy from /... to this location.' % ( mountpoint, missing_path ) )
+        else:
+            logme( '%s%s does not exist. Therefore, I am copying' % ( mountpoint, missing_path ) )
+            system_or_die( 'cp -avf %s %s%s/' % ( missing_path, mountpoint, missing_path ) )
+    system_or_die( 'rm -f %s/usr/lib/initcpio/busybox' % ( mountpoint ) )
+    for ( fname, wish_it_were_here, is_actually_here ) in ( 
+                                                  ( 'busybox', '/usr/lib/initcpio', '/bin' ),
+                                                  ):
+        if not os.path.exists( '%s%s/%s' % ( mountpoint, wish_it_were_here, fname ) ):
+            system_or_die( 'ln -sf %s/%s %s%s/' % ( is_actually_here, fname, mountpoint, wish_it_were_here ) )
 
 
