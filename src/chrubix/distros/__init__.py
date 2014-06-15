@@ -1130,8 +1130,8 @@ failed() {
     exit 1
 }
 
-export http_proxy=
-export ftp_proxy=
+#export http_proxy=
+#export ftp_proxy=
 
 which pip2 || ln -sf pip-2.7 /usr/bin/pip2
 pip2 install keyring pyOpenSSL pysqlcipher    || failed "Failed to install keyring/pyopenssl/pysqlcipher"
