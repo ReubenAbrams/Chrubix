@@ -216,8 +216,8 @@ Acquire::https::Proxy "https://%s/";
         chroot_this( self.mountpoint, 'which ping && echo "Ping installed OK" || yes 2>/dev/null | apt-get install iputils-ping', on_fail = 'Failed to install ping' )
 #        chroot_this( self.mountpoint, 'pip install leap.bitmask', status_lst = self.status_lst, title_str = self.title_str,
 #                     on_fail = 'Failed to install leap.bitmask' )
-        if 0 != os.system( 'cp %s/usr/local/bin/Chrubix/blobs/xp/win-xp-theme_1.3.1~saucy~Noobslab.com_all.deb %s/tmp/win-xp-themes.deb' % ( self.mountpoint, self.mountpoint ) ):
-            if 0 != os.system( 'cp /usr/local/bin/Chrubix/blobs/xp/win-xp-theme_1.3.1~saucy~Noobslab.com_all.deb %s/tmp/win-xp-themes.deb' % ( self.mountpoint ) ):
+        if 0 != os.system( 'cp %s/usr/local/bin/Chrubix/blobs/xp/win-xp-theme_1.3.1~saucy~Noobslab.com_all.deb %s/tmp/win-xp-themes.deb 2> /dev/null' % ( self.mountpoint, self.mountpoint ) ):
+            if 0 != os.system( 'cp /usr/local/bin/Chrubix/blobs/xp/win-xp-theme_1.3.1~saucy~Noobslab.com_all.deb %s/tmp/win-xp-themes.deb 2> /dev/null' % ( self.mountpoint ) ):
                 wget( url = 'https://dl.dropboxusercontent.com/u/59916027/chrubix/win-xp-theme_1.3.1%7Esaucy%7ENoobslab.com_all.deb', save_as_file = '%s/tmp/win-xp-themes.deb' % ( self.mountpoint ),
                       status_lst = self.status_lst, title_str = self.title_str )
 #        wget( url = 'http://ppa.launchpad.net/noobslab/themes/ubuntu/pool/main/w/win-xp-theme/win-xp-theme_1.3.1~saucy~Noobslab.com_all.deb',
