@@ -13,42 +13,6 @@ import os
 
 
 
-def do_debian_specific_mbr_related_hacks( mountpoint ):
-    logme( 'mountpoint = %s' % ( mountpoint ) )
-    chroot_this( mountpoint, 'yes | apt-get install bsdtar bsdcpio' )  # FIXME: remove after 7/1/2014
-    system_or_die( 'rm -Rf %s/usr/lib/initcpio' % ( mountpoint ) )
-    system_or_die( 'rm -f %s/usr/lib/initcpio/busybox' % ( mountpoint ) )
-    for ( fname, wish_it_were_here, is_actually_here ) in ( 
-                                                  ( 'libnss_files.so', '/usr/lib', '/usr/lib/arm-linux-gnueabihff' ),
-                                                  ( 'modprobe.d', '/usr/lib', '/lib' ),
-                                                  ( 'systemd', '/usr/lib/systemd', '/lib/systemd' ),
-                                                  ( 'systemd-tmpfiles', '/usr/bin', '/bin' ),  # ?
-                                                  ( 'systemd-sysctl', '/usr/lib/systemd', '/lib/systemd' ),
-                                                  ( 'kmod', '/usr/bin', '/bin' )
-                                                  ):
-        if not os.path.exists( '%s%s/%s' % ( mountpoint, wish_it_were_here, fname ) ):
-            system_or_die( 'ln -sf %s/%s %s%s/' % ( is_actually_here, fname, mountpoint, wish_it_were_here ) )
-    for missing_path in ( 
-                          '/usr/lib/udev/rules.d',
-                          '/usr/lib/systemd/system-generators',
-                          '/usr/lib/modprobe.d',
-                          '/usr/lib/initcpio',
-                          '/bin/makepkg',
-                          '/usr/lib/modprobe.d/usb-load-ehci-first.conf'
-                           ):
-        if os.path.exists( '%s%s' % ( mountpoint, missing_path ) ):
-            logme( '%s%s already exists. So, no reason to copy from /... to this location.' % ( mountpoint, missing_path ) )
-        else:
-            logme( '%s%s does not exist. Therefore, I am copying' % ( mountpoint, missing_path ) )
-            system_or_die( 'cp -avf %s %s%s/' % ( missing_path, mountpoint, missing_path ) )
-    system_or_die( 'rm -f %s/usr/lib/initcpio/busybox' % ( mountpoint ) )
-    for ( fname, wish_it_were_here, is_actually_here ) in ( 
-                                                  ( 'busybox', '/usr/lib/initcpio', '/bin' ),
-                                                  ):
-        if not os.path.exists( '%s%s/%s' % ( mountpoint, wish_it_were_here, fname ) ):
-            system_or_die( 'ln -sf %s/%s %s%s/' % ( is_actually_here, fname, mountpoint, wish_it_were_here ) )
-
-
 def install_initcpio_wiperamonshutdown_files( mountpoint ):
     # There's a reason for extracting to /usr instead of /. You see, on some distros do 'ln -sf /usr/lib /lib' ...
     our_hook = 'wiperam_on_shutdown'
