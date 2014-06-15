@@ -60,8 +60,6 @@ mpg123 /etc/.mp3/$soundfile.mp3 &
 sleep 1
 if which florence &> /dev/null ; then
   florence &
-  sleep 2
-  florence hide &
 fi
 
 [ -e "/tmp/.do-not-automatically-connect" ] && exit 0
@@ -102,19 +100,18 @@ if ! ping -c1 -W5 8.8.8.8 ; then
   kill $the_pid
 fi
 
+if which florence &> /dev/null ; then
+  if ps wax | grep florence | grep -v grep ; then
+    florence hide &
+  fi
+fi
+
 if ! ps -o pid -C tor ; then
     systemctl start privoxy
     sleep .5
     /usr/bin/vidalia &
     sleep .3
 fi
-
-#vidalia_rc_file=$USER/.vidalia/vidalia.conf    # TODO: Make vidalia auto-open web browser upon successfully connecting
-#if [ -e "$vidalia_rc_file" ] ; then
-#    mv $
-#fi
-
-#xscreensaver -no-splash &
 
 logger "QQQ end of postlogin script"
 ''' )
@@ -266,65 +263,83 @@ def write_ersatz_lxdm( outfile ):
 . /etc/bash.bashrc
 . /etc/profile
 
+
 GUEST_HOMEDIR=/tmp/.guest
 f=/etc/lxdm/lxdm.conf
 liu=/tmp/.logged_in_user
 
-if [ -e "/tmp/.okConnery.thisle.44" ] ; then
-    echo "`date` -- ersatz_lxdm --- second (or more) time in this boot" >> /tmp/log.txt
-    cp $f.second $f
-    echo "### Second time around, eh?" >> $f
-    echo "`date` END OF SECOND" >> /tmp/log.txt
-elif [ ! -e "/etc/.first_time_ever" ] ; then
-    echo 0 > /proc/sys/kernel/hung_task_timeout_secs
-    echo "`date` -- ersatz_lxdm --- first time in this boot" >> /tmp/log.txt
-    cp $f.first $f
-    if ! mount | grep " / " | grep unionfs 2>/dev/null ; then
-        echo "`date` touching okC file" >> /tmp/log.txt
-        touch /tmp/.okConnery.thisle.44
-    fi
-    echo "`date` END OF FIRST" >> /tmp/log.txt
-else
-    cp $f.first $f
-    echo "`date` -- ersatz_lxdm --- start of FIRST TIME EVER" >> /tmp/log.txt
+
+set_up_guest_homedir() {
+    echo "`date` ersatz_lxdm --- set_up_guest_homedir() --- entering" >> /tmp/log.txt
+    mkdir -p $GUEST_HOMEDIR
+    chmod 700 $GUEST_HOMEDIR
+    tar -Jxf /usr/local/bin/Chrubix/blobs/settings/default_guest_files.tar.xz -C $GUEST_HOMEDIR
+    chown -R guest.guest $GUEST_HOMEDIR
+    chmod 755 $f
+    echo "`date` ersatz_lxdm --- set_up_guest_homedir() --- leaving" >> /tmp/log.txt
+}
+
+
+fix_sound_and_start_network_stuff() {
+    echo "`date` ersatz_lxdm --- fix_sound_...() --- entering" >> /tmp/log.txt
     systemctl start NetworkManager      # Shouldn't be necessary...
     systemctl enable privoxy            # Shouldn't be necessary...
-    echo "`date` -- ersatz_lxdm --- aaa" >> /tmp/log.txt
     amixer sset Speaker unmute &> /dev/null  || echo "WARNING - unable to set speaker on unmute"
     amixer sset Speaker 30%    &> /dev/null  || echo "WARNING - unable to set speaker volume"
     for q in `amixer | grep Speaker | cut -d"'" -f2 | tr ' ' '/'`; do
         g=`echo "$q" | tr '/' ' '`
         amixer sset "$g" unmute
     done
-    echo "`date` -- ersatz_lxdm --- bbb" >> /tmp/log.txt
     which alsactl &> /dev/null && alsactl store &> /dev/null # I've no idea if this helps or not
-    rm -f /tmp/.okConnery.thisle.44
-    echo "`date` -- ersatz_lxdm --- end of first time ever" >> /tmp/log.txt
-fi
+    echo "`date` ersatz_lxdm --- fix_sound_...() --- leaving" >> /tmp/log.txt
+}
 
-echo "`date` CALLING greeter or lxdm" >> /tmp/log.txt
-mkdir -p $GUEST_HOMEDIR
-chmod 700 $GUEST_HOMEDIR
-tar -Jxf /usr/local/bin/Chrubix/blobs/settings/default_guest_files.tar.xz -C $GUEST_HOMEDIR
-chown -R guest.guest $GUEST_HOMEDIR
-chmod 755 $f
 
-if mount | grep " / " | grep unionfs 2>/dev/null; then
-    echo "`date` running greeter" >> /tmp/log.txt
-    /usr/local/bin/greeter.sh    # Don't use greeter unless we're trying to be Alarmist/Tails/whatever.
-    echo "`date` back from greeter" >> /tmp/log.txt
-    cp -f $f.first $f
-fi
-echo "`date` --- ersatz_lxdm --- running lxdm" >> /tmp/log.txt
-if [ -e "/etc/.first_time_ever" ] ;then
-    rm -f /etc/.first_time_ever
-    res=0
-else
+run_greeter_etc() {
+    echo "`date` ersatz_lxdm --- run_greeter_etc() --- entering" >> /tmp/log.txt
+    greeter.sh
     lxdm
-    res=$?
+    echo "`date` ersatz_lxdm --- run_greeter_etc() --- leaving" >> /tmp/log.txt
+}
+
+
+run_for_1st_time_in_this_boot() {
+    echo "`date` ersatz_lxdm --- run_for_1st_time_in_this_boot() --- entering" >> /tmp/log.txt
+    cp $f.first $f
+    echo 0 > /proc/sys/kernel/hung_task_timeout_secs
+    lxdm
+    echo "`date` ersatz_lxdm --- run_for_1st_time_in_this_boot() --- leaving" >> /tmp/log.txt
+}
+
+run_for_Nth_time_in_this_boot() {
+    echo "`date` ersatz_lxdm --- run_for_Nth_time_in_this_boot() --- entering" >> /tmp/log.txt
+    cp $f.second $f
+    lxdm
+    echo "`date` ersatz_lxdm --- run_for_Nth_time_in_this_boot() --- leaving" >> /tmp/log.txt
+}
+
+
+# ---------------------------------------------------------------------------
+
+
+set_up_guest_homedir
+if [ -e "/etc/.first_time_ever" ] ; then
+    fix_sound_and_start_network_stuff
+    rm -f /etc/.first_time_ever
+    lxdm &                # Fails (always), the first time.
+    sleep 1
+    killall lxdm || echo -en ""
 fi
-echo "`date` --- ersatz_lxdm --- back from lxdm; res=$res" >> /tmp/log.txt
-exit $res
+if mount | fgrep " / " | fgrep "unionfs"; then
+    run_greeter_etc
+elif [ -e "/tmp/.okConnery.thisle.44" ] ; then
+    run_for_Nth_time_in_this_boot
+else
+    run_for_1st_time_in_this_boot
+    touch /tmp/.okConnery.thisle.44
+fi
+echo "`date` --- ersatz_lxdm ending" >> /tmp/log.txt
+exit 0
 ''' )
     system_or_die( 'chmod +x %s' % ( outfile ) )
 
@@ -415,8 +430,11 @@ def configure_lxdm_login_manager( mountpoint, guest_window_manager ):
     if 0 != chroot_this( mountpoint, 'systemctl enable lxdm', attempts = 1 ):
         if 0 != chroot_this( mountpoint, 'ln -sf /usr/lib/systemd/system/lxdm.service /etc/systemd/system/display-manager.service' ):
             failed( 'Failed to enable lxdm' )
-    system_or_die( r'cat %s/usr/lib/systemd/system/lxdm.service | sed s/ExecStart=.*/ExecStart=\\/usr\\/local\\/bin\\/ersatz_lxdm.sh/ > /tmp/.t.t' % ( mountpoint ) )
-    system_or_die( r'cat /tmp/.t.t > %s/usr/lib/systemd/system/lxdm.service # $root/usr/lib/systemd/system/lxdm.service' % ( mountpoint ) )
+    for f in ( 'lxdm', 'display-manager' ):
+        if os.path.exists( '%s/usr/lib/systemd/system/%s.service' % ( mountpoint, f ) ):
+            system_or_die( 'cp %s/usr/lib/systemd/system/%s.service /tmp/' % ( mountpoint ) )
+    if os.path.exists( '%s/usr/lib/systemd/system/lxdm.service' % ( mountpoint ) ):
+        write_lxdm_service_file( '%s/usr/lib/systemd/system/lxdm.service' % ( mountpoint ) )
     chroot_this( mountpoint, 'which lxdm &> /dev/null', on_fail = 'I cannot find lxdm. This is not good.' )
     if chroot_this( mountpoint, 'which kdm &> /dev/null' ) == 0:
         chroot_this( mountpoint, 'systemctl disable kdm', attempts = 1 )
@@ -639,3 +657,17 @@ def check_and_if_necessary_fix_password_file( mountpoint, comment ):
         system_or_die( 'cp -f %s %s' % ( passwd_file, orig_pwd_file ) )
 
 
+def write_lxdm_service_file( outfile ):
+    write_oneliner_file( outfile, '''[Unit]
+Description=LXDE Display Manager
+Conflicts=getty@tty1.service plymouth-quit.service
+After=systemd-user-sessions.service getty@tty1.service plymouth-quit.service
+
+[Service]
+ExecStart=/usr/local/bin/ersatz_lxdm.sh
+Restart=always
+IgnoreSIGPIPE=no
+
+[Install]
+Alias=display-manager.service
+    ''' )
