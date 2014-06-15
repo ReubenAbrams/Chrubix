@@ -38,9 +38,8 @@ logger "QQQ start of postlogin script"
 echo "$USER" > $liu
 
 export DISPLAY=:0.0
-start-pulseaudio-x11 &
-sleep 1
 pulseaudio -k
+start-pulseaudio-x11
 
 if ps -o pid -C wmaker &>/dev/null; then
   wmsystemtray &
@@ -56,8 +55,8 @@ which start-freenet.sh &> /dev/null && start-freenet.sh start &
 
 touch /tmp/.okConnery.thisle.44
 
-ps wax | fgrep mate-session | fgrep -v grep && soundfile=winxp || soundfile=pghere
-mpg123 /etc/.mp3/$soundfile.mp3 &
+ps wax | fgrep mate-session | fgrep -v grep && soundfile=winxp || soundfile="" # pghere
+[ "$soundfile" != "" ] && mpg123 /etc/.mp3/$soundfile.mp3 &
 
 xset s off
 xset -dpms
@@ -446,7 +445,7 @@ def configure_lxdm_login_manager( mountpoint, guest_window_manager ):
             failed( 'Failed to enable lxdm' )
     for f in ( 'lxdm', 'display-manager' ):
         if os.path.exists( '%s/usr/lib/systemd/system/%s.service' % ( mountpoint, f ) ):
-            system_or_die( 'cp %s/usr/lib/systemd/system/%s.service /tmp/' % ( mountpoint ) )
+            system_or_die( 'cp %s/usr/lib/systemd/system/%s.service /tmp/' % ( mountpoint, f ) )
     if os.path.exists( '%s/usr/lib/systemd/system/lxdm.service' % ( mountpoint ) ):
         write_lxdm_service_file( '%s/usr/lib/systemd/system/lxdm.service' % ( mountpoint ) )
     chroot_this( mountpoint, 'which lxdm &> /dev/null', on_fail = 'I cannot find lxdm. This is not good.' )
