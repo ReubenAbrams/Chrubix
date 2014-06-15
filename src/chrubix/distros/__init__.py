@@ -1118,6 +1118,7 @@ exit $?
         system_or_die( 'rm -f %s/etc/lxdm/PreLogin' % ( self.mountpoint ) )
         append_lxdm_pre_login_script( '%s/etc/lxdm/PreLogin' % ( self.mountpoint ) )
         install_mp3_files( self.mountpoint )
+        assert( os.path.exists( '%s/etc/.mp3/winxp.mp3' % ( self.mountpoint ) ) )
 
     def install_leap_bitmask( self ):
         logme( 'Installing leap bitmask' )
