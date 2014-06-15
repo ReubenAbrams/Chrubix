@@ -14,7 +14,7 @@ from chrubix.utils.postinst import append_lxdm_post_login_script, append_lxdm_pr
             install_guest_browser_script, configure_privoxy, add_speech_synthesis_script, configure_lxdm_login_manager, \
             install_chrome_or_iceweasel_privoxy_wrapper, remove_junk, tweak_xwindow_for_cbook, install_panicbutton, \
             check_and_if_necessary_fix_password_file, install_insecure_browser, append_proxy_details_to_environment_file, \
-            setup_timer_to_keep_dpms_switched_off
+            setup_timer_to_keep_dpms_switched_off, write_lxdm_service_file
 from chrubix.utils.mbr import install_initcpio_wiperamonshutdown_files, do_debian_specific_mbr_related_hacks
 from xml.dom import NotFoundErr
 
@@ -238,6 +238,7 @@ make' % ( self.sources_basedir ), title_str = self.title_str, status_lst = self.
         self.redo_mbr( root_partition_device = self.root_dev, chroot_here = chroot_here )
 
     def redo_mbr( self, root_partition_device, chroot_here ):  # ,root_partition_dev             ... Also generates hybrid initramfs
+        res = 0
         logme( 'redo_mbr() --- starting' )
         for save_here in ( chroot_here, '/' ):
             system_or_die( 'tar -zxvf /tmp/.vbkeys.tgz -C %s' % ( save_here ),
@@ -717,6 +718,7 @@ exit 0
         os.system( 'clear; sleep 1; sync;sync;sync; clear' )
         self.status_lst.append( ['Migrating/squashing OS --- FYI, trying new ersatz_lxdm file, too'] )
         write_ersatz_lxdm( outfile = '%s/usr/local/bin/ersatz_lxdm.sh' % ( self.mountpoint ) )  # TODO: Remove after 7/1/2013
+        write_lxdm_service_file( '%s/usr/lib/systemd/system/lxdm.service' % ( self.mountpoint ) )
         system_or_die( 'rm -f %s/.squashfs.sqfs /.squashfs.sqfs' % ( self.mountpoint ) )
         if os.path.exists( '/.temp_or_perm.txt' ):
 #            logme( 'Found a temp_or_perm file that was created by sh file.' )
@@ -754,7 +756,7 @@ MEH: No encryption. No duress password. Changes are permanent. Guest Mode is sti
                 write_oneliner_file( '%s/.temp_or_perm.txt' % ( self.mountpoint ), 'meh' )
         if res == 'T':
             self.squash_OS()
-        elif res == 'P' or res == 'M':
+        if res == 'P' or res == 'M':
             if running_on_a_test_rig():
                 self.status_lst.append( ['Because this is a test rig, I am regenerating the squashfs file.'] )
                 self.generate_squashfs_of_my_OS()
@@ -768,7 +770,7 @@ MEH: No encryption. No duress password. Changes are permanent. Guest Mode is sti
 
     def squash_OS( self ):
         save_distro_record( distro_rec = self )
-        self.generate_squashfs_of_my_OS()
+#        self.generate_squashfs_of_my_OS()
 #        system_or_die( 'mkdir -p /tmp/ro /tmp/squashfs_dir' )
 #        system_or_die( 'mount -o loop,squashfs %s/.squashfs.sqfs /tmp/squashfs_dir' % ( self.mountpoint ) )  # /tmp/ro
 #        system_or_die( 'mount -t unionfs -o dirs=/tmp/ro=rw unionfs /tmp/squashfs_dir' )
@@ -1069,7 +1071,7 @@ exit $?
             self.status_lst.append( ['Generating squashfs of this OS'] )
             system_or_die( 'mkdir -p %s/_to_add_to_squashfs/{dev,proc,sys,tmp}' % ( self.mountpoint ) )
             chroot_this( self.mountpoint, \
-r'mksquashfs /{bin,boot,etc,home,lib,mnt,opt,root,run,sbin,usr,srv,var} /_to_add_to_squashfs/* .squashfs.sqfs',  # -comp xz',
+'mksquashfs /bin /boot /etc /home /lib /mnt /opt /root /run /sbin /usr /srv /var /_to_add_to_squashfs/* /.squashfs.sqfs',  # -comp xz',
                                                          status_lst = self.status_lst, title_str = self.title_str,
                                                          attempts = 1, on_fail = 'Failed to generate squashfs' )
             self.status_lst[-1] += '...generated.'
@@ -1114,7 +1116,6 @@ r'mksquashfs /{bin,boot,etc,home,lib,mnt,opt,root,run,sbin,usr,srv,var} /_to_add
         system_or_die( 'rm -f %s/etc/lxdm/PreLogin' % ( self.mountpoint ) )
         append_lxdm_pre_login_script( '%s/etc/lxdm/PreLogin' % ( self.mountpoint ) )
         install_mp3_files( self.mountpoint )
-        write_ersatz_lxdm( outfile = '%s/usr/local/bin/ersatz_lxdm.sh' % ( self.mountpoint ) )
 
     def install_leap_bitmask( self ):
         logme( 'Installing leap bitmask' )
