@@ -54,6 +54,8 @@ which start-freenet.sh &> /dev/null && start-freenet.sh start &
 
 #nm-connection-editor &
 
+touch /tmp/.okConnery.thisle.44
+
 ps wax | fgrep mate-session | fgrep -v grep && soundfile=winxp || soundfile=pghere
 mpg123 /etc/.mp3/$soundfile.mp3 &
 
@@ -333,7 +335,6 @@ elif [ -e "/tmp/.okConnery.thisle.44" ] ; then
     run_for_Nth_time_in_this_boot
 else
     run_for_1st_time_in_this_boot
-    touch /tmp/.okConnery.thisle.44
 fi
 echo "`date` --- ersatz_lxdm ending" >> /tmp/log.txt
 exit 0
