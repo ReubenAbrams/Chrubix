@@ -421,8 +421,9 @@ def configure_lxdm_login_manager( mountpoint, guest_window_manager ):
     f = '%s/etc/lxdm/lxdm.conf' % ( mountpoint )
     if not os.path.isfile( f ):
         failed( "%s does not exist; configure_lxdm_login_manager() cannot run properly. That sucks." % ( f ) )
-#    system_or_die( r'cat %s | sed s/.*autologin=.*/autologin=guest/ | sed s/.*skip_password=.*/skip_password=1/ | \
-# sed s/.*session=.*/session=\\/usr\\/bin\\/wmaker/ > %s.first' % ( f, f ) )
+    do_a_sed( f, 'disable=0', 'disable=1' )
+    do_a_sed( f, 'black=.*', 'black=libnss pulseaudio festival tor' )
+    do_a_sed( f, 'white=.*', 'white=guest' )
     system_or_die( r'cat %s | sed s/.*autologin=.*/autologin=guest/ | sed s/.*skip_password=.*/skip_password=1/ > %s' % ( f, f + '.first' ) )
     do_a_sed( f + '.first', '.*session=.*', 'session=%s' % ( guest_window_manager ) )
     system_or_die( 'cat %s | sed s/.*autologin=.*/###autologin=/ | sed s/.*skip_password=.*/skip_password=1/ > %s.second' % ( f, f ) )
