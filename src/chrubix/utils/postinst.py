@@ -260,6 +260,7 @@ exit $?
 def write_ersatz_lxdm( outfile ):
 # Setup ersatz lxdm
     write_oneliner_file( outfile, r'''#!/bin/bash
+
 . /etc/bash.bashrc
 . /etc/profile
 
@@ -326,11 +327,7 @@ set_up_guest_homedir
 if [ -e "/etc/.first_time_ever" ] ; then
     fix_sound_and_start_network_stuff
     rm -f /etc/.first_time_ever
-    lxdm &                # Fails (always), the first time.
-    sleep 1
-    killall lxdm || echo -en ""
-fi
-if mount | fgrep " / " | fgrep "unionfs"; then
+elif mount | fgrep " / " | fgrep "unionfs"; then
     run_greeter_etc
 elif [ -e "/tmp/.okConnery.thisle.44" ] ; then
     run_for_Nth_time_in_this_boot
