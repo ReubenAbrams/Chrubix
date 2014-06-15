@@ -306,7 +306,7 @@ restore_from_stage_X_backup_if_possible() {
 		if wget $url -O - | tar -zx -C $root ; then
 			echo "Restored ($distroname, squashfs) from Dropbox"
 			echo "9999" > $root/.checkpoint.txt
-			echo "$url_or_fname" > $root/.url_or_fname.txt
+			echo "$url" > $root/.url_or_fname.txt
 			return 0
 		fi
 	else
