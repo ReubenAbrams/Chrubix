@@ -169,6 +169,9 @@ class AlarmistGreeter( QtGui.QDialog, Ui_dlgAlarmistGreeter ):
 
 
 if __name__ == "__main__":
+    os.system( 'xset s off' )
+    os.system( 'xset -dpms' )
+
     app = QtGui.QApplication( sys.argv )
     window = AlarmistGreeter()
     window.show()
