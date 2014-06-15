@@ -59,6 +59,9 @@ touch /tmp/.okConnery.thisle.44
 ps wax | fgrep mate-session | fgrep -v grep && soundfile=winxp || soundfile=pghere
 mpg123 /etc/.mp3/$soundfile.mp3 &
 
+xset s off
+xset -dpms
+
 sleep 1
 if which florence &> /dev/null ; then
   florence &
@@ -300,15 +303,28 @@ fix_sound_and_start_network_stuff() {
 
 run_greeter_etc() {
     echo "`date` ersatz_lxdm --- run_greeter_etc() --- entering" >> /tmp/log.txt
-    greeter.sh
-    lxdm
+    while [ "1" = "1" ] ; do
+        cp -f $f.first $f
+        greeter.sh
+        lxdm
+    done
     echo "`date` ersatz_lxdm --- run_greeter_etc() --- leaving" >> /tmp/log.txt
+}
+
+
+run_first_ever_ever() {
+    echo "`date` ersatz_lxdm --- run_first_ever_ever() --- entering" >> /tmp/log.txt
+    fix_sound_and_start_network_stuff
+    rm -f /etc/.first_time_ever
+    cp -f $f.first $f
+    lxdm
+    echo "`date` ersatz_lxdm --- run_first_ever_ever() --- leaving" >> /tmp/log.txt
 }
 
 
 run_for_1st_time_in_this_boot() {
     echo "`date` ersatz_lxdm --- run_for_1st_time_in_this_boot() --- entering" >> /tmp/log.txt
-    cp $f.first $f
+    cp -f $f.first $f
     echo 0 > /proc/sys/kernel/hung_task_timeout_secs
     lxdm
     echo "`date` ersatz_lxdm --- run_for_1st_time_in_this_boot() --- leaving" >> /tmp/log.txt
@@ -316,7 +332,7 @@ run_for_1st_time_in_this_boot() {
 
 run_for_Nth_time_in_this_boot() {
     echo "`date` ersatz_lxdm --- run_for_Nth_time_in_this_boot() --- entering" >> /tmp/log.txt
-    cp $f.second $f
+    cp -f $f.second $f
     lxdm
     echo "`date` ersatz_lxdm --- run_for_Nth_time_in_this_boot() --- leaving" >> /tmp/log.txt
 }
@@ -327,8 +343,7 @@ run_for_Nth_time_in_this_boot() {
 
 set_up_guest_homedir
 if [ -e "/etc/.first_time_ever" ] ; then
-    fix_sound_and_start_network_stuff
-    rm -f /etc/.first_time_ever
+    run_first_ever_ever
 elif mount | fgrep " / " | fgrep "unionfs"; then
     run_greeter_etc
 elif [ -e "/tmp/.okConnery.thisle.44" ] ; then
@@ -542,9 +557,8 @@ def remove_junk( mountpoint, kernel_src_basedir ):
 def setup_timer_to_keep_dpms_switched_off( mountpoint ):
     write_oneliner_file( mountpoint + '/usr/local/bin/i_run_every_minute.sh', '''#!/bin/bash
 export DISPLAY=:0.0
-xhost +
-xset s off || echo "xset x off FAILED" >> /tmp/log.txt
-xset -dpms || echo "xset -dpms FAILED" >> /tmp/log.txt
+# Put stuff here if you want it to run every minute.
+# :-)
 ''' )
     system_or_die( 'chmod +x %s%s' % ( mountpoint, '/usr/local/bin/i_run_every_minute.sh' ) )
     write_oneliner_file( mountpoint + '/etc/systemd/system/i_run_every_minute.service', '''
@@ -668,4 +682,4 @@ IgnoreSIGPIPE=no
 
 [Install]
 Alias=display-manager.service
-    ''' )
+''' )
