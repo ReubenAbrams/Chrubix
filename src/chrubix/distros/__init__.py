@@ -73,6 +73,7 @@ simple-scan macchanger brasero pm-utils mousepad keepassx claws-mail bluez-utils
                               'default wm':chrubix.utils.g_default_window_manager,
                               'enable user lists':True,
                               'autologin':True,
+                              'use greeter gui':False,  # Technically, we always call greeter. This switch forces us to use (or not use) the 'scary eyes' X (GUI) side of the greeter.
                               'user':'guest'
                               }
         self.__dict__.update( kwargs )
@@ -784,6 +785,7 @@ MEH: No encryption. No duress password. Changes are permanent. Guest Mode is sti
                 self.redo_mbr_for_plain_root( self.mountpoint )
 
     def squash_OS( self ):
+        self.lxdm_settings['use greeter gui'] = True
         save_distro_record( distro_rec = self, mountpoint = self.mountpoint )
 #        self.generate_squashfs_of_my_OS()
 #        system_or_die( 'mkdir -p /tmp/ro /tmp/squashfs_dir' )
@@ -1026,10 +1028,6 @@ MEH: No encryption. No duress password. Changes are permanent. Guest Mode is sti
             system_or_die( 'chmod +x %s/usr/local/bin/Chrubix/bash/%s' % ( self.mountpoint, f ) )
         mytitle = ( self.name + ( '' if self.branch is None else ' ' + self.branch ) ).title()
         do_a_sed( '%s/usr/local/bin/Chrubix/src/ui/AlarmistGreeter.ui' % ( self.mountpoint ), 'W E L C O M E', 'Welcome to %s' % ( mytitle ) )
-        write_oneliner_file( '%s/usr/local/bin/greeter.sh' % ( self.mountpoint ), '''#!/bin/sh
-sudo /usr/local/bin/chrubix.sh greeter
-exit $?
-''' )
         os.system( 'rm -f %s/usr/local/bin/redo_mbr' % ( self.mountpoint ) )
         system_or_die( 'chmod +x %s/usr/local/bin/*' % ( self.mountpoint ) )
 #        chroot_this( self.mountpoint, 'chmod +x /usr/local/bin/*' )
@@ -1370,7 +1368,7 @@ WantedBy=multi-user.target
         fifth_stage = ( 
 #                                self.forcibly_rebuild_initramfs_and_vmlinux,
                                 self.install_vbutils_from_cbook,  # just in case the new user's tools differ from the original builder's tools
-                                self.migrate_or_squash_OS,  # Every class but Alarmist will use migrate. Alarmist uses squash.
+                                self.migrate_or_squash_OS,  # Every class but Alarmist will use migrate_or_squash. Alarmist uses squash.
                                 self.unmount_and_clean_up
                                 )
         all_my_funcs = first_stage + second_stage + third_stage + fourth_stage + fifth_stage

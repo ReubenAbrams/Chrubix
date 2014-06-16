@@ -21,8 +21,7 @@ cd /usr/local/bin/Chrubix/src
 if [ "$1" = "tinker" ] ; then
 	python3 tinker.py $@
 elif [ "$1" = "greeter" ] ; then
-	echo "exec python3 greeter.py" > /usr/local/bin/greeter.rc
-	startx /usr/local/bin/greeter.rc
+	python3 greeter.py $@
 else
 	python3 main.py -Koff -Poff -d$dev -r$rootdev -s$sparedev -k$kerndev -D$distroname
 fi

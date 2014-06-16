@@ -8,7 +8,7 @@
 
 import sys
 import os
-from chrubix.utils import logme, save_distro_record, load_distro_record, \
+from chrubix.utils import logme, save_distro_record, load_distro_record, write_oneliner_file, \
                     system_or_die, configure_paranoidguestmode_before_calling_lxdm, failed
 from chrubix.utils.postinst import configure_lxdm_behavior
 from chrubix import generate_distro_record_from_name
@@ -225,21 +225,32 @@ class AlarmistGreeter( QtGui.QDialog, Ui_dlgAlarmistGreeter ):
 
 
 if __name__ == "__main__":
-    logme( 'greeter.py --- starting' )
+    logme( 'greeter.py --- starting w/ params %s' % ( str( sys.argv ) ) )
     distro = load_distro_record()
     logme( 'greeter.py --- loaded distro record (yay)' )
     set_up_guest_homedir()
     logme( 'greeter.py --- guest homedir set up OK' )
-    failed( 'booo' )
-#    if 0 == os.system( '''mount | fgrep " / " | fgrep "unionfs"''' ):
-#        res = actually_call_the_greeter_gui( distro )
-#        if res != 0:
-#            logme( 'greeter.py --- ending sorta prematurely; res=%d' % ( res ) )
-#            sys.exit( res )
+    if distro.lxdm_settings['use greeter gui']:
+        logme( 'greeter.py --- using greeter gui' )
+        if len( sys.argv ) <= 1 or sys.argv[1] != 'X':
+            logme( 'greeter.py --- starting XWindow and asking it to run the greeter gui' )
+            write_oneliner_file( '/usr/local/bin/greeter.rc', 'exec python3 greeter.py X' )
+            res = os.system( 'startx /usr/local/bin/greeter.rc' )
+            logme( 'greeter.py --- back from calling XWindow to run greeter gui; res=%d' % ( res ) )
+        else:
+            logme( 'greeter.py --- actually running greeter gui' )
+            res = actually_call_the_greeter_gui( distro )
+            logme( 'greeter.py --- back from actually running greeter gui; res=%d' % ( res ) )
+        if res != 0:
+            logme( 'greeter.py --- ending sorta prematurely; res=%d' % ( res ) )
+            sys.exit( res )
     if os.path.exists( '/etc/.first_time_ever' ):
         do_audio_and_network_stuff()
         os.unlink( '/etc/.first_time_ever' )
+    logme( 'greeter.py --- configuring lxdm behavior' )
     configure_lxdm_behavior( '/', distro.lxdm_settings )
+    logme( 'greeter.py --- saving distro record' )
+    save_distro_record( distro )
     logme( 'greeter.py --- calling lxdm' )
     res = os.system( 'lxdm' )
     logme( 'greeter.py --- back from lxdm; exiting now; res=%d' % ( res ) )
