@@ -8,20 +8,76 @@
 
 import sys
 import os
-from chrubix.utils import configure_paranoidguestmode_before_calling_lxdm
+from chrubix.utils import logme, save_distro_record, load_distro_record, \
+                    system_or_die, configure_paranoidguestmode_before_calling_lxdm, failed
+from chrubix.utils.postinst import configure_lxdm_behavior
+from chrubix import generate_distro_record_from_name
+import hashlib
 
 
-os.system( 'rm -f /chrubix.log' )
+GUEST_HOMEDIR = '/tmp/.guest'
+LXDM_CONF = '/etc/lxdm/lxdm.conf'
 
-if os.system( 'mount | grep /dev/mapper/encstateful &> /dev/null' ) == 0 \
-or os.system( 'mount | grep hfs &> /dev/null' ) == 0:
-    # compile Qt Creator UI files into Python bindings
-    os.system( "rm -f ui_AlarmistGreeter.py ui/ui_AlarmistGreeter.py qrc_resources.py" )
-    os.system( 'export PATH=/opt/local/bin:$PATH' )
-    for fname in [f for f in os.listdir( "ui" ) if f[-3:] == ".ui" and f[0] != "." ]:
-        os.system( "PATH=/opt/local/bin:$PATH pyuic4 -o ui/ui_" + fname[:-3] + ".py ui/" + fname[:-3] + ".ui" )
-        print ( "Processing " + fname )
-    os.system( "PATH=/opt/local/bin:$PATH pyrcc4 -py3 -o resources_rc.py ui/resources.qrc" )
+
+def set_up_guest_homedir():
+    logme( 'greeter.py --- set_up_guest_homedir() --- entering' )
+    for cmd in ( 
+                'mkdir -p %s' % ( GUEST_HOMEDIR ),
+                'chmod 700 %s' % ( GUEST_HOMEDIR ),
+                'tar -Jxf /usr/local/bin/Chrubix/blobs/settings/default_guest_files.tar.xz -C %s' % ( GUEST_HOMEDIR ),
+                'chown -R guest.guest %s' % ( GUEST_HOMEDIR ),
+                'chmod 755 %s' % ( LXDM_CONF ),
+                ):
+        if 0 != os.system( cmd ):
+            logme( '%s ==> failed' % ( cmd ) )
+    logme( 'greeter.py --- set_up_guest_homedir() --- leaving' )
+
+
+def do_audio_and_network_stuff():
+    logme( 'greeter.py --- do_audio_and_network_stuff() --- entering' )
+    for cmd in ( 
+                'systemctl start NetworkManager',
+                'systemctl enable privoxy',
+                'amixer sset Speaker unmute',
+                'amixer sset Speaker 30%',
+                '''for q in `amixer | grep Speaker | cut -d"'" -f2 | tr ' ' '/'`; do g=`echo "$q" | tr '/' ' '`; amixer sset "$g" unmute; done''',
+                'which alsactl &> /dev/null && alsactl store &> /dev/null'
+                ):
+        if 0 != os.system( cmd ):
+            logme( '%s ==> failed' % ( cmd ) )
+    logme( 'greeter.py --- do_audio_and_network_stuff() --- leaving' )
+
+
+def actually_call_the_greeter_gui( distro ):
+    logme( 'greeter.py --- running greeter gui' )
+    os.system( 'xset s off' )
+    os.system( 'xset -dpms' )
+    if os.system( 'mount | grep /dev/mapper/encstateful &> /dev/null' ) == 0 \
+    or os.system( 'mount | grep hfs &> /dev/null' ) == 0:
+        # compile Qt Creator UI files into Python bindings
+        os.system( "rm -f ui_AlarmistGreeter.py ui/ui_AlarmistGreeter.py qrc_resources.py" )
+        os.system( 'export PATH=/opt/local/bin:$PATH' )
+        for fname in [f for f in os.listdir( "ui" ) if f[-3:] == ".ui" and f[0] != "." ]:
+            os.system( "PATH=/opt/local/bin:$PATH pyuic4 -o ui/ui_" + fname[:-3] + ".py ui/" + fname[:-3] + ".ui" )
+            print ( "Processing " + fname )
+        os.system( "PATH=/opt/local/bin:$PATH pyrcc4 -py3 -o resources_rc.py ui/resources.qrc" )
+    app = QtGui.QApplication( sys.argv )
+    window = AlarmistGreeter()
+    window.show()
+    window.raise_()
+    res = app.exec_()
+    logme( 'greeter.py --- back from greeter gui' )
+    return res
+
+
+# ---------------------------------------------------------------------------
+
+
+
+
+
+
+
 
 from PyQt4.QtCore import SIGNAL, SLOT, pyqtSignature
 from PyQt4 import QtGui, uic
@@ -169,16 +225,26 @@ class AlarmistGreeter( QtGui.QDialog, Ui_dlgAlarmistGreeter ):
 
 
 if __name__ == "__main__":
-    os.system( 'xset s off' )
-    os.system( 'xset -dpms' )
+    logme( 'greeter.py --- starting' )
+    distro = load_distro_record()
+    logme( 'greeter.py --- loaded distro record (yay)' )
+    set_up_guest_homedir()
+    logme( 'greeter.py --- guest homedir set up OK' )
+    failed( 'booo' )
+#    if 0 == os.system( '''mount | fgrep " / " | fgrep "unionfs"''' ):
+#        res = actually_call_the_greeter_gui( distro )
+#        if res != 0:
+#            logme( 'greeter.py --- ending sorta prematurely; res=%d' % ( res ) )
+#            sys.exit( res )
+    if os.path.exists( '/etc/.first_time_ever' ):
+        do_audio_and_network_stuff()
+        os.unlink( '/etc/.first_time_ever' )
+    configure_lxdm_behavior( '/', distro.lxdm_settings )
+    logme( 'greeter.py --- calling lxdm' )
+    res = os.system( 'lxdm' )
+    logme( 'greeter.py --- back from lxdm; exiting now; res=%d' % ( res ) )
+    sys.exit( res )
 
-    app = QtGui.QApplication( sys.argv )
-    window = AlarmistGreeter()
-    window.show()
-    window.raise_()
-#    if os.system("mount | grep -i crypt") == 0:
-#        dlg = ReconfigureorexitDialog()
-    sys.exit( app.exec_() )
 
 
 

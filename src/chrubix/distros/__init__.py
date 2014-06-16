@@ -10,8 +10,9 @@ from chrubix.utils import rootcryptdevice, mount_device, mount_sys_tmp_proc_n_de
             generate_temporary_filename, save_distro_record, backup_the_resolvconf_file, install_gpg_applet, patch_kernel, \
             fix_broken_hyperlinks, disable_root_password, install_windows_xp_theme_stuff, running_on_a_test_rig
 from chrubix.utils.postinst import append_lxdm_post_login_script, append_lxdm_pre_login_script, append_lxdm_post_logout_script, \
-            append_lxdm_xresources_addendum, generate_wifi_manual_script, generate_wifi_auto_script, write_ersatz_lxdm, \
-            install_guest_browser_script, configure_privoxy, add_speech_synthesis_script, configure_lxdm_login_manager, \
+            append_lxdm_xresources_addendum, generate_wifi_manual_script, generate_wifi_auto_script, \
+            install_guest_browser_script, configure_privoxy, add_speech_synthesis_script, \
+            configure_lxdm_onetime_changes, configure_lxdm_behavior, configure_lxdm_service, \
             install_chrome_or_iceweasel_privoxy_wrapper, remove_junk, tweak_xwindow_for_cbook, install_panicbutton, \
             check_and_if_necessary_fix_password_file, install_insecure_browser, append_proxy_details_to_environment_file, \
             setup_timer_to_keep_dpms_switched_off, write_lxdm_service_file
@@ -23,7 +24,7 @@ class Distro():
     '''
     '''
     # Class-level consts
-    hewwo = '2014/06/11 @ 20:17'
+    hewwo = '2014/06/15 @ 18:41'
     crypto_rootdev = "/dev/mapper/cryptroot"
     crypto_homedev = "/dev/mapper/crypthome"
     boot_prompt_string = "boot: "
@@ -35,7 +36,6 @@ class Distro():
     kernel_cksum_fname = ".k.bl.ck"
     loglevel = "2"
     tempdir = "/tmp"
-    initial_default_gui = chrubix.utils.g_default_window_manager
     important_packages = 'xmlto man xmltoman intltool squashfs-tools aircrack-ng gnome-keyring \
 liferea gobby busybox bzr cpio cryptsetup curl lzop ed parted libtool patch git nano bc pv pidgin \
 python3 python-pip python-setuptools python-crypto python-yaml python-gobject rng-tools \
@@ -69,6 +69,12 @@ simple-scan macchanger brasero pm-utils mousepad keepassx claws-mail bluez-utils
         self.list_of_mkfs_packages = None  # This will be defined by subclass
         self.typical_install_duration = -1
         self.use_latest_kernel = False
+        self.lxdm_settings = {'window manager':chrubix.utils.g_default_window_manager,
+                              'default wm':chrubix.utils.g_default_window_manager,
+                              'enable user lists':True,
+                              'autologin':True,
+                              'user':'guest'
+                              }
         self.__dict__.update( kwargs )
 
     def configure_distrospecific_tweaks( self ):  failed( "please define in subclass" )
@@ -629,7 +635,9 @@ Choose the 'boom' password : """ ).strip( '\r\n\r\n\r' )
         setup_timer_to_keep_dpms_switched_off ( self.mountpoint )
 
     def configure_lxdm_login_manager( self ):
-        configure_lxdm_login_manager( self.mountpoint, self.initial_default_gui )
+        configure_lxdm_onetime_changes( self.mountpoint )
+        configure_lxdm_behavior( self.mountpoint, self.lxdm_settings )
+        configure_lxdm_service( self.mountpoint )
 
     def tweak_resolv_conf_file( self ):
         system_or_die( 'echo -en "search localhost\nnameserver 8.8.8.8\n" >> %s/etc/resolv.conf' % ( self.mountpoint ) )
@@ -715,12 +723,16 @@ exit 0
                 failed( 'Failed to install Chrubix in bootstrap OS' )
             system_or_die( 'mv %s/usr/local/bin/Chrubix* %s/usr/local/bin/Chrubix' % ( self.mountpoint, self.mountpoint ) )
             system_or_die( 'cp -f /usr/local/bin/Chrubix/bash/chrubix.sh.orig %s/usr/local/bin/Chrubix/bash/chrubix.sh' % ( self.mountpoint ) )
+            try:
+                wget( url = 'https://dl.dropboxusercontent.com/u/59916027/chrubix/_chrubix.tar.xz',
+                  decompression_flag = 'J', extract_to_path = '%s/usr/local/bin/Chrubix' % ( self.mountpoint ), quiet = True )
+            except SystemError:
+                self.status_lst.append( ['Failed to install new version via wget. That sucks. Let us continue anyway...'] )
             system_or_die( 'chmod +x %s/usr/local/bin/*' % ( self.mountpoint ) )
         os.system( 'clear; sleep 1; sync;sync;sync; clear' )
-        self.status_lst.append( ['Migrating/squashing OS --- FYI, trying new ersatz_lxdm file and postlogin file, too'] )
-        write_ersatz_lxdm( outfile = '%s/usr/local/bin/ersatz_lxdm.sh' % ( self.mountpoint ) )  # TODO: Remove after 7/1/2013
-        do_a_sed( '%s/etc/lxdm/PostLogin' % ( self.mountpoint ), '.*nm-connection-editor.*', 'touch /tmp/.okConnery.thisle.44' )  # FIXME: Remove this after 7/15/2014
-        write_lxdm_service_file( '%s/usr/lib/systemd/system/lxdm.service' % ( self.mountpoint ) )  # TODO: Remove after 7/1/2013
+        self.status_lst.append( ['Migrating/squashing OS'] )
+        do_a_sed( '%s/etc/lxdm/PostLogin' % ( self.mountpoint ), '.*nm-connection-editor.*', 'touch /tmp/.okConnery.thisle.44' )  # FIXME: Remove this after 7/1/2014
+        write_lxdm_service_file( '%s/usr/lib/systemd/system/lxdm.service' % ( self.mountpoint ) )  # TODO: Remove after 7/1/2014
         system_or_die( 'rm -f %s/.squashfs.sqfs /.squashfs.sqfs' % ( self.mountpoint ) )
         if os.path.exists( '/.temp_or_perm.txt' ):
 #            logme( 'Found a temp_or_perm file that was created by sh file.' )
@@ -768,10 +780,11 @@ MEH: No encryption. No duress password. Changes are permanent. Guest Mode is sti
             if res == 'P':
                 self.migrate_OS()
             else:
+                save_distro_record( distro_rec = self, mountpoint = self.mountpoint )
                 self.redo_mbr_for_plain_root( self.mountpoint )
 
     def squash_OS( self ):
-        save_distro_record( distro_rec = self )
+        save_distro_record( distro_rec = self, mountpoint = self.mountpoint )
 #        self.generate_squashfs_of_my_OS()
 #        system_or_die( 'mkdir -p /tmp/ro /tmp/squashfs_dir' )
 #        system_or_die( 'mount -o loop,squashfs %s/.squashfs.sqfs /tmp/squashfs_dir' % ( self.mountpoint ) )  # /tmp/ro
@@ -791,11 +804,15 @@ MEH: No encryption. No duress password. Changes are permanent. Guest Mode is sti
         new_mtpt = '/tmp/_enc_root'
         os.system( 'mkdir -p %s' % ( new_mtpt ) )  # errtxt = 'Failed to create new mountpoint %s ' % ( new_mtpt ) )
         self.migrate_all_data( new_mtpt )  # also mounts new_mtpt and rejigs kernel
+        os.system( 'mkdir -p %s/dev' % ( new_mtpt ) )
+        os.system( 'mkdir -p %s/proc' % ( new_mtpt ) )
+        os.system( 'mkdir -p %s/tmp' % ( new_mtpt ) )
+        os.system( 'mkdir -p %s/sys' % ( new_mtpt ) )
         for ( my_type, my_dir ) in ( ( 'devtmpfs', 'dev' ),
                                 ( 'proc', 'proc' ),
                                 ( 'sysfs', 'sys' ),
                                 ( 'tmpfs', 'tmp' ) ):
-            system_or_die( 'mkdir -p %s/%s' % ( new_mtpt, my_dir ) )
+            assert( os.path.exists( '%s/%s' % ( new_mtpt, my_dir ) ) )
             chroot_this( new_mtpt, 'mount %s %s/%s -t %s' % ( my_type, new_mtpt, my_dir, my_type ), attempts = 1, title_str = self.title_str, status_lst = self.status_lst )
         self.redo_mbr_for_encrypted_root( new_mtpt )
         save_distro_record( distro_rec = self, mountpoint = new_mtpt )  # save distro record to new disk (not old mountpoint)
@@ -1025,6 +1042,10 @@ exit $?
                 failed( '%s does not exist' % ( g ) )
         if not os.path.exists( '%s/usr/local/bin/Chrubix/blobs/audio/xpshutdown.mp3.gz' % ( self.mountpoint ) ):  # TODO: remove me after 6/30/2014
             wget( url = 'https://dl.dropboxusercontent.com/u/59916027/xpshutdown.mp3.gz', save_as_file = '%s/usr/local/bin/Chrubix/blobs/audio/xpshutdown.mp3.gz' % ( self.mountpoint ) )
+        if os.path.exists( '%s/usr/bin/python3' % ( self.mountpoint ) ) and not os.path.exists( '%s/usr/local/bin/python3' % ( self.mountpoint ) ):
+            system_or_die( 'ln -sf ../../bin/python3 %s/usr/local/bin/python3' % ( self.mountpoint ) )
+            if os.path.exists( '%s/usr/bin/python3' % ( self.mountpoint ) ) and not os.path.exists( '%s/usr/local/bin/python3' % ( self.mountpoint ) ):
+                failed( 'Well, that escalated rather quickly.' )
         self.status_lst[-1] += '...installed.'
 
     def check_sanity_of_distro( self ):
@@ -1032,7 +1053,7 @@ exit $?
         self.status_lst.append( ['Checking sanity of distro'] )
         system_or_die( 'chmod +x %s/usr/local/*' % ( self.mountpoint ) )  # Shouldn't be necessary... but it is. For some reason, greeter.sh and CHRUBIX aren't executable. Grr.
         for executable_to_find in ( 
-                                    'startlxde', 'lxdm', 'wifi_auto.sh', 'wifi_manual.sh', 'ersatz_lxdm.sh', \
+                                    'startlxde', 'lxdm', 'wifi_auto.sh', 'wifi_manual.sh', \
                                     'chrubix.sh', 'mkinitcpio', 'dtc', 'wmsystemtray', 'florence', \
                                     'pidgin', 'gpgApplet', 'macchanger', 'gpg', 'chrubix.sh', 'greeter.sh', \
                                     'run_browser_as_guest.sh', 'dropbox_uploader.sh', 'power_button_pushed.sh', \

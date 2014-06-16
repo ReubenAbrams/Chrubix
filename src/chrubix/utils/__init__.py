@@ -15,7 +15,6 @@ import string
 import random
 import time
 import sys
-import urwid
 import crypt
 import logging
 
@@ -58,6 +57,7 @@ def call_binary_and_show_progress( binary_info, title_str, foot_str, status_lst,
     title_str:      e.g. 'This is the title'
     status_lst:     e.g. ['First line', 'Second line, '..and so on']
     '''
+    import urwid
     if get_expected_duration_of_install() < 0:
         raise RuntimeError( 'You should specify maximum progress in the subclass of your Linux distro record.' )
     max_height = 28
@@ -267,8 +267,10 @@ def chroot_this( mountpoint, cmd, on_fail = None, attempts = 3, title_str = None
     my_executable_script = generate_temporary_filename( '/tmp' )
     if not os.path.isdir( mountpoint ):
         failed( '%s not found --- are you sure the chroot is operational?' % ( mountpoint ) )
+
     f = open( mountpoint + my_executable_script, 'wb' )
     outstr = '#!/bin/sh\n%s\n%s\nexit $?\n' % ( proxy_info, cmd )
+    outstr_without_proxy = '#!/bin/sh\n%s\nexit $?\n' % ( cmd )
 #    logme( 'outstr = %s' % ( outstr ) )
     f.write( outstr.encode( 'utf-8' ) )
     f.close()
@@ -296,17 +298,23 @@ def chroot_this( mountpoint, cmd, on_fail = None, attempts = 3, title_str = None
 
 def load_distro_record( mountpoint = '/' ):
     import pickle
+    import binascii
     f = open( '%s/etc/.distro.rec' % ( mountpoint ), 'rb' )
-    distro_rec = pickle.loads( f )
+    uuencoded_pickled_rec = f.readline()
     f.close()
+    pickled_record = binascii.a2b_base64( uuencoded_pickled_rec )
+    distro_rec = pickle.loads( pickled_record )
     return distro_rec
 
 
 def save_distro_record( distro_rec = None, mountpoint = '/' ):
     import pickle
+    import binascii
     assert( distro_rec is not None )
+    pickled_record = pickle.dumps( distro_rec )
+    uuencoded_pickled_rec = binascii.b2a_base64( pickled_record )
     f = open( '%s/etc/.distro.rec' % ( mountpoint ), 'wb' )
-    f.write( pickle.dumps( distro_rec ) )
+    f.write( uuencoded_pickled_rec )
     f.close()
 
 
@@ -482,8 +490,6 @@ def install_mp3_files( mountpoint ):
 #        and os.path.exists( '%s/opt/freenet/run.sh' % ( self.mountpoint ) ):
 #            chroot_this( self.mountpoint, 'ln -sf /opt/freenet/run.sh /usr/local/bin/start-freenet.sh' )
 #        chroot_this( self.mountpoint, 'chown -R freenet.freenet /opt/freenet' )
-
-
 
 
 def running_on_a_test_rig():

@@ -209,6 +209,7 @@ Acquire::https::Proxy "https://%s/";
         for pkg_name in self.list_of_mkfs_packages:
             chroot_this( self.mountpoint, 'sudo apt-mark hold %s' % ( pkg_name ) )
         self.status_lst[-1] += '...installed.'
+        write_oneliner_file( '/etc/X11/default-display-manager', '/usr/local/bin/greeter.sh' )
         logme( 'DebianDistro - configure_distrospecific_tweaks() - leaving' )
 
     def install_final_push_of_packages( self ):

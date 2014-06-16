@@ -55,11 +55,6 @@ which start-freenet.sh &> /dev/null && start-freenet.sh start &
 
 touch /tmp/.okConnery.thisle.44
 
-ps wax | fgrep mate-session | fgrep -v grep && soundfile=winxp || soundfile="" # pghere
-if [ "$soundfile" != "" ] ; then
-    (pulseaudio -k; sleep 2; mpg123 /etc/.mp3/$soundfile.mp3) &
-fi
-
 xset s off
 xset -dpms
 
@@ -67,8 +62,6 @@ sleep 1
 if which florence &> /dev/null ; then
   florence &
 fi
-
-[ -e "/tmp/.do-not-automatically-connect" ] && exit 0
 
 if ! ps wax | fgrep nm-applet | fgrep -v grep &> /dev/null ; then
   nm-applet &
@@ -79,23 +72,14 @@ if [ "`ps wax | grep nm-applet | grep -v grep | cut -d' ' -f1,2 | tr ' ' '\n' | 
  kill `ps wax | grep nm-applet | grep -v grep | cut -d' ' -f1,2 | tr ' ' '\n' | grep "[0-9][0-9]" | tail -n1`
 fi
 
-r=0
-while [ "$r" -le "3" ] ; do
-  if ping -c1 -W3 8.8.8.8 ; then
-    break
-  fi
-  r=$(($r+1))
-  sleep 1
-done
+if ps wax | fgrep mate-session | fgrep -v grep ; then
+  # WinXP mode. Cool. Play the sound.
+  mpg123 /etc/.mp3/winxp.mp3
+else
+  sleep 4
+fi
 
-r=0
-while [ "$r" -le "3" ] ; do
-  if ping -c1 -W3 8.8.8.8 ; then
-    break
-  fi
-  r=$(($r+1))
-  sleep 1
-done
+[ -e "/tmp/.do-not-automatically-connect" ] && exit 0
 
 if ! ping -c1 -W5 8.8.8.8 ; then
   urxvt -geometry 120x20+0+320 -name "WiFi Setup" -e sh -c "/usr/local/bin/wifi_manual.sh" &
@@ -262,102 +246,6 @@ exit $?
     system_or_die( 'chmod +x %s' % ( outfile ) )
 
 
-
-def write_ersatz_lxdm( outfile ):
-# Setup ersatz lxdm
-    write_oneliner_file( outfile, r'''#!/bin/bash
-
-. /etc/bash.bashrc
-. /etc/profile
-
-
-GUEST_HOMEDIR=/tmp/.guest
-f=/etc/lxdm/lxdm.conf
-liu=/tmp/.logged_in_user
-
-
-set_up_guest_homedir() {
-    echo "`date` ersatz_lxdm --- set_up_guest_homedir() --- entering" >> /tmp/log.txt
-    mkdir -p $GUEST_HOMEDIR
-    chmod 700 $GUEST_HOMEDIR
-    tar -Jxf /usr/local/bin/Chrubix/blobs/settings/default_guest_files.tar.xz -C $GUEST_HOMEDIR
-    chown -R guest.guest $GUEST_HOMEDIR
-    chmod 755 $f
-    echo "`date` ersatz_lxdm --- set_up_guest_homedir() --- leaving" >> /tmp/log.txt
-}
-
-
-fix_sound_and_start_network_stuff() {
-    echo "`date` ersatz_lxdm --- fix_sound_...() --- entering" >> /tmp/log.txt
-    systemctl start NetworkManager      # Shouldn't be necessary...
-    systemctl enable privoxy            # Shouldn't be necessary...
-    amixer sset Speaker unmute &> /dev/null  || echo "WARNING - unable to set speaker on unmute"
-    amixer sset Speaker 30%    &> /dev/null  || echo "WARNING - unable to set speaker volume"
-    for q in `amixer | grep Speaker | cut -d"'" -f2 | tr ' ' '/'`; do
-        g=`echo "$q" | tr '/' ' '`
-        amixer sset "$g" unmute
-    done
-    which alsactl &> /dev/null && alsactl store &> /dev/null # I've no idea if this helps or not
-    echo "`date` ersatz_lxdm --- fix_sound_...() --- leaving" >> /tmp/log.txt
-}
-
-
-run_greeter_etc() {
-    echo "`date` ersatz_lxdm --- run_greeter_etc() --- entering" >> /tmp/log.txt
-    while [ "1" = "1" ] ; do
-        cp -f $f.first $f
-        greeter.sh
-        lxdm
-    done
-    echo "`date` ersatz_lxdm --- run_greeter_etc() --- leaving" >> /tmp/log.txt
-}
-
-
-run_first_ever_ever() {
-    echo "`date` ersatz_lxdm --- run_first_ever_ever() --- entering" >> /tmp/log.txt
-    fix_sound_and_start_network_stuff
-    rm -f /etc/.first_time_ever
-    cp -f $f.first $f
-    lxdm
-    echo "`date` ersatz_lxdm --- run_first_ever_ever() --- leaving" >> /tmp/log.txt
-}
-
-
-run_for_1st_time_in_this_boot() {
-    echo "`date` ersatz_lxdm --- run_for_1st_time_in_this_boot() --- entering" >> /tmp/log.txt
-    cp -f $f.first $f
-    echo 0 > /proc/sys/kernel/hung_task_timeout_secs
-    lxdm
-    echo "`date` ersatz_lxdm --- run_for_1st_time_in_this_boot() --- leaving" >> /tmp/log.txt
-}
-
-run_for_Nth_time_in_this_boot() {
-    echo "`date` ersatz_lxdm --- run_for_Nth_time_in_this_boot() --- entering" >> /tmp/log.txt
-    cp -f $f.second $f
-    lxdm
-    echo "`date` ersatz_lxdm --- run_for_Nth_time_in_this_boot() --- leaving" >> /tmp/log.txt
-}
-
-
-# ---------------------------------------------------------------------------
-
-
-set_up_guest_homedir
-if [ -e "/etc/.first_time_ever" ] ; then
-    run_first_ever_ever
-elif mount | fgrep " / " | fgrep "unionfs"; then
-    run_greeter_etc
-elif [ -e "/tmp/.okConnery.thisle.44" ] ; then
-    run_for_Nth_time_in_this_boot
-else
-    run_for_1st_time_in_this_boot
-fi
-echo "`date` --- ersatz_lxdm ending" >> /tmp/log.txt
-exit 0
-''' )
-    system_or_die( 'chmod +x %s' % ( outfile ) )
-
-
 def configure_privoxy( mountpoint ):
     f = open( '%s/etc/privoxy/config' % ( mountpoint ), 'a' )
     f.write( '''
@@ -410,8 +298,8 @@ rm -f $tmpfile
 ''' )
     system_or_die( 'chmod +x %s/usr/local/bin/sayit.sh' % ( mountpoint ) )
 
-def configure_lxdm_login_manager( mountpoint, guest_window_manager ):
-    assert( os.path.exists( '%s/%s' % ( mountpoint, guest_window_manager ) ) )
+
+def configure_lxdm_onetime_changes( mountpoint ):
     if 0 != chroot_this( mountpoint, 'which lxdm' ):
             failed( 'You haven ot installed LXDM yet.' )
     f = '%s/etc/WindowMaker/WindowMaker' % ( mountpoint )
@@ -419,17 +307,7 @@ def configure_lxdm_login_manager( mountpoint, guest_window_manager ):
         do_a_sed( f, 'MouseLeftButton', 'flibbertygibbet' )
         do_a_sed( f, 'MouseRightButton', 'MouseLeftButton' )
         do_a_sed( f, 'flibbertygibbet', 'MouseRightButton' )
-    f = '%s/etc/lxdm/lxdm.conf' % ( mountpoint )
-    if not os.path.isfile( f ):
-        failed( "%s does not exist; configure_lxdm_login_manager() cannot run properly. That sucks." % ( f ) )
-    do_a_sed( f, 'disable=0', 'disable=1' )
-    do_a_sed( f, 'black=.*', 'black=libnss pulseaudio festival tor' )
-    do_a_sed( f, 'white=.*', 'white=guest' )
-    system_or_die( r'cat %s | sed s/.*autologin=.*/autologin=guest/ | sed s/.*skip_password=.*/skip_password=1/ > %s' % ( f, f + '.first' ) )
-    do_a_sed( f + '.first', '.*session=.*', 'session=%s' % ( guest_window_manager ) )
-    system_or_die( 'cat %s | sed s/.*autologin=.*/###autologin=/ | sed s/.*skip_password=.*/skip_password=1/ > %s.second' % ( f, f ) )
-    system_or_die( 'cp -f %s.first %s' % ( f, f ) )
-    system_or_die( 'echo "ps wax | fgrep mate-session | fgrep -v grep && mpg123 /etc/.mp3/xpshutdown.mp3" >> %s/etc/lxdm/PreLogout' % ( mountpoint ) )
+#    system_or_die( 'echo "ps wax | fgrep mate-session | fgrep -v grep && mpg123 /etc/.mp3/xpshutdown.mp3" >> %s/etc/lxdm/PreLogout' % ( mountpoint ) )
     append_lxdm_post_login_script( '%s/etc/lxdm/PostLogin' % ( mountpoint ) )  # Append. Don't replace.
     append_startx_addendum( '%s/etc/lxdm/Xsession' % ( mountpoint ) )  # Append. Don't replace.
     append_startx_addendum( '%s/etc/X11/xinit/xinitrc' % ( mountpoint ) )  # Append. Don't replace.
@@ -441,7 +319,31 @@ def configure_lxdm_login_manager( mountpoint, guest_window_manager ):
     do_a_sed( '%s/etc/X11/xinit/xinitrc' % ( mountpoint ), 'exec .*', '' )  # exec /usr/local/bin/greeter.sh' )
 #    system_or_die( 'echo "exec /usr/local/bin/greeter.sh" >> %s/etc/xinitrc/xinitrc' % ( mountpoint ) ) # start (Python) greeter at end of
     write_oneliner_file( '%s/etc/.first_time_ever' % ( mountpoint ), 'yep' )
-    write_ersatz_lxdm( outfile = '%s/usr/local/bin/ersatz_lxdm.sh' % ( mountpoint ) )
+
+
+def configure_lxdm_behavior( mountpoint, lxdm_settings ):
+    logme( 'configure_lxdm_behavior --- entering' )
+    logme( str( lxdm_settings ) )
+    assert( os.path.exists( '%s/%s' % ( mountpoint, lxdm_settings['window manager'] ) ) )
+    f = '%s/etc/lxdm/lxdm.conf' % ( mountpoint )
+    if not os.path.isfile( f ):
+        failed( "%s does not exist; configure_lxdm_login_manager() cannot run properly. That sucks." % ( f ) )
+    if lxdm_settings['enable user lists']:
+        do_a_sed( f, 'disable=.*', 'disable=0' )
+        do_a_sed( f, 'black=.*', 'black=root bin daemon mail ftp http uuidd dbus nobody systemd-journal-gateway systemd-timesync systemd-network avahi polkitd colord git rtkit freenet i2p lxdm tor privoxy' )
+        do_a_sed( f, 'white=.*', 'white=' )  # %s guest shutdown' )
+    else:
+        do_a_sed( f, 'disable=.*', 'disable=1' )
+    if lxdm_settings['autologin']:
+        do_a_sed( f, '.*autologin=.*', 'autologin=%s' % ( lxdm_settings['user'] ) )
+        do_a_sed( f, '.*skip_password=.*', 'skip_password=1' )
+    else:
+        do_a_sed( f, '.*autologin=.*', '###autologin=' )
+        do_a_sed( f, '.*skip_password=.*', 'skip_password=%d' % ( 1 if lxdm_settings['user'] == 'guest' else 0 ) )
+    logme( 'configure_lxdm_behavior --- leaving' )
+
+
+def configure_lxdm_service( mountpoint ):
     if 0 != chroot_this( mountpoint, 'systemctl enable lxdm', attempts = 1 ):
         if 0 != chroot_this( mountpoint, 'ln -sf /usr/lib/systemd/system/lxdm.service /etc/systemd/system/display-manager.service' ):
             failed( 'Failed to enable lxdm' )
@@ -678,7 +580,7 @@ Conflicts=getty@tty1.service plymouth-quit.service
 After=systemd-user-sessions.service getty@tty1.service plymouth-quit.service
 
 [Service]
-ExecStart=/usr/local/bin/ersatz_lxdm.sh
+ExecStart=/usr/local/bin/greeter.sh
 Restart=always
 IgnoreSIGPIPE=no
 
