@@ -8,6 +8,7 @@
 
 import sys
 import os
+import datetime
 from chrubix.utils import logme, save_distro_record, load_distro_record, write_oneliner_file, \
                     system_or_die, configure_paranoidguestmode_before_calling_lxdm, failed
 from chrubix.utils.postinst import configure_lxdm_behavior
@@ -251,8 +252,19 @@ if __name__ == "__main__":
     configure_lxdm_behavior( '/', distro.lxdm_settings )
     logme( 'greeter.py --- saving distro record' )
     save_distro_record( distro )
-    logme( 'greeter.py --- calling lxdm' )
-    res = os.system( 'lxdm' )
+    success = False
+    while not success:
+        logme( 'greeter.py --- calling lxdm' )
+        timestamp_before = datetime.datetime.now()
+        res = os.system( 'lxdm' )
+        timestamp_after = datetime.datetime.now()
+        diff = timestamp_after - timestamp_before
+        try:
+            if diff.seconds > 3:
+                success = True
+        except:
+            logme( 'greeter.py --- something is wrong with timestamp comparison code; forcing success=True as backup plan' )
+            success = True
     logme( 'greeter.py --- back from lxdm; exiting now; res=%d' % ( res ) )
     sys.exit( res )
 
