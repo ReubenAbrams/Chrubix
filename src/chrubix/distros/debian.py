@@ -23,7 +23,7 @@ x11-utils xbase-clients ssss mat florence monkeysign libxfixes-dev liblzo2-dev \
 wmaker python-cairo python-pdfrw libconfig-dev libx11-dev python-hachoir-core python-hachoir-parser \
 mat myspell-en-us msttcorefonts xorg xserver-xorg-input-synaptics xul-ext-https-everywhere \
 pulseaudio paprefs pulseaudio-module-jack pavucontrol paman alsa-tools-gui alsa-oss mythes-en-us \
-libpisock-dev libetpan15 uno-libs3 libgtk-3-bin libbcprov-java gtk2-engines-murrine \
+libpisock-dev uno-libs3 libgtk-3-bin libbcprov-java gtk2-engines-murrine \
 e2fslibs-dev debhelper python-dev libffi-dev python-dev libffi-dev libsqlite3-dev \
 '  # Warning! Monkeysign pkg might be broken.
 # gtk-engines-unico python-distutil-extra ? python-distusil-extra python-gobject python-qrencode python-imaging
@@ -401,7 +401,7 @@ Acquire::https::Proxy "https://%s/";
 
 
 class WheezyDebianDistro( DebianDistro ):
-    important_packages = DebianDistro.important_packages
+    important_packages = DebianDistro.important_packages + ' libetpan15'
     def __init__( self , *args, **kwargs ):
         super( WheezyDebianDistro, self ).__init__( *args, **kwargs )
         self.branch = 'wheezy'  # lowercase; yes, it matters :)
@@ -409,7 +409,7 @@ class WheezyDebianDistro( DebianDistro ):
 
 
 class JessieDebianDistro( DebianDistro ):
-    important_pages = DebianDistro.important_packages
+    important_pages = DebianDistro.important_packages + ' libetpan-dev'
     def __init__( self , *args, **kwargs ):
         super( JessieDebianDistro, self ).__init__( *args, **kwargs )
         self.branch = 'jessie'  # lowercase; yes, it matters
