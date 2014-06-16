@@ -300,6 +300,9 @@ rm -f $tmpfile
 
 
 def configure_lxdm_onetime_changes( mountpoint ):
+    if os.path.exists( '%s/etc/.first_time_ever' % ( mountpoint ) ):
+        logme( 'configure_lxdm_onetime_changes() has already run.' )
+        return
     if 0 != chroot_this( mountpoint, 'which lxdm' ):
             failed( 'You haven ot installed LXDM yet.' )
     f = '%s/etc/WindowMaker/WindowMaker' % ( mountpoint )
