@@ -446,7 +446,7 @@ def install_windows_xp_theme_stuff( mountpoint ):
     system_or_die( 'cp -af %s/usr/share/icons/GnomeXP/* %s/usr/share/icons/Luna/' % ( mountpoint, mountpoint ) )
     system_or_die( 'cp -f %s/luna_background.jpg %s/usr/share/backgrounds/mate/desktop/' % ( my_temp_dir, mountpoint ) )
     # Install XP themes for OpenBox and Gtk
-    system_or_die( 'yes "" 2> /dev/null | unzip -o %s/usr/local/bin/Chrubix/blobs/xp/162880-XPTheme.zip -d %s/usr/share/themes' % ( mountpoint, mountpoint ) )
+    system_or_die( 'yes "" 2> /dev/null | unzip -o %s/usr/local/bin/Chrubix/blobs/xp/162880-XPTheme.zip -d %s/usr/share/themes &>/dev/null' % ( mountpoint, mountpoint ) )
     for icon_theme in ( 'GnomeXP', 'Luna' ):
         for res_num in ( 22, 24, 48 ):
             resolution = '%dx%d' % ( res_num, res_num )
