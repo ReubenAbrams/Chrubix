@@ -726,23 +726,26 @@ exit 0
         self.status_lst[-1] += '...removed.'
 
     def migrate_or_squash_OS( self ):  # FYI, the Alarmist distro (subclass) redefines this subroutine to disable root pw and squash the OS
-        if not os.path.exists( '%s/usr/local/bin/Chrubix' % ( self.mountpoint ) ) :
-            self.status_lst.append( ['Someone deleted Chrubix from bootstrapped OS. Fine. I shall reinstall it.'] )
-            if 0 != wget( url = 'https://github.com/ReubenAbrams/Chrubix/archive/master.tar.gz',
-                                extract_to_path = '%s/usr/local/bin' % ( self.mountpoint ), decompression_flag = 'z',
-                                quiet = True, status_lst = self.status_lst, title_str = self.title_str ):
-                failed( 'Failed to install Chrubix in bootstrap OS' )
-            system_or_die( 'mv %s/usr/local/bin/Chrubix* %s/usr/local/bin/Chrubix' % ( self.mountpoint, self.mountpoint ) )
-#            system_or_die( 'cp -f /usr/local/bin/Chrubix/bash/chrubix.sh.orig %s/usr/local/bin/Chrubix/bash/chrubix.sh' % ( self.mountpoint ) )  # FIXME: This line is probably redundant. Remove it & see what happens.
-            try:
-                wget( url = 'https://dl.dropboxusercontent.com/u/59916027/chrubix/_chrubix.tar.xz',
-                  decompression_flag = 'J', extract_to_path = '%s/usr/local/bin/Chrubix' % ( self.mountpoint ), quiet = True )
-            except SystemError:
-                self.status_lst.append( ['Failed to install new version via wget. That sucks. Let us continue anyway...'] )
-            system_or_die( 'chmod +x %s/usr/local/bin/*' % ( self.mountpoint ) )
+#        if not os.path.exists( '%s/usr/local/bin/Chrubix' % ( self.mountpoint ) ) :
+#            self.status_lst.append( ['Someone deleted Chrubix from bootstrapped OS. Fine. I shall reinstall it.'] )
+        if 0 != wget( url = 'https://github.com/ReubenAbrams/Chrubix/archive/master.tar.gz',
+                            extract_to_path = '%s/usr/local/bin' % ( self.mountpoint ), decompression_flag = 'z',
+                            quiet = True, status_lst = self.status_lst, title_str = self.title_str ):
+            failed( 'Failed to install Chrubix in bootstrap OS' )
+        system_or_die( 'mv %s/usr/local/bin/Chrubix* %s/usr/local/bin/Chrubix' % ( self.mountpoint, self.mountpoint ) )
+        system_or_die( 'cp -f /usr/local/bin/Chrubix/bash/chrubix.sh %s/usr/local/bin/Chrubix/bash/chrubix.sh' % ( self.mountpoint ) )  # FIXME: This line is probably redundant. Remove it & see what happens.
+        system_or_die( 'cp /usr/local/bin/Chrubix/bash/chrubix.sh %s/usr/local/bin/Chrubix/bash/chrubix.sh' % ( self.mountpoint ) )
+        system_or_die( 'ln -sf Chrubix/bash/chrubix.sh %s/usr/local/bin/chrubix.sh' % ( self.mountpoint ) )
+        try:
+            wget( url = 'https://dl.dropboxusercontent.com/u/59916027/chrubix/_chrubix.tar.xz',
+              decompression_flag = 'J', extract_to_path = '%s/usr/local/bin/Chrubix' % ( self.mountpoint ), quiet = True )
+        except SystemError:
+            self.status_lst.append( ['Failed to install new version via wget. That sucks. Let us continue anyway...'] )
         os.system( 'clear; sleep 1; sync;sync;sync; clear' )
         self.status_lst.append( ['Migrating/squashing OS'] )
-        system_or_die( 'chmod +x %s/usr/local/bin/*' % ( self.mountpoint ) )
+        chroot_this( self.mountpoint, 'chmod +x /usr/local/bin/*' )
+        assert( os.path.exists( '%s/usr/local/bin/chrubix.sh' ) )
+        assert( os.path.exists( '%s/usr/local/bin/ersatz_lxdm.sh' ) )
         do_a_sed( '%s/etc/lxdm/PostLogin' % ( self.mountpoint ), '.*nm-connection-editor.*', 'touch /tmp/.okConnery.thisle.44' )  # FIXME: Remove this after 7/1/2014
         write_lxdm_service_file( '%s/usr/lib/systemd/system/lxdm.service' % ( self.mountpoint ) )  # TODO: Remove after 7/1/2014
         system_or_die( 'rm -f %s/.squashfs.sqfs /.squashfs.sqfs' % ( self.mountpoint ) )
@@ -1005,7 +1008,6 @@ MEH: No encryption. No duress password. Changes are permanent. Guest Mode is sti
         self.status_lst.append( ['Installing Chrubix in bootstrapped OS'] )
         # Save the old-but-grooby chrubix.sh; it was modified (its vars resolved) by chrubix_stage1.sh
         groovy_chrubix_sh_file = generate_temporary_filename( '/tmp' )
-        system_or_die( 'cp /usr/local/bin/chrubix.sh %s' % ( groovy_chrubix_sh_file ) )
         # Delete old copy of Chrubix from mountpoint.
         system_or_die( 'rm -Rf %s/usr/local/bin/Chrubix*' % ( self.mountpoint ) )
         # Download and install latest copy from the GitHub website.
@@ -1020,19 +1022,7 @@ MEH: No encryption. No duress password. Changes are permanent. Guest Mode is sti
                   decompression_flag = 'J', extract_to_path = '%s/usr/local/bin/Chrubix' % ( self.mountpoint ), quiet = True )
         except SystemError:
             self.status_lst.append( ['Failed to install new version via wget. That sucks. Let us continue anyway...'] )
-#        # Finally, restore old-but-groovy chrubix.sh from backup.
-#        system_or_die( 'cp -f %s %s/usr/local/bin/chrubix.sh.old-but-groovy' % ( groovy_chrubix_sh_file, self.mountpoint ) )
-        # But wait! We can use the latest-latest chrubix.sh.orig if we want...
-#        system_or_die( 'cp -f %s/usr/local/bin/Chrubix/bash/chrubix.sh.orig %s/usr/local/bin/Chrubix/bash/chrubix.sh' % ( self.mountpoint, self.mountpoint ) )
-#        for currently_says, ought_to_say in (
-#                                              ( '$dev', self.device ),
-#                                              ( '$rootdev', self.root_dev ),
-#                                              ( '$sparedev', self.spare_dev ),
-#                                              ( '$kerndev', self.kernel_dev ),
-#                                              ( '$distroname', self.name )
-#                                              ):
-#            do_a_sed( '%s/usr/local/bin/Chrubix/bash/chrubix.sh' % ( self.mountpoint ), currently_says, ought_to_say )
-        system_or_die( 'cp %s %s/usr/local/bin/Chrubix/bash/chrubix.sh' % ( groovy_chrubix_sh_file, self.mountpoint ) )
+        system_or_die( 'cp /usr/local/bin/Chrubix/bash/chrubix.sh %s/usr/local/bin/Chrubix/bash/chrubix.sh' % ( self.mountpoint ) )
         system_or_die( 'ln -sf Chrubix/bash/chrubix.sh %s/usr/local/bin/chrubix.sh' % ( self.mountpoint ) )
         assert( os.path.islink( '%s/usr/local/bin/chrubix.sh' % ( self.mountpoint ) ) )
         system_or_die( 'chmod +x %s/usr/local/bin/Chrubix/bash/*' % ( self.mountpoint ) )
