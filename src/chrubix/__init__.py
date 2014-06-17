@@ -8,7 +8,6 @@ import time
 import subprocess
 import getopt
 import hashlib
-import pickle
 import base64
 from chrubix.utils import call_binary, read_oneliner_file, write_oneliner_file, call_binary_and_show_progress, \
                           wget, get_expected_duration_of_install, failed, get_total_lines_so_far, logme, \
