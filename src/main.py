@@ -7,8 +7,8 @@
 import sys
 import os
 import hashlib
-from chrubix.utils import logme, save_distro_record
-from chrubix import generate_distro_record_from_name
+from chrubix.utils import logme
+from chrubix import generate_distro_record_from_name, save_distro_record, load_distro_record
 
 try:
     from PyQt4.QtCore import QString
@@ -16,7 +16,7 @@ except ImportError:
     QString = str
 
 
-os.system( 'rm -f /chrubix.log' )
+# os.system( 'rm -f /tmp/chrubix.log' )
 logme( '**************************** WELCOME TO CHRUBIX ****************************' )
 if os.system( 'cat /proc/cmdline 2>/dev/null | fgrep root=/dev/dm-0 > /dev/null' ) == 0:
     from chrubix import exec_cli
@@ -112,16 +112,64 @@ class MainWindow( QtGui.QMainWindow, Ui_mnwMain ):
     def __init__( self ):
         super( MainWindow, self ).__init__()
         uic.loadUi( "ui/MainWindow.ui", self )
-#        self.distro = load_distro_record()     # Pickle is broken on Chrubix ArchLinux install'n
-        self.distro = generate_distro_record_from_name( 'archlinux' )
-        self.actionWhitelist.setText( self.distro.whitelist_menu_text() )
-        self.show()
+#        self.distro = load_distro_record()
+#        self.actionWhitelist.setText( self.distro.whitelist_menu_text() )
         self.connect( self.btnClear, SIGNAL( "clicked()" ), self.clearTaskList )
         self.connect( self.btnExecute, SIGNAL( "clicked()" ), self.executeTaskList )
+        self.connect( self.btnSaveLxdmSettings, SIGNAL( "clicked()" ), self.saveLxdmSettings )
         self.connect( self.actionChangePwDisk, SIGNAL( "triggered()" ), self.changeDiskPassword )
         self.connect( self.actionChangePwRoot, SIGNAL( "triggered()" ), self.changeRootPassword )
         self.connect( self.actionChangePwBoom, SIGNAL( "triggered()" ), self.changeBoomPassword )
         self.connect( self.actionWhitelist, SIGNAL( "triggered()" ), self.changeWhitelist )
+        self.connect( self.pteLxdmSettings, SIGNAL( "textChanged()" ), self.enableSaveButtons )
+        try:
+            self.distro = load_distro_record()
+        except:  # EOFError?
+            self.distro = generate_distro_record_from_name( 'archlinux' )
+            save_distro_record( self.distro )
+            self.distro = load_distro_record()
+        self.populateGreeterSettings()
+        self.show()
+
+    @pyqtSignature( "" )
+    def enableSaveButtons( self ):
+        self.btnSaveLxdmSettings.setEnabled( True )
+
+    @pyqtSignature( "" )
+    def populateGreeterSettings( self ):
+        outstr = ''
+        for k in self.distro.lxdm_settings.keys():
+            v = self.distro.lxdm_settings[k]
+            w = v if type( v ) is str else str( v )
+            outstr += '%s=%s\n' % ( k, w )
+        self.pteLxdmSettings.setPlainText( outstr )
+
+    @pyqtSignature( "" )
+    def saveLxdmSettings( self ):
+        dct = {}
+        for this_line in self.pteLxdmSettings.toPlainText().split( '\n' ):
+            try:
+                lst = this_line.split( '=' )
+                k = lst[0]
+                v = lst[1]
+            except:
+                continue
+            if v == 'False':
+                w = False
+            elif v == 'True':
+                w = True
+            else:
+                try:
+                    w = int( v )
+                except:
+                    w = v
+            dct[k] = w
+        self.distro.lxdm_settings = dct
+        save_distro_record( self.distro )
+        self.distro = load_distro_record()
+        self.populateGreeterSettings()
+        self.btnSaveLxdmSettings.setEnabled( False )
+
 
     @pyqtSignature( "" )
     def changeWhitelist( self ):
@@ -230,6 +278,7 @@ if __name__ == "__main__":
     app = QtGui.QApplication( sys.argv )
     window = MainWindow()
     window.show()
+
     window.raise_()
 #    if os.system("mount | grep -i crypt") == 0:
 #        dlg = ReconfigureorexitDialog()
