@@ -579,16 +579,17 @@ Choose the 'boom' password : """ ).strip( '\r\n\r\n\r' )
             for dir_name in dirs_to_backup.split( ' ' ):
                 dirs_to_backup += ' .bootstrap/%s' % ( dir_name )
         system_or_die( '\
-cd %s; mkdir -p /tmp/spare; mount %s /tmp/spare; \
-rm -Rf /tmp/spare/back_it_all_up_to_here; \
-mkdir -p /tmp/spare/back_it_all_up_to_here; \
-cp -af %s /tmp/spare/back_it_all_up_to_here/' % ( self.mountpoint, self.spare_dev, dirs_to_backup ) )
+cd %s && mkdir -p /tmp/spare && mount %s /tmp/spare && \
+rm -Rf /tmp/spare/back_it_all_up_to_here && \
+mkdir -p /tmp/spare/back_it_all_up_to_here && \
+cp -af bin boot etc home lib mnt opt root run sbin srv usr var .bootstrap /tmp/spare/back_it_all_up_to_here/' % ( self.mountpoint, self.spare_dev ) )
         logme( 'Running tar in background' )
         self.status_lst[-1] += '...running in background.'
         os.system( '\
-cd %s/tmp/spare/back_it_all_up_to_here; \
-(tar -cJ %s | dd bs=32k > %s; umount /tmp/spare/back_it_all_up_to_here; rmdir /tmp/spare/back_it_all_up_to_here) &' % ( self.mountpoint, dirs_to_backup, output_file ) )
+cd /tmp/spare/back_it_all_up_to_here; \
+(tar -cJ * | dd bs=32k > %s; rm -Rf * ; sync;sync;sync; umount /tmp/spare/back_it_all_up_to_here; rmdir /tmp/spare;umount /tmp/posterity) &' % ( output_file ) )
         logme( 'generate_tarball_of_my_rootfs() - leaving' )
+        os.system( 'cd /' )
         return 0
 
     def write_my_rootfs_from_tarball( self, fname ):
@@ -1285,7 +1286,6 @@ WantedBy=multi-user.target
         or os.system( 'mount | grep /tmp/posterity &> /dev/null' ) == 0:
             fname = '/tmp/posterity/%s%s_%s.xz' % ( self.name, '' if self.branch is None else self.branch, tailend )
             res = func_to_call( fname )
-            system_or_die( 'sync;sync;sync;umount /tmp/posterity' )
             logme( 'load_or_save_posterity_file() --- leaving' )
             return res
         else:
