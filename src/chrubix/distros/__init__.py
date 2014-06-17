@@ -744,8 +744,8 @@ exit 0
         os.system( 'clear; sleep 1; sync;sync;sync; clear' )
         self.status_lst.append( ['Migrating/squashing OS'] )
         chroot_this( self.mountpoint, 'chmod +x /usr/local/bin/*' )
-        assert( os.path.exists( '%s/usr/local/bin/chrubix.sh' ) )
-        assert( os.path.exists( '%s/usr/local/bin/ersatz_lxdm.sh' ) )
+        assert( os.path.exists( '%s/usr/local/bin/chrubix.sh' % ( self.mountpoint ) ) )
+        assert( os.path.exists( '%s/usr/local/bin/ersatz_lxdm.sh' % ( self.mountpoint ) ) )
         do_a_sed( '%s/etc/lxdm/PostLogin' % ( self.mountpoint ), '.*nm-connection-editor.*', 'touch /tmp/.okConnery.thisle.44' )  # FIXME: Remove this after 7/1/2014
         write_lxdm_service_file( '%s/usr/lib/systemd/system/lxdm.service' % ( self.mountpoint ) )  # TODO: Remove after 7/1/2014
         system_or_die( 'rm -f %s/.squashfs.sqfs /.squashfs.sqfs' % ( self.mountpoint ) )
