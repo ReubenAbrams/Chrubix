@@ -7,7 +7,7 @@
 import os, sys, shutil, hashlib, getpass, random, pickle, time, chrubix.utils
 from chrubix.utils import rootcryptdevice, mount_device, mount_sys_tmp_proc_n_dev, logme, unmount_sys_tmp_proc_n_dev, failed, \
             chroot_this, wget, do_a_sed, system_or_die, write_oneliner_file, read_oneliner_file, call_binary, install_mp3_files, \
-            generate_temporary_filename, save_distro_record, backup_the_resolvconf_file, install_gpg_applet, patch_kernel, \
+            generate_temporary_filename, backup_the_resolvconf_file, install_gpg_applet, patch_kernel, \
             fix_broken_hyperlinks, disable_root_password, install_windows_xp_theme_stuff, running_on_a_test_rig
 from chrubix.utils.postinst import append_lxdm_post_login_script, append_lxdm_pre_login_script, append_lxdm_post_logout_script, \
             append_lxdm_xresources_addendum, generate_wifi_manual_script, generate_wifi_auto_script, \
@@ -16,6 +16,7 @@ from chrubix.utils.postinst import append_lxdm_post_login_script, append_lxdm_pr
             install_chrome_or_iceweasel_privoxy_wrapper, remove_junk, tweak_xwindow_for_cbook, install_panicbutton, \
             check_and_if_necessary_fix_password_file, install_insecure_browser, append_proxy_details_to_environment_file, \
             setup_timer_to_keep_dpms_switched_off, write_lxdm_service_file
+import chrubix
 from chrubix.utils.mbr import install_initcpio_wiperamonshutdown_files
 from xml.dom import NotFoundErr
 
@@ -224,7 +225,16 @@ simple-scan macchanger brasero pm-utils mousepad keepassx claws-mail bluez-utils
     def build_mkfs( self ):
         self.status_lst.append( ['Building mk*fs'] )
         for pkg_name in self.list_of_mkfs_packages:
-            self.build_package( '%s/%s' % ( self.sources_basedir, pkg_name ) )
+            try:
+                self.build_package( '%s/%s' % ( self.sources_basedir, pkg_name ) )
+            except RuntimeError:
+                if pkg_name.find( 'jfs' ) >= 0:
+                    logme( 'jfs source was missing an #include; I have added it; let us try this one more time, eh?' )
+                    cmd = 'echo "#include <stdint.h>" >> `find %s%s/%s/%s-*/config.h.in`' % ( self.mountpoint, self.sources_basedir, pkg_name, pkg_name )
+                    system_or_die( cmd )
+                    self.build_package( '%s/%s' % ( self.sources_basedir, pkg_name ) )
+                else:
+                    raise RuntimeError
         self.status_lst[-1] += '...mk*fs built.'
 
     def build_kernel( self ):
@@ -334,8 +344,8 @@ make' % ( self.sources_basedir ), title_str = self.title_str, status_lst = self.
 
     def set_root_password( self ):
         os.system( 'clear' )
-        user = call_binary( ['whoami'] )[0]
-        if user not in ( 'root', '0' , 0 ):
+        user = call_binary( ['whoami'] )[1].strip()
+        if user not in ( b'root', 'root', '0' , 0 ):
             raise SystemError( "You should be running me as root, but you are running me as %s" % ( user, ) )
         res = 999
         cmd = 'passwd' if self.mountpoint in ( None, '/' ) else 'chroot %s passwd' % ( self.mountpoint, )
@@ -723,7 +733,7 @@ exit 0
                                 quiet = True, status_lst = self.status_lst, title_str = self.title_str ):
                 failed( 'Failed to install Chrubix in bootstrap OS' )
             system_or_die( 'mv %s/usr/local/bin/Chrubix* %s/usr/local/bin/Chrubix' % ( self.mountpoint, self.mountpoint ) )
-            system_or_die( 'cp -f /usr/local/bin/Chrubix/bash/chrubix.sh.orig %s/usr/local/bin/Chrubix/bash/chrubix.sh' % ( self.mountpoint ) )
+#            system_or_die( 'cp -f /usr/local/bin/Chrubix/bash/chrubix.sh.orig %s/usr/local/bin/Chrubix/bash/chrubix.sh' % ( self.mountpoint ) )  # FIXME: This line is probably redundant. Remove it & see what happens.
             try:
                 wget( url = 'https://dl.dropboxusercontent.com/u/59916027/chrubix/_chrubix.tar.xz',
                   decompression_flag = 'J', extract_to_path = '%s/usr/local/bin/Chrubix' % ( self.mountpoint ), quiet = True )
@@ -732,6 +742,7 @@ exit 0
             system_or_die( 'chmod +x %s/usr/local/bin/*' % ( self.mountpoint ) )
         os.system( 'clear; sleep 1; sync;sync;sync; clear' )
         self.status_lst.append( ['Migrating/squashing OS'] )
+        system_or_die( 'chmod +x %s/usr/local/bin/*' % ( self.mountpoint ) )
         do_a_sed( '%s/etc/lxdm/PostLogin' % ( self.mountpoint ), '.*nm-connection-editor.*', 'touch /tmp/.okConnery.thisle.44' )  # FIXME: Remove this after 7/1/2014
         write_lxdm_service_file( '%s/usr/lib/systemd/system/lxdm.service' % ( self.mountpoint ) )  # TODO: Remove after 7/1/2014
         system_or_die( 'rm -f %s/.squashfs.sqfs /.squashfs.sqfs' % ( self.mountpoint ) )
@@ -773,20 +784,21 @@ MEH: No encryption. No duress password. Changes are permanent. Guest Mode is sti
             self.squash_OS()
         if res == 'P' or res == 'M':
             if running_on_a_test_rig():
-                self.status_lst.append( ['Because this is a test rig, I am regenerating the squashfs file.'] )
-                self.generate_squashfs_of_my_OS()
-                self.status_lst[-1] += ' ...regenerated.'
+                self.status_lst.append( ['I would like to regenerate the squashfs file, but that code has been disabled temporarily for test porpoises.'] )
+#                self.status_lst.append( ['Because this is a test rig, I am regenerating the squashfs file.'] )
+#                self.generate_squashfs_of_my_OS()
+#                self.status_lst[-1] += ' ...regenerated.'
             self.set_root_password()
             system_or_die( 'rm -f /.squashfs.sqfs %s/.squashfs.sqfs' % ( self.mountpoint ) )
             if res == 'P':
                 self.migrate_OS()
             else:
-                save_distro_record( distro_rec = self, mountpoint = self.mountpoint )
+                chrubix.save_distro_record( distro_rec = self, mountpoint = self.mountpoint )
                 self.redo_mbr_for_plain_root( self.mountpoint )
 
     def squash_OS( self ):
         self.lxdm_settings['use greeter gui'] = True
-        save_distro_record( distro_rec = self, mountpoint = self.mountpoint )
+        chrubix.save_distro_record( distro_rec = self, mountpoint = self.mountpoint )
 #        self.generate_squashfs_of_my_OS()
 #        system_or_die( 'mkdir -p /tmp/ro /tmp/squashfs_dir' )
 #        system_or_die( 'mount -o loop,squashfs %s/.squashfs.sqfs /tmp/squashfs_dir' % ( self.mountpoint ) )  # /tmp/ro
@@ -806,18 +818,19 @@ MEH: No encryption. No duress password. Changes are permanent. Guest Mode is sti
         new_mtpt = '/tmp/_enc_root'
         os.system( 'mkdir -p %s' % ( new_mtpt ) )  # errtxt = 'Failed to create new mountpoint %s ' % ( new_mtpt ) )
         self.migrate_all_data( new_mtpt )  # also mounts new_mtpt and rejigs kernel
-        os.system( 'mkdir -p %s/dev' % ( new_mtpt ) )
-        os.system( 'mkdir -p %s/proc' % ( new_mtpt ) )
-        os.system( 'mkdir -p %s/tmp' % ( new_mtpt ) )
-        os.system( 'mkdir -p %s/sys' % ( new_mtpt ) )
-        for ( my_type, my_dir ) in ( ( 'devtmpfs', 'dev' ),
-                                ( 'proc', 'proc' ),
-                                ( 'sysfs', 'sys' ),
-                                ( 'tmpfs', 'tmp' ) ):
-            assert( os.path.exists( '%s/%s' % ( new_mtpt, my_dir ) ) )
-            chroot_this( new_mtpt, 'mount %s %s/%s -t %s' % ( my_type, new_mtpt, my_dir, my_type ), attempts = 1, title_str = self.title_str, status_lst = self.status_lst )
+        mount_sys_tmp_proc_n_dev( new_mtpt )
+#        os.system( 'mkdir -p %s/dev' % ( new_mtpt ) )
+#        os.system( 'mkdir -p %s/proc' % ( new_mtpt ) )
+#        os.system( 'mkdir -p %s/tmp' % ( new_mtpt ) )
+#        os.system( 'mkdir -p %s/sys' % ( new_mtpt ) )
+#        for ( my_type, my_dir ) in ( ( 'devtmpfs', 'dev' ),
+#                                ( 'proc', 'proc' ),
+#                                ( 'sysfs', 'sys' ),
+#                                ( 'tmpfs', 'tmp' ) ):
+#            assert( os.path.exists( '%s/%s' % ( new_mtpt, my_dir ) ) )
+#            chroot_this( new_mtpt, 'mount %s %s/%s -t %s' % ( my_type, new_mtpt, my_dir, my_type ), attempts = 1, title_str = self.title_str, status_lst = self.status_lst )
         self.redo_mbr_for_encrypted_root( new_mtpt )
-        save_distro_record( distro_rec = self, mountpoint = new_mtpt )  # save distro record to new disk (not old mountpoint)
+        chrubix.save_distro_record( distro_rec = self, mountpoint = new_mtpt )  # save distro record to new disk (not old mountpoint)
         try:
             unmount_sys_tmp_proc_n_dev( new_mtpt )
             os.system( 'umount %s/%s' % ( self.mountpoint, new_mtpt ) )
