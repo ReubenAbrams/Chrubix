@@ -89,6 +89,7 @@ mate-desktop-environment-extras i2p i2p-keyring'  # FYI, freenet is handled by i
             chroot_this( self.mountpoint, "cd %s/src/chromeos-3.4 && make install && make modules_install" % ( self.kernel_src_basedir ),
                                                             title_str = self.title_str, status_lst = self.status_lst,
                                                             on_fail = "Failed to install the tweaked kernel and/or modules" )
+        self.status_lst[-1] += '...kernel installed.'
         logme( 'DebianDistro - install_kernel_and_mkfs() - leaving' )
 
     def install_package_manager_tweaks( self ):
