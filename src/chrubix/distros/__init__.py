@@ -11,11 +11,12 @@ from chrubix.utils import rootcryptdevice, mount_device, mount_sys_tmp_proc_n_de
             fix_broken_hyperlinks, disable_root_password, install_windows_xp_theme_stuff, running_on_a_test_rig
 from chrubix.utils.postinst import append_lxdm_post_login_script, append_lxdm_pre_login_script, append_lxdm_post_logout_script, \
             append_lxdm_xresources_addendum, generate_wifi_manual_script, generate_wifi_auto_script, \
-            install_guest_browser_script, configure_privoxy, add_speech_synthesis_script, \
+            install_guest_browser_script, configure_privoxy, add_speech_synthesis_script, ask_the_user__guest_mode_or_user_mode__and_create_one_if_necessary, \
             configure_lxdm_onetime_changes, configure_lxdm_behavior, configure_lxdm_service, \
             install_chrome_or_iceweasel_privoxy_wrapper, remove_junk, tweak_xwindow_for_cbook, install_panicbutton, \
             check_and_if_necessary_fix_password_file, install_insecure_browser, append_proxy_details_to_environment_file, \
-            setup_timer_to_keep_dpms_switched_off, write_lxdm_service_file
+            setup_timer_to_keep_dpms_switched_off, write_lxdm_service_file, ask_the_user__temp_or_perm, \
+            add_user_to_the_relevant_groups
 import chrubix
 from chrubix.utils.mbr import install_initcpio_wiperamonshutdown_files
 from xml.dom import NotFoundErr
@@ -75,7 +76,7 @@ simple-scan macchanger brasero pm-utils mousepad keepassx claws-mail bluez-utils
                               'enable user lists':True,
                               'autologin':True,
                               'use greeter gui':False,  # Technically, we always call greeter. This switch forces us to use (or not use) the 'scary eyes' X (GUI) side of the greeter.
-                              'user':'guest'
+                              'login as user':'guest'
                               }
         self.__dict__.update( kwargs )
 
@@ -490,12 +491,7 @@ Name=org.freedesktop.Notifications
 Exec=/usr/lib/notification-daemon-1.0/notification-daemon
 ''' )  # See https://wiki.archlinux.org/index.php/Desktop_notifications
         system_or_die( 'echo -en "\n%%wheel ALL=(ALL) ALL\nALL ALL=(ALL) NOPASSWD: /usr/bin/systemctl poweroff,/usr/bin/systemctl halt,/usr/bin/systemctl reboot,/usr/local/bin/tweak_lxdm_and_reboot,/usr/local/bin/tweak_lxdm_and_shutdown,/usr/local/bin/run_as_guest.sh,/usr/local/bin/chrubix.sh\n" >> %s/etc/sudoers' % ( self.mountpoint ) )
-        for group_to_add_me_to in ( '%s' % ( 'debian-tor' if self.name == 'debian' else 'tor' ), 'freenet', 'audio', 'pulse-access' ):
-            logme( 'Adding guest to %s' % ( group_to_add_me_to ) )
-            if group_to_add_me_to != 'pulse-access' and 0 != chroot_this( 
-                                        self.mountpoint, 'usermod -a -G %s guest' % ( group_to_add_me_to ),
-                                        title_str = self.title_str, status_lst = self.status_lst ):
-                failed( 'Failed to add guest to group %s' % ( group_to_add_me_to ) )
+        add_user_to_the_relevant_groups( 'guest', self.name, self.mountpoint )
 
     def configure_networking( self ):
         for pretend_name, real_name in ( 
@@ -572,29 +568,14 @@ Choose the 'boom' password : """ ).strip( '\r\n\r\n\r' )
         self.status_lst[-1] += "..OK."
 
     def generate_tarball_of_my_rootfs( self, output_file ):
-        remove_junk( self.mountpoint, self.kernel_src_basedir )
-        logme( 'generate_tarball_of_my_rootfs() - started - output_file=%s' % ( output_file ) )
-        while 0 == os.system( 'mount | grep /tmp/spare &>/dev/null' ):
-            logme( 'Waiting for previous posterity generator to finish' )
-            os.system( 'sleep 30' )
-        logme( 'Cool. Proceeding.' )
         self.status_lst.append( ['Creating tarball %s of my rootfs' % ( output_file )] )
         dirs_to_backup = 'bin boot etc home lib mnt opt root run sbin srv usr var'
-        if output_file[-2:] != '_D':
-            for dir_name in dirs_to_backup.split( ' ' ):
-                dirs_to_backup += ' .bootstrap/%s' % ( dir_name )
-        system_or_die( '\
-cd %s && mkdir -p /tmp/spare && mount %s /tmp/spare && \
-rm -Rf /tmp/spare/back_it_all_up_to_here && \
-mkdir -p /tmp/spare/back_it_all_up_to_here && \
-cp -af bin boot etc home lib mnt opt root run sbin srv usr var .bootstrap /tmp/spare/back_it_all_up_to_here/' % ( self.mountpoint, self.spare_dev ) )
-        logme( 'Running tar in background' )
-        self.status_lst[-1] += '...running in background.'
-        os.system( '\
-cd /tmp/spare/back_it_all_up_to_here; \
-(tar -c * | xz -9 > %s; rm -Rf * ; sync;sync;sync; umount /tmp/spare/back_it_all_up_to_here; rmdir /tmp/spare;umount /tmp/posterity) &' % ( output_file ) )
-        logme( 'generate_tarball_of_my_rootfs() - leaving' )
-        os.system( 'cd /' )
+#        if output_file[-2:] != '_D':     # FIXME: Is it worth the trouble? Do we save *that* much space if we drop bootstrap entirely from File D?
+        for dir_name in dirs_to_backup.split( ' ' ):
+            dirs_to_backup += ' .bootstrap/%s' % ( dir_name )
+        system_or_die( 'cd %s && tar -cJ %s | dd bs=32k > %s/temp.data' % ( self.mountpoint, dirs_to_backup, os.path.dirname( output_file ) ), title_str = self.title_str, status_lst = self.status_lst )
+        system_or_die( 'mv %s/temp.data %s' % ( os.path.dirname( output_file ), output_file ) )
+        self.status_lst[-1] += '...created.'
         return 0
 
     def write_my_rootfs_from_tarball( self, fname ):
@@ -727,15 +708,31 @@ exit 0
         remove_junk( self.mountpoint, self.kernel_src_basedir )
         if not os.path.exists( '%s%s' % ( self.mountpoint, self.kernel_src_basedir ) ):
             failed( 'remove_junk() deletes the linux-chromebook folder from the bootstrap OS. That is not good!' )
-        # Tidy up Alarpy, the (bootstrap) mini-OS
-        # FYI, these next three lines MAY SEEM utterly pointless if we delete the bootstrap & use the new, 'native' bootstrap distro.
-        # However, we need to make room for squashfs.sqfs, just in case we need to make it.
+        # Tidy up Alarpy, the (bootstrap) mini-OS, to reduce the size footprint of _D posterity file.
         try:
             system_or_die( '''cd /usr/share/locale; mv locale.alias ..; mkdir -p _; mv [a-d,f-z]* _; mv e[a-m,o-z]* _; rm -Rf _; mv ../locale.alias .''' )
         except RuntimeError:
             logme( 'Failed to slim down the locale folder. IDGAF.' )
-        os.system( 'rm -Rf /usr/include /usr/lib/gcc /usr/lib/python2.7' )
-        os.system( 'rm -Rf /usr/share/perl5 /usr/share/xml' )
+        for path_to_delete in ( 
+                               '/usr/lib/python2.7',
+                               '/usr/lib/gcc',
+                               '/usr/include',
+                               '/usr/lib/gitcore',
+                               '/usr/lib/modules',
+                               '/usr/lib/perl5',
+                               '/usr/lib/zoneinfo',
+                               '/usr/lib/udev',
+#                               '/usr/lib/python2.7'
+                               '/usr/share/doc',
+                               '/usr/share/groff'
+                               '/usr/share/info',
+                               '/usr/share/man',
+                               '/usr/share/perl5',
+                               '/usr/share/texinfo',
+                               '/usr/share/xml',
+                               '/usr/share/zoneinfo'
+                               ):
+            system_or_die( 'rm -Rf %s' % ( path_to_delete ) )
         self.status_lst[-1] += '...removed.'
 
     def reinstall_chrubix_for_mosO( self ):
@@ -765,43 +762,14 @@ exit 0
         assert( os.path.exists( '%s/usr/local/bin/ersatz_lxdm.sh' % ( self.mountpoint ) ) )
         write_lxdm_service_file( '%s/usr/lib/systemd/system/lxdm.service' % ( self.mountpoint ) )  # TODO: Remove after 7/1/2014
         system_or_die( 'rm -f %s/.squashfs.sqfs /.squashfs.sqfs' % ( self.mountpoint ) )
-        if os.path.exists( '/.temp_or_perm.txt' ):
-#            logme( 'Found a temp_or_perm file that was created by sh file.' )
-            r = read_oneliner_file( '/.temp_or_perm.txt' )
-            if r == 'perm':
-                res = 'P'
-            elif r == 'temp':
-                res = 'T'
-            elif r == 'meh':
-                res = 'M'
-            else:
-                failed( 'I do not understand this temp-or-mount file contents - %s' % ( r ) )
-        else:
-            print( '''Would you prefer a temporary setup or a permanent one? Before you choose, consider your options.
-
-TEMPORARY: When you boot, you will see a little popup window that asks you about mimicking Windows XP,
-spoofing your MAC address, etc. Whatever you do while the OS is running, nothing will be saved to disk.
-
-PERMANENT: When you boot, you will be prompted for a password. No password? No access. The whole disk
-is encrypted. Although you will initially be logged in as a guest whose home directory is on a ramdisk,
-you have the option of creating a permanent user, logging in as that user, and saving files to disk.
-In addition, you will be prompted for a 'logging in under duress' password. Pick a short one.
-
-MEH: No encryption. No duress password. Changes are permanent. Guest Mode is still the default.
-
-''' )
-            res = 999
-            while res != 'T' and res != 'P' and res != 'M':
-                res = input( "(T)emporary, (P)ermanent, or (M)eh ? " ).strip( '\r\n\r\n\r' ).replace( 't', 'T' ).replace( 'p', 'P' ).replace( 'm', 'M' )
-            if res == 'T':
-                write_oneliner_file( '%s/.temp_or_perm.txt' % ( self.mountpoint ), 'temp' )
-            elif res == 'P':
-                write_oneliner_file( '%s/.temp_or_perm.txt' % ( self.mountpoint ), 'perm' )
-            else:
-                write_oneliner_file( '%s/.temp_or_perm.txt' % ( self.mountpoint ), 'meh' )
+        res = ask_the_user__temp_or_perm( self.mountpoint )
         if res == 'T':
             self.squash_OS()
         if res == 'P' or res == 'M':
+            username = ask_the_user__guest_mode_or_user_mode__and_create_one_if_necessary( self.name, self.mountpoint )
+            self.lxdm_settings['login as user'] = username
+            if username != 'guest':  # Login as specific user, other than guest
+                self.lxdm_settings['autologin'] = False
             if running_on_a_test_rig():
                 self.status_lst.append( ['I would like to regenerate the squashfs file, but that code has been disabled temporarily for test porpoises.'] )
 #                self.status_lst.append( ['Because this is a test rig, I am regenerating the squashfs file.'] )
