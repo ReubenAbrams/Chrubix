@@ -2,7 +2,7 @@
 
 # Form implementation generated from reading ui file 'ui/MainWindow.ui'
 #
-# Created: Mon Jun 16 19:09:06 2014
+# Created: Tue Jun 17 04:39:06 2014
 #      by: PyQt4 UI code generator 4.10.4
 #
 # WARNING! All changes made in this file will be lost!
@@ -135,7 +135,7 @@ class Ui_mnwMain(object):
         self.actionDecrypt.setText(_translate("mnwMain", "Decrypt Disk", None))
         self.actionWhitelist_ON.setText(_translate("mnwMain", "Create Whitelist", None))
         self.actionEncryption.setText(_translate("mnwMain", "Decrypt Root Partition", None))
-        self.actionWhitelist.setText(_translate("mnwMain", "Whitelist", None))
+        self.actionWhitelist.setText(_translate("mnwMain", "Hardware Whitelist", None))
         self.actionObfuscation.setText(_translate("mnwMain", "Obfuscate Filesystem", None))
         self.actionBoot_Settings.setText(_translate("mnwMain", "Boot Settings", None))
 

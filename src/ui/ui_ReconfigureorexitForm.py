@@ -2,7 +2,7 @@
 
 # Form implementation generated from reading ui file 'ui/ReconfigureorexitForm.ui'
 #
-# Created: Mon Jun 16 19:09:07 2014
+# Created: Tue Jun 17 04:39:07 2014
 #      by: PyQt4 UI code generator 4.10.4
 #
 # WARNING! All changes made in this file will be lost!
