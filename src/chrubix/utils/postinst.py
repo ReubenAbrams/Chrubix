@@ -445,7 +445,7 @@ def remove_junk( mountpoint, kernel_src_basedir ):
                     '/var/cache/apt/archives/',
                     '/usr/share/gtk-doc',
                     '/usr/share/doc',
-                    '/usr/share/man',
+#                    '/usr/share/man',
 #                    kernel_src_basedir + '/src/chromeos-3.4/Documentation',    <-- needed for recompiling kernel (don't ask me why)
                     '/usr/src/linux-3.4.0-ARCH',
                     kernel_src_basedir + '/*.tar.gz',
