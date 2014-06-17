@@ -17,6 +17,7 @@ import time
 import sys
 import crypt
 import logging
+import chrubix
 
 g_proxy = None if ( 0 != os.system( 'ping -c1 -W1 192.168.1.66 &> /dev/null' ) or 0 != os.system( 'cat /proc/cmdline | grep dm_verity &> /dev/null' ) ) else '192.168.1.66:8080'
 g_default_window_manager = '/usr/bin/startlxde'  # wmaker, startxfce4, startlxde, ...
@@ -398,41 +399,6 @@ fi
 
 def enable_xfce_theme( theme_name ):
     system_or_die( 'xfconf-query -c xsettings -p /Net/ThemeName -s "%s"' % ( theme_name ) )
-
-
-
-
-def configure_paranoidguestmode_before_calling_lxdm( password, direct, spoof, camouflage ):
-    '''
-    Greeter calls me before it calls lxdm.
-    This is my chance to set up the XP look, enable MAC spoofing, etc.
-    '''
-    # Set password, if appropriate
-    os.system( 'echo "configure_paranoid... - part A" >> /tmp/log.txt' )
-    if password in ( None, '' ):
-        disable_root_password( '/' )
-    else:
-        set_user_password( 'root', password )
-    os.system( 'echo "configure_paranoid... - part B" >> /tmp/log.txt' )
-    # Enable MAC spoofing, if appropriate
-    if spoof:  # https://wiki.archlinux.org/index.php/MAC_Address_Spoofing
-        write_spoof_script_file( '/etc/NetworkManager/dispatcher.d/99spoofmymac.sh' )  # NetworkManager will run it, automatically, as soon as network goes up/down
-        system_or_die( '''macchanger -r `ifconfig | grep lan0 | cut -d':' -f1 | head -n1`''' )
-    else:
-        os.system( 'rf /etc/NetworkManager/dispatcher.d/99spoofmymac.sh' )
-
-    os.system( 'echo "configure_paranoid... - part C" >> /tmp/log.txt' )
-    cfg_file = '/etc/lxdm/lxdm.conf'
-    system_or_die( 'cp -f %s.first %s' % ( cfg_file ) )
-    if camouflage:
-        do_a_sed( cfg_file, 'session=.*', 'session=/usr/bin/mate-session' )
-    os.system( 'echo "configure_paranoid... - part D" >> /tmp/log.txt' )
-    if direct:
-        os.system( 'rm -f /tmp/.do-not-automatically-connect' )
-    else:
-        write_oneliner_file( '/tmp/.do-not-automatically-connect', 'nope' )
-    os.system( 'echo "configure_paranoid... - part E" >> /tmp/log.txt' )
-    os.system( 'sync;sync;sync' )
 
 
 def install_windows_xp_theme_stuff( mountpoint ):
