@@ -23,7 +23,7 @@
 if [ "$USER" != "root" ] ; then
 	SCRIPTPATH=$( cd $(dirname $0) ; pwd -P )
 	fname=$SCRIPTPATH/`basename $0`
-	sudo bash $fname
+	sudo bash $fname $@
 	exit $?
 fi
 
@@ -241,7 +241,7 @@ restore_stage_X_from_backup() {
 	clear
 	echo "Using $distroname midpoint file $fname"
 	pv $fname | tar -Jx -C $root || failed "Failed to unzip $fname --- J err?"
-	echo "Restored ($distroname, stage D) from $fname"
+	echo "Restored ($distroname, stage X) from $fname"
 	rm -Rf $root/usr/local/bin/Chrubix
 }
 
