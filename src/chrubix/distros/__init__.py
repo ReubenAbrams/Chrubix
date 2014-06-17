@@ -572,7 +572,12 @@ Choose the 'boom' password : """ ).strip( '\r\n\r\n\r' )
         self.status_lst[-1] += "..OK."
 
     def generate_tarball_of_my_rootfs( self, output_file ):
+        remove_junk( self.mountpoint, self.kernel_src_basedir )
         logme( 'generate_tarball_of_my_rootfs() - started - output_file=%s' % ( output_file ) )
+        while 0 == os.system( 'mount | grep /tmp/spare &>/dev/null' ):
+            logme( 'Waiting for previous posterity generator to finish' )
+            os.system( 'sleep 30' )
+        logme( 'Cool. Proceeding.' )
         self.status_lst.append( ['Creating tarball %s of my rootfs' % ( output_file )] )
         dirs_to_backup = 'bin boot etc home lib mnt opt root run sbin srv usr var'
         if output_file[-2:] != '_D':
@@ -587,7 +592,7 @@ cp -af bin boot etc home lib mnt opt root run sbin srv usr var .bootstrap /tmp/s
         self.status_lst[-1] += '...running in background.'
         os.system( '\
 cd /tmp/spare/back_it_all_up_to_here; \
-(tar -cJ * | dd bs=32k > %s; rm -Rf * ; sync;sync;sync; umount /tmp/spare/back_it_all_up_to_here; rmdir /tmp/spare;umount /tmp/posterity) &' % ( output_file ) )
+(tar -c * | xz -9 > %s; rm -Rf * ; sync;sync;sync; umount /tmp/spare/back_it_all_up_to_here; rmdir /tmp/spare;umount /tmp/posterity) &' % ( output_file ) )
         logme( 'generate_tarball_of_my_rootfs() - leaving' )
         os.system( 'cd /' )
         return 0
@@ -827,6 +832,11 @@ MEH: No encryption. No duress password. Changes are permanent. Guest Mode is sti
                        self.mountpoint ) )
 
     def migrate_OS( self ):  # ....unless you're the Alarmist subclass, which redefines this as SQUASH MY OS!  :-)
+        self.status_lst.append( ['Waiting for stage D posterity generator to finish'] )
+        while 0 == os.system( 'mount | grep /tmp/spare &>/dev/null' ):
+            os.system( 'sleep 30' )
+            self.status_lst[-1] += '.'
+        self.status_lst[-1] += 'excellent.'
         self.kernel_rebuild_required = True  # ...because the initramfs needs our boom pw, which means we'll have to rebuild initramfs.... which means rebuilding kernel!
         system_or_die( 'cd /' )
         new_mtpt = '/tmp/_enc_root'
