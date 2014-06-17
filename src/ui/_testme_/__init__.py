@@ -10,4 +10,4 @@ class SrcChrubixUiTest( unittest.TestCase ):
 if __name__ == '__main__':
     unittest.main()
 
-# TODO: write tests for main, resources_rc(?)
+

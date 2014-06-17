@@ -9,7 +9,8 @@ Created on May 9, 2014
 '''
 
 import os
-from chrubix.utils import write_oneliner_file, failed, system_or_die, logme, do_a_sed, chroot_this
+from chrubix.utils import write_oneliner_file, failed, system_or_die, logme, do_a_sed, chroot_this, \
+                        read_oneliner_file
 
 def append_startx_addendum( outfile ):
     f = open( outfile, 'a' )
@@ -338,11 +339,11 @@ def configure_lxdm_behavior( mountpoint, lxdm_settings ):
     else:
         do_a_sed( f, 'disable=.*', 'disable=1' )
     if lxdm_settings['autologin']:
-        do_a_sed( f, '.*autologin=.*', 'autologin=%s' % ( lxdm_settings['user'] ) )
+        do_a_sed( f, '.*autologin=.*', 'autologin=%s' % ( lxdm_settings['login as user'] ) )
         do_a_sed( f, '.*skip_password=.*', 'skip_password=1' )
     else:
         do_a_sed( f, '.*autologin=.*', '###autologin=' )
-        do_a_sed( f, '.*skip_password=.*', 'skip_password=%d' % ( 1 if lxdm_settings['user'] == 'guest' else 0 ) )
+        do_a_sed( f, '.*skip_password=.*', 'skip_password=%d' % ( 1 ) )  # if lxdm_settings['login as user'] == 'guest' else 0 ) )
     logme( 'configure_lxdm_behavior --- leaving' )
 
 
@@ -452,8 +453,8 @@ def remove_junk( mountpoint, kernel_src_basedir ):
                     os.path.dirname( kernel_src_basedir ) + '/linux-[a-b,d-z]*'
                 ):
         chroot_this( mountpoint, 'rm -Rf %s' % ( path ) )
-        if not os.path.exists( '%s%s' % ( mountpoint, kernel_src_basedir ) ):
-            failed( 'rm -Rf %s ==> deletes the linux-chromebook folder from the bootstrap OS. That is suboptimal' % ( path ) )
+#        if not os.path.exists( '%s%s' % ( mountpoint, kernel_src_basedir ) ):
+#            failed( 'rm -Rf %s ==> deletes the linux-chromebook folder from the bootstrap OS. That is suboptimal' % ( path ) )
 
     # TODO: Consider %kernel_src_basedir/linux-chromebook/pkg/*
     chroot_this( mountpoint, 'ln -sf %s/src/chromeos-3.4 /usr/src/linux-3.4.0-ARCH' % ( kernel_src_basedir ) )
@@ -590,3 +591,74 @@ IgnoreSIGPIPE=no
 [Install]
 Alias=display-manager.service
 ''' )
+
+
+
+
+def ask_the_user__temp_or_perm( mountpoint ):
+    if os.path.exists( '/.temp_or_perm.txt' ):
+#            logme( 'Found a temp_or_perm file that was created by sh file.' )
+        r = read_oneliner_file( '/.temp_or_perm.txt' )
+        if r == 'perm':
+            res = 'P'
+        elif r == 'temp':
+            res = 'T'
+        elif r == 'meh':
+            res = 'M'
+        else:
+            failed( 'I do not understand this temp-or-mount file contents - %s' % ( r ) )
+    else:
+        print( '''Would you prefer a temporary setup or a permanent one? Before you choose, consider your options.
+
+TEMPORARY: When you boot, you will see a little popup window that asks you about mimicking Windows XP,
+spoofing your MAC address, etc. Whatever you do while the OS is running, nothing will be saved to disk.
+
+PERMANENT: When you boot, you will be prompted for a password. No password? No access. The whole disk
+is encrypted. Although you will initially be logged in as a guest whose home directory is on a ramdisk,
+you have the option of creating a permanent user, logging in as that user, and saving files to disk.
+In addition, you will be prompted for a 'logging in under duress' password. Pick a short one.
+
+MEH: No encryption. No duress password. Changes are permanent. Guest Mode still exists, though.
+
+''' )
+        res = 999
+        while res != 'T' and res != 'P' and res != 'M':
+            res = input( "(T)emporary, (P)ermanent, or (M)eh ? " ).strip( '\r\n\r\n\r' ).replace( 't', 'T' ).replace( 'p', 'P' ).replace( 'm', 'M' )
+        if res == 'T':
+            write_oneliner_file( '%s/.temp_or_perm.txt' % ( mountpoint ), 'temp' )
+        elif res == 'P':
+            write_oneliner_file( '%s/.temp_or_perm.txt' % ( mountpoint ), 'perm' )
+        else:
+            write_oneliner_file( '%s/.temp_or_perm.txt' % ( mountpoint ), 'meh' )
+    return res
+
+def add_user_to_the_relevant_groups( username, distro_name, mountpoint ):
+    for group_to_add_me_to in ( '%s' % ( 'debian-tor' if distro_name == 'debian' else 'tor' ), 'freenet', 'audio', 'pulse-access' ):
+        logme( 'Adding %s to %s' % ( username, group_to_add_me_to ) )
+        if group_to_add_me_to != 'pulse-access' and 0 != chroot_this( 
+                                    mountpoint, 'usermod -a -G %s %s' % ( group_to_add_me_to, username ) ):
+            failed( 'Failed to add %s to group %s' % ( username, group_to_add_me_to ) )
+
+
+def ask_the_user__guest_mode_or_user_mode__and_create_one_if_necessary( distro_name, mountpoint ):
+    success = False
+    while not success:
+        user_name = input( "Short, one-word name of your default user (or press Enter for guest): " ).strip()
+        if user_name == '' or user_name == 'guest':
+            return 'guest'
+        try:
+            system_or_die( mountpoint, 'useradd %s' % ( user_name ) )
+            success = True
+        except:
+            print( 'Failed to create user %s' % ( user_name ) )
+            continue
+    success = False
+    while not success:
+        try:
+            system_or_die( mountpoint, 'passwd %s' % ( user_name ) )
+            success = True
+        except:
+            continue
+    add_user_to_the_relevant_groups( user_name, distro_name, mountpoint )
+    return user_name
+

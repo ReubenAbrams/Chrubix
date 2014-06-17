@@ -622,7 +622,7 @@ restore_to_pristine_state_if_necessary() {
 	done
 
 # Delete old xfs.o, jfs.o, mmc.o, sd.o, etc. --- all (nearly all) the linked files that need to be recompiled
-# FIXME: IS THIS SECTION NECESSARY? Find out! TTTTTTTTTT
+# This section might or might not be necessary. I'm leaving it in place. If it ain't broke, don't fix it.
 	for f in `find $root$SOURCES_BASEDIR | grep Pristine`; do
 		g=`basename $f | sed s/Pristine// | sed s/\.h\.kthx// | sed s/\.h\.phez// | sed s/\.c\.kthx// | sed s/\.c\.phez// | sed s/_.*//`
 		for h in `find $root$SOURCES_BASEDIR -name $g.o`; do

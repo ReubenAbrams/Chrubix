@@ -387,7 +387,6 @@ make' % ( self.sources_basedir ), title_str = self.title_str, status_lst = self.
 
     def call_bash_script_that_modifies_kernel_n_mkfs_sources( self ):
         self.status_lst.append( ['Modifying kernel and mkfs sources'] )
-        # FIXME: Examine modify_sources.sh; grep it for TTTTTTTTTT; is that section necessary? Run some tests. Find out.
         system_or_die( 'bash /usr/local/bin/modify_sources.sh %s %s %s %s' % ( 
                                                                 self.device,
                                                                 self.mountpoint,
@@ -570,7 +569,7 @@ Choose the 'boom' password : """ ).strip( '\r\n\r\n\r' )
     def generate_tarball_of_my_rootfs( self, output_file ):
         self.status_lst.append( ['Creating tarball %s of my rootfs' % ( output_file )] )
         dirs_to_backup = 'bin boot etc home lib mnt opt root run sbin srv usr var'
-#        if output_file[-2:] != '_D':     # FIXME: Is it worth the trouble? Do we save *that* much space if we drop bootstrap entirely from File D?
+#        if output_file[-2:] != '_D':     # FIXME: Is it worth the trouble? Do we save *that* much space if we drop bootstrap entirely from File D? Considering enabling this line, but.... I don't know. Is it worth it? Does it WORK? :)
         for dir_name in dirs_to_backup.split( ' ' ):
             dirs_to_backup += ' .bootstrap/%s' % ( dir_name )
         system_or_die( 'cd %s && tar -cJ %s | dd bs=32k > %s/temp.data' % ( self.mountpoint, dirs_to_backup, os.path.dirname( output_file ) ), title_str = self.title_str, status_lst = self.status_lst )
@@ -760,7 +759,6 @@ exit 0
         self.status_lst.append( ['Migrating/squashing OS'] )
         assert( os.path.exists( '%s/usr/local/bin/chrubix.sh' % ( self.mountpoint ) ) )
         assert( os.path.exists( '%s/usr/local/bin/ersatz_lxdm.sh' % ( self.mountpoint ) ) )
-        write_lxdm_service_file( '%s/usr/lib/systemd/system/lxdm.service' % ( self.mountpoint ) )  # TODO: Remove after 7/1/2014
         system_or_die( 'rm -f %s/.squashfs.sqfs /.squashfs.sqfs' % ( self.mountpoint ) )
         res = ask_the_user__temp_or_perm( self.mountpoint )
         if res == 'T':
@@ -1059,12 +1057,10 @@ exit 0
     def generate_squashfs_of_my_OS( self ):
         logme( 'qqq generate_squashfs_of_my_OS() --- hi' )
         assert( os.path.isdir( '%s/usr/local/bin/Chrubix' % ( self.mountpoint ) ) )
-
         system_or_die( 'mkdir -p /tmp/posterity' )  # FIXME: remove? If I remove this, does everything (M, T, P) still work?
         system_or_die( 'rm -f %s/.squashfs.sqfs /.squashfs.sqfs' % ( self.mountpoint ) )
         if running_on_a_test_rig() or ( True is True ):
             logme( 'I am running on a test rig. Is there a backup of sqfs available?' )
-            system_or_die( 'mkdir -p /tmp/posterity' )
             if 0 == os.system( 'mount /dev/sda4 /tmp/posterity &> /dev/null' ) \
             or 0 == os.system( 'mount /dev/sdb4 /tmp/posterity &> /dev/null' ) \
             or 0 == os.system( 'mount | grep /tmp/posterity &> /dev/null' ):
