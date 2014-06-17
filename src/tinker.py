@@ -125,6 +125,14 @@ elif argv[2] == 'sign-and-write':
 #                param_A = 'cryptdevice=%s:%s' % ( self.spare_dev, os.path.basename( root_partition_device ) )
 #            else:
     res = distro.sign_and_write_custom_kernel( distro.device, distro.root_dev, '' )
+elif argv[2] == 'tarball-me':
+    distro = generate_distro_record_from_name( argv[3] )
+    distro.mountpoint = '/tmp/_root'
+    distro.device = '/dev/mmcblk1'
+    distro.root_dev = '/dev/mmcblk1p3'
+    distro.spare_dev = '/dev/mmcblk1p2'
+    distro.generate_tarball_of_my_rootfs( '/tmp/out.tgz' )
+    os.system( 'rm -f /tmp/out.tgz' )
 else:
     raise RuntimeError ( 'I do not understand %s' % ( argv[2] ) )
 os.system( 'sleep 5' )
