@@ -223,6 +223,7 @@ Acquire::https::Proxy "https://%s/";
 #                     on_fail = 'Failed to install leap.bitmask' )
         self.install_win_xp_theme()
         for cmd in ( 
+                    'yes 2>/dev/null | apt-get install u-boot-tools || echo -en ""',
                     'yes 2>/dev/null | add-apt-repository "deb http://deb.i2p2.no/ %s main"' % ( 'stable' ),  # 'unstable' if self.branch == 'jessie' else 'stable' ),
                     'yes "" 2>/dev/null | curl https://geti2p.net/_static/debian-repo.pub | apt-key add -',
                     'yes 2>/dev/null | apt-get update'
@@ -474,5 +475,9 @@ def do_debian_specific_mbr_related_hacks( mountpoint ):
                                                   ):
         if not os.path.exists( '%s%s/%s' % ( mountpoint, wish_it_were_here, fname ) ):
             system_or_die( 'ln -sf %s/%s %s%s/' % ( is_actually_here, fname, mountpoint, wish_it_were_here ) )
+    logme( 'Coping usb-load-ehci-first.conf across anyway.' )
+    system_or_die( 'cp -af /usr/lib/modprobe.d/usb-load-ehci-first.conf %s/usr/lib/modprobe.d/' % ( mountpoint ) )
+    assert( os.path.exists( '%s/usr/lib/modprobe.d/usb-load-ehci-first.conf' ) )
+
 
 
