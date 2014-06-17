@@ -315,7 +315,7 @@ def configure_lxdm_onetime_changes( mountpoint ):
     append_startx_addendum( '%s/etc/lxdm/Xsession' % ( mountpoint ) )  # Append. Don't replace.
     append_startx_addendum( '%s/etc/X11/xinit/xinitrc' % ( mountpoint ) )  # Append. Don't replace.
     append_lxdm_pre_login_script( '%s/etc/lxdm/PreLogin' % ( mountpoint ) )  # Append. Don't replace.
-    append_lxdm_post_logout_script( '%s/etc/lxdm/PostLogout' % ( mountpoint ) )
+#    append_lxdm_post_logout_script( '%s/etc/lxdm/PostLogout' % ( mountpoint ) )
     append_lxdm_xresources_addendum( '%s/root/.Xresources' % ( mountpoint ) )
     system_or_die( 'echo ". /etc/X11/xinitrc/xinitrc" >> %s/etc/lxdm/Xsession' % ( mountpoint ) )
     do_a_sed( '%s/etc/X11/xinit/xinitrc' % ( mountpoint ), '.*xterm.*', '' )
