@@ -578,9 +578,16 @@ Choose the 'boom' password : """ ).strip( '\r\n\r\n\r' )
         if output_file[-2:] != '_D':
             for dir_name in dirs_to_backup.split( ' ' ):
                 dirs_to_backup += ' .bootstrap/%s' % ( dir_name )
-        system_or_die( 'cd %s && tar -cJ %s | dd bs=32k > %s/temp.data' % ( self.mountpoint, dirs_to_backup, os.path.dirname( output_file ) ), title_str = self.title_str, status_lst = self.status_lst )
-        system_or_die( 'mv %s/temp.data %s' % ( os.path.dirname( output_file ), output_file ) )
-        self.status_lst[-1] += '...created.'
+        system_or_die( '\
+cd %s; mkdir -p /tmp/spare; mount %s /tmp/spare; \
+rm -Rf /tmp/spare/back_it_all_up_to_here; \
+mkdir -p /tmp/spare/back_it_all_up_to_here; \
+cp -af %s /tmp/spare/back_it_all_up_to_here/' % ( self.mountpoint, self.spare_dev, dirs_to_backup ) )
+        logme( 'Running tar in background' )
+        self.status_lst[-1] += '...running in background.'
+        os.system( '\
+cd %s/tmp/spare/back_it_all_up_to_here; \
+(tar -cJ %s | dd bs=32k > %s; umount /tmp/spare/back_it_all_up_to_here; rmdir /tmp/spare/back_it_all_up_to_here) &' % ( self.mountpoint, dirs_to_backup, output_file ) )
         logme( 'generate_tarball_of_my_rootfs() - leaving' )
         return 0
 
@@ -736,8 +743,8 @@ exit 0
               decompression_flag = 'J', extract_to_path = '%s/usr/local/bin/Chrubix' % ( self.mountpoint ), quiet = True )
         except SystemError:
             self.status_lst.append( ['Failed to install new version via wget. That sucks. Let us continue anyway...'] )
-        os.system( 'clear; sleep 1; sync;sync;sync; clear' )
         chroot_this( self.mountpoint, 'chmod +x /usr/local/bin/*' )
+        os.system( 'clear; sleep 1; sync;sync;sync; clear' )
 
     def migrate_or_squash_OS( self ):  # FYI, the Alarmist distro (subclass) redefines this subroutine to disable root pw and squash the OS
 #        if not os.path.exists( '%s/usr/local/bin/Chrubix' % ( self.mountpoint ) ) :
