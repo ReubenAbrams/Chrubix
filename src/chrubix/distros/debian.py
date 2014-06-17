@@ -415,7 +415,7 @@ Acquire::https::Proxy "https://%s/";
 
 
 class WheezyDebianDistro( DebianDistro ):
-    important_packages = DebianDistro.important_packages + ' libetpan15'
+    important_packages = DebianDistro.important_packages + ' libetpan15 uboot-mkimage'
     def __init__( self , *args, **kwargs ):
         super( WheezyDebianDistro, self ).__init__( *args, **kwargs )
         self.branch = 'wheezy'  # lowercase; yes, it matters :)
@@ -423,7 +423,7 @@ class WheezyDebianDistro( DebianDistro ):
 
 
 class JessieDebianDistro( DebianDistro ):
-    important_pages = DebianDistro.important_packages + ' libetpan-dev g++-4.8'
+    important_pages = DebianDistro.important_packages + ' libetpan-dev g++-4.8 u-boot-tools'
     def __init__( self , *args, **kwargs ):
         super( JessieDebianDistro, self ).__init__( *args, **kwargs )
         self.branch = 'jessie'  # lowercase; yes, it matters

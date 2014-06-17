@@ -11,7 +11,7 @@ import os
 # FIXME: paman and padevchooser are deprecated
 class ArchlinuxDistro( Distro ):
     important_packages = Distro.important_packages + ' \
-cgpt xz mkinitcpio mutagen libconfig festival-us libxpm dtc mythes-en \
+cgpt xz mkinitcpio mutagen libconfig festival-us libxpm uboot-mkimage dtc mythes-en \
 mesa pyqt gptfdisk bluez-libs alsa-plugins acpi sdl libcanberra perl-xml-parser \
 libnotify talkfilters java-runtime libxmu apache-ant junit zbar python2-setuptools python2-pip \
 twisted python2-yaml python2-distutils-extra python2-gobject python2-cairo python2-poppler python2-pdfrw \

@@ -40,7 +40,7 @@ class Distro():
     important_packages = 'xmlto man xmltoman intltool squashfs-tools aircrack-ng gnome-keyring \
 liferea gobby busybox bzr cpio cryptsetup curl lzop ed parted libtool patch git nano bc pv pidgin \
 python3 python-pip python-setuptools python-crypto python-yaml python-gobject rng-tools \
-sudo tzdata unzip wget flex gcc bison autoconf uboot-mkimage dillo \
+sudo tzdata unzip wget flex gcc bison autoconf dillo \
 gnupg mpg123 pavucontrol ttf-dejavu bluez pulseaudio ffmpeg mplayer notification-daemon ttf-liberation \
 ntfs-3g autogen automake docbook-xsl pkg-config dosfstools expect acpid make pwgen asciidoc \
 xterm xscreensaver rxvt rxvt-unicode smem python-qrencode python-imaging \

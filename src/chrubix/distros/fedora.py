@@ -9,10 +9,10 @@ from chrubix.utils import wget, system_or_die, unmount_sys_tmp_proc_n_dev, mount
 
 
 class FedoraDistro( Distro ):
-    important_packages = Distro.important_packages + ' ' + '\
+    important_packages = Distro.important_packages + ' \
 xf86-video-fbdev cgpt xz mkinitcpio xf86-video-armsoc exo xf86-input-synaptics libxpm dtc xmlto xorg-server festival-us \
 xorg-xmessage mesa pyqt gptfdisk xlockmore bluez-libs alsa-plugins acpi xorg-xinit sdl libcanberra icedtea-web-java7 \
-libnotify talkfilters chromium xorg-server-utils java-runtime libxmu libxfixes apache-ant junit'
+libnotify talkfilters chromium xorg-server-utils java-runtime libxmu libxfixes apache-ant junit uboot-mkimage'
     final_push_packages = Distro.important_packages + ' ' + 'wmsystemtray lxdm network-manager-gnome'
     def __init__( self ):
         super( FedoraDistro, self ).__init__()

@@ -9,8 +9,8 @@ from chrubix.utils import wget, system_or_die, unmount_sys_tmp_proc_n_dev, mount
 
 
 class SuseDistro( Distro ):
-    important_packages = Distro.important_packages + ' ' + '\
- cgpt xz mkinitcpio libxpm dtc xmlto festival-us \
+    important_packages = Distro.important_packages + ' \
+ cgpt xz mkinitcpio libxpm dtc xmlto festival-us uboot-mkimage \
 mesa gptfdisk bluez-libs alsa-plugins acpisdl libcanberra icedtea-web-java7 \
 libnotify talkfilters chromium xorg-server-utils java-runtime libxmu libxfixes apache-ant junit'
     final_push_packages = Distro.important_packages + '\
