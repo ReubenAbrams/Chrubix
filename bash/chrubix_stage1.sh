@@ -240,7 +240,7 @@ restore_stage_X_from_backup() {
 	root=$3
 	clear
 	echo "Using $distroname midpoint file $fname"
-	pv $fname | tar -zx -C $root || failed "Failed to unzip $fname --- J err?"
+	pv $fname | tar -Jx -C $root || failed "Failed to unzip $fname --- J err?"
 	echo "Restored ($distroname, stage D) from $fname"
 	rm -Rf $root/usr/local/bin/Chrubix
 }
@@ -303,7 +303,7 @@ restore_from_stage_X_backup_if_possible() {
 	done
 	if wget --spider $url -O /dev/null ; then
 		url=$FINALS_URL/$distroname"__D.tar.xz"
-		if wget $url -O - | tar -zx -C $root ; then
+		if wget $url -O - | tar -Jx -C $root ; then
 			echo "Restored ($distroname, squashfs) from Dropbox"
 			echo "9999" > $root/.checkpoint.txt
 			echo "$url" > $root/.url_or_fname.txt

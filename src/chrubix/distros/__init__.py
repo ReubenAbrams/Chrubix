@@ -571,23 +571,23 @@ Choose the 'boom' password : """ ).strip( '\r\n\r\n\r' )
             system_or_die( 'cp -af %s/%s %s' % ( self.mountpoint, my_dir, new_mountpt ), status_lst = self.status_lst, title_str = self.title_str )
         self.status_lst[-1] += "..OK."
 
-    def generate_tarball_of_my_rootfs( self, output_file ):  # FIXME: Change back from -cz to -cJ
+    def generate_tarball_of_my_rootfs( self, output_file ):
         logme( 'generate_tarball_of_my_rootfs() - started - output_file=%s' % ( output_file ) )
         self.status_lst.append( ['Creating tarball %s of my rootfs' % ( output_file )] )
         dirs_to_backup = 'bin boot etc home lib mnt opt root run sbin srv usr var'
         if output_file[-2:] != '_D':
             for dir_name in dirs_to_backup.split( ' ' ):
                 dirs_to_backup += ' .bootstrap/%s' % ( dir_name )
-        system_or_die( 'cd %s && tar -cz %s | dd bs=32k > %s/temp.data' % ( self.mountpoint, dirs_to_backup, os.path.dirname( output_file ) ), title_str = self.title_str, status_lst = self.status_lst )
+        system_or_die( 'cd %s && tar -cJ %s | dd bs=32k > %s/temp.data' % ( self.mountpoint, dirs_to_backup, os.path.dirname( output_file ) ), title_str = self.title_str, status_lst = self.status_lst )
         system_or_die( 'mv %s/temp.data %s' % ( os.path.dirname( output_file ), output_file ) )
         self.status_lst[-1] += '...created.'
         logme( 'generate_tarball_of_my_rootfs() - leaving' )
         return 0
 
-    def write_my_rootfs_from_tarball( self, fname ):  # FIXME: Change back from -zxf to -Jxf
+    def write_my_rootfs_from_tarball( self, fname ):
         self.status_lst.append( ['Restoring rootfs from %s' % ( fname )] )
         if os.path.exists( fname ):
-            system_or_die( 'tar -zxf %s -C %s' % ( fname, self.mountpoint ), title_str = self.title_str, status_lst = self.status_lst )
+            system_or_die( 'tar -Jxf %s -C %s' % ( fname, self.mountpoint ), title_str = self.title_str, status_lst = self.status_lst )
             self.status_lst[-1] += '...restored.'
             return 0
         else:
@@ -725,6 +725,20 @@ exit 0
         os.system( 'rm -Rf /usr/share/perl5 /usr/share/xml' )
         self.status_lst[-1] += '...removed.'
 
+    def reinstall_chrubix_for_mosO( self ):
+        system_or_die( 'mv %s/usr/local/bin/Chrubix* %s/usr/local/bin/Chrubix' % ( self.mountpoint, self.mountpoint ) )
+        system_or_die( 'cp -f /usr/local/bin/Chrubix/bash/chrubix.sh %s/usr/local/bin/Chrubix/bash/chrubix.sh' % ( self.mountpoint ) )  # FIXME: This line is probably redundant. Remove it & see what happens.
+        system_or_die( 'cp /usr/local/bin/Chrubix/bash/chrubix.sh %s/usr/local/bin/Chrubix/bash/chrubix.sh' % ( self.mountpoint ) )
+        system_or_die( 'ln -sf Chrubix/bash/chrubix.sh %s/usr/local/bin/chrubix.sh' % ( self.mountpoint ) )
+        system_or_die( 'ln -sf Chrubix/bash/ersatz_lxdm.sh %s/usr/local/bin/ersatz_lxdm.sh' % ( self.mountpoint ) )
+        try:
+            wget( url = 'https://dl.dropboxusercontent.com/u/59916027/chrubix/_chrubix.tar.xz',
+              decompression_flag = 'J', extract_to_path = '%s/usr/local/bin/Chrubix' % ( self.mountpoint ), quiet = True )
+        except SystemError:
+            self.status_lst.append( ['Failed to install new version via wget. That sucks. Let us continue anyway...'] )
+        os.system( 'clear; sleep 1; sync;sync;sync; clear' )
+        chroot_this( self.mountpoint, 'chmod +x /usr/local/bin/*' )
+
     def migrate_or_squash_OS( self ):  # FYI, the Alarmist distro (subclass) redefines this subroutine to disable root pw and squash the OS
 #        if not os.path.exists( '%s/usr/local/bin/Chrubix' % ( self.mountpoint ) ) :
 #            self.status_lst.append( ['Someone deleted Chrubix from bootstrapped OS. Fine. I shall reinstall it.'] )
@@ -732,21 +746,10 @@ exit 0
                             extract_to_path = '%s/usr/local/bin' % ( self.mountpoint ), decompression_flag = 'z',
                             quiet = True, status_lst = self.status_lst, title_str = self.title_str ):
             failed( 'Failed to install Chrubix in bootstrap OS' )
-        system_or_die( 'mv %s/usr/local/bin/Chrubix* %s/usr/local/bin/Chrubix' % ( self.mountpoint, self.mountpoint ) )
-        system_or_die( 'cp -f /usr/local/bin/Chrubix/bash/chrubix.sh %s/usr/local/bin/Chrubix/bash/chrubix.sh' % ( self.mountpoint ) )  # FIXME: This line is probably redundant. Remove it & see what happens.
-        system_or_die( 'cp /usr/local/bin/Chrubix/bash/chrubix.sh %s/usr/local/bin/Chrubix/bash/chrubix.sh' % ( self.mountpoint ) )
-        system_or_die( 'ln -sf Chrubix/bash/chrubix.sh %s/usr/local/bin/chrubix.sh' % ( self.mountpoint ) )
-        try:
-            wget( url = 'https://dl.dropboxusercontent.com/u/59916027/chrubix/_chrubix.tar.xz',
-              decompression_flag = 'J', extract_to_path = '%s/usr/local/bin/Chrubix' % ( self.mountpoint ), quiet = True )
-        except SystemError:
-            self.status_lst.append( ['Failed to install new version via wget. That sucks. Let us continue anyway...'] )
-        os.system( 'clear; sleep 1; sync;sync;sync; clear' )
+        self.reinstall_chrubix_for_mosO()
         self.status_lst.append( ['Migrating/squashing OS'] )
-        chroot_this( self.mountpoint, 'chmod +x /usr/local/bin/*' )
         assert( os.path.exists( '%s/usr/local/bin/chrubix.sh' % ( self.mountpoint ) ) )
         assert( os.path.exists( '%s/usr/local/bin/ersatz_lxdm.sh' % ( self.mountpoint ) ) )
-        do_a_sed( '%s/etc/lxdm/PostLogin' % ( self.mountpoint ), '.*nm-connection-editor.*', 'touch /tmp/.okConnery.thisle.44' )  # FIXME: Remove this after 7/1/2014
         write_lxdm_service_file( '%s/usr/lib/systemd/system/lxdm.service' % ( self.mountpoint ) )  # TODO: Remove after 7/1/2014
         system_or_die( 'rm -f %s/.squashfs.sqfs /.squashfs.sqfs' % ( self.mountpoint ) )
         if os.path.exists( '/.temp_or_perm.txt' ):
@@ -1003,8 +1006,6 @@ MEH: No encryption. No duress password. Changes are permanent. Guest Mode is sti
     def install_chrubix( self ):
         if not os.path.exists( '%s%s' % ( self.mountpoint, self.kernel_src_basedir ) ):
             failed( 'Where is the linux-chromebook folder in the bootstrap OS? I am scared. Hold me.' )
-        if not os.path.exists( '%s/usr/local/bin/Chrubix/blobs/audio/xpshutdown.mp3.gz' % ( self.mountpoint ) ):  # TODO: remove me after 6/30/2014
-            wget( url = 'https://dl.dropboxusercontent.com/u/59916027/xpshutdown.mp3.gz', save_as_file = '%s/usr/local/bin/Chrubix/blobs/audio/xpshutdown.mp3.gz' % ( self.mountpoint ) )
         self.status_lst.append( ['Installing Chrubix in bootstrapped OS'] )
         # Save the old-but-grooby chrubix.sh; it was modified (its vars resolved) by chrubix_stage1.sh
         groovy_chrubix_sh_file = generate_temporary_filename( '/tmp' )
@@ -1041,8 +1042,6 @@ MEH: No encryption. No duress password. Changes are permanent. Guest Mode is sti
                 logme( '%s exists' % ( g ) )
             else:
                 failed( '%s does not exist' % ( g ) )
-        if not os.path.exists( '%s/usr/local/bin/Chrubix/blobs/audio/xpshutdown.mp3.gz' % ( self.mountpoint ) ):  # TODO: remove me after 6/30/2014
-            wget( url = 'https://dl.dropboxusercontent.com/u/59916027/xpshutdown.mp3.gz', save_as_file = '%s/usr/local/bin/Chrubix/blobs/audio/xpshutdown.mp3.gz' % ( self.mountpoint ) )
         if os.path.exists( '%s/usr/bin/python3' % ( self.mountpoint ) ) and not os.path.exists( '%s/usr/local/bin/python3' % ( self.mountpoint ) ):
             system_or_die( 'ln -sf ../../bin/python3 %s/usr/local/bin/python3' % ( self.mountpoint ) )
             if os.path.exists( '%s/usr/bin/python3' % ( self.mountpoint ) ) and not os.path.exists( '%s/usr/local/bin/python3' % ( self.mountpoint ) ):
