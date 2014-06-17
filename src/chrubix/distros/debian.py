@@ -5,7 +5,8 @@
 # TODO: aptitude --download-only ... Should I install it at end of important pkg func, or should I do it during final push?
 
 from chrubix.utils import generate_temporary_filename, g_proxy, failed, system_or_die, write_oneliner_file, wget, logme, \
-                          chroot_this, read_oneliner_file, do_a_sed  # , generate_and_incorporate_patch_for_debian
+                          chroot_this, read_oneliner_file, do_a_sed
+                          # , generate_and_incorporate_patch_for_debian
 import os
 from chrubix.distros import Distro
 
@@ -23,8 +24,9 @@ x11-utils xbase-clients ssss mat florence monkeysign libxfixes-dev liblzo2-dev \
 wmaker python-cairo python-pdfrw libconfig-dev libx11-dev python-hachoir-core python-hachoir-parser \
 mat myspell-en-us msttcorefonts xorg xserver-xorg-input-synaptics xul-ext-https-everywhere \
 pulseaudio paprefs pulseaudio-module-jack pavucontrol paman alsa-tools-gui alsa-oss mythes-en-us \
-libpisock-dev uno-libs3 libgtk-3-bin libbcprov-java gtk2-engines-murrine \
+libpisock-dev uno-libs3 libgtk-3-bin libbcprov-java gtk2-engines-murrine libc6-dev \
 e2fslibs-dev debhelper python-dev libffi-dev python-dev libffi-dev libsqlite3-dev \
+software-properties-common \
 '  # Warning! Monkeysign pkg might be broken.
 # gtk-engines-unico python-distutil-extra ? python-distusil-extra python-gobject python-qrencode python-imaging
     final_push_packages = Distro.final_push_packages + ' \
@@ -192,6 +194,7 @@ Acquire::https::Proxy "https://%s/";
 #        generate_and_incorporate_patch_for_debian( self.mountpoint, source_pathname )
         chroot_this( self.mountpoint, 'cd %s; [ -e "configure" ] && (./configure&&make) || make' % ( source_pathname + ( '/src/chromeos-3.4' if package_name == 'linux-chromebook' else '/' + package_name + '-*' ) ),
                     on_fail = 'Failed to build %s in %s' % ( package_name, package_path ),
+                    attempts = 1,
                     title_str = self.title_str,
                     status_lst = self.status_lst )
 #        chroot_this( self.mountpoint, 'cd %s/%s-* && yes 2>/dev/null | dpkg-buildpackage -b -us -uc -d' % ( source_pathname, package_name ),
@@ -217,15 +220,9 @@ Acquire::https::Proxy "https://%s/";
         chroot_this( self.mountpoint, 'which ping && echo "Ping installed OK" || yes 2>/dev/null | apt-get install iputils-ping', on_fail = 'Failed to install ping' )
 #        chroot_this( self.mountpoint, 'pip install leap.bitmask', status_lst = self.status_lst, title_str = self.title_str,
 #                     on_fail = 'Failed to install leap.bitmask' )
-        if 0 != os.system( 'cp %s/usr/local/bin/Chrubix/blobs/xp/win-xp-theme_1.3.1~saucy~Noobslab.com_all.deb %s/tmp/win-xp-themes.deb 2> /dev/null' % ( self.mountpoint, self.mountpoint ) ):
-            if 0 != os.system( 'cp /usr/local/bin/Chrubix/blobs/xp/win-xp-theme_1.3.1~saucy~Noobslab.com_all.deb %s/tmp/win-xp-themes.deb 2> /dev/null' % ( self.mountpoint ) ):
-                wget( url = 'https://dl.dropboxusercontent.com/u/59916027/chrubix/win-xp-theme_1.3.1%7Esaucy%7ENoobslab.com_all.deb', save_as_file = '%s/tmp/win-xp-themes.deb' % ( self.mountpoint ),
-                      status_lst = self.status_lst, title_str = self.title_str )
-#        wget( url = 'http://ppa.launchpad.net/noobslab/themes/ubuntu/pool/main/w/win-xp-theme/win-xp-theme_1.3.1~saucy~Noobslab.com_all.deb',
-#             save_as_file = '%s/tmp/win-xp-themes.deb' % ( self.mountpoint ), status_lst = self.status_lst, title_str = self.title_str )
+        self.install_win_xp_theme()
         for cmd in ( 
-                    'yes 2>/dev/null | dpkg -i /tmp/win-xp-themes.deb',
-                    'yes 2>/dev/null | add-apt-repository "deb http://deb.i2p2.no/ %s main"' % ( 'unstable' if self.branch == 'jessie' else 'stable' ),
+                    'yes 2>/dev/null | add-apt-repository "deb http://deb.i2p2.no/ %s main"' % ( 'stable' ),  # 'unstable' if self.branch == 'jessie' else 'stable' ),
                     'yes "" 2>/dev/null | curl https://geti2p.net/_static/debian-repo.pub | apt-key add -',
                     'yes 2>/dev/null | apt-get update'
                    ):
@@ -242,6 +239,21 @@ Acquire::https::Proxy "https://%s/";
                      on_fail = 'Failed to install final push of packages' )
         do_debian_specific_mbr_related_hacks( self.mountpoint )
         logme( 'DebianDistro - install_final_push_of_packages() - leaving' )
+
+    def install_win_xp_theme( self ):
+        if 0 != os.system( 'cp %s/usr/local/bin/Chrubix/blobs/xp/win-xp-theme_1.3.1~saucy~Noobslab.com_all.deb %s/tmp/win-xp-themes.deb 2> /dev/null' % ( self.mountpoint, self.mountpoint ) ):
+            if 0 != os.system( 'cp /usr/local/bin/Chrubix/blobs/xp/win-xp-theme_1.3.1~saucy~Noobslab.com_all.deb %s/tmp/win-xp-themes.deb 2> /dev/null' % ( self.mountpoint ) ):
+                wget( url = 'https://dl.dropboxusercontent.com/u/59916027/chrubix/win-xp-theme_1.3.1%7Esaucy%7ENoobslab.com_all.deb', save_as_file = '%s/tmp/win-xp-themes.deb' % ( self.mountpoint ),
+                      status_lst = self.status_lst, title_str = self.title_str )
+#        wget( url = 'http://ppa.launchpad.net/noobslab/themes/ubuntu/pool/main/w/win-xp-theme/win-xp-theme_1.3.1~saucy~Noobslab.com_all.deb',
+#             save_as_file = '%s/tmp/win-xp-themes.deb' % ( self.mountpoint ), status_lst = self.status_lst, title_str = self.title_str )
+        if 0 != chroot_this( self.mountpoint, 'yes 2>/dev/null | dpkg -i /tmp/win-xp-themes.deb', title_str = self.title_str, status_lst = self.status_lst ):
+            self.status_lst[-1] += '...installing win-xp-theme from source'
+            self.build_and_install_software_from_archlinux_source( 'win-xp-theme', only_download = True, quiet = True )
+            chroot_this( self.mountpoint, \
+                         'cd %s/win-xp-theme/src && install -d /usr/share/themes/Win-XP-theme && cp -r * /usr/share/themes/' % \
+                         ( self.sources_basedir ), status_lst = self.status_lst, title_str = self.title_str, on_fail = 'Failed to install win-xp-theme from source' )
+        self.status_lst[-1] += '...success!'
 
     def steal_dtc_and_mkinitcpio_from_alarpy( self ):
         logme( 'DebianDistro - steal_dtc_and_mkinitcpio_from_alarpy() - starting' )
@@ -360,10 +372,10 @@ Acquire::https::Proxy "https://%s/";
                 tarball_fname = os.path.basename( [r for r in files_i_want if r.find( field ) >= 0][0] )
                 chroot_this( self.mountpoint, 'tar -%s %s/%s/%s -C %s/%s' \
                              % ( 'Jxf' if tarball_fname[-3:] == '.xz' else 'zxf', self.sources_basedir, package_name, tarball_fname, self.sources_basedir, package_name ), \
-                             title_str = self.title_str, status_lst = self.status_lst )
+                             title_str = self.title_str, status_lst = self.status_lst, attempts = 1 )
                 if 'diff.gz' in str( files_i_want ):
                     chroot_this( self.mountpoint, 'cd %s/%s/%s* && cat `ls ../%s*.diff.gz` | gunzip -dc | patch -p1 2>&1 && mv * ..' % \
-                                 ( self.sources_basedir, package_name, package_name, package_name ), \
+                                 ( self.sources_basedir, package_name, package_name.replace( 'gtk3-engines-unico', 'unico' ), package_name ), \
                                  on_fail = 'Failed to patch %s thingumabob' % ( package_name ), \
                                  title_str = self.title_str, status_lst = self.status_lst )
         logme( 'DebianDistro - extract_pkgfiles_accordingly() - leaving' )
@@ -387,14 +399,15 @@ Acquire::https::Proxy "https://%s/";
         att = 0
         res = 999
         while att < 4 and res != 0:
-            res = chroot_this( self.mountpoint, 'cd %s/%s/%s-* ; cp -af ../debian . ; dpkg-buildpackage -b -us -uc -d 2> %s' % ( self.sources_basedir, package_name, package_name, tmpfile ),
+            res = chroot_this( self.mountpoint, 'cd %s/%s/%s-* ; cp -af ../debian . ; dpkg-buildpackage -b -us -uc -d 2> %s' % \
+                               ( self.sources_basedir, package_name, package_name.replace( 'gtk3-engines-unico', 'unico' ), tmpfile ),
                                                     title_str = self.title_str, status_lst = self.status_lst )
             if res != 0:
-                chroot_this( self.mountpoint, '''cat %s | grep -i "unmet build dep" | cut -d':' -f3-99 | tr ' ' '\n' | grep "[a-z].*" | grep -v "=" | tr '\n' ' ' > %s''' % ( tmpfile, tmpfile + '.x' ) )
+                chroot_this( self.mountpoint, '''cat %s | grep -i "unmet build dep" | cut -d':' -f3-99 | tr ' ' '\n' | grep "[a-z].*" | grep -v "=" | tr '\n' ' ' > %s''' % ( tmpfile, tmpfile + '.x' ) , attempts = 1 )
                 needed_pkgs = read_oneliner_file( self.mountpoint + '/' + tmpfile + '.x' )
                 chroot_this( self.mountpoint, "yes 2> /dev/null | apt-get install %s" % ( needed_pkgs ), \
                                                 on_fail = "Failed to install the build deps of %s" % ( package_name ) , \
-                                                title_str = self.title_str, status_lst = self.status_lst )
+                                                title_str = self.title_str, status_lst = self.status_lst, attempts = 1 )
                 att += 1
         logme( 'DebianDistro - build_package_from_fileset() - leaving' )
         return res
@@ -409,7 +422,7 @@ class WheezyDebianDistro( DebianDistro ):
 
 
 class JessieDebianDistro( DebianDistro ):
-    important_pages = DebianDistro.important_packages + ' libetpan-dev'
+    important_pages = DebianDistro.important_packages + ' libetpan-dev g++-4.8'
     def __init__( self , *args, **kwargs ):
         super( JessieDebianDistro, self ).__init__( *args, **kwargs )
         self.branch = 'jessie'  # lowercase; yes, it matters
