@@ -18,7 +18,7 @@ QUICK START
 
 If you don't own an ARM-based Chromebook, buy one. If you already own one, follow these simple instructions.
 1 Enter Developer Mode.
-* Turn your laptop off. Hold the ESC and Refresh keys then press the Power key.
+* Turn your laptop off. While holding the ESC and Refresh keys down, press the Power key.
 * The system will reboot and show the Recovery Mode screen. Press Control-D.
 * The system will boot and ask you to confirm. Press <Enter>.
 * At the next power-on screen, press Control-D.
