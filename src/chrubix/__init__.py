@@ -2,6 +2,8 @@
 
 import sys
 import os
+import pickle
+import binascii
 import time
 import subprocess
 import getopt
@@ -11,6 +13,7 @@ import base64
 from chrubix.utils import call_binary, read_oneliner_file, write_oneliner_file, call_binary_and_show_progress, \
                           wget, get_expected_duration_of_install, failed, get_total_lines_so_far, logme, \
                           set_expected_duration_of_install
+from chrubix.utils.postinst import configure_lxdm_behavior
 from chrubix import distros
 from chrubix.distros.archlinux import ArchlinuxDistro
 from chrubix.distros.debian import WheezyDebianDistro, JessieDebianDistro
@@ -57,6 +60,26 @@ def generate_distro_record_from_name( name_str ):
     assert( None not in ( rec.name, rec.architecture ) )
     assert( rec.branch is not None or rec.name in ( 'archlinux', 'kali' ) )
     return rec
+
+
+
+def load_distro_record( mountpoint = '/' ):
+    dct_to_load = pickle.load( open( '%s/etc/.distro.rec' % ( mountpoint ), "rb" ) )
+    distro_record = generate_distro_record_from_name( dct_to_load['name'] + ( '' if dct_to_load['branch'] is None else dct_to_load['branch'] ) )
+    for k in dct_to_load['dct'].keys():
+        if k in distro_record.__dict__.keys():
+            distro_record.__dict__[k] = dct_to_load['dct'][k]
+        else:
+            print( 'Warning - %s is not in the distro rec. Therefore, I shall not set its value to %s.' % ( k, dct_to_load['dct'][k] ) )
+    return distro_record
+
+
+def save_distro_record( distro_rec = None, mountpoint = '/' ):
+    assert( distro_rec is not None )
+    dct_to_save = {'name':distro_rec.name, 'branch':distro_rec.branch, 'dct':distro_rec.__dict__}
+    pickle.dump( dct_to_save, open( '%s/etc/.distro.rec' % ( mountpoint ), "wb" ) )
+    if os.path.exists( '%s/etc/lxdm/lxdm.conf' % ( mountpoint ) ):
+        configure_lxdm_behavior( mountpoint, distro_rec.lxdm_settings )
 
 
 def process_command_line( argv ):

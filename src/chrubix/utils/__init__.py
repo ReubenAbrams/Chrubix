@@ -46,8 +46,9 @@ def get_expected_duration_of_install():
 
 
 def logme( message = None ):
-    handle = open ( '/chrubix.log', 'a' )
-    handle.write( '%s\n' % ( message ) )
+    datestr = call_binary( ['date'] )[1].strip()
+    handle = open ( '/tmp/chrubix.log', 'a' )
+    handle.write( '%s %s\n' % ( datestr, message ) )
     handle.close()
 
 
@@ -205,6 +206,7 @@ def rootcryptdevice():
 
 
 def call_binary( func_call ):
+    result = 0
     assert( type( func_call ) is list )  # e.g. ['ls','-f','/dev']
     try:
         result = subprocess.check_output( func_call, stderr = subprocess.STDOUT )
@@ -295,27 +297,6 @@ def chroot_this( mountpoint, cmd, on_fail = None, attempts = 3, title_str = None
     logme( 'chroot("%s") is returning w/ res=%d' % ( cmd, res ) )
     return res
 
-
-def load_distro_record( mountpoint = '/' ):
-    import pickle
-    import binascii
-    f = open( '%s/etc/.distro.rec' % ( mountpoint ), 'rb' )
-    uuencoded_pickled_rec = f.readline()
-    f.close()
-    pickled_record = binascii.a2b_base64( uuencoded_pickled_rec )
-    distro_rec = pickle.loads( pickled_record )
-    return distro_rec
-
-
-def save_distro_record( distro_rec = None, mountpoint = '/' ):
-    import pickle
-    import binascii
-    assert( distro_rec is not None )
-    pickled_record = pickle.dumps( distro_rec )
-    uuencoded_pickled_rec = binascii.b2a_base64( pickled_record )
-    f = open( '%s/etc/.distro.rec' % ( mountpoint ), 'wb' )
-    f.write( uuencoded_pickled_rec )
-    f.close()
 
 
 def backup_the_resolvconf_file( mountpoint ):
