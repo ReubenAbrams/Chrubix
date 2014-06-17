@@ -1175,7 +1175,7 @@ cd soledad
 git fetch origin
 git checkout develop
 cd client
-if ! python2 setup.py install ; then
+if ! yes | python2 setup.py install ; then
     pip2 install leap.soledad || failed "I think I failed to install soledad"
 fi
 pip2 install --no-dependencies leap.bitmask || failed "Failed to install leap.bitmask"
