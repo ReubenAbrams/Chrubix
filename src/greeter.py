@@ -9,10 +9,10 @@
 import sys
 import os
 import datetime
-from chrubix.utils import logme, save_distro_record, load_distro_record, write_oneliner_file, \
+from chrubix.utils import logme, write_oneliner_file, \
                     system_or_die, configure_paranoidguestmode_before_calling_lxdm, failed
 from chrubix.utils.postinst import configure_lxdm_behavior
-from chrubix import generate_distro_record_from_name
+from chrubix import generate_distro_record_from_name, save_distro_record, load_distro_record
 import hashlib
 
 
@@ -20,55 +20,7 @@ GUEST_HOMEDIR = '/tmp/.guest'
 LXDM_CONF = '/etc/lxdm/lxdm.conf'
 
 
-def set_up_guest_homedir():
-    logme( 'greeter.py --- set_up_guest_homedir() --- entering' )
-    for cmd in ( 
-                'mkdir -p %s' % ( GUEST_HOMEDIR ),
-                'chmod 700 %s' % ( GUEST_HOMEDIR ),
-                'tar -Jxf /usr/local/bin/Chrubix/blobs/settings/default_guest_files.tar.xz -C %s' % ( GUEST_HOMEDIR ),
-                'chown -R guest.guest %s' % ( GUEST_HOMEDIR ),
-                'chmod 755 %s' % ( LXDM_CONF ),
-                ):
-        if 0 != os.system( cmd ):
-            logme( '%s ==> failed' % ( cmd ) )
-    logme( 'greeter.py --- set_up_guest_homedir() --- leaving' )
 
-
-def do_audio_and_network_stuff():
-    logme( 'greeter.py --- do_audio_and_network_stuff() --- entering' )
-    for cmd in ( 
-                'systemctl start NetworkManager',
-                'systemctl enable privoxy',
-                'amixer sset Speaker unmute',
-                'amixer sset Speaker 30%',
-                '''for q in `amixer | grep Speaker | cut -d"'" -f2 | tr ' ' '/'`; do g=`echo "$q" | tr '/' ' '`; amixer sset "$g" unmute; done''',
-                'which alsactl &> /dev/null && alsactl store &> /dev/null'
-                ):
-        if 0 != os.system( cmd ):
-            logme( '%s ==> failed' % ( cmd ) )
-    logme( 'greeter.py --- do_audio_and_network_stuff() --- leaving' )
-
-
-def actually_call_the_greeter_gui( distro ):
-    logme( 'greeter.py --- running greeter gui' )
-    os.system( 'xset s off' )
-    os.system( 'xset -dpms' )
-    if os.system( 'mount | grep /dev/mapper/encstateful &> /dev/null' ) == 0 \
-    or os.system( 'mount | grep hfs &> /dev/null' ) == 0:
-        # compile Qt Creator UI files into Python bindings
-        os.system( "rm -f ui_AlarmistGreeter.py ui/ui_AlarmistGreeter.py qrc_resources.py" )
-        os.system( 'export PATH=/opt/local/bin:$PATH' )
-        for fname in [f for f in os.listdir( "ui" ) if f[-3:] == ".ui" and f[0] != "." ]:
-            os.system( "PATH=/opt/local/bin:$PATH pyuic4 -o ui/ui_" + fname[:-3] + ".py ui/" + fname[:-3] + ".ui" )
-            print ( "Processing " + fname )
-        os.system( "PATH=/opt/local/bin:$PATH pyrcc4 -py3 -o resources_rc.py ui/resources.qrc" )
-    app = QtGui.QApplication( sys.argv )
-    window = AlarmistGreeter()
-    window.show()
-    window.raise_()
-    res = app.exec_()
-    logme( 'greeter.py --- back from greeter gui' )
-    return res
 
 
 # ---------------------------------------------------------------------------
@@ -226,46 +178,24 @@ class AlarmistGreeter( QtGui.QDialog, Ui_dlgAlarmistGreeter ):
 
 
 if __name__ == "__main__":
-    logme( 'greeter.py --- starting w/ params %s' % ( str( sys.argv ) ) )
-    distro = load_distro_record()
-    logme( 'greeter.py --- loaded distro record (yay)' )
-    set_up_guest_homedir()
-    logme( 'greeter.py --- guest homedir set up OK' )
-    if distro.lxdm_settings['use greeter gui']:
-        logme( 'greeter.py --- using greeter gui' )
-        if len( sys.argv ) <= 1 or sys.argv[1] != 'X':
-            logme( 'greeter.py --- starting XWindow and asking it to run the greeter gui' )
-            write_oneliner_file( '/usr/local/bin/greeter.rc', 'exec python3 greeter.py X' )
-            res = os.system( 'startx /usr/local/bin/greeter.rc' )
-            logme( 'greeter.py --- back from calling XWindow to run greeter gui; res=%d' % ( res ) )
-        else:
-            logme( 'greeter.py --- actually running greeter gui' )
-            res = actually_call_the_greeter_gui( distro )
-            logme( 'greeter.py --- back from actually running greeter gui; res=%d' % ( res ) )
-        if res != 0:
-            logme( 'greeter.py --- ending sorta prematurely; res=%d' % ( res ) )
-            sys.exit( res )
-    if os.path.exists( '/etc/.first_time_ever' ):
-        do_audio_and_network_stuff()
-        os.unlink( '/etc/.first_time_ever' )
-    logme( 'greeter.py --- configuring lxdm behavior' )
-    configure_lxdm_behavior( '/', distro.lxdm_settings )
-    logme( 'greeter.py --- saving distro record' )
-    save_distro_record( distro )
-    success = False
-    while not success:
-        logme( 'greeter.py --- calling lxdm' )
-        timestamp_before = datetime.datetime.now()
-        res = os.system( 'lxdm' )
-        timestamp_after = datetime.datetime.now()
-        diff = timestamp_after - timestamp_before
-        try:
-            if diff.seconds > 3:
-                success = True
-        except:
-            logme( 'greeter.py --- something is wrong with timestamp comparison code; forcing success=True as backup plan' )
-            success = True
-    logme( 'greeter.py --- back from lxdm; exiting now; res=%d' % ( res ) )
+    logme( 'greeter.py --- running greeter gui' )
+    os.system( 'xset s off' )
+    os.system( 'xset -dpms' )
+    if os.system( 'mount | grep /dev/mapper/encstateful &> /dev/null' ) == 0 \
+    or os.system( 'mount | grep hfs &> /dev/null' ) == 0:
+        # compile Qt Creator UI files into Python bindings
+        os.system( "rm -f ui_AlarmistGreeter.py ui/ui_AlarmistGreeter.py qrc_resources.py" )
+        os.system( 'export PATH=/opt/local/bin:$PATH' )
+        for fname in [f for f in os.listdir( "ui" ) if f[-3:] == ".ui" and f[0] != "." ]:
+            os.system( "PATH=/opt/local/bin:$PATH pyuic4 -o ui/ui_" + fname[:-3] + ".py ui/" + fname[:-3] + ".ui" )
+            print ( "Processing " + fname )
+        os.system( "PATH=/opt/local/bin:$PATH pyrcc4 -py3 -o resources_rc.py ui/resources.qrc" )
+    app = QtGui.QApplication( sys.argv )
+    window = AlarmistGreeter()
+    window.show()
+    window.raise_()
+    res = app.exec_()
+    logme( 'greeter.py --- back; exiting now; res=%d' % ( res ) )
     sys.exit( res )
 
 
