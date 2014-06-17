@@ -9,8 +9,8 @@
 import sys
 import os
 import datetime
-from chrubix.utils import logme, write_oneliner_file, \
-                    system_or_die, configure_paranoidguestmode_before_calling_lxdm, failed
+from chrubix.utils import logme, write_oneliner_file, disable_root_password, set_user_password, \
+                    system_or_die, failed, write_spoof_script_file
 from chrubix.utils.postinst import configure_lxdm_behavior
 from chrubix import generate_distro_record_from_name, save_distro_record, load_distro_record
 import hashlib
@@ -44,6 +44,41 @@ from ui.ui_AlarmistGreeter import Ui_dlgAlarmistGreeter
 
 
 
+
+
+def configure_paranoidguestmode_before_calling_lxdm( password, direct, spoof, camouflage ):
+    '''
+    Greeter calls me before it calls lxdm.
+    This is my chance to set up the XP look, enable MAC spoofing, etc.
+    '''
+    # Set password, if appropriate
+    os.system( 'echo "configure_paranoid... - part A" >> /tmp/log.txt' )
+    distro = load_distro_record()
+    if password in ( None, '' ):
+        disable_root_password( '/' )
+    else:
+        set_user_password( 'root', password )
+    os.system( 'echo "configure_paranoid... - part B" >> /tmp/log.txt' )
+    # Enable MAC spoofing, if appropriate
+    if spoof:  # https://wiki.archlinux.org/index.php/MAC_Address_Spoofing
+        write_spoof_script_file( '/etc/NetworkManager/dispatcher.d/99spoofmymac.sh' )  # NetworkManager will run it, automatically, as soon as network goes up/down
+        system_or_die( '''macchanger -r `ifconfig | grep lan0 | cut -d':' -f1 | head -n1`''' )
+    else:
+        os.system( 'rf /etc/NetworkManager/dispatcher.d/99spoofmymac.sh' )
+
+    os.system( 'echo "configure_paranoid... - part C" >> /tmp/log.txt' )
+    if camouflage:
+        distro.lxdm_settings['window manager'] = '/usr/bin/mate-session'
+    else:
+        distro.lxdm_settings['window manager'] = distro.lxdm_settings['default wm']
+    os.system( 'echo "configure_paranoid... - part D" >> /tmp/log.txt' )
+    if direct:
+        os.system( 'rm -f /tmp/.do-not-automatically-connect' )  # TODO: use distro record instad of temp file
+    else:
+        write_oneliner_file( '/tmp/.do-not-automatically-connect', 'nope' )
+    save_distro_record( distro )
+    os.system( 'echo "configure_paranoid... - part E" >> /tmp/log.txt' )
+    os.system( 'sync;sync;sync' )
 
 
 
