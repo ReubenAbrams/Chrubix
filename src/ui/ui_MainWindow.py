@@ -2,7 +2,7 @@
 
 # Form implementation generated from reading ui file 'ui/MainWindow.ui'
 #
-# Created: Wed Jun 18 00:37:26 2014
+# Created: Wed Jun 18 12:50:27 2014
 #      by: PyQt4 UI code generator 4.10.4
 #
 # WARNING! All changes made in this file will be lost!
@@ -163,6 +163,7 @@ class Ui_mnwMain(object):
         self.btnResetLxdmSettings.setObjectName(_fromUtf8("btnResetLxdmSettings"))
         self.gridLayout.addWidget(self.btnResetLxdmSettings, 3, 4, 1, 1)
         self.pteLxdmSettings = QtGui.QPlainTextEdit(self.tabGreeter)
+        self.pteLxdmSettings.setPlainText(_fromUtf8(""))
         self.pteLxdmSettings.setObjectName(_fromUtf8("pteLxdmSettings"))
         self.gridLayout.addWidget(self.pteLxdmSettings, 2, 0, 1, 5)
         self.label_2 = QtGui.QLabel(self.tabGreeter)
@@ -259,8 +260,6 @@ class Ui_mnwMain(object):
         self.chkHomeKeyTD.setText(_translate("mnwMain", "Store part of key on thumb drive", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabSecurity), _translate("mnwMain", "Security", None))
         self.btnResetLxdmSettings.setText(_translate("mnwMain", "Reset", None))
-        self.pteLxdmSettings.setPlainText(_translate("mnwMain", "\n"
-"", None))
         self.label_2.setText(_translate("mnwMain", "Greeter Configuration File", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabGreeter), _translate("mnwMain", "Greeter", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabAdvanced), _translate("mnwMain", "Advanced", None))

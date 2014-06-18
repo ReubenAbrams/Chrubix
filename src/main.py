@@ -153,9 +153,11 @@ class MainWindow( QtGui.QMainWindow, Ui_mnwMain ):
 
     @pyqtSignature( "" )
     def populateMainTabWidget( self ):
+        self.blockSignals( True )
         self.configurePushButtons()
         self.configureCheckBoxes()
         self.populateLxdmPlaintextEditor()
+        self.blockSignals( False )
 
     @pyqtSignature( "" )
     def configurePushButtons( self ):
@@ -221,16 +223,19 @@ class MainWindow( QtGui.QMainWindow, Ui_mnwMain ):
 
     @pyqtSignature( "" )
     def pteLxdmSettingsChanged( self ):
-        self.btnResetLxdmSettings.setEnabled( True )
-        self.setChangesMadeTrue()
-        self.configurePushButtons()
+        if not self.signalsBlocked():
+            self.btnResetLxdmSettings.setEnabled( True )
+            self.setChangesMadeTrue()
 
     @pyqtSignature( "" )
     def btnResetLxdmSettingsClicked( self ):
+        self.blockSignals( True )
         orig_rec = load_distro_record()
         self.distro.lxdm_settings = orig_rec.lxdm_settings
+        self.configurePushButtons()
         self.populateLxdmPlaintextEditor()
-
+        self.btnResetLxdmSettings.setEnabled( False )
+        self.blockSignals( False )
 
 
     @pyqtSignature( "" )
@@ -240,9 +245,9 @@ class MainWindow( QtGui.QMainWindow, Ui_mnwMain ):
             v = self.distro.lxdm_settings[k]
             w = v if type( v ) is str else str( v )
             outstr += '%s=%s\n' % ( k, w )
-        app.blockSignals( True )
+        signals_are_already_blocked = self.signalsBlocked()
         self.pteLxdmSettings.setPlainText( outstr )
-        app.blockSignals( False )
+
 
     @pyqtSignature( "" )
     def saveLxdmSettingsToMyDistroRecord( self ):
