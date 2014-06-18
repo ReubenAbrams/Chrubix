@@ -14,6 +14,7 @@ fi
 if ! ps | fgrep CHRUBIX | fgrep -v fgrep ; then
 	wget https://dl.dropboxusercontent.com/u/59916027/chrubix/_chrubix.tar.xz -O - | tar -Jx -C /usr/local/bin/Chrubix || echo "Sorry. Dropbox is down. We'll have to rely on GitHub..."
 fi
+chmod +x /usr/local/bin/*
 
 export DISPLAY=:0.0
 cd /usr/local/bin/Chrubix/src
