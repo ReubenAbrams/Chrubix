@@ -767,8 +767,10 @@ exit 0
                             extract_to_path = '%s/usr/local/bin' % ( self.mountpoint ), decompression_flag = 'z',
                             quiet = True, status_lst = self.status_lst, title_str = self.title_str ):
             failed( 'Failed to install Chrubix in bootstrap OS' )
-        self.reinstall_chrubix_for_mosO()
         self.status_lst.append( ['Migrating/squashing OS'] )
+        self.reinstall_chrubix_for_mosO()
+        do_a_sed( '%s/etc/lxdm/PostLogout' % ( self.mountpoint ), '.*loginctl', '#' )  # TODO: Remove after 7/1/2014
+        do_a_sed( '%s/etc/lxdm/PostLogout' % ( self.mountpoint ), '.*systemctl', '#' )  # TODO: Remove after 7/1/2014
         assert( os.path.exists( '%s/usr/local/bin/chrubix.sh' % ( self.mountpoint ) ) )
         assert( os.path.exists( '%s/usr/local/bin/ersatz_lxdm.sh' % ( self.mountpoint ) ) )
         system_or_die( 'rm -f %s/.squashfs.sqfs /.squashfs.sqfs' % ( self.mountpoint ) )

@@ -11,13 +11,14 @@ import sys
 import os
 import datetime
 from chrubix.utils import logme, write_oneliner_file, \
-                    system_or_die, configure_paranoidguestmode_before_calling_lxdm, failed
+                    system_or_die, failed
 from chrubix.utils.postinst import configure_lxdm_behavior
 from chrubix import generate_distro_record_from_name, save_distro_record, load_distro_record
 import hashlib
 from chrubix import generate_distro_record_from_name
 from chrubix.utils import fix_broken_hyperlinks, system_or_die
 from chrubix.utils.postinst import remove_junk
+
 
 
 GUEST_HOMEDIR = '/tmp/.guest'

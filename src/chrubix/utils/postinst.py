@@ -80,6 +80,11 @@ else
   sleep 4
 fi
 
+if ps wax | grep florence | grep -v grep ; then
+  sleep 2
+  florence hide &
+fi
+
 [ -e "/tmp/.do-not-automatically-connect" ] && exit 0
 
 if ! ping -c1 -W5 8.8.8.8 ; then
@@ -89,12 +94,6 @@ if ! ping -c1 -W5 8.8.8.8 ; then
     sleep 1
   done
   kill $the_pid
-fi
-
-if which florence &> /dev/null ; then
-  if ps wax | grep florence | grep -v grep ; then
-    florence hide &
-  fi
 fi
 
 if ! ps -o pid -C tor ; then
@@ -109,19 +108,16 @@ logger "QQQ end of postlogin script"
     f.close()
 
 
-
-
-
 def append_lxdm_post_logout_script( outfile ):
     f = open( outfile, 'a' )
     f.write( '''
 liu=/tmp/.logged_in_user
 rm -f $liu
-logger "QQQ - terminating current user session and restarting lxdm"
-# Terminate current user session
-/usr/bin/loginctl terminate-session $XDG_SESSION_ID
-# Restart lxdm
-/usr/bin/systemctl restart lxdm.service
+#logger "QQQ - terminating current user session and restarting lxdm"
+## Terminate current user session
+#/usr/bin/loginctl terminate-session $XDG_SESSION_ID
+## Restart lxdm
+#/usr/bin/systemctl restart lxdm.service
 ''' )
     f.close()
 
@@ -167,7 +163,7 @@ res=999
     echo -en "Searching..."
     all=""
     while [ "`echo "$all" | wc -c`" -lt "4" ] ; do
-        all="`nmcli device wifi list | grep -v "SSID.*BSSID" | sed s/'    '/^/ | cut -d'^' -f1 | awk '{printf ", " substr($0,2,length($0)-2);}' | sed s/', '//`"
+        all="`nmcli --nocheck device wifi list | grep -v "SSID.*BSSID" | sed s/'    '/^/ | cut -d'^' -f1 | awk '{printf ", " substr($0,2,length($0)-2);}' | sed s/', '//`"
         sleep 1
         echo -en "."
     done
@@ -179,7 +175,7 @@ res=999
     echo -en "WiFi PW: "
     read pw
     echo -en "Working..."
-    nmcli dev wifi connect "$id" password "$pw" && res=0 || res=1
+    nmcli --nocheck dev wifi connect "$id" password "$pw" && res=0 || res=1
     [ "$res" -ne "0" ] && echo "Bad ID and/or password. Try again." || echo "Success"
   done
   return 0
@@ -199,7 +195,7 @@ lockfile=/tmp/.go_online_auto.lck
 try_to_connect() {
   local lst res netname_tabbed netname
   logger "QQQ wifi-auto --- Trying to connect to the Internet..."
-  r="`nmcli con status | grep -v "NAME.*UUID" | wc -l`"
+  r="`nmcli --nocheck con status | grep -v "NAME.*UUID" | wc -l`"
   if [ "$r" -gt "0" ] ; then
     if ping -W5 -c1 8.8.8.8 ; then
       logger "QQQ wifi-auto --- Cool, we're already online. Fair enough."
@@ -208,12 +204,12 @@ try_to_connect() {
       logger "QQQ wifi-auto --- ping failed. OK. Trying to connect to Internet."
     fi
   fi
-  lst="`nmcli con list | grep -v "UUID.*TYPE.*TIMESTAMP" | sed s/\\ \\ \\ \\ /^/ | cut -d'^' -f1 | tr ' ' '^'`"
+  lst="`nmcli --nocheck con list | grep -v "UUID.*TYPE.*TIMESTAMP" | sed s/\\ \\ \\ \\ /^/ | cut -d'^' -f1 | tr ' ' '^'`"
   res=999
   for netname_tabbed in $lst $lst $lst ; do # try thrice
     netname="`echo "$netname_tabbed" | tr '^' ' '`"
     logger "QQQ wifi-auto --- Trying $netname"
-    nmcli con up id "$netname"
+    nmcli --nocheck con up id "$netname"
     res=$?
     [ "$res" -eq "0" ] && break
     echo -en "."
@@ -335,7 +331,7 @@ def configure_lxdm_behavior( mountpoint, lxdm_settings ):
     if lxdm_settings['enable user lists']:
         do_a_sed( f, 'disable=.*', 'disable=0' )
         do_a_sed( f, 'black=.*', 'black=root bin daemon mail ftp http uuidd dbus nobody systemd-journal-gateway systemd-timesync systemd-network avahi polkitd colord git rtkit freenet i2p lxdm tor privoxy' )
-        do_a_sed( f, 'white=.*', 'white=' )  # %s guest shutdown' )
+        do_a_sed( f, 'white=.*', 'white=guest shutdown' )
     else:
         do_a_sed( f, 'disable=.*', 'disable=1' )
     if lxdm_settings['autologin']:
