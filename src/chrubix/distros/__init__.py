@@ -41,7 +41,7 @@ class Distro():
     important_packages = 'xmlto man xmltoman intltool squashfs-tools aircrack-ng gnome-keyring \
 liferea gobby busybox bzr cpio cryptsetup curl lzop ed parted libtool patch git nano bc pv pidgin \
 python3 python-pip python-setuptools python-crypto python-yaml python-gobject rng-tools \
-sudo tzdata unzip wget flex gcc bison autoconf dillo \
+sudo tzdata unzip wget flex gcc bison autoconf dillo python-sqlite \
 gnupg mpg123 pavucontrol ttf-dejavu bluez pulseaudio ffmpeg mplayer notification-daemon ttf-liberation \
 ntfs-3g autogen automake docbook-xsl pkg-config dosfstools expect acpid make pwgen asciidoc \
 xterm xscreensaver rxvt rxvt-unicode smem python-qrencode python-imaging \
@@ -62,13 +62,7 @@ simple-scan macchanger brasero pm-utils mousepad keepassx claws-mail bluez-utils
         self.__spare_dev = '/dev/null'  # e.g. /dev/mmcblk1p2
         self.__root_dev = '/dev/null'  # e.g. /dev/mmcblk1p3
         self.__boom_pw_hash = None
-        self.root_key_partly_on_TD = False
-        self.home_key_partly_on_TD = False
-        self.freenet_and_i2p_in_home = False
-        self.use_dropbox = False  # for storing fragment of /home key
         self.panic_button = 0  # >0 means panic button is active; 0 means inactive
-        self.root_is_encrypted = False
-        self.home_is_encrypted = False
         self.architecture = None
         self.kernel_rebuild_required = False
         self.randomized_serial_number = None
@@ -77,7 +71,14 @@ simple-scan macchanger brasero pm-utils mousepad keepassx claws-mail bluez-utils
         self.mountpoint = None  # not mounted yet :)
         self.list_of_mkfs_packages = None  # This will be defined by subclass
         self.typical_install_duration = -1
+        self.use_dropbox = False  # for storing fragment of /home key
+        self.root_is_encrypted = False
+        self.home_is_encrypted = False
         self.use_latest_kernel = False
+        self.root_key_partly_on_TD = False
+        self.kernel_triple_signed = False
+        self.home_key_partly_on_TD = False
+        self.freenet_and_i2p_in_home = False
         self.lxdm_settings = {'window manager':chrubix.utils.g_default_window_manager,
                               'default wm':chrubix.utils.g_default_window_manager,
                               'enable user lists':True,
