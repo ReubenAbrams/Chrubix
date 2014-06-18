@@ -9,6 +9,7 @@ from chrubix.utils import rootcryptdevice, mount_device, mount_sys_tmp_proc_n_de
             chroot_this, wget, do_a_sed, system_or_die, write_oneliner_file, read_oneliner_file, call_binary, install_mp3_files, \
             generate_temporary_filename, backup_the_resolvconf_file, install_gpg_applet, patch_kernel, \
             fix_broken_hyperlinks, disable_root_password, install_windows_xp_theme_stuff, running_on_a_test_rig
+
 from chrubix.utils.postinst import append_lxdm_post_login_script, append_lxdm_pre_login_script, append_lxdm_post_logout_script, \
             append_lxdm_xresources_addendum, generate_wifi_manual_script, generate_wifi_auto_script, \
             install_guest_browser_script, configure_privoxy, add_speech_synthesis_script, ask_the_user__guest_mode_or_user_mode__and_create_one_if_necessary, \
@@ -1257,6 +1258,7 @@ WantedBy=multi-user.target
             logme( 'I am not running on a test rig. Therefore, I shall not save %s' % ( tailend ) )
             return 0
         else:
+            # I thought about calling save_distro_record() here. Then I decided not to. Why complicate things?
             res = self.load_or_save_posterity_file( tailend, self.generate_tarball_of_my_rootfs )
             if 0 != res:
                 self.status_lst.append( ['Unable to save %s progress for posterity' % ( tailend )] )
@@ -1290,6 +1292,7 @@ WantedBy=multi-user.target
         else:
             res = self.load_or_save_posterity_file( tailend, self.write_my_rootfs_from_tarball )
             if 0 == res:
+                # I thought about calling load_distro_record() here. Then I decided not to. Why complicate things?
                 system_or_die( 'mkdir -p %s' % ( self.sources_basedir ) )
                 system_or_die( 'mkdir -p %s/{dev,sys,proc,tmp}' % ( self.mountpoint, ), "Can't make important dirs" )
                 system_or_die( 'mkdir -p %s/usr/local/bin' % ( self.mountpoint, ) )

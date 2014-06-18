@@ -9,7 +9,7 @@ import sys
 import os
 from chrubix import generate_distro_record_from_name
 from chrubix.utils import fix_broken_hyperlinks, system_or_die
-from chrubix.utils.postinst import remove_junk
+from chrubix.utils.postinst import remove_junk, ask_the_user__guest_mode_or_user_mode__and_create_one_if_necessary
 
 try:
     import urwid
@@ -133,6 +133,13 @@ elif argv[2] == 'tarball-me':
     distro.spare_dev = '/dev/mmcblk1p2'
     distro.generate_tarball_of_my_rootfs( '/tmp/out.tgz' )
     os.system( 'rm -f /tmp/out.tgz' )
+elif argv[2] == 'new-user':
+    distro = generate_distro_record_from_name( argv[3] )
+    distro.mountpoint = '/tmp/_root'
+    distro.device = '/dev/mmcblk1'
+    distro.root_dev = '/dev/mmcblk1p3'
+    distro.spare_dev = '/dev/mmcblk1p2'
+    ask_the_user__guest_mode_or_user_mode__and_create_one_if_necessary( argv[3], distro.mountpoint )
 else:
     raise RuntimeError ( 'I do not understand %s' % ( argv[2] ) )
 os.system( 'sleep 5' )

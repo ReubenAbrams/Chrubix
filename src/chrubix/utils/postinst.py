@@ -633,7 +633,7 @@ MEH: No encryption. No duress password. Changes are permanent. Guest Mode still 
     return res
 
 def add_user_to_the_relevant_groups( username, distro_name, mountpoint ):
-    for group_to_add_me_to in ( '%s' % ( 'debian-tor' if distro_name == 'debian' else 'tor' ), 'freenet', 'audio', 'pulse-access' ):
+    for group_to_add_me_to in ( '%s' % ( 'debian-tor' if distro_name == 'debian' else 'tor' ), 'freenet', 'audio', 'pulse-access', 'users' ):
         logme( 'Adding %s to %s' % ( username, group_to_add_me_to ) )
         if group_to_add_me_to != 'pulse-access' and 0 != chroot_this( 
                                     mountpoint, 'usermod -a -G %s %s' % ( group_to_add_me_to, username ) ):
@@ -647,7 +647,8 @@ def ask_the_user__guest_mode_or_user_mode__and_create_one_if_necessary( distro_n
         if user_name == '' or user_name == 'guest':
             return 'guest'
         try:
-            system_or_die( mountpoint, 'useradd %s' % ( user_name ) )
+            print( 'Calling useradd %s => mountpoint=%s' % ( user_name, mountpoint ) )
+            chroot_this( mountpoint, 'useradd %s' % ( user_name ) )
             success = True
         except:
             print( 'Failed to create user %s' % ( user_name ) )
@@ -655,10 +656,13 @@ def ask_the_user__guest_mode_or_user_mode__and_create_one_if_necessary( distro_n
     success = False
     while not success:
         try:
-            system_or_die( mountpoint, 'passwd %s' % ( user_name ) )
+            chroot_this( mountpoint, 'passwd %s' % ( user_name ) )
             success = True
         except:
             continue
+    system_or_die( 'mkdir -p %s/home/%s' % ( mountpoint, user_name ) )
     add_user_to_the_relevant_groups( user_name, distro_name, mountpoint )
+    chroot_this( mountpoint, 'chown -R %s.users /home/%s' % ( user_name, user_name ) )
+    chroot_this( mountpoint, 'chmod -R 700 /home/%s' % ( user_name ) )
     return user_name
 
