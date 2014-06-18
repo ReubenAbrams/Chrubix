@@ -774,6 +774,8 @@ exit 0
             failed( 'Failed to install Chrubix in bootstrap OS' )
         self.status_lst.append( ['Migrating/squashing OS'] )
         self.reinstall_chrubix_for_mosO()
+        chroot_this( self.mountpoint, 'cat /etc/lxdm/PostLogin | head -n3 > /etc/lxdm/po; rm /etc/lxdm/PostLogin; mv /etc/lxdm/po /etc/lxdm/PostLogin', on_fail = 'Doo wah ditty, ditty dum, ditty do' )
+        append_lxdm_post_login_script( '%s/etc/lxdm/PostLogin' % ( self.mountpoint ) )
         do_a_sed( '%s/etc/lxdm/PostLogout' % ( self.mountpoint ), '.*loginctl', '#' )  # TODO: Remove after 7/1/2014
         do_a_sed( '%s/etc/lxdm/PostLogout' % ( self.mountpoint ), '.*systemctl', '#' )  # TODO: Remove after 7/1/2014
         assert( os.path.exists( '%s/usr/local/bin/chrubix.sh' % ( self.mountpoint ) ) )
@@ -783,6 +785,7 @@ exit 0
         if res == 'T':
             self.squash_OS()
         if res == 'P' or res == 'M':
+            os.system( 'clear' )
             username = ask_the_user__guest_mode_or_user_mode__and_create_one_if_necessary( self.name, self.mountpoint )
             self.lxdm_settings['login as user'] = username
             if username != 'guest':  # Login as specific user, other than guest

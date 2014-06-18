@@ -68,11 +68,6 @@ if ! ps wax | fgrep nm-applet | fgrep -v grep &> /dev/null ; then
   sleep 1
 fi
 
-if [ "`ps wax | grep nm-applet | grep -v grep | cut -d' ' -f1,2 | tr ' ' '\n' | grep "[0-9][0-9]" | wc -l`" -ge "2" ]; then
-  sleep 1
-  kill `ps wax | grep nm-applet | grep -v grep | cut -d' ' -f1,2 | tr ' ' '\n' | grep "[0-9][0-9]" | tail -n1`
-fi
-
 if ps wax | fgrep mate-session | fgrep -v grep ; then
   # WinXP mode. Cool. Play the sound.
   pulseaudio -k
@@ -89,6 +84,11 @@ if ps wax | grep florence | grep -v grep ; then
 fi
 
 [ -e "/tmp/.do-not-automatically-connect" ] && exit 0
+
+if [ "`ps wax | grep nm-applet | grep -v grep | cut -d' ' -f1,2 | tr ' ' '\n' | grep "[0-9][0-9]" | wc -l`" -ge "2" ]; then
+  sleep 1
+  kill `ps wax | grep nm-applet | grep -v grep | cut -d' ' -f1,2 | tr ' ' '\n' | grep "[0-9][0-9]" | tail -n1`
+fi
 
 if ! ping -c1 -W5 8.8.8.8 ; then
   urxvt -geometry 120x20+0+320 -name "WiFi Setup" -e sh -c "/usr/local/bin/wifi_manual.sh" &
@@ -641,7 +641,6 @@ def add_user_to_the_relevant_groups( username, distro_name, mountpoint ):
 
 def ask_the_user__guest_mode_or_user_mode__and_create_one_if_necessary( distro_name, mountpoint ):
     success = False
-    os.system( 'clear' )
     while not success:
         user_name = input( "Short, one-word name of your default user (or press Enter for guest): " ).strip()
         if user_name == '' or user_name == 'guest':
