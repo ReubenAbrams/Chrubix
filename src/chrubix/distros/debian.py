@@ -223,7 +223,6 @@ Acquire::https::Proxy "https://%s/";
 #                     on_fail = 'Failed to install leap.bitmask' )
         self.install_win_xp_theme()
         for cmd in ( 
-                    'yes 2>/dev/null | apt-get install u-boot-tools || echo -en ""',
                     'yes 2>/dev/null | add-apt-repository "deb http://deb.i2p2.no/ %s main"' % ( 'stable' ),  # 'unstable' if self.branch == 'jessie' else 'stable' ),
                     'yes "" 2>/dev/null | curl https://geti2p.net/_static/debian-repo.pub | apt-key add -',
                     'yes 2>/dev/null | apt-get update'
