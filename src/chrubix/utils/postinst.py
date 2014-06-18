@@ -644,7 +644,7 @@ def ask_the_user__guest_mode_or_user_mode__and_create_one_if_necessary( distro_n
         if user_name == '' or user_name == 'guest':
             return 'guest'
         try:
-            print( 'Calling useradd %s => mountpoint=%s' % ( user_name, mountpoint ) )
+#            print( 'Calling useradd %s => mountpoint=%s' % ( user_name, mountpoint ) )
             chroot_this( mountpoint, 'useradd %s' % ( user_name ) )
             success = True
         except:
