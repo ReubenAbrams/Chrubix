@@ -62,6 +62,13 @@ simple-scan macchanger brasero pm-utils mousepad keepassx claws-mail bluez-utils
         self.__spare_dev = '/dev/null'  # e.g. /dev/mmcblk1p2
         self.__root_dev = '/dev/null'  # e.g. /dev/mmcblk1p3
         self.__boom_pw_hash = None
+        self.root_key_partly_on_TD = False
+        self.home_key_partly_on_TD = False
+        self.freenet_and_i2p_in_home = False
+        self.use_dropbox = False  # for storing fragment of /home key
+        self.panic_button = 0  # >0 means panic button is active; 0 means inactive
+        self.root_is_encrypted = False
+        self.home_is_encrypted = False
         self.architecture = None
         self.kernel_rebuild_required = False
         self.randomized_serial_number = None
@@ -798,12 +805,9 @@ exit 0
                        self.mountpoint ) )
 
     def migrate_OS( self ):  # ....unless you're the Alarmist subclass, which redefines this as SQUASH MY OS!  :-)
-        self.status_lst.append( ['Waiting for stage D posterity generator to finish'] )
-        while 0 == os.system( 'mount | grep /tmp/spare &>/dev/null' ):
-            os.system( 'sleep 30' )
-            self.status_lst[-1] += '.'
         self.status_lst[-1] += 'excellent.'
         self.kernel_rebuild_required = True  # ...because the initramfs needs our boom pw, which means we'll have to rebuild initramfs.... which means rebuilding kernel!
+        self.root_is_encrypted = True
         system_or_die( 'cd /' )
         new_mtpt = '/tmp/_enc_root'
         os.system( 'mkdir -p %s' % ( new_mtpt ) )  # errtxt = 'Failed to create new mountpoint %s ' % ( new_mtpt ) )

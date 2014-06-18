@@ -2,7 +2,7 @@
 
 # Form implementation generated from reading ui file 'ui/newimagedlg.ui'
 #
-# Created: Tue Jun 17 04:39:06 2014
+# Created: Wed Jun 18 00:27:51 2014
 #      by: PyQt4 UI code generator 4.10.4
 #
 # WARNING! All changes made in this file will be lost!

@@ -1,5 +1,8 @@
 <RCC>
   <qresource>
+    <file alias="change_pw.png">change_pw.png</file>
+    <file alias="reset.png">reset.png</file>
+    <file alias="save3.png">save3.png</file>
     <file alias="chrubix1.png">images/chrubix1.png</file>
     <file alias="filenew.png">images/filenew.png</file>
     <file alias="fileopen.png">images/fileopen.png</file>

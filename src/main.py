@@ -98,7 +98,6 @@ class ChangePasswordDialog( QtGui.QDialog, Ui_dlgChangepassword ):
     def showDialog( self ):
         text, ok = QtGui.QInputDialog.getText( self, 'Input Dialog',
             'Enter your name:' )
-
         if ok:
             self.le.setText( str( text ) )
 
@@ -110,42 +109,142 @@ class MainWindow( QtGui.QMainWindow, Ui_mnwMain ):
 #    from chrubix.distros import Distro
     distro = None
     def __init__( self ):
+        self.changes_made = False
         super( MainWindow, self ).__init__()
         uic.loadUi( "ui/MainWindow.ui", self )
-#        self.distro = load_distro_record()
-#        self.actionWhitelist.setText( self.distro.whitelist_menu_text() )
-        self.connect( self.btnClear, SIGNAL( "clicked()" ), self.clearTaskList )
-        self.connect( self.btnExecute, SIGNAL( "clicked()" ), self.executeTaskList )
-        self.connect( self.btnSaveLxdmSettings, SIGNAL( "clicked()" ), self.saveLxdmSettings )
-        self.connect( self.actionChangePwDisk, SIGNAL( "triggered()" ), self.changeDiskPassword )
-        self.connect( self.actionChangePwRoot, SIGNAL( "triggered()" ), self.changeRootPassword )
-        self.connect( self.actionChangePwBoom, SIGNAL( "triggered()" ), self.changeBoomPassword )
-        self.connect( self.actionWhitelist, SIGNAL( "triggered()" ), self.changeWhitelist )
-        self.connect( self.pteLxdmSettings, SIGNAL( "textChanged()" ), self.enableSaveButtons )
-        try:
-            self.distro = load_distro_record()
-        except:  # EOFError?
-            self.distro = generate_distro_record_from_name( 'archlinux' )
-            save_distro_record( self.distro )
-            self.distro = load_distro_record()
-        self.populateGreeterSettings()
+        self.distro = load_distro_record()
+        # populate
+        self.connect( self.pteLxdmSettings, SIGNAL( "textChanged()" ), self.pteLxdmSettingsChanged )
+        self.connect( self.chkPanicButton, SIGNAL( 'clicked(bool)' ), self.chkPanicButtonClicked )
+        self.connect( self.btnApplyAppChanges, SIGNAL( 'clicked()' ), self.btnApplyAppChangesClicked )
+        self.connect( self.btnResetAll, SIGNAL( 'clicked()' ), self.btnResetAllClicked )
+        self.connect( self.btnResetLxdmSettings, SIGNAL( 'clicked()' ), self.btnResetLxdmSettingsClicked )
+        self.connect( self.btnExitWithoutSaving, SIGNAL( "clicked()" ), SLOT( "close()" ) )
+        self.connect( self.spiNoofPanicPushesRequired, SIGNAL( 'changed(int)' ), self.spiNoofPanicPushesRequiredChanged )
+        self.connect_all_checkboxes_to_setChangesMadeTrue()
+        self.populateMainTabWidget()
+        self.setChangesMadeFalse()
         self.show()
 
     @pyqtSignature( "" )
-    def enableSaveButtons( self ):
-        self.btnSaveLxdmSettings.setEnabled( True )
+    def setChangesMadeTrue( self ):
+        self.changes_made = True
+        self.configurePushButtons()
 
     @pyqtSignature( "" )
-    def populateGreeterSettings( self ):
+    def setChangesMadeFalse( self ):
+        self.changes_made = False
+        self.configurePushButtons()
+
+    @pyqtSignature( "" )
+    def connect_all_checkboxes_to_setChangesMadeTrue( self ):
+        for item in ( self.chkEncryptedRootPartition, self.btnChangeRootPassword, self.chkRootKeyTD, \
+                     self.btnChooseRootKeyTD, self.chkKernelSignedInTriplicate, self.chkHardwareIsWhitelisted, \
+                     self.btnRegenerateWhitelist, self.chkObfuscateFilesystemMarkers, self.chkUseDuressPassword, \
+                     self.btnChangeDuressPassword, self.chkEncryptedHomePartition, self.btnChangeHomePassword, \
+                     self.chkHomeKeyTD, self.btnChooseHomeKeyTD, self.chkUseDropboxWhenEncryptingHome, \
+                     self.chkStoreFreenetAndI2pOnHome, self.chkPanicButton, ):
+            self.connect( item, SIGNAL( "clicked()" ), self.setChangesMadeTrue )
+
+    @pyqtSignature( "int" )
+    def spiNoofPanicPushesRequiredChanged( self, new_val ):
+        self.panic_button = new_val
+        self.setChangesMadeTrue()
+
+    @pyqtSignature( "" )
+    def populateMainTabWidget( self ):
+        self.configurePushButtons()
+        self.configureCheckBoxes()
+        self.populateLxdmPlaintextEditor()
+
+    @pyqtSignature( "" )
+    def configurePushButtons( self ):
+        self.btnApplyAppChanges.setEnabled( self.changes_made )
+#        self.btnExitWithoutSaving.setEnabled( self.changes_made )
+        self.btnExitWithoutSaving.setText( "Lose Changes && Exit" if self.changes_made else 'Exit Program' )
+        self.btnResetAll.setEnabled( self.changes_made )
+        self.btnChooseRootKeyTD.setEnabled( self.chkRootKeyTD.isChecked() )
+        self.btnChooseHomeKeyTD.setEnabled( self.chkHomeKeyTD.isChecked() )
+        self.btnRegenerateWhitelist.setEnabled( self.chkHardwareIsWhitelisted.isChecked() )
+        self.btnChangeDuressPassword.setEnabled( self.chkUseDuressPassword.isChecked() )
+        self.btnChangeHomePassword.setEnabled( self.chkEncryptedHomePartition.isChecked() )
+        self.btnChangeRootPassword.setEnabled( self.chkEncryptedRootPartition.isChecked() )
+        self.btnChooseHomeKeyTD.setEnabled( self.chkHomeKeyTD.isChecked() )
+        self.spiNoofPanicPushesRequired.setEnabled( self.chkPanicButton.isChecked() )
+
+    @pyqtSignature( "" )
+    def configureCheckBoxes( self ):
+        self.chkEncryptedRootPartition.setChecked( self.distro.root_is_encrypted )
+        self.chkEncryptedHomePartition.setChecked( self.distro.home_is_encrypted )
+        self.chkRootKeyTD.setChecked( self.distro.root_key_partly_on_TD )
+        self.chkHomeKeyTD.setChecked( self.distro.home_key_partly_on_TD )
+        self.chkUseDuressPassword.setChecked( self.distro.boom_pw_hash is not None )
+        self.btnChangeRootPassword.setEnabled( self.distro.root_key_partly_on_TD )
+        self.btnChangeHomePassword.setEnabled( self.distro.home_key_partly_on_TD )
+        self.btnChangeDuressPassword.setEnabled( self.distro.boom_pw_hash is not None )
+        self.chkUseDropboxWhenEncryptingHome.setChecked( self.distro.use_dropbox )
+        self.chkStoreFreenetAndI2pOnHome.setChecked( self.distro.freenet_and_i2p_in_home )
+        self.chkPanicButtonClicked( True if self.distro.panic_button > 0 else False )
+
+    @pyqtSignature( "bool" )
+    def chkPanicButtonClicked( self, checked ):
+        self.spiNoofPanicPushesRequired.setVisible( True if checked else False )
+        if checked:
+            self.spiNoofPanicPushesRequired.setValue( self.distro.panic_button )
+
+    @pyqtSignature( "" )
+    def btnApplyAppChangesClicked( self ):
+#        if not self.changes_made:
+#            logme( 'No changes were made. Therefore, I have nothing to do. Cool...' )
+#        else:
+        reply = QtGui.QMessageBox.question( self, "Make Changes", "This may take me a while to do. Are you sure you want to do this?", QtGui.QMessageBox.Yes, QtGui.QMessageBox.No )
+        if reply == QtGui.QMessageBox.Yes:
+            self.saveLxdmSettingsToMyDistroRecord()
+            save_distro_record( self.distro )
+            self.setChangesMadeFalse()
+            self.populateMainTabWidget()
+#        self.chkEncryptedRootPartition.setChecked(self.distro.)
+#        self.btnApply
+
+    @pyqtSignature( "" )
+    def btnResetAllClicked( self ):
+#        if not self.changes_made:
+#            logme( 'No changes were made. Therefore, I have nothing to do. Cool...' )
+#        else:
+        reply = QtGui.QMessageBox.question( self, "Forget Changes", "Are you sure you want to forget the changes that you have proposed?", QtGui.QMessageBox.Yes, QtGui.QMessageBox.No )
+        if reply == QtGui.QMessageBox.Yes:
+            self.distro = load_distro_record()
+            self.setChangesMadeFalse()
+            self.populateMainTabWidget()
+
+
+    @pyqtSignature( "" )
+    def pteLxdmSettingsChanged( self ):
+        self.btnResetLxdmSettings.setEnabled( True )
+        self.setChangesMadeTrue()
+        self.configurePushButtons()
+
+    @pyqtSignature( "" )
+    def btnResetLxdmSettingsClicked( self ):
+        orig_rec = load_distro_record()
+        self.distro.lxdm_settings = orig_rec.lxdm_settings
+        self.populateLxdmPlaintextEditor()
+
+
+
+    @pyqtSignature( "" )
+    def populateLxdmPlaintextEditor( self ):
         outstr = ''
         for k in self.distro.lxdm_settings.keys():
             v = self.distro.lxdm_settings[k]
             w = v if type( v ) is str else str( v )
             outstr += '%s=%s\n' % ( k, w )
+        app.blockSignals( True )
         self.pteLxdmSettings.setPlainText( outstr )
+        app.blockSignals( False )
 
     @pyqtSignature( "" )
-    def saveLxdmSettings( self ):
+    def saveLxdmSettingsToMyDistroRecord( self ):
         dct = {}
         for this_line in self.pteLxdmSettings.toPlainText().split( '\n' ):
             try:
@@ -165,10 +264,8 @@ class MainWindow( QtGui.QMainWindow, Ui_mnwMain ):
                     w = v
             dct[k] = w
         self.distro.lxdm_settings = dct
-        save_distro_record( self.distro )
-        self.distro = load_distro_record()
-        self.populateGreeterSettings()
-        self.btnSaveLxdmSettings.setEnabled( False )
+        self.populateLxdmPlaintextEditor()
+        self.btnResetLxdmSettings.setEnabled( False )
 
 
     @pyqtSignature( "" )
@@ -226,13 +323,16 @@ class MainWindow( QtGui.QMainWindow, Ui_mnwMain ):
 
     @pyqtSignature( "" )
     def closeEvent( self, event ):
-        reply = QtGui.QMessageBox.question( self, "Quit?", "Are you sure to quit?", QtGui.QMessageBox.Yes, QtGui.QMessageBox.No )
-        if reply == QtGui.QMessageBox.Yes:
-            save_distro_record( self.distro )
-            event.accept()
-            sys.exit()
+        if not self.changes_made:
+            sys.exit( 0 )
         else:
-            event.ignore()
+            reply = QtGui.QMessageBox.question( self, "Quit?", "Are you sure to quit?", QtGui.QMessageBox.Yes, QtGui.QMessageBox.No )
+            if reply == QtGui.QMessageBox.Yes:
+                save_distro_record( self.distro )
+                event.accept()
+                sys.exit( 0 )
+            else:
+                event.ignore()
 
 class ReconfigureorexitDialog( QtGui.QDialog, Ui_dlgReconfigureorexit ):
     def __init__( self ):
@@ -268,7 +368,7 @@ class ReconfigureorexitDialog( QtGui.QDialog, Ui_dlgReconfigureorexit ):
 
     @pyqtSignature( "" )
     def reconfigurePushed( self ):
-        reply = QtGui.QMessageBox.question( self, "Reconfigure", "Are you sure you want to|reboot and reconfigure Chrubix?", QtGui.QMessageBox.Yes, QtGui.QMessageBox.No )
+        reply = QtGui.QMessageBox.question( self, "Reconfigure", "Are you sure you want to reboot and reconfigure Chrubix?", QtGui.QMessageBox.Yes, QtGui.QMessageBox.No )
         if reply == QtGui.QMessageBox.Yes:
             os.system( "sudo reboot" )
             sys.exit()
@@ -278,7 +378,6 @@ if __name__ == "__main__":
     app = QtGui.QApplication( sys.argv )
     window = MainWindow()
     window.show()
-
     window.raise_()
 #    if os.system("mount | grep -i crypt") == 0:
 #        dlg = ReconfigureorexitDialog()

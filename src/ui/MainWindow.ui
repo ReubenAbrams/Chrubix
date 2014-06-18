@@ -9,9 +9,15 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>675</width>
-    <height>455</height>
+    <width>669</width>
+    <height>388</height>
    </rect>
+  </property>
+  <property name="sizePolicy">
+   <sizepolicy hsizetype="Minimum" vsizetype="Minimum">
+    <horstretch>0</horstretch>
+    <verstretch>0</verstretch>
+   </sizepolicy>
   </property>
   <property name="focusPolicy">
    <enum>Qt::NoFocus</enum>
@@ -23,155 +29,435 @@
    <bool>true</bool>
   </property>
   <widget class="QWidget" name="centralwidget">
-   <widget class="QListWidget" name="lstTasks">
-    <property name="geometry">
-     <rect>
-      <x>360</x>
-      <y>140</y>
-      <width>256</width>
-      <height>141</height>
-     </rect>
-    </property>
-   </widget>
-   <widget class="QPushButton" name="btnClear">
-    <property name="geometry">
-     <rect>
-      <x>360</x>
-      <y>310</y>
-      <width>114</width>
-      <height>32</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>Clear List</string>
-    </property>
-   </widget>
-   <widget class="QPushButton" name="btnExecute">
-    <property name="geometry">
-     <rect>
-      <x>490</x>
-      <y>310</y>
-      <width>114</width>
-      <height>32</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>Execute</string>
-    </property>
-   </widget>
-   <widget class="QLabel" name="label">
-    <property name="geometry">
-     <rect>
-      <x>370</x>
-      <y>110</y>
-      <width>261</width>
-      <height>16</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>Changes that require a reboot</string>
-    </property>
-    <property name="alignment">
-     <set>Qt::AlignCenter</set>
-    </property>
-   </widget>
-   <widget class="QLabel" name="label_2">
-    <property name="geometry">
-     <rect>
-      <x>30</x>
-      <y>10</y>
-      <width>111</width>
-      <height>16</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>Greeter settings</string>
-    </property>
-   </widget>
-   <widget class="QPlainTextEdit" name="pteLxdmSettings">
-    <property name="geometry">
-     <rect>
-      <x>30</x>
-      <y>40</y>
-      <width>311</width>
-      <height>211</height>
-     </rect>
-    </property>
-    <property name="plainText">
-     <string>
+   <layout class="QGridLayout" name="gridLayout_3">
+    <item row="1" column="2">
+     <widget class="QPushButton" name="btnExitWithoutSaving">
+      <property name="layoutDirection">
+       <enum>Qt::LeftToRight</enum>
+      </property>
+      <property name="text">
+       <string>Lose Changes &amp;&amp; Exit</string>
+      </property>
+      <property name="icon">
+       <iconset resource="resources.qrc">
+        <normaloff>:/filequit.png</normaloff>:/filequit.png</iconset>
+      </property>
+     </widget>
+    </item>
+    <item row="1" column="0">
+     <widget class="QPushButton" name="btnApplyAppChanges">
+      <property name="text">
+       <string>Apply Changes</string>
+      </property>
+      <property name="icon">
+       <iconset resource="resources.qrc">
+        <normaloff>:/filesave.png</normaloff>:/filesave.png</iconset>
+      </property>
+     </widget>
+    </item>
+    <item row="0" column="0" colspan="3">
+     <widget class="QTabWidget" name="tabWidget">
+      <property name="sizePolicy">
+       <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+        <horstretch>0</horstretch>
+        <verstretch>0</verstretch>
+       </sizepolicy>
+      </property>
+      <property name="currentIndex">
+       <number>1</number>
+      </property>
+      <property name="usesScrollButtons">
+       <bool>false</bool>
+      </property>
+      <widget class="QWidget" name="tabSecurity">
+       <attribute name="title">
+        <string>Security</string>
+       </attribute>
+       <layout class="QGridLayout" name="gridLayout_7">
+        <item row="0" column="0">
+         <widget class="QGroupBox" name="gbxSystemwideEncryption">
+          <property name="title">
+           <string>Systemwide Encryption</string>
+          </property>
+          <layout class="QGridLayout" name="gridLayout_4">
+           <item row="1" column="2">
+            <widget class="QToolButton" name="btnChangeRootPassword">
+             <property name="toolTip">
+              <string>Change root password</string>
+             </property>
+             <property name="statusTip">
+              <string>Click here to change the root partition's password</string>
+             </property>
+             <property name="text">
+              <string>...</string>
+             </property>
+             <property name="iconSize">
+              <size>
+               <width>24</width>
+               <height>24</height>
+              </size>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="1">
+            <spacer name="horizontalSpacer_4">
+             <property name="orientation">
+              <enum>Qt::Horizontal</enum>
+             </property>
+             <property name="sizeHint" stdset="0">
+              <size>
+               <width>40</width>
+               <height>20</height>
+              </size>
+             </property>
+            </spacer>
+           </item>
+           <item row="1" column="0">
+            <widget class="QCheckBox" name="chkEncryptedRootPartition">
+             <property name="text">
+              <string>Encrypted root partition</string>
+             </property>
+            </widget>
+           </item>
+           <item row="3" column="0" colspan="2">
+            <widget class="QCheckBox" name="chkRootKeyTD">
+             <property name="text">
+              <string>Store part of key on thumb drive</string>
+             </property>
+            </widget>
+           </item>
+           <item row="3" column="2">
+            <widget class="QToolButton" name="btnChooseRootKeyTD">
+             <property name="enabled">
+              <bool>true</bool>
+             </property>
+             <property name="toolTip">
+              <string>Choose the thumb drive</string>
+             </property>
+             <property name="statusTip">
+              <string>Insert a thumb drive and click the button to choose the new thumb drive</string>
+             </property>
+             <property name="text">
+              <string>...</string>
+             </property>
+             <property name="iconSize">
+              <size>
+               <width>24</width>
+               <height>24</height>
+              </size>
+             </property>
+             <property name="autoRaise">
+              <bool>false</bool>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </item>
+        <item row="1" column="0">
+         <widget class="QGroupBox" name="gbxTamperResistance">
+          <property name="title">
+           <string>Tamper Resistance</string>
+          </property>
+          <layout class="QGridLayout" name="gridLayout_6">
+           <item row="0" column="0" colspan="2">
+            <widget class="QCheckBox" name="chkKernelSignedInTriplicate">
+             <property name="minimumSize">
+              <size>
+               <width>0</width>
+               <height>0</height>
+              </size>
+             </property>
+             <property name="text">
+              <string>Kernel is signed in triplicate</string>
+             </property>
+            </widget>
+           </item>
+           <item row="3" column="0">
+            <widget class="QCheckBox" name="chkUseDuressPassword">
+             <property name="minimumSize">
+              <size>
+               <width>0</width>
+               <height>0</height>
+              </size>
+             </property>
+             <property name="toolTip">
+              <string>Duress password will nuke disk</string>
+             </property>
+             <property name="statusTip">
+              <string>To nuke the home partition suerreptisiously, prefix/postfix real password with duress password</string>
+             </property>
+             <property name="text">
+              <string>Duress password</string>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="0">
+            <widget class="QCheckBox" name="chkHardwareIsWhitelisted">
+             <property name="minimumSize">
+              <size>
+               <width>0</width>
+               <height>0</height>
+              </size>
+             </property>
+             <property name="text">
+              <string>Hardware is whitelisted</string>
+             </property>
+            </widget>
+           </item>
+           <item row="3" column="1">
+            <widget class="QToolButton" name="btnChangeDuressPassword">
+             <property name="text">
+              <string>...</string>
+             </property>
+             <property name="iconSize">
+              <size>
+               <width>24</width>
+               <height>24</height>
+              </size>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="1">
+            <widget class="QToolButton" name="btnRegenerateWhitelist">
+             <property name="toolTip">
+              <string>Regenerate whitelist</string>
+             </property>
+             <property name="statusTip">
+              <string>Accept all currently connected devices in future. All others are rejected at boot-time.</string>
+             </property>
+             <property name="text">
+              <string>...</string>
+             </property>
+            </widget>
+           </item>
+           <item row="2" column="0" colspan="2">
+            <widget class="QCheckBox" name="chkObfuscateFilesystemMarkers">
+             <property name="minimumSize">
+              <size>
+               <width>0</width>
+               <height>0</height>
+              </size>
+             </property>
+             <property name="text">
+              <string>Obfuscate filesystem markers</string>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </item>
+        <item row="1" column="1">
+         <widget class="QGroupBox" name="gbxForTheParanoid">
+          <property name="title">
+           <string>For the Paranoid</string>
+          </property>
+          <layout class="QGridLayout" name="gridLayout_8">
+           <item row="1" column="0" colspan="3">
+            <widget class="QCheckBox" name="chkStoreFreenetAndI2pOnHome">
+             <property name="text">
+              <string>Store Freenet and I2P on home partition</string>
+             </property>
+            </widget>
+           </item>
+           <item row="0" column="0" colspan="3">
+            <widget class="QCheckBox" name="chkUseDropboxWhenEncryptingHome">
+             <property name="text">
+              <string>Store part of the home key online</string>
+             </property>
+            </widget>
+           </item>
+           <item row="2" column="2">
+            <widget class="QSpinBox" name="spiNoofPanicPushesRequired">
+             <property name="maximumSize">
+              <size>
+               <width>16777215</width>
+               <height>16777215</height>
+              </size>
+             </property>
+             <property name="layoutDirection">
+              <enum>Qt::RightToLeft</enum>
+             </property>
+             <property name="buttonSymbols">
+              <enum>QAbstractSpinBox::UpDownArrows</enum>
+             </property>
+             <property name="suffix">
+              <string> pushes</string>
+             </property>
+             <property name="prefix">
+              <string>takes </string>
+             </property>
+             <property name="minimum">
+              <number>3</number>
+             </property>
+             <property name="maximum">
+              <number>20</number>
+             </property>
+            </widget>
+           </item>
+           <item row="2" column="0" colspan="2">
+            <widget class="QCheckBox" name="chkPanicButton">
+             <property name="toolTip">
+              <string>Power button doubles as a panic button</string>
+             </property>
+             <property name="statusTip">
+              <string>To nuke the laptop's disk, push the Power button N times in as many seconds</string>
+             </property>
+             <property name="text">
+              <string>Panic button</string>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </item>
+        <item row="0" column="1">
+         <widget class="QGroupBox" name="gbxHomeEncryption">
+          <property name="title">
+           <string>Home Encryption</string>
+          </property>
+          <layout class="QGridLayout" name="gridLayout_5">
+           <item row="4" column="3">
+            <widget class="QToolButton" name="btnChangeHomePassword">
+             <property name="toolTip">
+              <string>Change home password</string>
+             </property>
+             <property name="statusTip">
+              <string>Click here to change the home partition's password</string>
+             </property>
+             <property name="text">
+              <string>...</string>
+             </property>
+             <property name="iconSize">
+              <size>
+               <width>24</width>
+               <height>24</height>
+              </size>
+             </property>
+            </widget>
+           </item>
+           <item row="4" column="2">
+            <spacer name="horizontalSpacer_3">
+             <property name="orientation">
+              <enum>Qt::Horizontal</enum>
+             </property>
+             <property name="sizeHint" stdset="0">
+              <size>
+               <width>40</width>
+               <height>20</height>
+              </size>
+             </property>
+            </spacer>
+           </item>
+           <item row="4" column="1">
+            <widget class="QCheckBox" name="chkEncryptedHomePartition">
+             <property name="text">
+              <string>Encrypted home partition</string>
+             </property>
+            </widget>
+           </item>
+           <item row="5" column="3">
+            <widget class="QToolButton" name="btnChooseHomeKeyTD">
+             <property name="text">
+              <string>...</string>
+             </property>
+            </widget>
+           </item>
+           <item row="5" column="1" colspan="2">
+            <widget class="QCheckBox" name="chkHomeKeyTD">
+             <property name="text">
+              <string>Store part of key on thumb drive</string>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </item>
+       </layout>
+       <zorder>gbxSystemwideEncryption</zorder>
+       <zorder>chkEncryptedHomePartition</zorder>
+       <zorder>chkEncryptedRootPartition</zorder>
+       <zorder>gbxHomeEncryption</zorder>
+       <zorder>gbxTamperResistance</zorder>
+       <zorder>gbxForTheParanoid</zorder>
+      </widget>
+      <widget class="QWidget" name="tabGreeter">
+       <attribute name="title">
+        <string>Greeter</string>
+       </attribute>
+       <layout class="QGridLayout" name="gridLayout">
+        <item row="3" column="4">
+         <widget class="QPushButton" name="btnResetLxdmSettings">
+          <property name="enabled">
+           <bool>false</bool>
+          </property>
+          <property name="text">
+           <string>Reset</string>
+          </property>
+          <property name="icon">
+           <iconset resource="resources.qrc">
+            <normaloff>:/reset.png</normaloff>:/reset.png</iconset>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="0" colspan="5">
+         <widget class="QPlainTextEdit" name="pteLxdmSettings">
+          <property name="plainText">
+           <string>
 </string>
-    </property>
-   </widget>
-   <widget class="QPushButton" name="btnSaveLxdmSettings">
-    <property name="enabled">
-     <bool>false</bool>
-    </property>
-    <property name="geometry">
-     <rect>
-      <x>30</x>
-      <y>260</y>
-      <width>171</width>
-      <height>32</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>Save LXDM Settings</string>
-    </property>
-   </widget>
-  </widget>
-  <widget class="QMenuBar" name="menubar">
-   <property name="enabled">
-    <bool>true</bool>
-   </property>
-   <property name="geometry">
-    <rect>
-     <x>0</x>
-     <y>0</y>
-     <width>675</width>
-     <height>22</height>
-    </rect>
-   </property>
-   <widget class="QMenu" name="menuFile">
-    <property name="title">
-     <string>&amp;File</string>
-    </property>
-    <addaction name="actionExit"/>
-   </widget>
-   <widget class="QMenu" name="menuEdit">
-    <property name="title">
-     <string>&amp;Edit</string>
-    </property>
-   </widget>
-   <widget class="QMenu" name="menuSettings">
-    <property name="title">
-     <string>&amp;Settings</string>
-    </property>
-    <widget class="QMenu" name="menuChange_Password">
-     <property name="enabled">
-      <bool>true</bool>
-     </property>
-     <property name="title">
-      <string>Change Passwords</string>
-     </property>
-     <addaction name="actionChangePwDisk"/>
-     <addaction name="actionChangePwRoot"/>
-     <addaction name="actionChangePwBoom"/>
-    </widget>
-    <addaction name="actionBoot_Settings"/>
-    <addaction name="menuChange_Password"/>
-    <addaction name="actionEncryption"/>
-    <addaction name="actionWhitelist"/>
-    <addaction name="actionObfuscation"/>
-   </widget>
-   <widget class="QMenu" name="menuHelp">
-    <property name="title">
-     <string>&amp;Help</string>
-    </property>
-   </widget>
-   <addaction name="menuFile"/>
-   <addaction name="menuEdit"/>
-   <addaction name="menuSettings"/>
-   <addaction name="menuHelp"/>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="0" colspan="5">
+         <widget class="QLabel" name="label_2">
+          <property name="text">
+           <string>Greeter Configuration File</string>
+          </property>
+          <property name="alignment">
+           <set>Qt::AlignCenter</set>
+          </property>
+         </widget>
+        </item>
+        <item row="3" column="0" colspan="4">
+         <spacer name="horizontalSpacer_2">
+          <property name="orientation">
+           <enum>Qt::Horizontal</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>40</width>
+            <height>20</height>
+           </size>
+          </property>
+         </spacer>
+        </item>
+       </layout>
+      </widget>
+      <widget class="QWidget" name="tabAdvanced">
+       <attribute name="title">
+        <string>Advanced</string>
+       </attribute>
+      </widget>
+     </widget>
+    </item>
+    <item row="1" column="1">
+     <widget class="QPushButton" name="btnResetAll">
+      <property name="text">
+       <string>Reset</string>
+      </property>
+      <property name="icon">
+       <iconset resource="resources.qrc">
+        <normaloff>:/reset.png</normaloff>:/reset.png</iconset>
+      </property>
+      <property name="iconSize">
+       <size>
+        <width>18</width>
+        <height>19</height>
+       </size>
+      </property>
+     </widget>
+    </item>
+   </layout>
   </widget>
   <widget class="QStatusBar" name="statusbar">
    <property name="focusPolicy">
