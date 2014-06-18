@@ -16,7 +16,7 @@ mesa pyqt gptfdisk bluez-libs alsa-plugins acpi sdl libcanberra perl-xml-parser 
 libnotify talkfilters java-runtime libxmu apache-ant junit zbar python2-setuptools python2-pip \
 twisted python2-yaml python2-distutils-extra python2-gobject python2-cairo python2-poppler python2-pdfrw \
 bcprov gtk-engine-unico gtk-engine-murrine gtk-engines xorg-fonts xorg-font-utils xorg-fonts-encodings \
-libreoffice-en-US libreoffice-common libreoffice-gnome libxfixes \
+libreoffice-en-US libreoffice-common libreoffice-gnome libxfixes python2-pysqlite \
 xorg-server xorg-xinit xf86-input-synaptics xf86-video-fbdev xf86-video-armsoc xlockmore \
 mate mate-themes-extras mate-nettool mate-mplayer mate-accountsdialog \
 xorg-server-utils xorg-xmessage librsvg icedtea-web-java7 gconf hunspell-en chromium thunderbird windowmaker'
