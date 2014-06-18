@@ -10,7 +10,7 @@
     <x>0</x>
     <y>0</y>
     <width>669</width>
-    <height>388</height>
+    <height>386</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -30,20 +30,6 @@
   </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QGridLayout" name="gridLayout_3">
-    <item row="1" column="2">
-     <widget class="QPushButton" name="btnExitWithoutSaving">
-      <property name="layoutDirection">
-       <enum>Qt::LeftToRight</enum>
-      </property>
-      <property name="text">
-       <string>Lose Changes &amp;&amp; Exit</string>
-      </property>
-      <property name="icon">
-       <iconset resource="resources.qrc">
-        <normaloff>:/filequit.png</normaloff>:/filequit.png</iconset>
-      </property>
-     </widget>
-    </item>
     <item row="1" column="0">
      <widget class="QPushButton" name="btnApplyAppChanges">
       <property name="text">
@@ -64,7 +50,7 @@
        </sizepolicy>
       </property>
       <property name="currentIndex">
-       <number>1</number>
+       <number>0</number>
       </property>
       <property name="usesScrollButtons">
        <bool>false</bool>
@@ -375,8 +361,6 @@
         </item>
        </layout>
        <zorder>gbxSystemwideEncryption</zorder>
-       <zorder>chkEncryptedHomePartition</zorder>
-       <zorder>chkEncryptedRootPartition</zorder>
        <zorder>gbxHomeEncryption</zorder>
        <zorder>gbxTamperResistance</zorder>
        <zorder>gbxForTheParanoid</zorder>
@@ -403,8 +387,7 @@
         <item row="2" column="0" colspan="5">
          <widget class="QPlainTextEdit" name="pteLxdmSettings">
           <property name="plainText">
-           <string>
-</string>
+           <string/>
           </property>
          </widget>
         </item>
@@ -438,6 +421,20 @@
         <string>Advanced</string>
        </attribute>
       </widget>
+     </widget>
+    </item>
+    <item row="1" column="2">
+     <widget class="QPushButton" name="btnExitWithoutSaving">
+      <property name="layoutDirection">
+       <enum>Qt::LeftToRight</enum>
+      </property>
+      <property name="text">
+       <string>Lose Changes &amp;&amp; Exit</string>
+      </property>
+      <property name="icon">
+       <iconset resource="resources.qrc">
+        <normaloff>:/filequit.png</normaloff>:/filequit.png</iconset>
+      </property>
      </widget>
     </item>
     <item row="1" column="1">

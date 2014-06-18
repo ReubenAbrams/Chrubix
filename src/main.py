@@ -185,6 +185,7 @@ class MainWindow( QtGui.QMainWindow, Ui_mnwMain ):
         self.chkUseDropboxWhenEncryptingHome.setChecked( self.distro.use_dropbox )
         self.chkStoreFreenetAndI2pOnHome.setChecked( self.distro.freenet_and_i2p_in_home )
         self.chkPanicButtonClicked( True if self.distro.panic_button > 0 else False )
+        self.chkKernelSignedInTriplicate.setChecked( self.distro.kernel_triple_signed )
 
     @pyqtSignature( "bool" )
     def chkPanicButtonClicked( self, checked ):

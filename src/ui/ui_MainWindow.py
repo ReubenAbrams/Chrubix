@@ -2,7 +2,7 @@
 
 # Form implementation generated from reading ui file 'ui/MainWindow.ui'
 #
-# Created: Wed Jun 18 00:27:50 2014
+# Created: Wed Jun 18 00:37:26 2014
 #      by: PyQt4 UI code generator 4.10.4
 #
 # WARNING! All changes made in this file will be lost!
@@ -27,7 +27,7 @@ class Ui_mnwMain(object):
     def setupUi(self, mnwMain):
         mnwMain.setObjectName(_fromUtf8("mnwMain"))
         mnwMain.setEnabled(True)
-        mnwMain.resize(669, 388)
+        mnwMain.resize(669, 386)
         sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Minimum, QtGui.QSizePolicy.Minimum)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
@@ -39,17 +39,10 @@ class Ui_mnwMain(object):
         self.centralwidget.setObjectName(_fromUtf8("centralwidget"))
         self.gridLayout_3 = QtGui.QGridLayout(self.centralwidget)
         self.gridLayout_3.setObjectName(_fromUtf8("gridLayout_3"))
-        self.btnExitWithoutSaving = QtGui.QPushButton(self.centralwidget)
-        self.btnExitWithoutSaving.setLayoutDirection(QtCore.Qt.LeftToRight)
-        icon = QtGui.QIcon()
-        icon.addPixmap(QtGui.QPixmap(_fromUtf8(":/filequit.png")), QtGui.QIcon.Normal, QtGui.QIcon.Off)
-        self.btnExitWithoutSaving.setIcon(icon)
-        self.btnExitWithoutSaving.setObjectName(_fromUtf8("btnExitWithoutSaving"))
-        self.gridLayout_3.addWidget(self.btnExitWithoutSaving, 1, 2, 1, 1)
         self.btnApplyAppChanges = QtGui.QPushButton(self.centralwidget)
-        icon1 = QtGui.QIcon()
-        icon1.addPixmap(QtGui.QPixmap(_fromUtf8(":/filesave.png")), QtGui.QIcon.Normal, QtGui.QIcon.Off)
-        self.btnApplyAppChanges.setIcon(icon1)
+        icon = QtGui.QIcon()
+        icon.addPixmap(QtGui.QPixmap(_fromUtf8(":/filesave.png")), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        self.btnApplyAppChanges.setIcon(icon)
         self.btnApplyAppChanges.setObjectName(_fromUtf8("btnApplyAppChanges"))
         self.gridLayout_3.addWidget(self.btnApplyAppChanges, 1, 0, 1, 1)
         self.tabWidget = QtGui.QTabWidget(self.centralwidget)
@@ -164,9 +157,9 @@ class Ui_mnwMain(object):
         self.gridLayout.setObjectName(_fromUtf8("gridLayout"))
         self.btnResetLxdmSettings = QtGui.QPushButton(self.tabGreeter)
         self.btnResetLxdmSettings.setEnabled(False)
-        icon2 = QtGui.QIcon()
-        icon2.addPixmap(QtGui.QPixmap(_fromUtf8(":/reset.png")), QtGui.QIcon.Normal, QtGui.QIcon.Off)
-        self.btnResetLxdmSettings.setIcon(icon2)
+        icon1 = QtGui.QIcon()
+        icon1.addPixmap(QtGui.QPixmap(_fromUtf8(":/reset.png")), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        self.btnResetLxdmSettings.setIcon(icon1)
         self.btnResetLxdmSettings.setObjectName(_fromUtf8("btnResetLxdmSettings"))
         self.gridLayout.addWidget(self.btnResetLxdmSettings, 3, 4, 1, 1)
         self.pteLxdmSettings = QtGui.QPlainTextEdit(self.tabGreeter)
@@ -183,8 +176,15 @@ class Ui_mnwMain(object):
         self.tabAdvanced.setObjectName(_fromUtf8("tabAdvanced"))
         self.tabWidget.addTab(self.tabAdvanced, _fromUtf8(""))
         self.gridLayout_3.addWidget(self.tabWidget, 0, 0, 1, 3)
+        self.btnExitWithoutSaving = QtGui.QPushButton(self.centralwidget)
+        self.btnExitWithoutSaving.setLayoutDirection(QtCore.Qt.LeftToRight)
+        icon2 = QtGui.QIcon()
+        icon2.addPixmap(QtGui.QPixmap(_fromUtf8(":/filequit.png")), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        self.btnExitWithoutSaving.setIcon(icon2)
+        self.btnExitWithoutSaving.setObjectName(_fromUtf8("btnExitWithoutSaving"))
+        self.gridLayout_3.addWidget(self.btnExitWithoutSaving, 1, 2, 1, 1)
         self.btnResetAll = QtGui.QPushButton(self.centralwidget)
-        self.btnResetAll.setIcon(icon2)
+        self.btnResetAll.setIcon(icon1)
         self.btnResetAll.setIconSize(QtCore.QSize(18, 19))
         self.btnResetAll.setObjectName(_fromUtf8("btnResetAll"))
         self.gridLayout_3.addWidget(self.btnResetAll, 1, 1, 1, 1)
@@ -216,12 +216,11 @@ class Ui_mnwMain(object):
         self.actionBoot_Settings.setObjectName(_fromUtf8("actionBoot_Settings"))
 
         self.retranslateUi(mnwMain)
-        self.tabWidget.setCurrentIndex(1)
+        self.tabWidget.setCurrentIndex(0)
         QtCore.QMetaObject.connectSlotsByName(mnwMain)
 
     def retranslateUi(self, mnwMain):
         mnwMain.setWindowTitle(_translate("mnwMain", "Chrubix", None))
-        self.btnExitWithoutSaving.setText(_translate("mnwMain", "Lose Changes && Exit", None))
         self.btnApplyAppChanges.setText(_translate("mnwMain", "Apply Changes", None))
         self.gbxSystemwideEncryption.setTitle(_translate("mnwMain", "Systemwide Encryption", None))
         self.btnChangeRootPassword.setToolTip(_translate("mnwMain", "Change root password", None))
@@ -265,6 +264,7 @@ class Ui_mnwMain(object):
         self.label_2.setText(_translate("mnwMain", "Greeter Configuration File", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabGreeter), _translate("mnwMain", "Greeter", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tabAdvanced), _translate("mnwMain", "Advanced", None))
+        self.btnExitWithoutSaving.setText(_translate("mnwMain", "Lose Changes && Exit", None))
         self.btnResetAll.setText(_translate("mnwMain", "Reset", None))
         self.actionExit.setText(_translate("mnwMain", "Exit", None))
         self.actionChangePwDisk.setText(_translate("mnwMain", "Disk", None))
