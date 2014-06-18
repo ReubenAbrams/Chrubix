@@ -747,6 +747,10 @@ exit 0
         self.status_lst[-1] += '...removed.'
 
     def reinstall_chrubix_for_mosO( self ):
+        if 0 != wget( url = 'https://github.com/ReubenAbrams/Chrubix/archive/master.tar.gz',
+                                extract_to_path = '%s/usr/local/bin' % ( self.mountpoint ), decompression_flag = 'z',
+                                quiet = True, status_lst = self.status_lst, title_str = self.title_str ):
+            failed( 'Failed to install Chrubix in bootstrap OS' )
         system_or_die( 'mv %s/usr/local/bin/Chrubix* %s/usr/local/bin/Chrubix' % ( self.mountpoint, self.mountpoint ) )
         system_or_die( 'cp -f /usr/local/bin/Chrubix/bash/chrubix.sh %s/usr/local/bin/Chrubix/bash/chrubix.sh' % ( self.mountpoint ) )  # FIXME: This line is probably redundant. Remove it & see what happens.
         system_or_die( 'cp /usr/local/bin/Chrubix/bash/chrubix.sh %s/usr/local/bin/Chrubix/bash/chrubix.sh' % ( self.mountpoint ) )
