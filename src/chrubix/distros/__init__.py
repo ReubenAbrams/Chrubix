@@ -750,17 +750,18 @@ exit 0
         if 0 != wget( url = 'https://github.com/ReubenAbrams/Chrubix/archive/master.tar.gz',
                                 extract_to_path = '%s/usr/local/bin' % ( self.mountpoint ), decompression_flag = 'z',
                                 quiet = True, status_lst = self.status_lst, title_str = self.title_str ):
-            failed( 'Failed to install Chrubix in bootstrap OS' )
-        system_or_die( 'mv %s/usr/local/bin/Chrubix* %s/usr/local/bin/Chrubix' % ( self.mountpoint, self.mountpoint ) )
-        system_or_die( 'cp -f /usr/local/bin/Chrubix/bash/chrubix.sh %s/usr/local/bin/Chrubix/bash/chrubix.sh' % ( self.mountpoint ) )  # FIXME: This line is probably redundant. Remove it & see what happens.
-        system_or_die( 'cp /usr/local/bin/Chrubix/bash/chrubix.sh %s/usr/local/bin/Chrubix/bash/chrubix.sh' % ( self.mountpoint ) )
-        system_or_die( 'ln -sf Chrubix/bash/chrubix.sh %s/usr/local/bin/chrubix.sh' % ( self.mountpoint ) )
-        system_or_die( 'ln -sf Chrubix/bash/ersatz_lxdm.sh %s/usr/local/bin/ersatz_lxdm.sh' % ( self.mountpoint ) )
+            self.status_lst.append( [ 'Warning - failed to install Chrubix in bootstrap OS' ] )
+        else:
+            system_or_die( 'mv %s/usr/local/bin/Chrubix* %s/usr/local/bin/Chrubix' % ( self.mountpoint, self.mountpoint ) )
         try:
             wget( url = 'https://dl.dropboxusercontent.com/u/59916027/chrubix/_chrubix.tar.xz',
               decompression_flag = 'J', extract_to_path = '%s/usr/local/bin/Chrubix' % ( self.mountpoint ), quiet = True )
         except SystemError:
             self.status_lst.append( ['Failed to install new version via wget. That sucks. Let us continue anyway...'] )
+        system_or_die( 'cp -f /usr/local/bin/Chrubix/bash/chrubix.sh %s/usr/local/bin/Chrubix/bash/chrubix.sh' % ( self.mountpoint ) )  # FIXME: This line is probably redundant. Remove it & see what happens.
+        system_or_die( 'cp /usr/local/bin/Chrubix/bash/chrubix.sh %s/usr/local/bin/Chrubix/bash/chrubix.sh' % ( self.mountpoint ) )
+        system_or_die( 'ln -sf Chrubix/bash/chrubix.sh %s/usr/local/bin/chrubix.sh' % ( self.mountpoint ) )
+        system_or_die( 'ln -sf Chrubix/bash/ersatz_lxdm.sh %s/usr/local/bin/ersatz_lxdm.sh' % ( self.mountpoint ) )
         chroot_this( self.mountpoint, 'chmod +x /usr/local/bin/*' )
         os.system( 'clear; sleep 1; sync;sync;sync; clear' )
 
