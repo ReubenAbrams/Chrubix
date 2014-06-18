@@ -40,7 +40,6 @@ echo "$USER" > $liu
 
 export DISPLAY=:0.0
 #start-pulseaudio-x11
-pulseaudio -k
 
 if ps -o pid -C wmaker &>/dev/null; then
   wmsystemtray &
@@ -54,7 +53,7 @@ which start-freenet.sh &> /dev/null && start-freenet.sh start &
 
 #nm-connection-editor &
 
-touch /tmp/.okConnery.thisle.44
+touch /tmp/.okConnery.thisle.44        # TODO: Do we still do this stuff? 1st/2nd/Nth... time?
 
 xset s off
 xset -dpms
@@ -70,18 +69,22 @@ if ! ps wax | fgrep nm-applet | fgrep -v grep &> /dev/null ; then
 fi
 
 if [ "`ps wax | grep nm-applet | grep -v grep | cut -d' ' -f1,2 | tr ' ' '\n' | grep "[0-9][0-9]" | wc -l`" -ge "2" ]; then
- kill `ps wax | grep nm-applet | grep -v grep | cut -d' ' -f1,2 | tr ' ' '\n' | grep "[0-9][0-9]" | tail -n1`
+  sleep 1
+  kill `ps wax | grep nm-applet | grep -v grep | cut -d' ' -f1,2 | tr ' ' '\n' | grep "[0-9][0-9]" | tail -n1`
 fi
 
 if ps wax | fgrep mate-session | fgrep -v grep ; then
   # WinXP mode. Cool. Play the sound.
+  pulseaudio -k
   mpg123 /etc/.mp3/winxp.mp3
 else
   sleep 4
 fi
 
 if ps wax | grep florence | grep -v grep ; then
-  sleep 2
+  sleep 1
+  florence hide &
+  sleep 1
   florence hide &
 fi
 
