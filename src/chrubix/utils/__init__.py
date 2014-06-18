@@ -22,7 +22,7 @@ import chrubix
 g_proxy = None if ( 0 != os.system( 'ping -c1 -W1 192.168.1.66 &> /dev/null' ) or 0 != os.system( 'cat /proc/cmdline | grep dm_verity &> /dev/null' ) ) else '192.168.1.66:8080'
 g_default_window_manager = '/usr/bin/startlxde'  # wmaker, startxfce4, startlxde, ...
 
-
+POSTERITY_COMPRESSION_LEVEL = 1  # FIXME: set to 9 when everthing is shipshape and Bristol fashion
 __g_expected_total_progress = -1
 __g_total_lines_so_far = 0
 __g_start_time = time.time()

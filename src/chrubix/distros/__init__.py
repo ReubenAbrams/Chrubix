@@ -17,6 +17,7 @@ from chrubix.utils.postinst import append_lxdm_post_login_script, append_lxdm_pr
             check_and_if_necessary_fix_password_file, install_insecure_browser, append_proxy_details_to_environment_file, \
             setup_timer_to_keep_dpms_switched_off, write_lxdm_service_file, ask_the_user__temp_or_perm, \
             add_user_to_the_relevant_groups
+import chrubix.utils
 import chrubix
 from chrubix.utils.mbr import install_initcpio_wiperamonshutdown_files
 from xml.dom import NotFoundErr
@@ -575,12 +576,13 @@ Choose the 'boom' password : """ ).strip( '\r\n\r\n\r' )
         self.status_lst[-1] += "..OK."
 
     def generate_tarball_of_my_rootfs( self, output_file ):
+        compression_level = chrubix.utils.POSTERITY_COMPRESSION_LEVEL
         self.status_lst.append( ['Creating tarball %s of my rootfs' % ( output_file )] )
         dirs_to_backup = 'bin boot etc home lib mnt opt root run sbin srv usr var'
 #        if output_file[-2:] != '_D':     # FIXME: Is it worth the trouble? Do we save *that* much space if we drop bootstrap entirely from File D? Considering enabling this line, but.... I don't know. Is it worth it? Does it WORK? :)
         for dir_name in dirs_to_backup.split( ' ' ):
             dirs_to_backup += ' .bootstrap/%s' % ( dir_name )
-        system_or_die( 'cd %s && tar -cJ %s | dd bs=32k > %s/temp.data' % ( self.mountpoint, dirs_to_backup, os.path.dirname( output_file ) ), title_str = self.title_str, status_lst = self.status_lst )
+        system_or_die( 'cd %s && tar -c %s | xz -%d | dd bs=32k > %s/temp.data' % ( self.mountpoint, dirs_to_backup, compression_level, os.path.dirname( output_file ) ), title_str = self.title_str, status_lst = self.status_lst )
         system_or_die( 'mv %s/temp.data %s' % ( os.path.dirname( output_file ), output_file ) )
         self.status_lst[-1] += '...created.'
         return 0
