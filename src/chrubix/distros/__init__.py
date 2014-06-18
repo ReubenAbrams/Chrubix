@@ -1142,7 +1142,13 @@ failed() {
 #export ftp_proxy=
 
 which pip2 || ln -sf pip-2.7 /usr/bin/pip2
-pip2 install keyring pyOpenSSL pysqlcipher    || failed "Failed to install keyring/pyopenssl/pysqlcipher"
+
+for pkg in keyring pysqlcipher pyOpenSSL ; do
+  yes "" 2>/dev/null | pip2 install $pkg || echo "Failed to install $pkg."
+done
+
+yes "" 2>/dev/null | pip2 install keyring pysqlcipher pyOpenSSL
+
 easy_install-2.7 u1db || echo "Warning - error occurred while installing u1db"
 cd %s
 rm -Rf soledad
