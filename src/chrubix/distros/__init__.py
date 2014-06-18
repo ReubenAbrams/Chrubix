@@ -355,6 +355,7 @@ make' % ( self.sources_basedir ), title_str = self.title_str, status_lst = self.
 
     def set_root_password( self ):
         os.system( 'clear' )
+        print( 'Please choose a password for your root account.' )
         user = call_binary( ['whoami'] )[1].strip()
         if user not in ( b'root', 'root', '0' , 0 ):
             raise SystemError( "You should be running me as root, but you are running me as %s" % ( user, ) )

@@ -642,6 +642,7 @@ def add_user_to_the_relevant_groups( username, distro_name, mountpoint ):
 
 def ask_the_user__guest_mode_or_user_mode__and_create_one_if_necessary( distro_name, mountpoint ):
     success = False
+    os.system( 'clear' )
     while not success:
         user_name = input( "Short, one-word name of your default user (or press Enter for guest): " ).strip()
         if user_name == '' or user_name == 'guest':
