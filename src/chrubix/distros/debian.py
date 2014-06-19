@@ -26,7 +26,7 @@ mat myspell-en-us msttcorefonts xorg xserver-xorg-input-synaptics xul-ext-https-
 pulseaudio paprefs pulseaudio-module-jack pavucontrol paman alsa-tools-gui alsa-oss mythes-en-us \
 libpisock-dev uno-libs3 libgtk-3-bin libbcprov-java gtk2-engines-murrine libc6-dev \
 e2fslibs-dev debhelper python-dev libffi-dev python-dev libffi-dev libsqlite3-dev \
-software-properties-common \
+software-properties-common libssl-dev \
 '  # Warning! Monkeysign pkg might be broken.
 # gtk-engines-unico python-distutil-extra ? python-distusil-extra python-gobject python-qrencode python-imaging
     final_push_packages = Distro.final_push_packages + ' \
