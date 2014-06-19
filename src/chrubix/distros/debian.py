@@ -474,7 +474,7 @@ def do_debian_specific_mbr_related_hacks( mountpoint ):
         if not os.path.exists( '%s%s/%s' % ( mountpoint, wish_it_were_here, fname ) ):
             system_or_die( 'ln -sf %s/%s %s%s/' % ( is_actually_here, fname, mountpoint, wish_it_were_here ) )
     logme( 'Coping usb-load-ehci-first.conf across anyway.' )
-    system_or_die( 'cp -af /usr/lib/modprobe.d/usb-load-ehci-first.conf %s/usr/lib/modprobe.d/' % ( mountpoint ) )
+    system_or_die( 'cp -af /usr/lib/modprobe.d/usb-load-ehci-first.conf %s/lib/modprobe.d/' % ( mountpoint ) )
     assert( os.path.exists( '%s/usr/lib/modprobe.d/usb-load-ehci-first.conf' ) )
 
 
