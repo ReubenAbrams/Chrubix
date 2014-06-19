@@ -42,7 +42,7 @@ while ! ps wax | grep " X " ; do
     sleep 0.5
 done
 sleep 1
-python3 /usr/local/bin/Chrubix/src/lxdm_post_login_script.py
+python3 /usr/local/bin/Chrubix/src/lxdm_post_login.py
 ''' )
     f.close()
 
