@@ -259,6 +259,7 @@ def configure_lxdm_onetime_changes( mountpoint ):
     do_a_sed( '%s/etc/X11/xinit/xinitrc' % ( mountpoint ), 'exec .*', '' )  # exec /usr/local/bin/ersatz_lxdm.sh' )
 #    system_or_die( 'echo "exec /usr/local/bin/ersatz_lxdm.sh" >> %s/etc/xinitrc/xinitrc' % ( mountpoint ) ) # start (Python) greeter at end of
     write_oneliner_file( '%s/etc/.first_time_ever' % ( mountpoint ), 'yep' )
+    system_or_die( 'chmod +x %s/etc/lxdm/*' % ( mountpoint ) )
 
 
 def configure_lxdm_behavior( mountpoint, lxdm_settings ):
