@@ -5,6 +5,7 @@
 #
 #################################################################################
 
-
+touch /tmp/log.txt
+chmod 777 /tmp/log.txt
 chrubix.sh ersatz_lxdm $@
 exit $?
