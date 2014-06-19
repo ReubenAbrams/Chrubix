@@ -269,7 +269,7 @@ make' % ( self.sources_basedir ), title_str = self.title_str, status_lst = self.
         res = 0
         logme( 'redo_mbr() --- starting' )
         for save_here in ( chroot_here, '/' ):
-            system_or_die( 'tar -zxvf /tmp/.vbkeys.tgz -C %s' % ( save_here ),
+            system_or_die( 'tar -zxf /tmp/.vbkeys.tgz -C %s' % ( save_here ),
                                 status_lst = self.status_lst, title_str = self.title_str )
         if self.kernel_rebuild_required:
             logme( 'qqq Rebuilding kernel' )
