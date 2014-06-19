@@ -354,7 +354,6 @@ make' % ( self.sources_basedir ), title_str = self.title_str, status_lst = self.
             failed( "I don't know how to change the disk password by chrooting into a mountpoint. Sorry..." )
 
     def set_root_password( self ):
-        os.system( 'clear' )
         print( 'Please choose a password for your root account.' )
         user = call_binary( ['whoami'] )[1].strip()
         if user not in ( b'root', 'root', '0' , 0 ):
