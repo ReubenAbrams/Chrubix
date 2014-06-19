@@ -76,9 +76,8 @@ if __name__ == "__main__":
         do_audio_and_network_stuff()
         os.unlink( '/etc/.first_time_ever' )
     logme( 'ersatz_lxdm.py --- configuring lxdm behavior' )
-    configure_lxdm_behavior( '/', distro.lxdm_settings )
-    logme( 'ersatz_lxdm.py --- saving distro record' )
-    save_distro_record( distro )
+    configure_lxdm_behavior( '/', distro.lxdm_settings )  # FIXME: This is silly. Modify record, save record, then make me reload record? (See next line.)
+    distro = load_distro_record()
     if distro.lxdm_settings['use greeter gui']:
         logme( 'ersatz_lxdm.py --- skipping lxdm and running %s' % ( distro.lxdm_settings['window manager'] ) )
         res = os.system( 'lxdm' )
