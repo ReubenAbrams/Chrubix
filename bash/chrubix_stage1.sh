@@ -251,7 +251,7 @@ get_distro_type_the_user_wants() {
 	url=""
 	while [ "$distroname" = "" ] ; do
 		clear
-		echo -en "Welcome to the Chrubix installer. Which Linux distro shall I install on $dev?
+		echo -en "Welcome to the Chrubix installer. Which GNU/Linux distro shall I install on $dev?
 
 Choose from...
 ----in beta----
