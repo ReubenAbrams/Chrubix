@@ -1161,7 +1161,9 @@ for pkg in keyring pysqlcipher pyOpenSSL ; do
   yes "" 2>/dev/null | pip2 install $pkg || echo "Failed to install $pkg."
 done
 
-yes "" 2>/dev/null | pip2 install keyring pysqlcipher pyOpenSSL
+if ! yes "" 2>/dev/null | pip2 install keyring pysqlcipher pyOpenSSL ; then
+    yes "" | easy_install-2.7 keyring pysqlcipher pyOpenSSL
+fi
 
 easy_install-2.7 u1db || echo "Warning - error occurred while installing u1db"
 cd %s
