@@ -23,12 +23,6 @@ LXDM_CONF = '/etc/lxdm/lxdm.conf'
 
 from PyQt4.QtCore import SIGNAL, SLOT, pyqtSignature
 from PyQt4 import QtGui, uic
-# try:
-#    from PyQt4.QtCore import QString
-# except ImportError:
-#    # we are using Python3 so QString is not defined
-#    QString = str
-# import resources_rc
 from ui.ui_AlarmistGreeter import Ui_dlgAlarmistGreeter
 
 
@@ -214,4 +208,5 @@ if __name__ == "__main__":
     res = app.exec_()
     logme( 'greeter.py --- back; exiting now; res=%d' % ( res ) )
     sys.exit( res )
+
 
