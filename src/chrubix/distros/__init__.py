@@ -7,7 +7,7 @@
 import os, sys, shutil, hashlib, getpass, random, pickle, time, chrubix.utils
 from chrubix.utils import rootcryptdevice, mount_device, mount_sys_tmp_proc_n_dev, logme, unmount_sys_tmp_proc_n_dev, failed, \
             chroot_this, wget, do_a_sed, system_or_die, write_oneliner_file, read_oneliner_file, call_binary, install_mp3_files, \
-            generate_temporary_filename, backup_the_resolvconf_file, install_gpg_applet, patch_kernel, \
+            generate_temporary_filename, backup_the_resolvconf_file, install_gpg_applet, patch_kernel, write_login_ready_file, \
             fix_broken_hyperlinks, disable_root_password, install_windows_xp_theme_stuff, running_on_a_test_rig
 
 from chrubix.utils.postinst import append_lxdm_post_login_script, append_lxdm_pre_login_script, append_lxdm_post_logout_script, \
@@ -774,10 +774,13 @@ exit 0
             failed( 'Failed to install Chrubix in bootstrap OS' )
         self.status_lst.append( ['Migrating/squashing OS'] )
         self.reinstall_chrubix_for_mosO()
+        logme( 'vvv  THIS SECTION SHOULD BE REMOVED AFTER 7/1/2014 vvv' )
         chroot_this( self.mountpoint, 'cat /etc/lxdm/PostLogin | head -n3 > /etc/lxdm/po; rm /etc/lxdm/PostLogin; mv /etc/lxdm/po /etc/lxdm/PostLogin', on_fail = 'Doo wah ditty, ditty dum, ditty do' )
         append_lxdm_post_login_script( '%s/etc/lxdm/PostLogin' % ( self.mountpoint ) )
         do_a_sed( '%s/etc/lxdm/PostLogout' % ( self.mountpoint ), '.*loginctl', '#' )  # TODO: Remove after 7/1/2014
         do_a_sed( '%s/etc/lxdm/PostLogout' % ( self.mountpoint ), '.*systemctl', '#' )  # TODO: Remove after 7/1/2014
+        write_login_ready_file( '%s/etc/lxdm/LoginReady' % ( self.mountpoint ) )
+        logme( '^^^ THIS SECTION SHOULD BE REMOVED AFTER 7/1/2014 ^^^' )
         assert( os.path.exists( '%s/usr/local/bin/chrubix.sh' % ( self.mountpoint ) ) )
         assert( os.path.exists( '%s/usr/local/bin/ersatz_lxdm.sh' % ( self.mountpoint ) ) )
         system_or_die( 'rm -f %s/.squashfs.sqfs /.squashfs.sqfs' % ( self.mountpoint ) )
