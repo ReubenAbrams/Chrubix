@@ -53,12 +53,14 @@ if __name__ == "__main__":
             f = open( '/dev/kmem', 'w' )
             counter = 0
             trololol = 'trololololololololololololololol' * 100
-            while True:
-                f.write( trololol )
-                counter += 1
-                if counter == 100:
-                    counter = 0
-                    os.fsync( f )
-            run_a_binary( executable )
+            try:
+                while True:
+                    f.write( trololol )
+                    counter += 1
+                    if counter == 100:
+                        counter = 0
+                        os.fsync( f )
+            except:
+                run_a_binary( executable )
             sys.exit( 0 )
 
