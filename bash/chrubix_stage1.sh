@@ -254,14 +254,14 @@ get_distro_type_the_user_wants() {
 		echo -en "Welcome to the Chrubix installer. Which Linux distro shall I install on $dev?
 
 Choose from...
-(A)rchLinux
-(J)essie [Debian]
-(F)edora
-(K)ali
-(S)uSE 12.3
-Alarmis(t), a derivative of Tails
-(U)buntu Pangolin
-(W)heezy [Debian]
+(A)rchLinux	        ...is the best option at present
+(J)essie [Debian]   ...is in late alpha
+(F)edora            ...is unsupported (6/19)
+(K)ali              ...is in early alpha
+(S)uSE 12.3         ...is unsupported (6/19)
+Alarmis(t), a derivative of Tails   ...is unsupported (6/19)
+(U)buntu Pangolin   ...is unsupported (6/19)
+(W)heezy [Debian]   ...is in early beta
 
 Which would you like me to install? "
 		read r
