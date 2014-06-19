@@ -7,7 +7,7 @@
 import os, sys, shutil, hashlib, getpass, random, pickle, time, chrubix.utils
 from chrubix.utils import rootcryptdevice, mount_device, mount_sys_tmp_proc_n_dev, logme, unmount_sys_tmp_proc_n_dev, failed, \
             chroot_this, wget, do_a_sed, system_or_die, write_oneliner_file, read_oneliner_file, call_binary, install_mp3_files, \
-            generate_temporary_filename, backup_the_resolvconf_file, install_gpg_applet, patch_kernel, write_login_ready_file, \
+            generate_temporary_filename, backup_the_resolvconf_file, install_gpg_applet, patch_kernel, \
             fix_broken_hyperlinks, disable_root_password, install_windows_xp_theme_stuff, running_on_a_test_rig
 
 from chrubix.utils.postinst import append_lxdm_post_login_script, append_lxdm_pre_login_script, append_lxdm_post_logout_script, \
@@ -17,7 +17,7 @@ from chrubix.utils.postinst import append_lxdm_post_login_script, append_lxdm_pr
             install_chrome_or_iceweasel_privoxy_wrapper, remove_junk, tweak_xwindow_for_cbook, install_panicbutton, \
             check_and_if_necessary_fix_password_file, install_insecure_browser, append_proxy_details_to_environment_file, \
             setup_timer_to_keep_dpms_switched_off, write_lxdm_service_file, ask_the_user__temp_or_perm, \
-            add_user_to_the_relevant_groups
+            add_user_to_the_relevant_groups, write_login_ready_file
 import chrubix.utils
 import chrubix
 from chrubix.utils.mbr import install_initcpio_wiperamonshutdown_files
