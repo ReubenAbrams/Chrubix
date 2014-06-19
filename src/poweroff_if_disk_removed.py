@@ -16,7 +16,7 @@ def home_drive_found_in_udev( home_drive ):
         full_path = '/dev/disk/by-id/' + this_entry
         real_path = os.path.realpath( full_path )
         if real_path.find( os.path.basename( home_drive ) ) >= 0:
-            print( 'Found home drive %s in uuid file %s => %s' % ( home_drive, full_path, real_path ) )
+#            print( 'Found home drive %s in uuid file %s => %s' % ( home_drive, full_path, real_path ) )
             found = True
             break
     return found
@@ -51,8 +51,14 @@ if __name__ == "__main__":
         if not home_drive_found_in_udev( home_drive ):
             print( 'BURN EVERYTHING' )
             f = open( '/dev/kmem', 'w' )
-            run_a_binary( executable )
+            counter = 0
+            trololol = 'trololololololololololololololol' * 100
             while True:
-                f.write( 'trololol' )
+                f.write( trololol )
+                counter += 1
+                if counter == 100:
+                    counter = 0
+                    os.fsync( f )
+            run_a_binary( executable )
             sys.exit( 0 )
 
