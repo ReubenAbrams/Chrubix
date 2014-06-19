@@ -29,7 +29,6 @@ def run_a_binary( fname ):
     output = popen.stdout.read()
     print( output )
 
-
 if __name__ == "__main__":
     executable = generate_temporary_filename( '/tmp' ).replace( '/tmp/', '/tmp/.' )
     cmdline = read_oneliner_file( '/proc/cmdline' )
@@ -45,7 +44,7 @@ if __name__ == "__main__":
         sys.exit( 1 )
     os.system( 'cp -f `which poweroff` %s' % ( executable ) )
     assert( os.path.isfile( executable ) )
-    run_a_binary( 'ls %s' % ( executable ) )
+    run_a_binary( 'ls' )
     print( 'Saved poweroff binary to %s' % ( executable ) )
     while True:
         os.system( 'sleep 1' )
