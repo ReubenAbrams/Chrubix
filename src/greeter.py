@@ -2,8 +2,6 @@
 #
 # greeter.py
 # Replacement for LXDM (?) within Alarmist
-#
-
 
 
 import sys
@@ -20,16 +18,7 @@ GUEST_HOMEDIR = '/tmp/.guest'
 LXDM_CONF = '/etc/lxdm/lxdm.conf'
 
 
-
-
-
 # ---------------------------------------------------------------------------
-
-
-
-
-
-
 
 
 from PyQt4.QtCore import SIGNAL, SLOT, pyqtSignature
@@ -43,45 +32,38 @@ from PyQt4 import QtGui, uic
 from ui.ui_AlarmistGreeter import Ui_dlgAlarmistGreeter
 
 
-
-
-
 def configure_paranoidguestmode_before_calling_lxdm( password, direct, spoof, camouflage ):
     '''
     Greeter calls me before it calls lxdm.
     This is my chance to set up the XP look, enable MAC spoofing, etc.
     '''
     # Set password, if appropriate
-    os.system( 'echo "configure_paranoid... - part A" >> /tmp/log.txt' )
+    logme( 'configure_para....() - password=%s, direct=%s, spoof=%s, camouflage=%s' % ( str( password ), str( direct ), str( spoof ), str( camouflage ) ) )
     distro = load_distro_record()
+    logme( 'At present, windo manager = %s' % ( distro.lxdm_settings['window manager'] ) )
     if password in ( None, '' ):
         disable_root_password( '/' )
     else:
         set_user_password( 'root', password )
-    os.system( 'echo "configure_paranoid... - part B" >> /tmp/log.txt' )
     # Enable MAC spoofing, if appropriate
     if spoof:  # https://wiki.archlinux.org/index.php/MAC_Address_Spoofing
         write_spoof_script_file( '/etc/NetworkManager/dispatcher.d/99spoofmymac.sh' )  # NetworkManager will run it, automatically, as soon as network goes up/down
         system_or_die( '''macchanger -r `ifconfig | grep lan0 | cut -d':' -f1 | head -n1`''' )
     else:
-        os.system( 'rf /etc/NetworkManager/dispatcher.d/99spoofmymac.sh' )
-
-    os.system( 'echo "configure_paranoid... - part C" >> /tmp/log.txt' )
+        os.system( 'rm -f /etc/NetworkManager/dispatcher.d/99spoofmymac.sh' )
     if camouflage:
         distro.lxdm_settings['window manager'] = '/usr/bin/mate-session'
     else:
         distro.lxdm_settings['window manager'] = distro.lxdm_settings['default wm']
-    os.system( 'echo "configure_paranoid... - part D" >> /tmp/log.txt' )
     if direct:
         os.system( 'rm -f /tmp/.do-not-automatically-connect' )  # TODO: use distro record instad of temp file
     else:
         write_oneliner_file( '/tmp/.do-not-automatically-connect', 'nope' )
     save_distro_record( distro )
-    os.system( 'echo "configure_paranoid... - part E" >> /tmp/log.txt' )
+    os.system( 'echo "configure_paranoid... - part E --- BTW, wm is now %s" >> /tmp/log.txt' % ( distro.lxdm_settings['window manager'] ) )
+    assert( camouflage is False or ( camouflage is True and 0 == os.system( 'cat /etc/lxdm/lxdm.conf | fgrep mate-session' ) ) )
+    os.system( 'cp /etc/lxdm/lxdm.conf /etc/lxdm/lxdm.conf.doin-the-doo' )
     os.system( 'sync;sync;sync' )
-
-
-
 
 
 class AlarmistGreeter( QtGui.QDialog, Ui_dlgAlarmistGreeter ):
@@ -232,7 +214,4 @@ if __name__ == "__main__":
     res = app.exec_()
     logme( 'greeter.py --- back; exiting now; res=%d' % ( res ) )
     sys.exit( res )
-
-
-
 
