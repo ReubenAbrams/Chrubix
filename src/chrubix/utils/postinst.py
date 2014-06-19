@@ -265,7 +265,6 @@ def configure_lxdm_onetime_changes( mountpoint ):
 def configure_lxdm_behavior( mountpoint, lxdm_settings ):
     logme( 'configure_lxdm_behavior --- entering' )
     logme( str( lxdm_settings ) )
-    assert( os.path.exists( '%s/%s' % ( mountpoint, lxdm_settings['window manager'] ) ) )
     f = '%s/etc/lxdm/lxdm.conf' % ( mountpoint )
     if not os.path.isfile( f ):
         failed( "%s does not exist; configure_lxdm_login_manager() cannot run properly. That sucks." % ( f ) )
@@ -281,6 +280,9 @@ def configure_lxdm_behavior( mountpoint, lxdm_settings ):
     else:
         do_a_sed( f, '.*autologin=.*', '###autologin=' )
         do_a_sed( f, '.*skip_password=.*', 'skip_password=%d' % ( 1 ) )  # if lxdm_settings['login as user'] == 'guest' else 0 ) )
+    assert( os.path.exists( '%s/%s' % ( mountpoint, lxdm_settings['window manager'] ) ) )
+    do_a_sed( f, '.*session=.*', 'session=%s' % ( lxdm_settings['window manager'] ) )
+    assert( 0 == os.system( 'cat %s | grep session= &> /dev/null' % ( f ) ) )
     logme( 'configure_lxdm_behavior --- leaving' )
 
 
