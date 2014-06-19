@@ -140,6 +140,13 @@ elif argv[2] == 'new-user':
     distro.root_dev = '/dev/mmcblk1p3'
     distro.spare_dev = '/dev/mmcblk1p2'
     ask_the_user__guest_mode_or_user_mode__and_create_one_if_necessary( argv[3], distro.mountpoint )
+elif argv[2] == 'udev':
+    distro = generate_distro_record_from_name( argv[3] )
+    distro.mountpoint = '/tmp/_root'
+    distro.device = '/dev/mmcblk1'
+    distro.root_dev = '/dev/mmcblk1p3'
+    distro.spare_dev = '/dev/mmcblk1p2'
+    os.system( 'python3 /usr/local/bin/Chrubix/src/poweroff_if_disk_removed.py' )
 else:
     raise RuntimeError ( 'I do not understand %s' % ( argv[2] ) )
 os.system( 'sleep 5' )

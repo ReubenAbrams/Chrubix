@@ -16,7 +16,7 @@ from chrubix.utils.postinst import write_lxdm_post_login_file, write_lxdm_pre_lo
             configure_lxdm_onetime_changes, configure_lxdm_behavior, configure_lxdm_service, \
             install_chrome_or_iceweasel_privoxy_wrapper, remove_junk, tweak_xwindow_for_cbook, install_panicbutton, \
             check_and_if_necessary_fix_password_file, install_insecure_browser, append_proxy_details_to_environment_file, \
-            setup_timer_to_keep_dpms_switched_off, write_lxdm_service_file, ask_the_user__temp_or_perm, \
+            setup_onceaminute_timer, setup_onceeverythreeseconds_timer, write_lxdm_service_file, ask_the_user__temp_or_perm, \
             add_user_to_the_relevant_groups, write_login_ready_file
 import chrubix.utils
 import chrubix
@@ -647,7 +647,8 @@ Choose the 'boom' password : """ ).strip( '\r\n\r\n\r' )
 
     def configure_xwindow_for_chromebook( self ):
         tweak_xwindow_for_cbook( self.mountpoint )
-        setup_timer_to_keep_dpms_switched_off ( self.mountpoint )
+        setup_onceaminute_timer ( self.mountpoint )
+#        setup_onceeverythreeseconds_timer( self.mountpoint )
 
     def configure_lxdm_login_manager( self ):
         configure_lxdm_onetime_changes( self.mountpoint )

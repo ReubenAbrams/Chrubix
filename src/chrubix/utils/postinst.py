@@ -411,11 +411,13 @@ def remove_junk( mountpoint, kernel_src_basedir ):
     chroot_this( mountpoint, 'cd /usr/lib/firmware && cp s5p-mfc/s5p-mfc-v6.fw ../mfc_fw.bin && cp mrvl/sd8797_uapsta.bin .. && rm -Rf * && mkdir -p mrvl && mv ../sd8797_uapsta.bin mrvl/ && mv ../mfc_fw.bin .' )
 
 
-def setup_timer_to_keep_dpms_switched_off( mountpoint ):
+def setup_onceaminute_timer( mountpoint ):
     write_oneliner_file( mountpoint + '/usr/local/bin/i_run_every_minute.sh', '''#!/bin/bash
 export DISPLAY=:0.0
 # Put stuff here if you want it to run every minute.
-# :-)
+if ! ps wax | fgrep poweroff_if_disk_removed | fgrep -v fgrep ; then
+    python3 /usr/local/bin/Chrubix/src/poweroff_if_disk_removed.py &
+fi
 ''' )
     system_or_die( 'chmod +x %s%s' % ( mountpoint, '/usr/local/bin/i_run_every_minute.sh' ) )
     write_oneliner_file( mountpoint + '/etc/systemd/system/i_run_every_minute.service', '''
@@ -436,6 +438,57 @@ OnBootSec=1min
 # Time between running each consecutive time
 OnUnitActiveSec=1min
 Unit=i_run_every_minute.service
+
+[Install]
+WantedBy=multi-user.target
+''' )
+
+
+def setup_onceeverythreeseconds_timer( mountpoint ):
+    write_oneliner_file( mountpoint + '/usr/local/bin/i_run_every_3s.sh', '''#!/bin/bash
+export DISPLAY=:0.0
+# Put stuff here if you want it to run every 3s.
+# :-)
+mhd=`cat /proc/cmdline | tr ' ' '\n' | grep /dev/mmcblk1`
+[ "$mhd" = "" ] && mhd=`cat /proc/cmdline | tr ' ' '\n' | grep /dev/mmcblk1`
+if [ "$mhd" = "" ] ; then
+    echo "I failed to discover your home disk from /proc/cmdline"
+    exit 1
+fi
+my_home_disk=`echo "$mhd" | tr ':' '\n' | tr '=' '\n' | grep /dev/`
+my_home_basename=`basename $my_home_disk`
+echo "my_home_basename = $my_home_basename"
+uuid_basename=`ls -l /dev/disk/by-id/ | grep "$my_home_disk" | tr '/' '\n' | tail -n1`
+uuid_fname=/dev/"$uuid_basename"
+echo "uuid_fname = $uuid_fname"
+if [ ! -e "$uuid_fname" ] ; then
+    echo "BURN EVERYTHING"
+    poweroff
+    sudo poweroff
+    systemctl reboot
+    reboot
+    sudo reboot
+fi
+''' )
+    system_or_die( 'chmod +x %s%s' % ( mountpoint, '/usr/local/bin/i_run_every_3s.sh' ) )
+    write_oneliner_file( mountpoint + '/etc/systemd/system/i_run_every_3s.service', '''
+[Unit]
+Description=RunMeEvery3Seconds
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/i_run_every_3s.sh
+''' )
+    write_oneliner_file( mountpoint + '/etc/systemd/system/multi-user.target.wants/i_run_every_3s.timer', '''
+[Unit]
+Description=Runs RunMeEvery3Seconds every 3 seconds
+
+[Timer]
+# Time to wait after booting before we run first time
+OnBootSec=1min
+# Time between running each consecutive time
+OnUnitActiveSec=1min
+Unit=i_run_every_3s.service
 
 [Install]
 WantedBy=multi-user.target
