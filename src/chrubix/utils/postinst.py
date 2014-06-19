@@ -316,6 +316,7 @@ def configure_lxdm_onetime_changes( mountpoint ):
     append_startx_addendum( '%s/etc/X11/xinit/xinitrc' % ( mountpoint ) )  # Append. Don't replace.
     append_lxdm_pre_login_script( '%s/etc/lxdm/PreLogin' % ( mountpoint ) )  # Append. Don't replace.
     append_lxdm_post_logout_script( '%s/etc/lxdm/PostLogout' % ( mountpoint ) )
+    write_login_ready_file( '%s/etc/lxdm/LoginReady' % ( mountpoint ) )
     append_lxdm_xresources_addendum( '%s/root/.Xresources' % ( mountpoint ) )
     system_or_die( 'echo ". /etc/X11/xinitrc/xinitrc" >> %s/etc/lxdm/Xsession' % ( mountpoint ) )
     do_a_sed( '%s/etc/X11/xinit/xinitrc' % ( mountpoint ), '.*xterm.*', '' )
@@ -334,7 +335,7 @@ def configure_lxdm_behavior( mountpoint, lxdm_settings ):
     if lxdm_settings['enable user lists']:
         do_a_sed( f, 'disable=.*', 'disable=0' )
         do_a_sed( f, 'black=.*', 'black=root bin daemon mail ftp http uuidd dbus nobody systemd-journal-gateway systemd-timesync systemd-network avahi polkitd colord git rtkit freenet i2p lxdm tor privoxy' )
-        do_a_sed( f, 'white=.*', 'white=guest shutdown' )
+        do_a_sed( f, 'white=.*', 'white=guest' )
     else:
         do_a_sed( f, 'disable=.*', 'disable=1' )
     if lxdm_settings['autologin']:
@@ -344,6 +345,16 @@ def configure_lxdm_behavior( mountpoint, lxdm_settings ):
         do_a_sed( f, '.*autologin=.*', '###autologin=' )
         do_a_sed( f, '.*skip_password=.*', 'skip_password=%d' % ( 1 ) )  # if lxdm_settings['login as user'] == 'guest' else 0 ) )
     logme( 'configure_lxdm_behavior --- leaving' )
+
+
+def write_login_ready_file( fname ):
+        write_oneliner_file( fname, '''#!/bin/sh
+. /etc/bash.bashrc
+. /etc/profile
+export DISPLAY=:0.0
+xset s off
+xset -dpms
+''' )
 
 
 def configure_lxdm_service( mountpoint ):
