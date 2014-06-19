@@ -51,6 +51,7 @@ def logme( message = None ):
     handle = open ( '/tmp/chrubix.log', 'a' )
     handle.write( '%s %s\n' % ( datestr, message ) )
     handle.close()
+    os.system( 'chmod 777 /tmp/chrubix.log &> /dev/null' )
 
 
 def call_binary_and_show_progress( binary_info, title_str, foot_str, status_lst, trim_output = False, pauses_len = 5 ):

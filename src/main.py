@@ -17,7 +17,6 @@ except ImportError:
 
 
 # os.system( 'rm -f /tmp/chrubix.log' )
-os.system( 'chmod 777 /tmp/chrubix.log &> /dev/null' )
 logme( '**************************** WELCOME TO CHRUBIX ****************************' )
 if os.system( 'cat /proc/cmdline 2>/dev/null | fgrep root=/dev/dm-0 > /dev/null' ) == 0:
     from chrubix import exec_cli
