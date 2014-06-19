@@ -1140,8 +1140,6 @@ exit 0
         install_windows_xp_theme_stuff( self.mountpoint )
 #        if os.path.exists( '%s/usr/share/icons/GnomeXP' % ( self.mountpoint ) ):
 #            raise RuntimeError( 'I have already installed the groovy XP stuff, FYI.' )
-        system_or_die( 'rm -f %s/etc/lxdm/PreLogin' % ( self.mountpoint ) )
-        append_lxdm_pre_login_script( '%s/etc/lxdm/PreLogin' % ( self.mountpoint ) )
         install_mp3_files( self.mountpoint )
         assert( os.path.exists( '%s/etc/.mp3/winxp.mp3' % ( self.mountpoint ) ) )
 
