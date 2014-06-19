@@ -6,7 +6,6 @@
 ###########################################################
 
 
-
 import sys
 import os
 import datetime
@@ -20,11 +19,8 @@ from chrubix.utils import fix_broken_hyperlinks, system_or_die
 from chrubix.utils.postinst import remove_junk
 
 
-
 GUEST_HOMEDIR = '/tmp/.guest'
 LXDM_CONF = '/etc/lxdm/lxdm.conf'
-
-
 
 
 def set_up_guest_homedir():
@@ -54,8 +50,6 @@ def do_audio_and_network_stuff():
         if 0 != os.system( cmd ):
             logme( '%s ==> failed' % ( cmd ) )
     logme( 'ersatz_lxdm.py --- do_audio_and_network_stuff() --- leaving' )
-
-
 
 
 if __name__ == "__main__":
@@ -91,15 +85,5 @@ if __name__ == "__main__":
     else:
         logme( 'ersatz_lxdm.py --- calling lxdm' )
         res = os.system( 'lxdm' )
+    sys.exit( res )
 
-#    success = False
-#    while not success:
-#        timestamp_before = datetime.datetime.now()
-#        timestamp_after = datetime.datetime.now()
-#        diff = timestamp_after - timestamp_before
-#        try:
-#            if diff.seconds > 3:
-#                success = True
-#        except:
-#            logme( 'ersatz_lxdm.py --- something is wrong with timestamp comparison code; forcing success=True as backup plan' )
-#            success = True
