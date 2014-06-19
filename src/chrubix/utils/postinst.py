@@ -609,9 +609,9 @@ def ask_the_user__guest_mode_or_user_mode__and_create_one_if_necessary( distro_n
             continue
     system_or_die( 'mkdir -p %s/home/%s' % ( mountpoint, user_name ) )
     add_user_to_the_relevant_groups( user_name, distro_name, mountpoint )
-    system_or_die( 'tar -Jxvf /usr/local/bin/Chrubix/blobs/settings/default_guest_files.tar.xz -C %s/home/%s' % ( mountpoint, user_name ) )
+    system_or_die( 'tar -Jvf /usr/local/bin/Chrubix/blobs/settings/default_guest_files.tar.xz -C %s/home/%s' % ( mountpoint, user_name ) )
     for stub in ( '.gtkrc-2.0', '.config/chromium' ):
-        do_a_sed( '/home/%s/%s' % ( user_name, stub ), '/tmp/.guest', '/home/%s' % ( user_name ) )
+        do_a_sed( '%s/home/%s/%s' % ( mountpoint, user_name, stub ), '/tmp/.guest', '/home/%s' % ( user_name ) )
     assert( 0 != os.system( 'fgrep -rnl /tmp/.guest %s/.[a-z]*' % ( user_name ) ) )
     chroot_this( mountpoint, 'chown -R %s.users /home/%s' % ( user_name, user_name ) )
     chroot_this( mountpoint, 'chmod -R 700 /home/%s' % ( user_name ) )
