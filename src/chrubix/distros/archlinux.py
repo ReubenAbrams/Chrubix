@@ -1,7 +1,7 @@
 #!/usr/local/bin/python3
 #
 # archlinux.py
-#
+
 
 from chrubix.distros import Distro
 from chrubix.utils import failed, system_or_die, chroot_this, wget, logme, do_a_sed
