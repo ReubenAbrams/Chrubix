@@ -6,12 +6,9 @@
 
 import sys
 import os
-import datetime
 from chrubix.utils import logme, write_oneliner_file, disable_root_password, set_user_password, \
-                    system_or_die, failed, write_spoof_script_file
-from chrubix.utils.postinst import configure_lxdm_behavior
-from chrubix import generate_distro_record_from_name, save_distro_record, load_distro_record
-import hashlib
+                    system_or_die, write_spoof_script_file
+from chrubix import save_distro_record, load_distro_record
 
 
 GUEST_HOMEDIR = '/tmp/.guest'
@@ -208,5 +205,4 @@ if __name__ == "__main__":
     res = app.exec_()
     logme( 'greeter.py --- back; exiting now; res=%d' % ( res ) )
     sys.exit( res )
-
 
