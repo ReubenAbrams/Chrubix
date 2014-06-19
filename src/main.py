@@ -10,6 +10,7 @@ import hashlib
 from chrubix.utils import logme
 from chrubix import generate_distro_record_from_name, save_distro_record, load_distro_record
 
+
 try:
     from PyQt4.QtCore import QString
 except ImportError:
@@ -21,9 +22,6 @@ logme( '**************************** WELCOME TO CHRUBIX ************************
 if os.system( 'cat /proc/cmdline 2>/dev/null | fgrep root=/dev/dm-0 > /dev/null' ) == 0:
     from chrubix import exec_cli
     sys.exit( exec_cli( sys.argv ) )
-# else:
-#    from chrubix import testbed
-#    sys.exit( testbed( sys.argv ) )
 
 
 if os.system( 'mount | grep /dev/mapper/encstateful &> /dev/null' ) == 0 \
@@ -50,10 +48,12 @@ from ui.ui_MainWindow import Ui_mnwMain
 from ui.ui_ReconfigureorexitForm import Ui_dlgReconfigureorexit
 from ui.ui_ChangePasswordDialog import Ui_dlgChangepassword
 
+
 class ChangePasswordDialog( QtGui.QDialog, Ui_dlgChangepassword ):
     @property
     def password( self ):
         return self._password
+
     @password.setter
     def password( self, value ):
         self._password = value
@@ -220,7 +220,6 @@ class MainWindow( QtGui.QMainWindow, Ui_mnwMain ):
             self.setChangesMadeFalse()
             self.populateMainTabWidget()
 
-
     @pyqtSignature( "" )
     def pteLxdmSettingsChanged( self ):
         if not self.signalsBlocked():
@@ -237,7 +236,6 @@ class MainWindow( QtGui.QMainWindow, Ui_mnwMain ):
         self.btnResetLxdmSettings.setEnabled( False )
         self.blockSignals( False )
 
-
     @pyqtSignature( "" )
     def populateLxdmPlaintextEditor( self ):
         outstr = ''
@@ -247,7 +245,6 @@ class MainWindow( QtGui.QMainWindow, Ui_mnwMain ):
             outstr += '%s=%s\n' % ( k, w )
         signals_are_already_blocked = self.signalsBlocked()
         self.pteLxdmSettings.setPlainText( outstr )
-
 
     @pyqtSignature( "" )
     def saveLxdmSettingsToMyDistroRecord( self ):
@@ -273,7 +270,6 @@ class MainWindow( QtGui.QMainWindow, Ui_mnwMain ):
         self.populateLxdmPlaintextEditor()
         self.btnResetLxdmSettings.setEnabled( False )
 
-
     @pyqtSignature( "" )
     def changeWhitelist( self ):
         orig_txt = self.whitelist_menu_text()
@@ -296,7 +292,6 @@ class MainWindow( QtGui.QMainWindow, Ui_mnwMain ):
 #            else:
 #                QtGui.QMessageBox.question( self, "Success!", "Boom password has been changed.", QtGui.QMessageBox.Ok )
 
-
     @pyqtSignature( "" )
     def changeDiskPassword( self ):
         res = self.distro.set_disk_password()  # mountpoint
@@ -304,7 +299,6 @@ class MainWindow( QtGui.QMainWindow, Ui_mnwMain ):
             QtGui.QMessageBox.question( self, "Failure", "Disk password remains the same.", QtGui.QMessageBox.Ok )
         else:
             QtGui.QMessageBox.question( self, "Success!", "Disk password has been changed.", QtGui.QMessageBox.Ok )
-
 
     @pyqtSignature( "" )
     def changeRootPassword( self ):
