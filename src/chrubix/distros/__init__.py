@@ -10,7 +10,7 @@ from chrubix.utils import rootcryptdevice, mount_device, mount_sys_tmp_proc_n_de
             generate_temporary_filename, backup_the_resolvconf_file, install_gpg_applet, patch_kernel, \
             fix_broken_hyperlinks, disable_root_password, install_windows_xp_theme_stuff, running_on_a_test_rig
 
-from chrubix.utils.postinst import append_lxdm_post_login_script, append_lxdm_pre_login_script, append_lxdm_post_logout_script, \
+from chrubix.utils.postinst import write_lxdm_post_login_file, write_lxdm_pre_login_file, write_lxdm_post_logout_file, \
             append_lxdm_xresources_addendum, generate_wifi_manual_script, generate_wifi_auto_script, \
             install_guest_browser_script, configure_privoxy, add_speech_synthesis_script, ask_the_user__guest_mode_or_user_mode__and_create_one_if_necessary, \
             configure_lxdm_onetime_changes, configure_lxdm_behavior, configure_lxdm_service, \
@@ -776,9 +776,8 @@ exit 0
         self.reinstall_chrubix_for_mosO()
         logme( 'vvv  THIS SECTION SHOULD BE REMOVED AFTER 7/1/2014 vvv' )
         chroot_this( self.mountpoint, 'cat /etc/lxdm/PostLogin | head -n3 > /etc/lxdm/po; rm /etc/lxdm/PostLogin; mv /etc/lxdm/po /etc/lxdm/PostLogin', on_fail = 'Doo wah ditty, ditty dum, ditty do' )
-        append_lxdm_post_login_script( '%s/etc/lxdm/PostLogin' % ( self.mountpoint ) )
-        do_a_sed( '%s/etc/lxdm/PostLogout' % ( self.mountpoint ), '.*loginctl', '#' )  # TODO: Remove after 7/1/2014
-        do_a_sed( '%s/etc/lxdm/PostLogout' % ( self.mountpoint ), '.*systemctl', '#' )  # TODO: Remove after 7/1/2014
+        write_lxdm_post_login_file( '%s/etc/lxdm/PostLogin' % ( self.mountpoint ) )
+        write_lxdm_post_logout_file( '%s/etc/lxdm/PostLogout' % ( self.mountpoint ) )
         write_login_ready_file( '%s/etc/lxdm/LoginReady' % ( self.mountpoint ) )
         logme( '^^^ THIS SECTION SHOULD BE REMOVED AFTER 7/1/2014 ^^^' )
         assert( os.path.exists( '%s/usr/local/bin/chrubix.sh' % ( self.mountpoint ) ) )

@@ -28,115 +28,54 @@ logger "QQQ startx end of startx addendum"
 ''' )
     f.close()
 
-def append_lxdm_post_login_script( outfile ):
-    f = open( outfile, 'a' )
-    f.write( '''
+
+def write_lxdm_post_login_file( outfile ):
+    f = open( outfile, 'w' )
+    f.write( '''#!/bin/sh
 . /etc/bash.bashrc
 . /etc/profile
-
 liu=/tmp/.logged_in_user
-logger "QQQ start of postlogin script"
 echo "$USER" > $liu
-
 export DISPLAY=:0.0
-#start-pulseaudio-x11
-
-if ps -o pid -C wmaker &>/dev/null; then
-  wmsystemtray &
-  sleep 0.5
-fi
-
-which keepassx &> /dev/null && keepassx -min &
-which start-freenet.sh &> /dev/null && start-freenet.sh start &
-
-# [ -e "/usr/local/bin/chrubix.sh" ] && sudo /usr/local/bin/chrubix.sh &> /tmp/.chrubix.err &
-
-#nm-connection-editor &
-
-touch /tmp/.okConnery.thisle.44        # TODO: Do we still do this stuff? 1st/2nd/Nth... time?
-
-xset s off
-xset -dpms
-
+sleep 2
+while ! ps wax | grep " X " ; do
+    sleep 0.5
+done
 sleep 1
-if which florence &> /dev/null ; then
-  florence &
-fi
-
-if ! ps wax | fgrep nm-applet | fgrep -v grep &> /dev/null ; then
-  nm-applet &
-  sleep 1
-fi
-
-if ps wax | fgrep mate-session | fgrep -v grep ; then
-  # WinXP mode. Cool. Play the sound.
-  pulseaudio -k
-  mpg123 /etc/.mp3/winxp.mp3
-else
-  sleep 4
-fi
-
-if ps wax | grep florence | grep -v grep ; then
-  sleep 1
-  florence hide &
-  sleep 1
-  florence hide &
-fi
-
-[ -e "/tmp/.do-not-automatically-connect" ] && exit 0
-
-if [ "`ps wax | grep nm-applet | grep -v grep | cut -d' ' -f1,2 | tr ' ' '\n' | grep "[0-9][0-9]" | wc -l`" -ge "2" ]; then
-  sleep 1
-  kill `ps wax | grep nm-applet | grep -v grep | cut -d' ' -f1,2 | tr ' ' '\n' | grep "[0-9][0-9]" | tail -n1`
-fi
-
-if ! ping -c1 -W5 8.8.8.8 ; then
-  urxvt -geometry 120x20+0+320 -name "WiFi Setup" -e sh -c "/usr/local/bin/wifi_manual.sh" &
-  the_pid=$!
-  while ! ping -c1 -W5 8.8.8.8; do
-    sleep 1
-  done
-  kill $the_pid
-fi
-
-if ! ps -o pid -C tor ; then
-    systemctl start privoxy
-    sleep .5
-    /usr/bin/vidalia &
-    sleep .3
-fi
-
-logger "QQQ end of postlogin script"
+python3 /usr/local/bin/Chrubix/src/lxdm_post_login_script.py
 ''' )
     f.close()
 
 
-def append_lxdm_post_logout_script( outfile ):
-    f = open( outfile, 'a' )
-    f.write( '''
+def write_lxdm_post_logout_file( outfile ):
+    f = open( outfile, 'w' )
+    f.write( '''#!/bin/sh
+. /etc/bash.bashrc
+. /etc/profile
 liu=/tmp/.logged_in_user
 rm -f $liu
-#logger "QQQ - terminating current user session and restarting lxdm"
-## Terminate current user session
+export DISPLAY=:0.0
+if ps wax | fgrep greeter.py | fgrep -v fgrep ; then
+    echo "Killing lxdm-binary and lxdm, because (dum dum dahhhh) greeter.py is running" >> /tmp/log.txt
+    killall lxdm-binary lxdm X
+fi
+
 #/usr/bin/loginctl terminate-session $XDG_SESSION_ID
-## Restart lxdm
 #/usr/bin/systemctl restart lxdm.service
 ''' )
     f.close()
 
 
-
-
-
-def append_lxdm_pre_login_script( outfile ):
-    f = open( outfile, 'a' )
-    f.write( '''
+def write_lxdm_pre_login_file( outfile ):
+    f = open( outfile, 'w' )
+    f.write( '''#!/bin/sh
+. /etc/bash.bashrc
+. /etc/profile
 [ -e "/tmp/_root.old" ] && rm /tmp/_root.old
 [ -e "/tmp/_root" ] && mv /tmp/_root /tmp/_root.old
 ln -sf / /tmp/_root
 ''' )
     f.close()
-
 
 
 def append_lxdm_xresources_addendum( outfile ):
@@ -151,8 +90,6 @@ URxvt.url-launcher: /usr/local/bin/run_browser_as_guest.sh
 URxvt.matcher.button: 1
 ''' )
     f.close()
-
-
 
 
 def generate_wifi_manual_script( outfile ):
@@ -189,7 +126,6 @@ manual_mode
 exit $?
 ''' )
     system_or_die( 'chmod +x %s' % ( outfile ) )
-
 
 
 def generate_wifi_auto_script( outfile ):
@@ -311,11 +247,11 @@ def configure_lxdm_onetime_changes( mountpoint ):
         do_a_sed( f, 'MouseRightButton', 'MouseLeftButton' )
         do_a_sed( f, 'flibbertygibbet', 'MouseRightButton' )
 #    system_or_die( 'echo "ps wax | fgrep mate-session | fgrep -v grep && mpg123 /etc/.mp3/xpshutdown.mp3" >> %s/etc/lxdm/PreLogout' % ( mountpoint ) )
-    append_lxdm_post_login_script( '%s/etc/lxdm/PostLogin' % ( mountpoint ) )  # Append. Don't replace.
     append_startx_addendum( '%s/etc/lxdm/Xsession' % ( mountpoint ) )  # Append. Don't replace.
     append_startx_addendum( '%s/etc/X11/xinit/xinitrc' % ( mountpoint ) )  # Append. Don't replace.
-    append_lxdm_pre_login_script( '%s/etc/lxdm/PreLogin' % ( mountpoint ) )  # Append. Don't replace.
-    append_lxdm_post_logout_script( '%s/etc/lxdm/PostLogout' % ( mountpoint ) )
+    write_lxdm_pre_login_file( '%s/etc/lxdm/PreLogin' % ( mountpoint ) )  # Append. Don't replace.
+    write_lxdm_post_logout_file( '%s/etc/lxdm/PostLogout' % ( mountpoint ) )
+    write_lxdm_post_login_file( '%s/etc/lxdm/PostLogin' % ( mountpoint ) )  # Append. Don't replace.
     write_login_ready_file( '%s/etc/lxdm/LoginReady' % ( mountpoint ) )
     append_lxdm_xresources_addendum( '%s/root/.Xresources' % ( mountpoint ) )
     system_or_die( 'echo ". /etc/X11/xinitrc/xinitrc" >> %s/etc/lxdm/Xsession' % ( mountpoint ) )
