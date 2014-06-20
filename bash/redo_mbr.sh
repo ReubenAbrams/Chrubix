@@ -167,21 +167,6 @@ generate_random_serial_number() {
 
 
 
-get_dev_serialno() {
-	local dev mydevbyid bname petname
-	dev=$1
-	if ! echo "$dev" | grep "/disk/by-id/" &> /dev/null ; then
-	        bname=`basename $dev` || failed "Unable to deduce basename from \"$dev\""
-	        mydevbyid=/dev/disk/by-id/`ls -l /dev/disk/by-id/ | grep -x ".*$bname" | tr ' ' '\n' | grep "_"`
-	else
-	        mydevbyid=$dev
-	fi
-	petname=`echo "$mydevbyid" | tr '-' '\n' | fgrep -v ":" | tail -n1 | awk '{print substr($0, length($0)-7, 8)};'`
-	echo "$petname" | tr '[:upper:]' '[:lower:]'
-}
-
-
-
 
 get_internal_serial_number() {
 	ls /dev/disk/by-id/ | grep mmc-SEM | head -n1
@@ -502,9 +487,10 @@ root=$2					# root folder
 my_root_disk_device=$3
 
 dev_p=`deduce_dev_stamen $dev`
-petname=`find_boot_drive | cut -d'-' -f3 | tr '_' '\n' | tail -n1 | awk '{print substr($0,length($0)-7);}' | tr '[:upper:]' '[:lower:]'`
 cores=1
-#echo "redo_mbr($root,$dev_p,$my_root_disk_device) --- calling"
+echo aaa
+exit 0
+echo "redo_mbr($root,$dev_p,$my_root_disk_device) --- calling"
 redo_mbr $root $dev_p $my_root_disk_device
 res=$?
 #echo "Exiting w/ res=$res"
