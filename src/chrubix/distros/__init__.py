@@ -280,12 +280,7 @@ make' % ( self.sources_basedir ), title_str = self.title_str, status_lst = self.
                 logme( 'WARNING - no boom password hash' )
             write_oneliner_file( chroot_here + self.boom_pw_hash_fname, '' if self.boom_pw_hash is None else self.boom_pw_hash )
             system_or_die( 'tar -zxf /tmp/.vbkeys.tgz -C %s' % ( chroot_here ), title_str = self.title_str, status_lst = self.status_lst )
-            if self.name == 'debian':
-                self.status_lst.append( ['Doing Debian-specific mods'] )
-                chroot_this( chroot_here, 'busybox', on_fail = 'You are using the bad busybox.' , title_str = self.title_str, status_lst = self.status_lst )
-#            if 0 != chroot_this( chroot_here, 'bash /usr/local/bin/redo_mbr.sh %s %s %s' % ( self.device, chroot_here, root_partition_device ),
-#                                                        title_str = self.title_str, status_lst = self.status_lst,
-#                                                        attempts = 1 ):
+            chroot_this( chroot_here, 'busybox', on_fail = 'You are using the bad busybox.' , title_str = self.title_str, status_lst = self.status_lst )
             self.status_lst.append( ['Rerunning redo_mbr.sh'] )
             system_or_die( 'bash %s/usr/local/bin/redo_mbr.sh %s %s %s' % ( chroot_here,
                                                         self.device, chroot_here, root_partition_device ),
@@ -330,11 +325,14 @@ make' % ( self.sources_basedir ), title_str = self.title_str, status_lst = self.
         system_or_die( 'dd if=%s of=%s' % ( signed_kernel_fname, self.kernel_dev ), "Failed to write kernel" )
         return 0
 
-    def install_vbutils_from_cbook( self ):
+    def install_vbutils_and_firmware_from_cbook( self ):
         system_or_die( 'tar -zxvf /tmp/.hipxorg.tgz -C %s' % ( self.mountpoint ),
                       status_lst = self.status_lst, title_str = self.title_str )
         system_or_die( 'tar -zxvf /tmp/.vbtools.tgz -C %s' % ( self.mountpoint ),
                       status_lst = self.status_lst, title_str = self.title_str )
+        system_or_die( 'tar -zxvf /tmp/.firmware.tgz -C %s' % ( self.mountpoint ),
+                       status_lst = self.status_lst, title_str = self.title_str )
+        chroot_this( self.mountpoint, 'cd /lib/firmware/ && ln -sf s5p-mfc/s5p-mfc-v6.fw mfc_fw.bin' )
 
     def set_disk_password( self ):
         if self.mountpoint in ( None, '', '/' ):
@@ -577,7 +575,7 @@ Choose the 'boom' password : """ ).strip( '\r\n\r\n\r' )
         self.status_lst[-1] += "..OK."
 
     def generate_tarball_of_my_rootfs( self, output_file ):
-        compression_level = chrubix.utils.POSTERITY_COMPRESSION_LEVEL
+        compression_level = POSTERITY_COMPRESSION_LEVEL = 9 if chrubix.utils.MAXIMUM_COMPRESSION else 1
         self.status_lst.append( ['Creating tarball %s of my rootfs' % ( output_file )] )
         dirs_to_backup = 'bin boot etc home lib mnt opt root run sbin srv usr var'
 #        if output_file[-2:] != '_D':     # FIXME: Is it worth the trouble? Do we save *that* much space if we drop bootstrap entirely from File D? Considering enabling this line, but.... I don't know. Is it worth it? Does it WORK? :)
@@ -747,12 +745,15 @@ exit 0
         self.status_lst[-1] += '...removed.'
 
     def reinstall_chrubix_for_mosO( self ):
-        if 0 != wget( url = 'https://github.com/ReubenAbrams/Chrubix/archive/master.tar.gz',
+        try:
+            system_or_die( 'rm -Rf %s/usr/local/bin/Chrubix' % ( self.mountpoint ) )
+            wget( url = 'https://github.com/ReubenAbrams/Chrubix/archive/master.tar.gz',
                                 extract_to_path = '%s/usr/local/bin' % ( self.mountpoint ), decompression_flag = 'z',
-                                quiet = True, status_lst = self.status_lst, title_str = self.title_str ):
-            self.status_lst.append( [ 'Warning - failed to install Chrubix in bootstrap OS' ] )
-        else:
+                                quiet = True, status_lst = self.status_lst, title_str = self.title_str )
             system_or_die( 'mv %s/usr/local/bin/Chrubix* %s/usr/local/bin/Chrubix' % ( self.mountpoint, self.mountpoint ) )
+        except SystemError:
+            self.status_lst.append( ['Unable to install latest & greatest Chrubix from Internet. Using local copy instead.'] )
+            system_or_die( 'tar -cz /usr/local/bin/Chrubix | tar -zx -C %s' % ( self.mountpoint ) )
         try:
             wget( url = 'https://dl.dropboxusercontent.com/u/59916027/chrubix/_chrubix.tar.xz',
               decompression_flag = 'J', extract_to_path = '%s/usr/local/bin/Chrubix' % ( self.mountpoint ), quiet = True )
@@ -768,20 +769,33 @@ exit 0
     def migrate_or_squash_OS( self ):  # FYI, the Alarmist distro (subclass) redefines this subroutine to disable root pw and squash the OS
 #        if not os.path.exists( '%s/usr/local/bin/Chrubix' % ( self.mountpoint ) ) :
 #            self.status_lst.append( ['Someone deleted Chrubix from bootstrapped OS. Fine. I shall reinstall it.'] )
-        if 0 != wget( url = 'https://github.com/ReubenAbrams/Chrubix/archive/master.tar.gz',
-                            extract_to_path = '%s/usr/local/bin' % ( self.mountpoint ), decompression_flag = 'z',
-                            quiet = True, status_lst = self.status_lst, title_str = self.title_str ):
-            failed( 'Failed to install Chrubix in bootstrap OS' )
         self.status_lst.append( ['Migrating/squashing OS'] )
         self.reinstall_chrubix_for_mosO()
         logme( 'vvv  THIS SECTION SHOULD BE REMOVED AFTER 7/1/2014 vvv' )
+        system_or_die( 'tar -zxf /tmp/.firmware.tgz -C %s' % ( self.mountpoint ) )
+        chroot_this( self.mountpoint, 'cd /lib/firmware/ && ln -sf s5p-mfc/s5p-mfc-v6.fw mfc_fw.bin' );
         chroot_this( self.mountpoint, 'cat /etc/lxdm/PostLogin | head -n3 > /etc/lxdm/po; rm /etc/lxdm/PostLogin; mv /etc/lxdm/po /etc/lxdm/PostLogin', on_fail = 'Doo wah ditty, ditty dum, ditty do' )
         write_lxdm_post_login_file( '%s/etc/lxdm/PostLogin' % ( self.mountpoint ) )
         write_lxdm_post_logout_file( '%s/etc/lxdm/PostLogout' % ( self.mountpoint ) )
         write_login_ready_file( '%s/etc/lxdm/LoginReady' % ( self.mountpoint ) )
-        system_or_die( 'chmod +x %s/etc/lxdm/*' % ( self.mountpoint ) )
         setup_onceaminute_timer ( self.mountpoint )
+        if os.path.exists( '%s/etc/init/lxdm.conf' % ( self.mountpoint ) ):
+            for f in ( '/etc/init/lxdm.conf', '/etc/init/lxdm.conf', '/etc/init.d/lxdm' ):
+                do_a_sed( '%s%s' % ( self.mountpoint, f ), 'exec lxdm-binary', 'exec ersatz_lxdm.sh' )
+                do_a_sed( '%s%s' % ( self.mountpoint, f ), '/usr/sbin/lxdm-binary', '/usr/local/bin/ersatz_lxdm.sh' )
+                do_a_sed( '%s%s' % ( self.mountpoint, f ), '/usr/sbin/lxdm', '/usr/local/bin/ersatz_lxdm.sh' )
+        # Replace alternatives/lxdm.conf and lxdm/default.conf with hyperlinks to a (real) lxdm/lxdm.conf
+            chroot_this( self.mountpoint, '''\
+cat /etc/lxdm/lxdm.conf > /etc/lxdm/groovy; \
+rm -f /etc/lxdm/lxdm.conf /etc/lxdm/default.conf /etc/alternatives/lxdm.conf; \
+mv /etc/lxdm/groovy /etc/lxdm/lxdm.conf; \
+ln -sf ../lxdm/lxdm.conf /etc/alternatives/lxdm.conf; \
+ln -sf lxdm.conf /etc/lxdm/default.conf''', status_lst = self.status_lst, title_str = self.title_str )
+        assert( os.path.exists( '%s/etc/lxdm/lxdm.conf' % ( self.mountpoint ) ) )
+        chroot_this( self.mountpoint, 'chmod +x /etc/lxdm/L*' )
+        chroot_this( self.mountpoint, 'chmod +x /etc/lxdm/P*' )
         logme( '^^^ THIS SECTION SHOULD BE REMOVED AFTER 7/1/2014 ^^^' )
+        assert( os.path.exists( '%s/lib/firmware/mrvl/sd8797_uapsta.bin' % ( self.mountpoint ) ) )
         assert( os.path.exists( '%s/usr/local/bin/chrubix.sh' % ( self.mountpoint ) ) )
         assert( os.path.exists( '%s/usr/local/bin/ersatz_lxdm.sh' % ( self.mountpoint ) ) )
         system_or_die( 'rm -f %s/.squashfs.sqfs /.squashfs.sqfs' % ( self.mountpoint ) )
@@ -1353,7 +1367,7 @@ WantedBy=multi-user.target
                                 self.save_for_posterity_if_possible_B )
         third_stage = ( 
                                 self.install_urwid_and_dropbox_uploader,
-                                self.install_vbutils_from_cbook,
+                                self.install_vbutils_and_firmware_from_cbook,
                                 self.install_mkinitcpio_ramwipe_hooks,
                                 self.install_timezone,
                                 self.download_modify_and_build_kernel_and_mkfs,
@@ -1381,7 +1395,7 @@ WantedBy=multi-user.target
                                 self.save_for_posterity_if_possible_D )
         fifth_stage = ( 
 #                                self.forcibly_rebuild_initramfs_and_vmlinux,
-                                self.install_vbutils_from_cbook,  # just in case the new user's tools differ from the original builder's tools
+                                self.install_vbutils_and_firmware_from_cbook,  # just in case the new user's tools differ from the original builder's tools
                                 self.migrate_or_squash_OS,  # Every class but Alarmist will use migrate_or_squash. Alarmist uses squash.
                                 self.unmount_and_clean_up
                                 )

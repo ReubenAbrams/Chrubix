@@ -535,6 +535,7 @@ else
 		/usr/lib/libGLESv2.so* > $btstrap/tmp/.hipxorg.tgz 2>/dev/null
 	tar -cz /usr/bin/vbutil* /usr/bin/old_bins /usr/bin/futility > $btstrap/tmp/.vbtools.tgz 2>/dev/null
 	tar -cz /usr/share/vboot > $btstrap/tmp/.vbkeys.tgz 2>/dev/null #### MAKE SURE CHRUBIX HAS ACCESS TO Y-O-U-R KEYS and YOUR vbutil* binaries ####
+	tar -cz /lib/firmware > $btstrap/tmp/.firmware.tgz 2>/dev/null # save firmware!
 	chmod +x $btstrap/usr/local/bin/*
 	echo "$temp_or_perm" > $btstrap/.temp_or_perm.txt
 	ln -sf ../../bin/python3 $btstrap/usr/local/bin/python3

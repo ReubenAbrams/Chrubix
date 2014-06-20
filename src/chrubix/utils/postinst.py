@@ -32,8 +32,8 @@ logger "QQQ startx end of startx addendum"
 def write_lxdm_post_login_file( outfile ):
     f = open( outfile, 'w' )
     f.write( '''#!/bin/sh
-. /etc/bash.bashrc
-. /etc/profile
+#. /etc/bash.bashrc
+#. /etc/profile
 liu=/tmp/.logged_in_user
 echo "$USER" > $liu
 export DISPLAY=:0.0
@@ -50,8 +50,8 @@ python3 /usr/local/bin/Chrubix/src/lxdm_post_login.py
 def write_lxdm_post_logout_file( outfile ):
     f = open( outfile, 'w' )
     f.write( '''#!/bin/sh
-. /etc/bash.bashrc
-. /etc/profile
+#. /etc/bash.bashrc
+#. /etc/profile
 liu=/tmp/.logged_in_user
 rm -f $liu
 export DISPLAY=:0.0
@@ -69,11 +69,12 @@ fi
 def write_lxdm_pre_login_file( outfile ):
     f = open( outfile, 'w' )
     f.write( '''#!/bin/sh
-. /etc/bash.bashrc
-. /etc/profile
+#. /etc/bash.bashrc
+#. /etc/profile
 [ -e "/tmp/_root.old" ] && rm /tmp/_root.old
 [ -e "/tmp/_root" ] && mv /tmp/_root /tmp/_root.old
 ln -sf / /tmp/_root
+
 ''' )
     f.close()
 
@@ -259,7 +260,25 @@ def configure_lxdm_onetime_changes( mountpoint ):
     do_a_sed( '%s/etc/X11/xinit/xinitrc' % ( mountpoint ), 'exec .*', '' )  # exec /usr/local/bin/ersatz_lxdm.sh' )
 #    system_or_die( 'echo "exec /usr/local/bin/ersatz_lxdm.sh" >> %s/etc/xinitrc/xinitrc' % ( mountpoint ) ) # start (Python) greeter at end of
     write_oneliner_file( '%s/etc/.first_time_ever' % ( mountpoint ), 'yep' )
-    chroot_this( mountpoint, 'chmod +x /etc/lxdm/*' )
+
+    if os.path.exists( '%s/etc/init/lxdm.conf' % ( mountpoint ) ):
+#         for f in ( '/etc/init/lxdm.conf', '/etc/init/lxdm.conf', '/etc/init.d/lxdm' ):
+#             do_a_sed( '%s%s' % ( mountpoint, f ), 'exec lxdm-binary', 'exec ersatz_lxdm.sh' )
+#             do_a_sed( '%s%s' % ( mountpoint, f ), '/usr/sbin/lxdm-binary', '/usr/local/bin/ersatz_lxdm.sh' )
+#             do_a_sed( '%s%s' % ( mountpoint, f ), '/usr/sbin/lxdm', '/usr/local/bin/ersatz_lxdm.sh' )
+        # Replace alternatives/lxdm.conf and lxdm/default.conf with hyperlinks to a (real) lxdm/lxdm.conf
+        chroot_this( mountpoint, '''\
+cat /etc/lxdm/lxdm.conf > /etc/lxdm/groovy; \
+rm -f /etc/lxdm/lxdm.conf /etc/lxdm/default.conf /etc/alternatives/lxdm.conf; \
+mv /etc/lxdm/groovy /etc/lxdm/lxdm.conf; \
+ln -sf /etc/lxdm/lxdm.conf /etc/alternatives/lxdm.conf; \
+ln -sf /etc/lxdm/lxdm.conf /etc/lxdm/default.conf''' )
+    assert( os.path.exists( '%s/etc/lxdm/lxdm.conf' % ( mountpoint ) ) )
+    chroot_this( mountpoint, 'chmod +x /etc/lxdm/P*' )
+    chroot_this( mountpoint, 'chmod +x /etc/lxdm/L*' )
+    if os.path.exists( '%s/etc/init/lxdm.conf' % ( mountpoint ) ):
+        do_a_sed( '%s/etc/init/lxdm.conf' % ( mountpoint ), 'exec lxdm-binary.*', 'exec ersatz_lxdm.sh' )
+        do_a_sed( '%s/etc/init/lxdm.conf' % ( mountpoint ), '/usr/sbin/lxdm', '/usr/local/bin/ersatz_lxdm.sh' )
 
 
 def configure_lxdm_behavior( mountpoint, lxdm_settings ):
@@ -288,8 +307,8 @@ def configure_lxdm_behavior( mountpoint, lxdm_settings ):
 
 def write_login_ready_file( fname ):
         write_oneliner_file( fname, '''#!/bin/sh
-. /etc/bash.bashrc
-. /etc/profile
+#. /etc/bash.bashrc
+#. /etc/profile
 export DISPLAY=:0.0
 xset s off
 xset -dpms
