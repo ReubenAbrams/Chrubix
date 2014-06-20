@@ -3,6 +3,7 @@
 # ubuntu.py
 #
 
+# FIXME - see http://marcin.juszkiewicz.com.pl/2013/02/14/how-to-install-ubuntu-13-04-on-chromebook/
 
 from chrubix.utils import wget, system_or_die, unmount_sys_tmp_proc_n_dev, mount_sys_tmp_proc_n_dev, logme
 from chrubix.distros.debian import JessieDebianDistro
