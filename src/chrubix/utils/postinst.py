@@ -278,10 +278,6 @@ ln -sf /etc/lxdm/lxdm.conf /etc/lxdm/default.conf''' )
     if os.path.exists( '%s/etc/init/lxdm.conf' % ( mountpoint ) ):
         do_a_sed( '%s/etc/init/lxdm.conf' % ( mountpoint ), 'exec lxdm-binary.*', 'exec ersatz_lxdm.sh' )
         do_a_sed( '%s/etc/init/lxdm.conf' % ( mountpoint ), '/usr/sbin/lxdm', '/usr/local/bin/ersatz_lxdm.sh' )
-    chroot_this( mountpoint, '''echo "
-        session required pam_loginuid.so
-session required pam_systemd.so
-" >> /etc/pam.d/lxdm''' )
 
 
 def configure_lxdm_behavior( mountpoint, lxdm_settings ):
