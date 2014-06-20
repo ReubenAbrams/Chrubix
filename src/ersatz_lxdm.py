@@ -54,11 +54,10 @@ def do_audio_and_network_stuff():
 
 if __name__ == "__main__":
     logme( 'ersatz_lxdm.py --- starting w/ params %s' % ( str( sys.argv ) ) )
-    distro = load_distro_record()
     logme( 'ersatz_lxdm.py --- loaded distro record (yay)' )
     set_up_guest_homedir()
     logme( 'ersatz_lxdm.py --- guest homedir set up OK' )
-    if distro.lxdm_settings['use greeter gui']:
+    if load_distro_record().lxdm_settings['use greeter gui']:
         logme( 'ersatz_lxdm.py --- using ersatz_lxdm gui' )
         if len( sys.argv ) <= 1 or sys.argv[1] != 'X':
             logme( 'ersatz_lxdm.py --- starting XWindow and asking it to run the ersatz_lxdm gui' )
@@ -67,9 +66,7 @@ if __name__ == "__main__":
             logme( 'ersatz_lxdm.py --- back from calling XWindow to run ersatz_lxdm gui; res=%d' % ( res ) )
         else:
             logme( 'ersatz_lxdm.py --- actually running ersatz_lxdm gui' )
-            save_distro_record( distro )
             res = os.system( '/usr/local/bin/greeter.sh' )
-            distro = load_distro_record()
             logme( 'ersatz_lxdm.py --- back from actually running ersatz_lxdm gui; res=%d' % ( res ) )
         if res != 0:
             logme( 'ersatz_lxdm.py --- ending sorta prematurely; res=%d' % ( res ) )
@@ -78,13 +75,12 @@ if __name__ == "__main__":
         do_audio_and_network_stuff()
         os.unlink( '/etc/.first_time_ever' )
     logme( 'ersatz_lxdm.py --- configuring lxdm behavior' )
-    configure_lxdm_behavior( '/', distro.lxdm_settings )  # FIXME: This is silly. Modify record, save record, then make me reload record? (See next line.)
+    configure_lxdm_behavior( '/', load_distro_record().lxdm_settings )  # FIXME: This is silly. Modify record, save record, then make me reload record? (See next line.)
     distro = load_distro_record()
-    if distro.lxdm_settings['use greeter gui']:
-        logme( 'ersatz_lxdm.py --- skipping lxdm and running %s' % ( distro.lxdm_settings['window manager'] ) )
-        res = os.system( 'lxdm' )
-    else:
-        logme( 'ersatz_lxdm.py --- calling lxdm' )
-        res = os.system( 'lxdm' )
+    logme( 'ersatz_lxdm.py --- calling lxdm; FYI, wm=%s' % ( load_distro_record().lxdm_settings['window manager'] ) )
+    print( 'ersatz_lxdm.py --- calling lxdm' )
+    res = os.system( 'lxdm' )
+    print( 'ersatz_lxdm.py --- back from lxdm' )
+    logme( 'ersatz_lxdm.py --- back from lxdm' )
     sys.exit( res )
 
