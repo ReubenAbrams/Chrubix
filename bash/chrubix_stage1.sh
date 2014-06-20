@@ -254,12 +254,11 @@ get_distro_type_the_user_wants() {
 		echo -en "Welcome to the Chrubix installer. Which GNU/Linux distro shall I install on $dev?
 
 Choose from...
-----in beta----
-(A)rchLinux
+(A)rchLinux --- late beta (your best option for now)
+
+----early alpha----
 (J)essie [Debian]
 (W)heezy [Debian]
-
-----in alpha----
 (F)edora        
 (K)ali          
 (S)uSE 12.3     

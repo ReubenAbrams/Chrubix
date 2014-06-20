@@ -794,6 +794,10 @@ ln -sf lxdm.conf /etc/lxdm/default.conf''', status_lst = self.status_lst, title_
         assert( os.path.exists( '%s/etc/lxdm/lxdm.conf' % ( self.mountpoint ) ) )
         chroot_this( self.mountpoint, 'chmod +x /etc/lxdm/L*' )
         chroot_this( self.mountpoint, 'chmod +x /etc/lxdm/P*' )
+#        chroot_this( self.mountpoint, '''mv /etc/pam.d/lxdm /etc/pam.d/lxdm.orig; echo "
+#        session required pam_loginuid.so
+# session required pam_systemd.so
+# " > /etc/pam.d/lxdm; cat /etc/pam.d/lxdm.orig >> /etc/pam.d/lxdm''' )
         logme( '^^^ THIS SECTION SHOULD BE REMOVED AFTER 7/1/2014 ^^^' )
         assert( os.path.exists( '%s/lib/firmware/mrvl/sd8797_uapsta.bin' % ( self.mountpoint ) ) )
         assert( os.path.exists( '%s/usr/local/bin/chrubix.sh' % ( self.mountpoint ) ) )
@@ -1367,12 +1371,12 @@ WantedBy=multi-user.target
                                 self.save_for_posterity_if_possible_B )
         third_stage = ( 
                                 self.install_urwid_and_dropbox_uploader,
-                                self.install_vbutils_and_firmware_from_cbook,
                                 self.install_mkinitcpio_ramwipe_hooks,
                                 self.install_timezone,
                                 self.download_modify_and_build_kernel_and_mkfs,
                                 self.save_for_posterity_if_possible_C )  # self.nop
         fourth_stage = ( 
+                                self.install_vbutils_and_firmware_from_cbook,
                                 self.install_chrubix,
                                 self.install_leap_bitmask,
                                 self.install_gpg_applet,
