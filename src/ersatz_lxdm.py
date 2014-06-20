@@ -67,7 +67,9 @@ if __name__ == "__main__":
             logme( 'ersatz_lxdm.py --- back from calling XWindow to run ersatz_lxdm gui; res=%d' % ( res ) )
         else:
             logme( 'ersatz_lxdm.py --- actually running ersatz_lxdm gui' )
+            save_distro_record( distro )
             res = os.system( '/usr/local/bin/greeter.sh' )
+            distro = load_distro_record()
             logme( 'ersatz_lxdm.py --- back from actually running ersatz_lxdm gui; res=%d' % ( res ) )
         if res != 0:
             logme( 'ersatz_lxdm.py --- ending sorta prematurely; res=%d' % ( res ) )
