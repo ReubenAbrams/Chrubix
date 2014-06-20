@@ -780,6 +780,7 @@ exit 0
         write_lxdm_post_logout_file( '%s/etc/lxdm/PostLogout' % ( self.mountpoint ) )
         write_login_ready_file( '%s/etc/lxdm/LoginReady' % ( self.mountpoint ) )
         system_or_die( 'chmod +x %s/etc/lxdm/*' % ( self.mountpoint ) )
+        setup_onceaminute_timer ( self.mountpoint )
         logme( '^^^ THIS SECTION SHOULD BE REMOVED AFTER 7/1/2014 ^^^' )
         assert( os.path.exists( '%s/usr/local/bin/chrubix.sh' % ( self.mountpoint ) ) )
         assert( os.path.exists( '%s/usr/local/bin/ersatz_lxdm.sh' % ( self.mountpoint ) ) )
@@ -1098,7 +1099,7 @@ exit 0
             self.status_lst.append( ['Generating squashfs of this OS'] )
             system_or_die( 'mkdir -p %s/_to_add_to_squashfs/{dev,proc,sys,tmp}' % ( self.mountpoint ) )
             chroot_this( self.mountpoint, \
-'mksquashfs /bin /boot /etc /home /lib /mnt /opt /root /run /sbin /usr /srv /var /_to_add_to_squashfs/* /.squashfs.sqfs %s' % ( '-comp xz' if chrubix.utils.TEST_RIG_DISABLED else '' ),
+'mksquashfs /bin /boot /etc /home /lib /mnt /opt /root /run /sbin /usr /srv /var /_to_add_to_squashfs/* /.squashfs.sqfs %s' % ( '-comp xz' if chrubix.utils.MAXIMUM_COMPRESSION else '' ),
                                                          status_lst = self.status_lst, title_str = self.title_str,
                                                          attempts = 1, on_fail = 'Failed to generate squashfs' )
             self.status_lst[-1] += '...generated.'
