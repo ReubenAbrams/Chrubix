@@ -234,11 +234,13 @@ Acquire::https::Proxy "https://%s/";
             self.install_expatriate_software_into_a_debianish_OS( package_name = 'wmsystemtray', method = 'debian' )
         if self.final_push_packages.find( 'lxdm' ) < 0:
             self.install_expatriate_software_into_a_debianish_OS( package_name = 'lxdm', method = 'ubuntu' )
-        self.status_lst.append( ['Installing %s' % ( self.final_push_packages.replace( '  ', ' ' ).replace( ' ', ', ' ) )] )
+        self.status_lst.append( ['Installing remaining packages'] )
+#        self.status_lst.append( ['Installing %s' % ( self.final_push_packages.replace( '  ', ' ' ).replace( ' ', ', ' ) )] )
         chroot_this( self.mountpoint, 'yes "" | aptitude install %s' % ( self.final_push_packages ),
                      title_str = self.title_str, status_lst = self.status_lst,
                      on_fail = 'Failed to install final push of packages' )
         do_debian_specific_mbr_related_hacks( self.mountpoint )
+        self.status_lst[-1] += '...there.'
         logme( 'DebianDistro - install_final_push_of_packages() - leaving' )
 
     def install_win_xp_theme( self ):
@@ -423,7 +425,7 @@ class WheezyDebianDistro( DebianDistro ):
 
 
 class JessieDebianDistro( DebianDistro ):
-    important_pages = DebianDistro.important_packages + ' libetpan-dev g++-4.8 u-boot-tools'
+    important_packages = DebianDistro.important_packages + ' libetpan-dev g++-4.8 u-boot-tools'
     def __init__( self , *args, **kwargs ):
         super( JessieDebianDistro, self ).__init__( *args, **kwargs )
         self.branch = 'jessie'  # lowercase; yes, it matters
