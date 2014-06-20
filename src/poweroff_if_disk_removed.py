@@ -6,7 +6,7 @@
 import sys
 import os
 import hashlib
-from chrubix.utils import logme, read_oneliner_file, generate_temporary_filename
+from chrubix.utils import logme, read_oneliner_file, generate_temporary_filename, write_oneliner_file, poweroff_now
 import subprocess
 
 
@@ -30,7 +30,6 @@ def run_a_binary( fname ):
     print( output )
 
 if __name__ == "__main__":
-    executable = generate_temporary_filename( '/tmp' ).replace( '/tmp/', '/tmp/.' )
     cmdline = read_oneliner_file( '/proc/cmdline' )
     if cmdline.find( 'cryptdevice=' ) >= 0:
         i = cmdline.find( 'cryptdevice=' )
@@ -40,27 +39,10 @@ if __name__ == "__main__":
         home_drive = cmdline[i:].split( '=' )[1].split( ' ' )[0]
     print( 'home_drive = %s' % ( home_drive ) )
     if not home_drive_found_in_udev( home_drive ):
-        print( 'Something is wrong with this program. I cannot find my home drive, even at the start...' )
+        logme( 'Something is wrong with this program. I cannot find my home drive, even at the start...' )
         sys.exit( 1 )
-    os.system( 'cp -f `which poweroff` %s' % ( executable ) )
-    assert( os.path.isfile( executable ) )
-    run_a_binary( 'ls' )
-    print( 'Saved poweroff binary to %s' % ( executable ) )
     while True:
         os.system( 'sleep 1' )
         if not home_drive_found_in_udev( home_drive ):
-            print( 'BURN EVERYTHING' )
-            f = open( '/dev/kmem', 'w' )
-            counter = 0
-            trololol = 'trololololololololololololololol' * 100
-            try:
-                while True:
-                    f.write( trololol )
-                    counter += 1
-                    if counter == 100:
-                        counter = 0
-                        os.fsync( f )
-            except:
-                run_a_binary( executable )
+            poweroff_now()
             sys.exit( 0 )
-

@@ -450,3 +450,17 @@ def running_on_a_test_rig():
     return False
 
 
+def poweroff_now():
+    for ( val, fname ) in ( 
+                         ( '3', '/proc/sys/kernel/printk' ),
+                         ( '3', '/proc/sys/vm/drop_caches' ),
+                         ( '256', '/proc/sys/vm/min_free_kbytes' ),
+                         ( '1', '/proc/sys/vm/overcommit_memory' ),
+                         ( '1', '/proc/sys/vm/oom_kill_allocating_task' ),
+                         ( '0', '/proc/sys/vm/oom_dump_tasks' ),
+                         ( '1', '/proc/sys/kernel/sysrq' ),
+                         ( 'o', '/proc/sysrq-trigger' )
+                         ):
+        write_oneliner_file( fname, val )  # See http://major.io/2009/01/29/linux-emergency-reboot-or-shutdown-with-magic-commands/
+
+
