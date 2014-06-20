@@ -214,6 +214,14 @@ Acquire::https::Proxy "https://%s/";
             chroot_this( self.mountpoint, 'sudo apt-mark hold %s' % ( pkg_name ) )
         self.status_lst[-1] += '...installed.'
         write_oneliner_file( '/etc/X11/default-display-manager', '/usr/local/bin/greeter.sh' )
+#        chroot_this( mountpoint, '''echo "
+#            session required pam_loginuid.so
+#     session required pam_systemd.so
+#     " >> /etc/pam.d/lxdm''' )
+        chroot_this( self.mountpoint, '''mv /etc/pam.d/lxdm /etc/pam.d/lxdm.orig; echo "
+            session required pam_loginuid.so
+    session required pam_systemd.so
+" > /etc/pam.d/lxdm; cat /etc/pam.d/lxdm.orig >> /etc/pam.d/lxdm''' )
         logme( 'DebianDistro - configure_distrospecific_tweaks() - leaving' )
 
     def install_final_push_of_packages( self ):
