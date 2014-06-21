@@ -17,6 +17,7 @@ libnotify talkfilters chromium xorg-server-utils java-runtime libxmu libxfixes a
     def __init__( self ):
         super( FedoraDistro, self ).__init__()
         self.__distroname = 'fedora'
+        self.architecture = 'arm'  # FIXME: 'arm'? That's it?
         self.typical_install_duration = 11445
 
     def install_barebones_root_filesystem( self ):
