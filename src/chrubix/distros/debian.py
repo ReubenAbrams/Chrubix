@@ -26,7 +26,7 @@ mat myspell-en-us msttcorefonts xorg xserver-xorg-input-synaptics xul-ext-https-
 pulseaudio paprefs pulseaudio-module-jack pavucontrol paman alsa-tools-gui alsa-oss mythes-en-us \
 libpisock-dev uno-libs3 libgtk-3-bin libbcprov-java gtk2-engines-murrine libc6-dev \
 e2fslibs-dev debhelper python-dev libffi-dev python-dev libffi-dev libsqlite3-dev \
-software-properties-common libssl-dev \
+software-properties-common libssl-dev u-boot-tools \
 '  # Warning! Monkeysign pkg might be broken.
 # gtk-engines-unico python-distutil-extra ? python-distusil-extra python-gobject python-qrencode python-imaging
     final_push_packages = Distro.final_push_packages + ' \
@@ -425,7 +425,7 @@ Acquire::https::Proxy "https://%s/";
 
 
 class WheezyDebianDistro( DebianDistro ):
-    important_packages = DebianDistro.important_packages + ' libetpan15 uboot-mkimage'
+    important_packages = DebianDistro.important_packages + ' libetpan15'
     def __init__( self , *args, **kwargs ):
         super( WheezyDebianDistro, self ).__init__( *args, **kwargs )
         self.branch = 'wheezy'  # lowercase; yes, it matters :)
@@ -433,7 +433,7 @@ class WheezyDebianDistro( DebianDistro ):
 
 
 class JessieDebianDistro( DebianDistro ):
-    important_packages = DebianDistro.important_packages + ' libetpan-dev g++-4.8 u-boot-tools'
+    important_packages = DebianDistro.important_packages + ' libetpan-dev g++-4.8'
     def __init__( self , *args, **kwargs ):
         super( JessieDebianDistro, self ).__init__( *args, **kwargs )
         self.branch = 'jessie'  # lowercase; yes, it matters
