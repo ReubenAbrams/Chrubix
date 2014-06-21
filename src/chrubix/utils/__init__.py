@@ -22,7 +22,7 @@ import chrubix
 g_proxy = None if ( 0 != os.system( 'ping -c1 -W1 192.168.1.66 &> /dev/null' ) or 0 != os.system( 'cat /proc/cmdline | grep dm_verity &> /dev/null' ) ) else '192.168.1.66:8080'
 g_default_window_manager = '/usr/bin/startlxde'  # wmaker, startxfce4, startlxde, ...
 
-MAXIMUM_COMPRESSION = False
+MAXIMUM_COMPRESSION = True
 __g_expected_total_progress = -1
 __g_total_lines_so_far = 0
 __g_start_time = time.time()
@@ -275,8 +275,6 @@ def chroot_this( mountpoint, cmd, on_fail = None, attempts = 3, title_str = None
 
     f = open( mountpoint + my_executable_script, 'wb' )
     outstr = '#!/bin/sh\n%s\n%s\nexit $?\n' % ( proxy_info, cmd )
-    outstr_without_proxy = '#!/bin/sh\n%s\nexit $?\n' % ( cmd )
-#    logme( 'outstr = %s' % ( outstr ) )
     f.write( outstr.encode( 'utf-8' ) )
     f.close()
     system_or_die( 'chmod +x %s' % ( mountpoint + my_executable_script ) )

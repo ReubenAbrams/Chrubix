@@ -35,6 +35,7 @@ OVERLAY_URL=https://dl.dropboxusercontent.com/u/59916027/chrubix/_chrubix.tar.xz
 RYO_TEMPDIR=/root/.rmo
 SOURCES_BASEDIR=$RYO_TEMPDIR/PKGBUILDs/core
 KERNEL_SRC_BASEDIR=$SOURCES_BASEDIR/linux-chromebook
+LOGLEVEL=2
 
 
 if ping -W2 -c1 192.168.1.66 &>/dev/null ; then
@@ -313,6 +314,7 @@ restore_from_stage_X_backup_if_possible() {
 
 
 restore_from_squash_fs_backup_if_possible() {
+#	return 98
 	if [ -e "/tmp/FROMSCRATCH" ] ; then
 		return 99
 	fi
@@ -352,17 +354,18 @@ sign_and_write_custom_kernel() {
 	root=$1
 	writehere=$2
 	rootdev=$3
-	extra_params_A=$4
-	extra_params_B=$5
+	vmlinux_path=$4
+	extra_params_A=$5
+	extra_params_B=$6
 # echo "sign_and_write_custom_kernel() -- writehere=$writehere rootdev=$rootdev "
-
 	echo -en "Writing kernel to boot device (replacing nv_u-boot)..."
+	[ -e "$vmlinux_path" ] || failed "Cannot find original kernel path '$vmlinux_path'"
 	dd if=/dev/zero of=$writehere bs=1k 2> /dev/null || echo -en "..."
-	echo "$extra_params_A $extra_params_b" | grep crypt &> /dev/null && readwrite=ro || readwrite=rw # TODO Shouldn't it be rw always?
+	echo "$extra_params_A $extra_params_B" | grep crypt &> /dev/null && readwrite=ro || readwrite=rw # TODO Shouldn't it be rw always?
 	echo "console=tty1  $extra_params_A root=$rootdev rootwait $readwrite quiet systemd.show_status=0 loglevel=$LOGLEVEL lsm.module_locking=0 init=/sbin/init $extra_params_B" > /tmp/kernel.flags
 	vbutil_kernel --pack /tmp/vmlinuz.signed --keyblock /usr/share/vboot/devkeys/kernel.keyblock --version 1 \
 --signprivate /usr/share/vboot/devkeys/kernel_data_key.vbprivk --config /tmp/kernel.flags \
---vmlinuz $root$KERNEL_SRC_BASEDIR/src/chromeos-3.4/arch/arm/boot/vmlinux.uimg --arch arm && echo -en "..." || failed "Failed to sign kernel"
+--vmlinuz $vmlinux_path --arch arm && echo -en "..." || failed "Failed to sign kernel"
 	sync;sync;sync;sleep 1
 	dd if=/tmp/vmlinuz.signed of=$writehere &> /dev/null && echo -en "..." || failed "Failed to write kernel to $writehere"
 	echo "OK."
@@ -383,12 +386,19 @@ hack_something_squishy() {
 	umount /tmp/a /tmp/b &> /dev/null || echo -en ""
 	# FYI, $root is mounted on /dev/mmcblk1p3 (or similar).
 	mkdir -p $root/.ro
-	mount -o loop,squashfs $root/.squashfs.sqfs $root/.ro
-	for f in bin boot etc home lib mnt opt root run sbin srv usr var ; do
-		[ -e "$root/.ro/$f" ] && ln -sf .ro/$f $root/$f || mkdir -p $root/$f
-	done
-	echo "Signing and writing kernel"
-	sign_and_write_custom_kernel $root "$dev_p"1 "dev_p"3 "" || failed "Failed to sign/write custm kernel"	
+#	if mount -o loop,squashfs $root/.squashfs.sqfs $root/.ro ; then
+#		echo "OK. Squashfs is mountable. Great."
+#		for f in bin boot etc home lib mnt opt root run sbin srv usr var ; do
+#			[ -e "$root/.ro/$f" ] && ln -sf .ro/$f $root/$f || mkdir -p $root/$f
+#		done
+#		echo "Signing and writing kernel"
+#		kernelpath=$root$KERNEL_SRC_BASEDIR/src/chromeos-3.4/arch/arm/boot/vmlinux.uimg
+#	else
+#		echo "Fair enough. Squashfs is not mountable (xz?). I'll use the online copy of the kernel instead."
+		kernelpath=/tmp/.kernel.dat
+		wget https://dl.dropboxusercontent.com/u/59916027/chrubix/finals/$distroname.kernel -O - > $kernelpath || failed "Failed to download $distroname.kernel"
+#	fi
+	sign_and_write_custom_kernel $root "$dev_p"1 "dev_p"3 $kernelpath "" ""  || failed "Failed to sign/write custom kernel"
 }
 
 

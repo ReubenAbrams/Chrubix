@@ -18,8 +18,6 @@ from chrubix.utils.postinst import write_lxdm_post_login_file, write_lxdm_pre_lo
             check_and_if_necessary_fix_password_file, install_insecure_browser, append_proxy_details_to_environment_file, \
             setup_onceaminute_timer, setup_onceeverythreeseconds_timer, write_lxdm_service_file, ask_the_user__temp_or_perm, \
             add_user_to_the_relevant_groups, write_login_ready_file
-import chrubix.utils
-import chrubix
 from chrubix.utils.mbr import install_initcpio_wiperamonshutdown_files
 from xml.dom import NotFoundErr
 
@@ -575,7 +573,7 @@ Choose the 'boom' password : """ ).strip( '\r\n\r\n\r' )
         self.status_lst[-1] += "..OK."
 
     def generate_tarball_of_my_rootfs( self, output_file ):
-        compression_level = POSTERITY_COMPRESSION_LEVEL = 9 if chrubix.utils.MAXIMUM_COMPRESSION else 1
+        compression_level = 9 if chrubix.utils.MAXIMUM_COMPRESSION else 1
         self.status_lst.append( ['Creating tarball %s of my rootfs' % ( output_file )] )
         dirs_to_backup = 'bin boot etc home lib mnt opt root run sbin srv usr var'
 #        if output_file[-2:] != '_D':     # FIXME: Is it worth the trouble? Do we save *that* much space if we drop bootstrap entirely from File D? Considering enabling this line, but.... I don't know. Is it worth it? Does it WORK? :)
@@ -682,7 +680,10 @@ Choose the 'boom' password : """ ).strip( '\r\n\r\n\r' )
         cmd = username if username != 'shutdown' else 'poweroff'
         userhome = '/etc/.%s' % ( username )
         chroot_this( self.mountpoint, "mkdir -p %s" % ( userhome ), attempts = 1, on_fail = 'Failed to mkdir for %s' % ( username ) )
-        chroot_this( self.mountpoint, "useradd %s -d %s" % ( username, userhome ), attempts = 1, on_fail = 'Failed to add user %s' % ( username ) )
+        if 0 != chroot_this( self.mountpoint, "useradd %s -d %s" % ( username, userhome ), attempts = 1, status_lst = self.status_lst, title_str = self.title_str ):
+            if 0 != os.system( 'cat %s/etc/passwd | grep %s &> /dev/null' % ( self.mountpoint, username ) ):
+                # 0=success; 9=user exists already
+                failed( 'Failed to add user %s' % ( username ) )
         chroot_this( self.mountpoint, "chmod 700 %s" % ( userhome ), attempts = 1, on_fail = 'Failed to chmod for user %s' % ( username ) )
         do_a_sed( '%s/etc/shadow' % ( self.mountpoint ), r'%s:!:' % ( username ), r'%s::' % ( username ) )
         do_a_sed( '%s/etc/passwd' % ( self.mountpoint ), r'%s:!:' % ( username ), r'%s::' % ( username ) )
@@ -693,7 +694,8 @@ Choose the 'boom' password : """ ).strip( '\r\n\r\n\r' )
 sudo tweak_lxdm_and_%s
 ''' % ( username ) )
         system_or_die( 'chmod +x %s' % ( profile_fname ) )
-        chroot_this( self.mountpoint, "chown -R %s.%s %s" % ( username, username, userhome ), attempts = 1, on_fail = 'Failed to modify permissions of %s config file' % ( username ) )
+        if 0 != chroot_this( self.mountpoint, "chown -R %s.%s %s" % ( username, username, userhome ), attempts = 1, status_lst = self.status_lst, title_str = self.title_str ):
+            chroot_this( self.mountpoint, "chown -R %s.root %s" % ( username, userhome ), attempts = 1, status_lst = self.status_lst, title_str = self.title_str, on_fail = 'Failed to modify permissions of %s config file' % ( username ) )
         write_oneliner_file( '%s/usr/local/bin/tweak_lxdm_and_%s' % ( self.mountpoint, username ), '''#!/bin/sh
 sync;sync;sync
 systemctl %s
@@ -1130,6 +1132,7 @@ ln -sf lxdm.conf /etc/lxdm/default.conf''', status_lst = self.status_lst, title_
                 self.status_lst.append( 'Backing up the squashed fs' )
                 logme( 'qqq backing up squashs' )
                 system_or_die( 'cp -f %s/.squashfs.sqfs /tmp/posterity/%s.sqfs' % ( self.mountpoint, self.name + ( '' if self.branch is None else self.branch ) ) )
+                system_or_die( 'cp -f %s%s/src/chromeos-3.4/arch/arm/boot/vmlinux.uimg /tmp/posterity/%s.kernel' % ( self.mountpoint, self.kernel_src_basedir, self.name + ( '' if self.branch is None else self.branch ) ) )
                 os.system( 'sync;sync;sync' )
                 self.status_lst[-1] += '...backed up.'
                 system_or_die( 'umount /tmp/posterity &> /dev/null' )
@@ -1146,7 +1149,7 @@ ln -sf lxdm.conf /etc/lxdm/default.conf''', status_lst = self.status_lst, title_
                 return 0
             except RuntimeError:
                 self.status_lst[-1] += ' git or makepkg failed. Retrying...'
-        failed( 'Failed to download kernel source' )
+        failed( 'Failed to download kernel source, even after %d attempts' % ( attempt ) )
 #        self.download_package_source( os.path.basename( self.kernel_src_basedir ), ( 'PKGBUILD', ) )
 
 #    def download_kernel_source( self ):
