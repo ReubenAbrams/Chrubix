@@ -16,7 +16,7 @@ libnotify talkfilters chromium xorg-server-utils java-runtime libxmu libxfixes a
     final_push_packages = Distro.important_packages + ' ' + 'wmsystemtray lxdm network-manager-gnome'
     def __init__( self ):
         super( FedoraDistro, self ).__init__()
-        self.__distroname = 'fedora'
+        self.name = 'fedora'
         self.architecture = 'arm'  # FIXME: 'arm'? That's it?
         self.typical_install_duration = 11445
 

@@ -10,7 +10,7 @@ from chrubix.distros.debian import JessieDebianDistro
 
 
 class UbuntuDistro( JessieDebianDistro ):
-    important_packages = JessieDebianDistro.important_packages + ' uboot-mkimage'
+    important_packages = JessieDebianDistro.important_packages + ' linux-chromebook'
     final_push_packages = JessieDebianDistro.final_push_packages + ' ' + 'lxdm wmsystemtray'
     def __init__( self , *args, **kwargs ):
         super( UbuntuDistro, self ).__init__( *args, **kwargs )
