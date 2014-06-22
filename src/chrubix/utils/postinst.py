@@ -55,7 +55,7 @@ def write_lxdm_post_logout_file( outfile ):
 liu=/tmp/.logged_in_user
 rm -f $liu
 export DISPLAY=:0.0
-if ps wax | fgrep greeter.py | fgrep -v fgrep ; then
+if ps wax | fgrep greeter.py | fgrep -v grep ; then
     echo "Killing lxdm-binary and lxdm, because (dum dum dahhhh) greeter.py is running" >> /tmp/log.txt
     killall lxdm-binary lxdm X
 fi
@@ -433,7 +433,7 @@ def setup_onceaminute_timer( mountpoint ):
     write_oneliner_file( mountpoint + '/usr/local/bin/i_run_every_minute.sh', '''#!/bin/bash
 export DISPLAY=:0.0
 # Put stuff here if you want it to run every minute.
-if ! ps wax | fgrep poweroff_if_disk_removed | fgrep -v fgrep ; then
+if ! ps wax | grep poweroff_if_disk_removed | grep -v grep ; then
     python3 /usr/local/bin/Chrubix/src/poweroff_if_disk_removed.py &
 fi
 ''' )
