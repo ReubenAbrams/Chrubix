@@ -398,7 +398,7 @@ hack_something_squishy() {
 		kernelpath=/tmp/.kernel.dat
 		wget https://dl.dropboxusercontent.com/u/59916027/chrubix/finals/$distroname.kernel -O - > $kernelpath || failed "Failed to download $distroname.kernel"
 #	fi
-	sign_and_write_custom_kernel $root "$dev_p"1 "dev_p"3 $kernelpath "" ""  || failed "Failed to sign/write custom kernel"
+	sign_and_write_custom_kernel $root "$dev_p"1 "$dev_p"3 $kernelpath "" ""  || failed "Failed to sign/write custom kernel"
 }
 
 
