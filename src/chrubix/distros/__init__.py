@@ -17,7 +17,7 @@ from chrubix.utils.postinst import write_lxdm_post_login_file, write_lxdm_pre_lo
             install_chrome_or_iceweasel_privoxy_wrapper, remove_junk, tweak_xwindow_for_cbook, install_panicbutton, \
             check_and_if_necessary_fix_password_file, install_insecure_browser, append_proxy_details_to_environment_file, \
             setup_onceaminute_timer, setup_onceeverythreeseconds_timer, write_lxdm_service_file, ask_the_user__temp_or_perm, \
-            add_user_to_the_relevant_groups, write_login_ready_file
+            add_user_to_the_relevant_groups, write_login_ready_file, setup_poweroffifunplugdisk_service
 from chrubix.utils.mbr import install_initcpio_wiperamonshutdown_files
 from xml.dom import NotFoundErr
 
@@ -781,6 +781,7 @@ exit 0
         write_lxdm_post_logout_file( '%s/etc/lxdm/PostLogout' % ( self.mountpoint ) )
         write_login_ready_file( '%s/etc/lxdm/LoginReady' % ( self.mountpoint ) )
         setup_onceaminute_timer ( self.mountpoint )
+        setup_poweroffifunplugdisk_service( self.mountpoint )
         if os.path.exists( '%s/etc/init/lxdm.conf' % ( self.mountpoint ) ):
             for f in ( '/etc/init/lxdm.conf', '/etc/init/lxdm.conf', '/etc/init.d/lxdm' ):
                 do_a_sed( '%s%s' % ( self.mountpoint, f ), 'exec lxdm-binary', 'exec ersatz_lxdm.sh' )

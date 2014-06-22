@@ -171,7 +171,7 @@ class AlarmistGreeter( QtGui.QDialog, Ui_dlgAlarmistGreeter ):
     @pyqtSignature( "" )
     def closeEvent( self, event ):
         if self.more_options and self.use_pw and not self.password:
-            QtGui.QMessageBox.question( self, "", "Either uncheck the 'password' checkbox\nor enter a good pasword twice.", QtGui.QMessageBox.Ok )
+#            QtGui.QMessageBox.question( self, "", "Either uncheck the 'password' checkbox\nor enter a good pasword twice.", QtGui.QMessageBox.Ok )
             event.ignore()
         else:
             event.accept()

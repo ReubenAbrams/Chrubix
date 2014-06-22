@@ -50,13 +50,13 @@ python3 /usr/local/bin/Chrubix/src/lxdm_post_login.py
 def write_lxdm_post_logout_file( outfile ):
     f = open( outfile, 'w' )
     f.write( '''#!/bin/sh
+
 #. /etc/bash.bashrc
 #. /etc/profile
 liu=/tmp/.logged_in_user
 rm -f $liu
 export DISPLAY=:0.0
-if ps wax | fgrep greeter.py | fgrep -v grep ; then
-    echo "Killing lxdm-binary and lxdm, because (dum dum dahhhh) greeter.py is running" >> /tmp/log.txt
+if [ -e "/tmp/.yes_greeter_is_running" ] ; then
     killall lxdm-binary lxdm X
 fi
 

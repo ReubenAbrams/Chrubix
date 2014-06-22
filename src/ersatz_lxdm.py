@@ -57,12 +57,15 @@ if __name__ == "__main__":
     logme( 'ersatz_lxdm.py --- loaded distro record (yay)' )
     set_up_guest_homedir()
     logme( 'ersatz_lxdm.py --- guest homedir set up OK' )
+    os.system( 'rm -f /tmp/.yes_greeter_is_running' )
     if load_distro_record().lxdm_settings['use greeter gui']:
+        os.system( 'touch /tmp/.yes_greeter_is_running' )
         logme( 'ersatz_lxdm.py --- using ersatz_lxdm gui' )
         if len( sys.argv ) <= 1 or sys.argv[1] != 'X':
             logme( 'ersatz_lxdm.py --- starting XWindow and asking it to run the ersatz_lxdm gui' )
             write_oneliner_file( '/usr/local/bin/ersatz_lxdm.rc', 'exec python3 ersatz_lxdm.py X' )
             res = os.system( 'startx /usr/local/bin/ersatz_lxdm.rc' )
+            os.system( 'rm -f /usr/local/bin/ersatz_lxdm.rc' )
             logme( 'ersatz_lxdm.py --- back from calling XWindow to run ersatz_lxdm gui; res=%d' % ( res ) )
         else:
             logme( 'ersatz_lxdm.py --- actually running ersatz_lxdm gui' )

@@ -2,7 +2,7 @@
 
 # Form implementation generated from reading ui file 'ui/AlarmistGreeter.ui'
 #
-# Created: Wed Jun 18 12:50:26 2014
+# Created: Sat Jun 21 23:10:28 2014
 #      by: PyQt4 UI code generator 4.10.4
 #
 # WARNING! All changes made in this file will be lost!
@@ -27,7 +27,7 @@ class Ui_dlgAlarmistGreeter(object):
     def setupUi(self, dlgAlarmistGreeter):
         dlgAlarmistGreeter.setObjectName(_fromUtf8("dlgAlarmistGreeter"))
         dlgAlarmistGreeter.setWindowModality(QtCore.Qt.WindowModal)
-        dlgAlarmistGreeter.resize(313, 270)
+        dlgAlarmistGreeter.resize(313, 269)
         sizePolicy = QtGui.QSizePolicy(QtGui.QSizePolicy.Preferred, QtGui.QSizePolicy.MinimumExpanding)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
@@ -133,6 +133,9 @@ class Ui_dlgAlarmistGreeter(object):
         self.radDirectYes.setObjectName(_fromUtf8("radDirectYes"))
 
         self.retranslateUi(dlgAlarmistGreeter)
+        QtCore.QObject.connect(self.ledPassword1, QtCore.SIGNAL(_fromUtf8("returnPressed()")), self.ledPassword2.setFocus)
+        QtCore.QObject.connect(self.ledPassword2, QtCore.SIGNAL(_fromUtf8("returnPressed()")), dlgAlarmistGreeter.close)
+        QtCore.QObject.connect(self.btnContinue, QtCore.SIGNAL(_fromUtf8("clicked()")), dlgAlarmistGreeter.close)
         QtCore.QMetaObject.connectSlotsByName(dlgAlarmistGreeter)
         dlgAlarmistGreeter.setTabOrder(self.btnMoreoptions, self.btnContinue)
         dlgAlarmistGreeter.setTabOrder(self.btnContinue, self.radCamouflageYes)
