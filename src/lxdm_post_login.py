@@ -25,7 +25,7 @@ if __name__ == "__main__":
                 'dconf write /apps/florence/controller/floaticon false'
                )
     go_online_list = ( 
-                      'ps wax | fgrep nm-applet | fgrep -v fgrep || nm-applet',
+                      'ps wax | fgrep nm-applet | fgrep -v grep || nm-applet',
                       '''[ "`ps wax | grep nm-applet | grep -v grep | cut -d' ' -f1,2 | tr ' ' '\n' | grep "[0-9][0-9]" | wc -l`" -ge "2" ] \
 && kill `ps wax | grep nm-applet | grep -v grep | cut -d' ' -f1,2 | tr ' ' '\n' | grep "[0-9][0-9]" | tail -n1`''',
                       '''urxvt -geometry 120x20+0+320 -name "WiFi Setup" -e sh -c "/usr/local/bin/wifi_manual.sh" & \
