@@ -10,7 +10,7 @@
     <x>0</x>
     <y>0</y>
     <width>313</width>
-    <height>270</height>
+    <height>269</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -414,5 +414,54 @@ your computer's network connection is censored, filtered, or proxied, say
   <tabstop>radDirectNo</tabstop>
  </tabstops>
  <resources/>
- <connections/>
+ <connections>
+  <connection>
+   <sender>ledPassword1</sender>
+   <signal>returnPressed()</signal>
+   <receiver>ledPassword2</receiver>
+   <slot>setFocus()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>190</x>
+     <y>470</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>190</x>
+     <y>500</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>ledPassword2</sender>
+   <signal>returnPressed()</signal>
+   <receiver>dlgAlarmistGreeter</receiver>
+   <slot>close()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>190</x>
+     <y>500</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>156</x>
+     <y>265</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>btnContinue</sender>
+   <signal>clicked()</signal>
+   <receiver>dlgAlarmistGreeter</receiver>
+   <slot>close()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>230</x>
+     <y>240</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>156</x>
+     <y>134</y>
+    </hint>
+   </hints>
+  </connection>
+ </connections>
 </ui>

@@ -77,7 +77,7 @@ class AlarmistGreeter( QtGui.QDialog, Ui_dlgAlarmistGreeter ):
 
         self.lblEyes.lower()
         self.connect( self.btnMoreoptions, SIGNAL( "clicked()" ), self.enableMoreOptions )
-        self.connect( self.btnContinue, SIGNAL( "clicked()" ), SLOT( "close()" ) )
+#        self.connect( self.btnContinue, SIGNAL( "clicked()" ), self.btnContinueClicked )
 #        self.connect( self.btnBigcontinue, SIGNAL( "clicked()" ), SLOT( "close()" ) )
         self.connect( self.radCamouflageYes, SIGNAL( "clicked()" ), self.clickedCamouflageYes )
         self.connect( self.radCamouflageNo, SIGNAL( "clicked()" ), self.clickedCamouflageNo )
