@@ -213,7 +213,7 @@ install_chrubix() {
 	distroname=$6
 
 	[ "$WGET_PROXY" != "" ] && proxy_info="export http_proxy=$WGET_PROXY; export ftp_proxy=$WGET_PROXY" || proxy_info=""
-	rm -Rf $root/usr/local/bin/Chrubix $rot/usr/local/bin/1hq8O7s
+	rm -Rf $root/usr/local/bin/Chrubix $root/usr/local/bin/1hq8O7s
 	wget $CHRUBIX_URL -O - | tar -zx -C $root/usr/local/bin
 	mv $root/usr/local/bin/Chrubix* $root/usr/local/bin/Chrubix	# rename Chrubix-master (or whatever) to Chrubix
 	wget $OVERLAY_URL -O - | tar -Jx -C $root/usr/local/bin/Chrubix || failed "Sorry. Dropbox is down. We'll have to rely on GitHub..."
