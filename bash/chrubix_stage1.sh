@@ -298,7 +298,7 @@ restore_from_stage_X_backup_if_possible() {
 			fi
 		done
 	done
-	if wget --spider $url -O /dev/null ; then
+	if [ ! -e "/home/chronos/user/Downloads/reubenabrams.txt" ] && wget --spider $url -O /dev/null ; then
 		url=$FINALS_URL/$distroname"__D.tar.xz"
 		if wget $url -O - | tar -Jx -C $root ; then
 			echo "Restored ($distroname, stage D) from Dropbox"
@@ -335,7 +335,7 @@ restore_from_squash_fs_backup_if_possible() {
 		fi
 	done
 	squrl=$FINALS_URL/$distroname.sqfs
-	if wget --spider $squrl -O - > $root/.squashfs.sqfs &> /dev/null ; then
+	if [ ! -e "/home/chronos/user/Downloads/reubenabrams.txt" ] && wget --spider $squrl -O - > $root/.squashfs.sqfs &> /dev/null ; then
 		if [ "$temp_or_perm" = "temp" ] ; then
 			wget $squrl -O - > $root/.squashfs.sqfs && echo "Squashfs file downloaded and installed OK" || failed "Failed to restrieve squashfs file from URL"
 			echo "Restored ($distroname, squash fs) from Dropbox"
