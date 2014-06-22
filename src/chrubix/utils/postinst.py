@@ -429,13 +429,30 @@ def remove_junk( mountpoint, kernel_src_basedir ):
     chroot_this( mountpoint, 'cd /usr/lib/firmware && cp s5p-mfc/s5p-mfc-v6.fw ../mfc_fw.bin && cp mrvl/sd8797_uapsta.bin .. && rm -Rf * && mkdir -p mrvl && mv ../sd8797_uapsta.bin mrvl/ && mv ../mfc_fw.bin .' )
 
 
+def setup_poweroffifunplugdisk_service( mountpoint ):
+    write_oneliner_file( mountpoint + '/usr/local/bin/poweroff_if_disk_removed.sh', '''#!/bin/bash
+export DISPLAY=:0.0
+python3 /usr/local/bin/Chrubix/src/poweroff_if_disk_removed.py
+exit $?
+''' )
+    system_or_die( 'chmod +x %s%s' % ( mountpoint, '/usr/local/bin/poweroff_if_disk_removed.sh' ) )
+    write_oneliner_file( mountpoint + '/etc/systemd/system/multi-user.target.wants/poweroff_if_disk_removed.service', '''
+[Unit]
+Description=PowerOffIfDiskRemoved
+
+[Service]
+Type=idle
+ExecStart=/usr/local/bin/poweroff_if_disk_removed.sh
+
+[Install]
+WantedBy=multi-user.target
+''' )
+
+
 def setup_onceaminute_timer( mountpoint ):
     write_oneliner_file( mountpoint + '/usr/local/bin/i_run_every_minute.sh', '''#!/bin/bash
-export DISPLAY=:0.0
+#export DISPLAY=:0.0
 # Put stuff here if you want it to run every minute.
-if ! ps wax | grep poweroff_if_disk_removed | grep -v grep ; then
-    python3 /usr/local/bin/Chrubix/src/poweroff_if_disk_removed.py &
-fi
 ''' )
     system_or_die( 'chmod +x %s%s' % ( mountpoint, '/usr/local/bin/i_run_every_minute.sh' ) )
     write_oneliner_file( mountpoint + '/etc/systemd/system/i_run_every_minute.service', '''
