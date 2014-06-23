@@ -5,10 +5,68 @@
 # TODO: aptitude --download-only ... Should I install it at end of important pkg func, or should I do it during final push?
 
 from chrubix.utils import generate_temporary_filename, g_proxy, failed, system_or_die, write_oneliner_file, wget, logme, \
-                          chroot_this, read_oneliner_file, do_a_sed
-                          # , generate_and_incorporate_patch_for_debian
+                          chroot_this, read_oneliner_file, do_a_sed, generate_smackmyglitchup_lxdm
 import os
 from chrubix.distros import Distro
+
+
+def do_debian_specific_lxdm_related_hacks( mountpoint ):
+    write_oneliner_file( '/etc/X11/default-display-manager', '/usr/local/bin/greeter.sh' )
+    chroot_this( mountpoint, '''mv /etc/pam.d/lxdm /etc/pam.d/lxdm.orig; echo "
+        session required pam_loginuid.so
+session required pam_systemd.so
+" > /etc/pam.d/lxdm; cat /etc/pam.d/lxdm.orig >> /etc/pam.d/lxdm''' )
+    for f in ( '/etc/init/lxdm.conf', '/etc/init/lxdm.conf', '/etc/init.d/lxdm' ):
+        do_a_sed( '%s%s' % ( mountpoint, f ), 'exec lxdm-binary', 'exec ersatz_lxdm.sh' )
+        do_a_sed( '%s%s' % ( mountpoint, f ), '/usr/sbin/lxdm-binary', '/usr/local/bin/ersatz_lxdm.sh' )
+        do_a_sed( '%s%s' % ( mountpoint, f ), '/usr/sbin/lxdm', '/usr/local/bin/ersatz_lxdm.sh' )
+    # Replace alternatives/lxdm.conf and lxdm/default.conf with hyperlinks to a (real) lxdm/lxdm.conf
+    chroot_this( mountpoint, '''\
+cat /etc/lxdm/lxdm.conf > /etc/lxdm/groovy; \
+rm -f /etc/lxdm/lxdm.conf /etc/lxdm/default.conf /etc/alternatives/lxdm.conf; \
+mv /etc/lxdm/groovy /etc/lxdm/lxdm.conf; \
+ln -sf /etc/lxdm/lxdm.conf /etc/alternatives/lxdm.conf; \
+ln -sf /etc/lxdm/lxdm.conf /etc/lxdm/default.conf''' )
+
+
+def do_debian_specific_mbr_related_hacks( mountpoint ):
+    logme( 'mountpoint = %s' % ( mountpoint ) )
+    system_or_die( 'rm -Rf %s/usr/lib/initcpio' % ( mountpoint ) )
+    system_or_die( 'rm -f %s/usr/lib/initcpio/busybox' % ( mountpoint ) )
+    for ( fname, wish_it_were_here, is_actually_here ) in ( 
+                                                  ( 'libnss_files.so', '/usr/lib', '/usr/lib/arm-linux-gnueabihff' ),
+                                                  ( 'modprobe.d', '/usr/lib', '/lib' ),
+                                                  ( 'systemd', '/usr/lib/systemd', '/lib/systemd' ),
+                                                  ( 'systemd-tmpfiles', '/usr/bin', '/bin' ),  # ?
+                                                  ( 'systemd-sysctl', '/usr/lib/systemd', '/lib/systemd' ),
+                                                  ( 'kmod', '/usr/bin', '/bin' )
+                                                  ):
+        if not os.path.exists( '%s%s/%s' % ( mountpoint, wish_it_were_here, fname ) ):
+            system_or_die( 'ln -sf %s/%s %s%s/' % ( is_actually_here, fname, mountpoint, wish_it_were_here ) )
+    for missing_path in ( 
+                          '/usr/lib/udev/rules.d',
+                          '/usr/lib/systemd/system-generators',
+                          '/usr/lib/modprobe.d',
+                          '/usr/lib/initcpio',
+                          '/bin/makepkg',
+                          '/usr/lib/modprobe.d/usb-load-ehci-first.conf'
+                           ):
+        if os.path.exists( '%s%s' % ( mountpoint, missing_path ) ):
+            logme( '%s%s already exists. So, no reason to copy from /... to this location.' % ( mountpoint, missing_path ) )
+        else:
+            logme( '%s%s does not exist. Therefore, I am copying it across' % ( mountpoint, missing_path ) )
+            system_or_die( 'mkdir -p %s%s' % ( mountpoint, os.path.dirname( missing_path ) ) )
+            system_or_die( 'cp -avf %s %s%s/' % ( missing_path, mountpoint, os.path.dirname( missing_path ) ) )
+    system_or_die( 'rm -f %s/usr/lib/initcpio/busybox' % ( mountpoint ) )
+    for ( fname, wish_it_were_here, is_actually_here ) in ( 
+                                                  ( 'busybox', '/usr/lib/initcpio', '/bin' ),
+                                                  ):
+        if not os.path.exists( '%s%s/%s' % ( mountpoint, wish_it_were_here, fname ) ):
+            system_or_die( 'ln -sf %s/%s %s%s/' % ( is_actually_here, fname, mountpoint, wish_it_were_here ) )
+    logme( 'Coping usb-load-ehci-first.conf across anyway.' )
+    system_or_die( 'cp -af /usr/lib/modprobe.d/usb-load-ehci-first.conf %s/lib/modprobe.d/' % ( mountpoint ) )
+    assert( os.path.exists( '%s/usr/lib/modprobe.d/usb-load-ehci-first.conf' % ( mountpoint ) ) )
+
 
 # FIXME: paman and padevchooser are deprecated
 class DebianDistro( Distro ):
@@ -216,15 +274,10 @@ Acquire::https::Proxy "https://%s/";
         for pkg_name in self.list_of_mkfs_packages:
             chroot_this( self.mountpoint, 'sudo apt-mark hold %s' % ( pkg_name ) )
         self.status_lst[-1] += '...installed.'
-        write_oneliner_file( '/etc/X11/default-display-manager', '/usr/local/bin/greeter.sh' )
 #        chroot_this( mountpoint, '''echo "
 #            session required pam_loginuid.so
 #     session required pam_systemd.so
 #     " >> /etc/pam.d/lxdm''' )
-        chroot_this( self.mountpoint, '''mv /etc/pam.d/lxdm /etc/pam.d/lxdm.orig; echo "
-            session required pam_loginuid.so
-    session required pam_systemd.so
-" > /etc/pam.d/lxdm; cat /etc/pam.d/lxdm.orig >> /etc/pam.d/lxdm''' )
         logme( 'DebianDistro - configure_distrospecific_tweaks() - leaving' )
 
     def install_final_push_of_packages( self ):
@@ -250,6 +303,7 @@ Acquire::https::Proxy "https://%s/";
         chroot_this( self.mountpoint, 'yes "" | aptitude install %s' % ( self.final_push_packages ),
                      title_str = self.title_str, status_lst = self.status_lst,
                      on_fail = 'Failed to install final push of packages' )
+        do_debian_specific_lxdm_related_hacks( self.mountpoint )
         do_debian_specific_mbr_related_hacks( self.mountpoint )
         self.status_lst[-1] += '...there.'
         logme( 'DebianDistro - install_final_push_of_packages() - leaving' )
@@ -404,6 +458,10 @@ Acquire::https::Proxy "https://%s/";
                 system_or_die( 'mv %s %s.orig' % ( f, f ) )
             system_or_die( 'cat %s.orig | grep -v x11-utils | grep -v gtk2-engines | grep -v libpam | grep -v librsvg | grep -v xbase > %s' % ( f, f ) )
         logme( 'DebianDistro - tweak_pkgfiles_accordingly() - leaving' )
+        p = '%s/%s' % ( self.sources_basedir, package_name )
+        if package_name == 'lxdm':
+            generate_smackmyglitchup_lxdm( self.mountpoint, p, '%s/debian/patches/99_smackmyglitchup.patch' % ( p ) )
+
 
     def build_package_from_fileset( self, package_name ):
         logme( 'DebianDistro - build_package_from_fileset() - starting' )
@@ -452,48 +510,6 @@ class JessieDebianDistro( DebianDistro ):
 
 
 
-
-
-
-
-
-def do_debian_specific_mbr_related_hacks( mountpoint ):
-    logme( 'mountpoint = %s' % ( mountpoint ) )
-    system_or_die( 'rm -Rf %s/usr/lib/initcpio' % ( mountpoint ) )
-    system_or_die( 'rm -f %s/usr/lib/initcpio/busybox' % ( mountpoint ) )
-    for ( fname, wish_it_were_here, is_actually_here ) in ( 
-                                                  ( 'libnss_files.so', '/usr/lib', '/usr/lib/arm-linux-gnueabihff' ),
-                                                  ( 'modprobe.d', '/usr/lib', '/lib' ),
-                                                  ( 'systemd', '/usr/lib/systemd', '/lib/systemd' ),
-                                                  ( 'systemd-tmpfiles', '/usr/bin', '/bin' ),  # ?
-                                                  ( 'systemd-sysctl', '/usr/lib/systemd', '/lib/systemd' ),
-                                                  ( 'kmod', '/usr/bin', '/bin' )
-                                                  ):
-        if not os.path.exists( '%s%s/%s' % ( mountpoint, wish_it_were_here, fname ) ):
-            system_or_die( 'ln -sf %s/%s %s%s/' % ( is_actually_here, fname, mountpoint, wish_it_were_here ) )
-    for missing_path in ( 
-                          '/usr/lib/udev/rules.d',
-                          '/usr/lib/systemd/system-generators',
-                          '/usr/lib/modprobe.d',
-                          '/usr/lib/initcpio',
-                          '/bin/makepkg',
-                          '/usr/lib/modprobe.d/usb-load-ehci-first.conf'
-                           ):
-        if os.path.exists( '%s%s' % ( mountpoint, missing_path ) ):
-            logme( '%s%s already exists. So, no reason to copy from /... to this location.' % ( mountpoint, missing_path ) )
-        else:
-            logme( '%s%s does not exist. Therefore, I am copying it across' % ( mountpoint, missing_path ) )
-            system_or_die( 'mkdir -p %s%s' % ( mountpoint, os.path.dirname( missing_path ) ) )
-            system_or_die( 'cp -avf %s %s%s/' % ( missing_path, mountpoint, os.path.dirname( missing_path ) ) )
-    system_or_die( 'rm -f %s/usr/lib/initcpio/busybox' % ( mountpoint ) )
-    for ( fname, wish_it_were_here, is_actually_here ) in ( 
-                                                  ( 'busybox', '/usr/lib/initcpio', '/bin' ),
-                                                  ):
-        if not os.path.exists( '%s%s/%s' % ( mountpoint, wish_it_were_here, fname ) ):
-            system_or_die( 'ln -sf %s/%s %s%s/' % ( is_actually_here, fname, mountpoint, wish_it_were_here ) )
-    logme( 'Coping usb-load-ehci-first.conf across anyway.' )
-    system_or_die( 'cp -af /usr/lib/modprobe.d/usb-load-ehci-first.conf %s/lib/modprobe.d/' % ( mountpoint ) )
-    assert( os.path.exists( '%s/usr/lib/modprobe.d/usb-load-ehci-first.conf' % ( mountpoint ) ) )
 
 
 
