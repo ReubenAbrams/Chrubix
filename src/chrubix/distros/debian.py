@@ -92,7 +92,7 @@ mate-desktop-environment-extras i2p i2p-keyring'  # FYI, freenet is handled by i
         self.status_lst[-1] += '...kernel installed.'
         logme( 'DebianDistro - install_kernel_and_mkfs() - leaving' )
 
-    def install_package_manager_tweaks( self ):
+    def install_package_manager_tweaks( self, yes_add_ffmpeg_repo = False ):
         logme( 'DebianDistro - install_package_manager_tweaks() - starting' )
         write_oneliner_file( '%s/etc/apt/sources.list' % ( self.mountpoint ), '''
 deb http://ftp.uk.debian.org/debian %s main non-free contrib
@@ -106,7 +106,10 @@ deb-src http://ftp.ca.debian.org/debian %s main non-free contrib
 
 deb     http://ftp.uk.debian.org/debian %s-backports main non-free contrib
 deb-src http://ftp.uk.debian.org/debian %s-backports main non-free contrib
-''' % ( self.branch, self.branch, self.branch, self.branch, self.branch, self.branch, self.branch, self.branch ) )
+
+%s
+''' % ( self.branch, self.branch, self.branch, self.branch, self.branch, self.branch, self.branch, self.branch,
+        'deb http://www.deb-multimedia.org jessie main non-free' if yes_add_ffmpeg_repo else '' ) )
         chroot_this( self.mountpoint, '' )
         if g_proxy is not None:
             f = open( '%s/etc/apt/apt.conf' % ( self.mountpoint ), 'a' )
@@ -438,6 +441,11 @@ class JessieDebianDistro( DebianDistro ):
         super( JessieDebianDistro, self ).__init__( *args, **kwargs )
         self.branch = 'jessie'  # lowercase; yes, it matters
         self.architecture = 'armhf'
+
+    def install_package_manager_tweaks( self ):
+        DebianDistro.install_package_manager_tweaks( yes_add_ffmpeg_repo = True )
+
+
 
 
 
