@@ -488,8 +488,8 @@ my_root_disk_device=$3
 
 dev_p=`deduce_dev_stamen $dev`
 cores=1
-echo aaa
-exit 0
+#echo aaa
+#exit 0
 echo "redo_mbr($root,$dev_p,$my_root_disk_device) --- calling"
 redo_mbr $root $dev_p $my_root_disk_device
 res=$?
