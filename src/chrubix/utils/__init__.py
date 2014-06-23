@@ -422,6 +422,35 @@ def install_windows_xp_theme_stuff( mountpoint ):
         system_or_die( 'cp %s/usr/share/icons/GnomeXP/48x48/apps/iceweasel.png %s/usr/share/icons/hicolor/%s/apps/chromium.png' % ( mountpoint, mountpoint, resolution ) )
 
 
+def generate_smackmyglitchup_lxdm( mountpoint, lxdm_package_path, output_patch_file ):
+    insert_this_code = 'baaa'  # '''if (187==system("bash /usr/local/bin/ersatz_lxdm.sh")) exit(187);'''
+    logme( 'generate_smackmyglitchup_lxdm() --- entering (mountpoint=%s, output_patch_file=%s' % ( mountpoint, output_patch_file ) )
+    lxdm_folder_basename = [ r for r in \
+call_binary( ['ls', '%s%s/' % ( mountpoint, lxdm_package_path )] )[1].decode( 'utf-8' ).split( '\n' ) \
+if r.find( 'lxdm-' ) >= 0 ][0]
+    chroot_this( mountpoint, '''
+set -e
+cd %s/%s
+rm -Rf a b
+mkdir -p a/src b/src
+cp -af src/* a/src
+cp -af src/* b/src
+cat a/src/lxdm.c | sed s/'for(i=1;i<arc;i++)'/'if (187==system("bash \/usr\/local\/bin\/ersatz_lxdm.sh")) {exit(187);} for(i=1;i<arc;i++)'/ > b/src/lxdm.c
+''' % ( lxdm_package_path, lxdm_folder_basename ), on_fail = 'generate_smackmyglitchup_lxdm() --- chroot #1 failed' )
+    file_to_tweak = '%s%s/%s/b/src/lxdm.c' % ( mountpoint, lxdm_package_path, lxdm_folder_basename )
+    assert( os.path.isfile( file_to_tweak ) )
+#    do_a_sed( file_to_tweak, 'for\\(', '%s' % ( insert_this_code ) )
+#    do_a_sed( file_to_tweak, 'for\\(i=1;i<arc;i++\\)', '%s; for \\( i=1; i<arc ; i++ \\) ' % ( insert_this_code ) )
+    chroot_this( mountpoint, '''
+cd %s/%s
+diff -p1 -r a/src b/src > %s
+''' % ( lxdm_package_path, lxdm_folder_basename, output_patch_file ) )
+    if not os.path.isfile( '%s%s' % ( mountpoint, output_patch_file ) ):
+        failed( 'generate_smackmyglitchup_lxdm() --- failed to generate %s%s' % ( mountpoint, output_patch_file ) )
+    logme( 'generate_smackmyglitchup_lxdm() --- generated %s%s' % ( mountpoint, output_patch_file ) )
+    logme( 'generate_smackmyglitchup_lxdm() --- leaving' )
+
+
 def install_mp3_files( mountpoint ):
     mydir = '%s/etc/.mp3' % ( mountpoint )
     system_or_die( 'mkdir -p %s' % ( mydir ) )

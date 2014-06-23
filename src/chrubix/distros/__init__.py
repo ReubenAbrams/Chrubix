@@ -26,7 +26,7 @@ class Distro():
     '''
     '''
     # Class-level consts
-    hewwo = '2014/06/18 @ 12:41'
+    hewwo = '2014/06/23 @ 10:23'
     crypto_rootdev = "/dev/mapper/cryptroot"
     crypto_homedev = "/dev/mapper/crypthome"
     boot_prompt_string = "boot: "
@@ -256,6 +256,13 @@ cat ../linux-chromebook/config | sed s/ZSMALLOC=.*/ZSMALLOC=y/ > .config && \
 yes "" 2>/dev/null | make oldconfig && \
 make' % ( self.sources_basedir ), title_str = self.title_str, status_lst = self.status_lst )
         self.status_lst[-1] += '...kernel built.'
+        if not os.path.exists( '%s%s/core/chromeos-3.4/arch/arm/boot/vmlinux.uimg' % ( self.mountpoint, self.kernel_src_basedir ) ):
+            self.status_lst[-1] += 'Vmlinux is missing. Rerunning redo_mbr, in that case.'
+            system_or_die( 'bash %s/usr/local/bin/redo_mbr.sh %s %s %s' % ( self.mountpoint,
+                                                        self.device, self.mountpoint, self.root_dev ),
+                                                        errtxt = 'Failed to redo kernel & mbr',
+                                                        title_str = self.title_str, status_lst = self.status_lst )
+            self.status_lst[-1] += '...success.'
 
     def redo_mbr_for_encrypted_root( self, chroot_here ):
         self.redo_mbr( root_partition_device = self.crypto_rootdev, chroot_here = chroot_here )
@@ -269,7 +276,7 @@ make' % ( self.sources_basedir ), title_str = self.title_str, status_lst = self.
         for save_here in ( chroot_here, '/' ):
             system_or_die( 'tar -zxf /tmp/.vbkeys.tgz -C %s' % ( save_here ),
                                 status_lst = self.status_lst, title_str = self.title_str )
-        if self.kernel_rebuild_required:
+        if self.kernel_rebuild_required or not os.path.exists( '%s%s/core/chromeos-3.4/arch/arm/boot/vmlinux.uimg' % ( self.mountpoint, self.kernel_src_basedir ) ):
             logme( 'qqq Rebuilding kernel' )
             if not os.path.isdir( '%s%s' % ( chroot_here, self.kernel_src_basedir ) ):
                 failed( "The kernel's source folder is missing. Please install it." )
@@ -303,6 +310,7 @@ make' % ( self.sources_basedir ), title_str = self.title_str, status_lst = self.
             else:
                 param_A = self.root_dev
             param_B = ''
+            assert( os.path.exists( '%s%s/core/chromeos-3.4/arch/arm/boot/vmlinux.uimg' % ( self.mountpoint, self.kernel_src_basedir ) ) )
             res = self.sign_and_write_custom_kernel( root_partition_device, param_A, param_B )
         logme( 'redo_mbr() --- leaving w/ res=%d' % ( res ) )
         return res
@@ -660,6 +668,7 @@ Choose the 'boom' password : """ ).strip( '\r\n\r\n\r' )
     def configure_privacy_tools( self ):
         configure_privoxy( self.mountpoint )
         append_proxy_details_to_environment_file( '%s/etc/environment' % ( self.mountpoint ) )
+        setup_poweroffifunplugdisk_service( self.mountpoint )
 
     def configure_chrome_or_iceweasel( self ):
         install_chrome_or_iceweasel_privoxy_wrapper( self.mountpoint )
@@ -773,34 +782,9 @@ exit 0
 #            self.status_lst.append( ['Someone deleted Chrubix from bootstrapped OS. Fine. I shall reinstall it.'] )
         self.status_lst.append( ['Migrating/squashing OS'] )
         self.reinstall_chrubix_for_mosO()
-        logme( 'vvv  THIS SECTION SHOULD BE REMOVED AFTER 7/1/2014 vvv' )
-        system_or_die( 'tar -zxf /tmp/.firmware.tgz -C %s' % ( self.mountpoint ) )
-        chroot_this( self.mountpoint, 'cd /lib/firmware/ && ln -sf s5p-mfc/s5p-mfc-v6.fw mfc_fw.bin' );
-        chroot_this( self.mountpoint, 'cat /etc/lxdm/PostLogin | head -n3 > /etc/lxdm/po; rm /etc/lxdm/PostLogin; mv /etc/lxdm/po /etc/lxdm/PostLogin', on_fail = 'Doo wah ditty, ditty dum, ditty do' )
-        write_lxdm_post_login_file( '%s/etc/lxdm/PostLogin' % ( self.mountpoint ) )
-        write_lxdm_post_logout_file( '%s/etc/lxdm/PostLogout' % ( self.mountpoint ) )
-        write_login_ready_file( '%s/etc/lxdm/LoginReady' % ( self.mountpoint ) )
-        setup_onceaminute_timer ( self.mountpoint )
-        setup_poweroffifunplugdisk_service( self.mountpoint )
-        if os.path.exists( '%s/etc/init/lxdm.conf' % ( self.mountpoint ) ):
-            for f in ( '/etc/init/lxdm.conf', '/etc/init/lxdm.conf', '/etc/init.d/lxdm' ):
-                do_a_sed( '%s%s' % ( self.mountpoint, f ), 'exec lxdm-binary', 'exec ersatz_lxdm.sh' )
-                do_a_sed( '%s%s' % ( self.mountpoint, f ), '/usr/sbin/lxdm-binary', '/usr/local/bin/ersatz_lxdm.sh' )
-                do_a_sed( '%s%s' % ( self.mountpoint, f ), '/usr/sbin/lxdm', '/usr/local/bin/ersatz_lxdm.sh' )
-        # Replace alternatives/lxdm.conf and lxdm/default.conf with hyperlinks to a (real) lxdm/lxdm.conf
-            chroot_this( self.mountpoint, '''\
-cat /etc/lxdm/lxdm.conf > /etc/lxdm/groovy; \
-rm -f /etc/lxdm/lxdm.conf /etc/lxdm/default.conf /etc/alternatives/lxdm.conf; \
-mv /etc/lxdm/groovy /etc/lxdm/lxdm.conf; \
-ln -sf ../lxdm/lxdm.conf /etc/alternatives/lxdm.conf; \
-ln -sf lxdm.conf /etc/lxdm/default.conf''', status_lst = self.status_lst, title_str = self.title_str )
+        logme( 'vvv  THIS SECTION SHOULD BE REMOVED AFTER 7/15/2014 vvv' )  # ...and MAKE SURE its contents are present in Stage B or C :)
+#        self.install_expatriate_software_into_a_debianish_OS( package_name = 'lxdm', method = 'ubuntu' )
         assert( os.path.exists( '%s/etc/lxdm/lxdm.conf' % ( self.mountpoint ) ) )
-        chroot_this( self.mountpoint, 'chmod +x /etc/lxdm/L*' )
-        chroot_this( self.mountpoint, 'chmod +x /etc/lxdm/P*' )
-#        chroot_this( self.mountpoint, '''mv /etc/pam.d/lxdm /etc/pam.d/lxdm.orig; echo "
-#        session required pam_loginuid.so
-# session required pam_systemd.so
-# " > /etc/pam.d/lxdm; cat /etc/pam.d/lxdm.orig >> /etc/pam.d/lxdm''' )
         logme( '^^^ THIS SECTION SHOULD BE REMOVED AFTER 7/1/2014 ^^^' )
         assert( os.path.exists( '%s/lib/firmware/mrvl/sd8797_uapsta.bin' % ( self.mountpoint ) ) )
         assert( os.path.exists( '%s/usr/local/bin/chrubix.sh' % ( self.mountpoint ) ) )
@@ -843,6 +827,10 @@ ln -sf lxdm.conf /etc/lxdm/default.conf''', status_lst = self.status_lst, title_
                       ( self.mountpoint, self.mountpoint, self.mountpoint, self.mountpoint, self.mountpoint, self.mountpoint,
                        self.mountpoint, self.mountpoint, self.mountpoint, self.mountpoint, self.mountpoint, self.mountpoint,
                        self.mountpoint ) )
+
+    def make_sure_all_usr_local_bin_are_executable( self ):
+        chroot_this( self.mountpoint, 'chmod +x /etc/lxdm/L*' )
+        chroot_this( self.mountpoint, 'chmod +x /etc/lxdm/P*' )
 
     def migrate_OS( self ):  # ....unless you're the Alarmist subclass, which redefines this as SQUASH MY OS!  :-)
         self.status_lst[-1] += 'excellent.'
@@ -1346,6 +1334,7 @@ WantedBy=multi-user.target
         self.kernel_rebuild_required = True
         self.redo_mbr( root_partition_device = self.root_dev, chroot_here = self.mountpoint )
         self.status_lst[-1] += '...rebuilt.'
+        assert( os.path.exists( '%s%s/core/chromeos-3.4/arch/arm/boot/vmlinux.uimg' % ( self.mountpoint, self.kernel_src_basedir ) ) )
 
     def quit( self ):
         failed( 'NEFARIOUS PORPOISES' )
@@ -1369,25 +1358,25 @@ WantedBy=multi-user.target
                                 self.add_guest_user,
                                 self.configure_hostname,
                                 self.update_barebones_OS,
+                                self.install_all_important_packages_in_OS,
                                 self.save_for_posterity_if_possible_A )
         second_stage = ( 
-                                self.install_all_important_packages_in_OS,
-                                self.save_for_posterity_if_possible_B )
-        third_stage = ( 
                                 self.install_urwid_and_dropbox_uploader,
                                 self.install_mkinitcpio_ramwipe_hooks,
                                 self.install_timezone,
-                                self.download_modify_and_build_kernel_and_mkfs,
-                                self.save_for_posterity_if_possible_C )  # self.nop
-        fourth_stage = ( 
                                 self.install_vbutils_and_firmware_from_cbook,
+                                self.download_modify_and_build_kernel_and_mkfs,
+                                self.save_for_posterity_if_possible_B )
+        third_stage = ( 
                                 self.install_chrubix,
                                 self.install_leap_bitmask,
                                 self.install_gpg_applet,
                                 self.install_panic_button,
                                 self.install_freenet,
                                 self.install_final_push_of_packages,  # Chrubix, wmsystemtray, boom scripts, GUI, networking, ...
-                                # From this point on, assume Internet access is gone.
+                                self.save_for_posterity_if_possible_C )  # self.nop
+# From this point on, assume Internet access is gone.
+        fourth_stage = ( 
                                 self.configure_dbus_sudo_and_groups,
                                 self.configure_lxdm_login_manager,
                                 self.configure_privacy_tools,
@@ -1397,12 +1386,11 @@ WantedBy=multi-user.target
                                 self.configure_winxp_camo_and_guest_default_files,
                                 self.configure_xwindow_for_chromebook,
                                 self.configure_distrospecific_tweaks,
+                                self.make_sure_all_usr_local_bin_are_executable,
                                 self.remove_all_junk,
                                 self.forcibly_rebuild_initramfs_and_vmlinux,
-                                self.check_sanity_of_distro,
-                                self.save_for_posterity_if_possible_D )
+                                self.check_sanity_of_distro )  # , self.save_for_posterity_if_possible_D )
         fifth_stage = ( 
-#                                self.forcibly_rebuild_initramfs_and_vmlinux,
                                 self.install_vbutils_and_firmware_from_cbook,  # just in case the new user's tools differ from the original builder's tools
                                 self.migrate_or_squash_OS,  # Every class but Alarmist will use migrate_or_squash. Alarmist uses squash.
                                 self.unmount_and_clean_up

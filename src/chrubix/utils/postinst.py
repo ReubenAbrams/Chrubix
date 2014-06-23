@@ -260,18 +260,6 @@ def configure_lxdm_onetime_changes( mountpoint ):
     do_a_sed( '%s/etc/X11/xinit/xinitrc' % ( mountpoint ), 'exec .*', '' )  # exec /usr/local/bin/ersatz_lxdm.sh' )
 #    system_or_die( 'echo "exec /usr/local/bin/ersatz_lxdm.sh" >> %s/etc/xinitrc/xinitrc' % ( mountpoint ) ) # start (Python) greeter at end of
     write_oneliner_file( '%s/etc/.first_time_ever' % ( mountpoint ), 'yep' )
-    if os.path.exists( '%s/etc/init/lxdm.conf' % ( mountpoint ) ):
-#         for f in ( '/etc/init/lxdm.conf', '/etc/init/lxdm.conf', '/etc/init.d/lxdm' ):
-#             do_a_sed( '%s%s' % ( mountpoint, f ), 'exec lxdm-binary', 'exec ersatz_lxdm.sh' )
-#             do_a_sed( '%s%s' % ( mountpoint, f ), '/usr/sbin/lxdm-binary', '/usr/local/bin/ersatz_lxdm.sh' )
-#             do_a_sed( '%s%s' % ( mountpoint, f ), '/usr/sbin/lxdm', '/usr/local/bin/ersatz_lxdm.sh' )
-        # Replace alternatives/lxdm.conf and lxdm/default.conf with hyperlinks to a (real) lxdm/lxdm.conf
-        chroot_this( mountpoint, '''\
-cat /etc/lxdm/lxdm.conf > /etc/lxdm/groovy; \
-rm -f /etc/lxdm/lxdm.conf /etc/lxdm/default.conf /etc/alternatives/lxdm.conf; \
-mv /etc/lxdm/groovy /etc/lxdm/lxdm.conf; \
-ln -sf /etc/lxdm/lxdm.conf /etc/alternatives/lxdm.conf; \
-ln -sf /etc/lxdm/lxdm.conf /etc/lxdm/default.conf''' )
     assert( os.path.exists( '%s/etc/lxdm/lxdm.conf' % ( mountpoint ) ) )
     chroot_this( mountpoint, 'chmod +x /etc/lxdm/P*' )
     chroot_this( mountpoint, 'chmod +x /etc/lxdm/L*' )
