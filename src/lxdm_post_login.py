@@ -33,7 +33,7 @@ the_pid=$!; while ! ping -c1 -W5 8.8.8.8; do sleep 1 ; done; kill $the_pid; syst
                       )
     for cmd in ( main_list if os.path.exists( '/tmp/.do-not-automatically-connect' ) else main_list + go_online_list ):
         res = os.system( '( %s ) &' % ( cmd ) )
-        os.system( 'sleep 0.3' )
+        os.system( 'sleep 0.1' )
         logme( 'Called >>> %s <<<; res=%d' % ( cmd, res ) )
     sys.exit( 0 )
 
