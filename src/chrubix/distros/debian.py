@@ -71,16 +71,19 @@ def do_debian_specific_mbr_related_hacks( mountpoint ):
 def generate_mickeymouse_lxdm_patch( mountpoint, lxdm_package_path, output_patch_file ):
     insert_this_code = 'baaa'  # '''if (187==system("bash /usr/local/bin/ersatz_lxdm.sh")) exit(187);'''
     logme( 'generate_mickeymouse_lxdm_patch() --- entering (mountpoint=%s, output_patch_file=%s' % ( mountpoint, output_patch_file ) )
-    lxdm_folder_basename = [ r for r in \
-call_binary( ['ls', '%s%s/' % ( mountpoint, lxdm_package_path )] )[1].decode( 'utf-8' ).split( '\n' ) \
-if r.find( 'lxdm-' ) >= 0 ][0]
+    lxdm_folder_basename = [ r for r in call_binary( ['ls', '%s%s/' % ( mountpoint, lxdm_package_path )] )[1].decode( 'utf-8' ).split( '\n' ) if r.find( 'lxdm-' ) >= 0 ][0]
     chroot_this( mountpoint, '''
 set -e
 cd %s/%s
-rm -Rf a b
-mkdir -p a/src b/src
-cp -af src/* a/src
-cp -af src/* b/src
+rm -Rf _a _b a b
+mkdir -p _a _b
+cp -af [a-z,A-Z]* _a
+cd _a
+for f in `find ../../debian/patches/*.patch`; do patch -p1 < $f; done
+cd ..
+cp -af _a/* _b
+mv _a a
+mv _b b
 cat a/src/lxdm.c | sed s/'for(i=1;i<arc;i++)'/'if (187==system("bash \/usr\/local\/bin\/ersatz_lxdm.sh")) {exit(187);} for(i=1;i<arc;i++)'/ > b/src/lxdm.c
 ''' % ( lxdm_package_path, lxdm_folder_basename ), on_fail = 'generate_mickeymouse_lxdm_patch() --- chroot #1 failed' )
     file_to_tweak = '%s%s/%s/b/src/lxdm.c' % ( mountpoint, lxdm_package_path, lxdm_folder_basename )
@@ -309,6 +312,12 @@ Acquire::https::Proxy "https://%s/";
 #            session required pam_loginuid.so
 #     session required pam_systemd.so
 #     " >> /etc/pam.d/lxdm''' )
+        self.status_lst.append( '...mickeymousing lxdm' )
+        p = '%s/%s' % ( self.sources_basedir, 'lxdm' )
+        patch_pathname = '%s/debian/patches/99_mickeymouse.patch' % ( p )
+        generate_mickeymouse_lxdm_patch( self.mountpoint, p, patch_pathname )
+        chroot_this( self.mountpoint, '''set -e; cd %s/lxdm/lxdm-*; for f in `find ../../debian/patches/*.patch`; do patch -p1 < $f; done; make; make install''' \
+% ( self.sources_basedir ), status_lst = self.status_lst, title_str = self.title_str, on_fail = 'Failed to mickeymouse lxdm' )
         logme( 'DebianDistro - configure_distrospecific_tweaks() - leaving' )
 
     def install_final_push_of_packages( self ):
@@ -491,10 +500,6 @@ Acquire::https::Proxy "https://%s/";
                 system_or_die( 'mv %s %s.orig' % ( f, f ) )
             system_or_die( 'cat %s.orig | grep -v x11-utils | grep -v gtk2-engines | grep -v libpam | grep -v librsvg | grep -v xbase > %s' % ( f, f ) )
         logme( 'DebianDistro - tweak_pkgfiles_accordingly() - leaving' )
-        p = '%s/%s' % ( self.sources_basedir, package_name )
-        if package_name == 'lxdm':
-            generate_mickeymouse_lxdm_patch( self.mountpoint, p, '%s/debian/patches/99_mickeymouse.patch' % ( p ) )
-
 
     def build_package_from_fileset( self, package_name ):
         logme( 'DebianDistro - build_package_from_fileset() - starting' )
@@ -506,7 +511,7 @@ Acquire::https::Proxy "https://%s/";
         while att < 4 and res != 0:
             res = chroot_this( self.mountpoint, 'cd %s/%s/%s-* ; cp -af ../debian . ; dpkg-buildpackage -b -us -uc -d 2> %s' % \
                                ( self.sources_basedir, package_name, package_name.replace( 'gtk3-engines-unico', 'unico' ), tmpfile ),
-                                                    title_str = self.title_str, status_lst = self.status_lst )
+                                                    title_str = self.title_str, status_lst = self.status_lst, attempts = 1 )
             if res != 0:
                 chroot_this( self.mountpoint, '''cat %s | grep -i "unmet build dep" | cut -d':' -f3-99 | tr ' ' '\n' | grep "[a-z].*" | grep -v "=" | tr '\n' ' ' > %s''' % ( tmpfile, tmpfile + '.x' ) , attempts = 1 )
                 needed_pkgs = read_oneliner_file( self.mountpoint + '/' + tmpfile + '.x' )
