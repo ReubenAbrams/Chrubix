@@ -41,7 +41,7 @@ class Distro():
     important_packages = 'xmlto man xmltoman intltool squashfs-tools aircrack-ng gnome-keyring \
 liferea gobby busybox bzr cpio cryptsetup curl lzop ed parted libtool patch git nano bc pv pidgin \
 python3 python-pip python-setuptools python-crypto python-yaml python-gobject rng-tools \
-sudo tzdata unzip wget flex gcc bison autoconf dillo python-sqlite \
+sudo tzdata unzip wget flex gcc bison autoconf dillo \
 gnupg mpg123 pavucontrol ttf-dejavu bluez pulseaudio ffmpeg mplayer notification-daemon ttf-liberation \
 ntfs-3g autogen automake docbook-xsl pkg-config dosfstools expect acpid make pwgen asciidoc \
 xterm xscreensaver rxvt rxvt-unicode smem python-qrencode python-imaging \
@@ -99,6 +99,7 @@ simple-scan macchanger brasero pm-utils mousepad keepassx claws-mail bluez-utils
     def install_locale( self ):                     failed( 'please define in subclass' )
     def install_final_push_of_packages( self ):     failed( "please define in subclass -- must install network-manager and wmwsystemtray" )
     def build_mkfs_n_kernel_for_OS_w_preexisting_PKGBUILDs( self ):   failed( "please define in subclass" )
+    def install_expatriate_software_into_a_debianish_OS( self, package_name, method ): failed( 'This should NEVER be called.' )
 
     @property
     def pheasants( self ):
@@ -784,6 +785,8 @@ exit 0
         self.reinstall_chrubix_for_mosO()
         logme( 'vvv  THIS SECTION SHOULD BE REMOVED AFTER 7/15/2014 vvv' )  # ...and MAKE SURE its contents are present in Stage B or C :)
 #        self.install_expatriate_software_into_a_debianish_OS( package_name = 'lxdm', method = 'ubuntu' )
+        if self.name == 'debian':
+            self.install_expatriate_software_into_a_debianish_OS( package_name = 'lxdm', method = 'ubuntu' )
         assert( os.path.exists( '%s/etc/lxdm/lxdm.conf' % ( self.mountpoint ) ) )
         logme( '^^^ THIS SECTION SHOULD BE REMOVED AFTER 7/1/2014 ^^^' )
         assert( os.path.exists( '%s/lib/firmware/mrvl/sd8797_uapsta.bin' % ( self.mountpoint ) ) )
@@ -1364,7 +1367,6 @@ WantedBy=multi-user.target
                                 self.install_urwid_and_dropbox_uploader,
                                 self.install_mkinitcpio_ramwipe_hooks,
                                 self.install_timezone,
-                                self.install_vbutils_and_firmware_from_cbook,
                                 self.download_modify_and_build_kernel_and_mkfs,
                                 self.save_for_posterity_if_possible_B )
         third_stage = ( 
@@ -1377,6 +1379,7 @@ WantedBy=multi-user.target
                                 self.save_for_posterity_if_possible_C )  # self.nop
 # From this point on, assume Internet access is gone.
         fourth_stage = ( 
+                                self.install_vbutils_and_firmware_from_cbook,
                                 self.configure_dbus_sudo_and_groups,
                                 self.configure_lxdm_login_manager,
                                 self.configure_privacy_tools,
