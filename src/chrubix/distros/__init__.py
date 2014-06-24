@@ -8,7 +8,8 @@ import os, sys, shutil, hashlib, getpass, random, pickle, time, chrubix.utils
 from chrubix.utils import rootcryptdevice, mount_device, mount_sys_tmp_proc_n_dev, logme, unmount_sys_tmp_proc_n_dev, failed, \
             chroot_this, wget, do_a_sed, system_or_die, write_oneliner_file, read_oneliner_file, call_binary, install_mp3_files, \
             generate_temporary_filename, backup_the_resolvconf_file, install_gpg_applet, patch_kernel, \
-            fix_broken_hyperlinks, disable_root_password, install_windows_xp_theme_stuff, running_on_a_test_rig
+            fix_broken_hyperlinks, disable_root_password, install_windows_xp_theme_stuff, running_on_a_test_rig, \
+    MAXIMUM_COMPRESSION
 
 from chrubix.utils.postinst import write_lxdm_post_login_file, write_lxdm_pre_login_file, write_lxdm_post_logout_file, \
             append_lxdm_xresources_addendum, generate_wifi_manual_script, generate_wifi_auto_script, \
@@ -257,13 +258,6 @@ cat ../linux-chromebook/config | sed s/ZSMALLOC=.*/ZSMALLOC=y/ > .config && \
 yes "" 2>/dev/null | make oldconfig && \
 make' % ( self.sources_basedir ), title_str = self.title_str, status_lst = self.status_lst )
         self.status_lst[-1] += '...kernel built.'
-        if not os.path.exists( '%s%s/core/chromeos-3.4/arch/arm/boot/vmlinux.uimg' % ( self.mountpoint, self.kernel_src_basedir ) ):
-            self.status_lst[-1] += 'Vmlinux is missing. Rerunning redo_mbr, in that case.'
-            system_or_die( 'bash %s/usr/local/bin/redo_mbr.sh %s %s %s' % ( self.mountpoint,
-                                                        self.device, self.mountpoint, self.root_dev ),
-                                                        errtxt = 'Failed to redo kernel & mbr',
-                                                        title_str = self.title_str, status_lst = self.status_lst )
-            self.status_lst[-1] += '...success.'
 
     def redo_mbr_for_encrypted_root( self, chroot_here ):
         self.redo_mbr( root_partition_device = self.crypto_rootdev, chroot_here = chroot_here )
@@ -1367,10 +1361,11 @@ WantedBy=multi-user.target
                                 self.install_urwid_and_dropbox_uploader,
                                 self.install_mkinitcpio_ramwipe_hooks,
                                 self.install_timezone,
+                                self.install_chrubix,
                                 self.download_modify_and_build_kernel_and_mkfs,
+                                self.forcibly_rebuild_initramfs_and_vmlinux,
                                 self.save_for_posterity_if_possible_B )
         third_stage = ( 
-                                self.install_chrubix,
                                 self.install_leap_bitmask,
                                 self.install_gpg_applet,
                                 self.install_panic_button,
@@ -1392,7 +1387,8 @@ WantedBy=multi-user.target
                                 self.make_sure_all_usr_local_bin_are_executable,
                                 self.remove_all_junk,
                                 self.forcibly_rebuild_initramfs_and_vmlinux,
-                                self.check_sanity_of_distro )  # , self.save_for_posterity_if_possible_D )
+                                self.check_sanity_of_distro,
+                                self.save_for_posterity_if_possible_D if MAXIMUM_COMPRESSION else self.nop )
         fifth_stage = ( 
                                 self.install_vbutils_and_firmware_from_cbook,  # just in case the new user's tools differ from the original builder's tools
                                 self.migrate_or_squash_OS,  # Every class but Alarmist will use migrate_or_squash. Alarmist uses squash.
@@ -1405,16 +1401,11 @@ WantedBy=multi-user.target
                 url_or_fname = read_oneliner_file( '%s/.url_or_fname.txt' % ( self.mountpoint ) )
                 self.status_lst.append( ['I was restored by the stage 1 bash script from %s; cool.' % ( url_or_fname )] )
                 mount_sys_tmp_proc_n_dev( self.mountpoint )  # FIXME: This line is unnecessary, probably
-                if url_or_fname.find( '_D' ) >= 0:
-                    checkpoint_number = len( first_stage ) + len( second_stage ) + len( third_stage ) + len( fourth_stage )
-                elif url_or_fname.find( '_C' ) >= 0:
-                    checkpoint_number = len( first_stage ) + len( second_stage ) + len( third_stage )
-                elif url_or_fname.find( '_B' ) >= 0:
-                    checkpoint_number = len( first_stage ) + len( second_stage )
-                elif url_or_fname.find( '_A' ) >= 0:
-                    checkpoint_number = len( first_stage )
-                else:
-                    failed( 'Incomprehensible posterity restore - %s' % ( url_or_fname ) )
+                if url_or_fname.find( '_D' ) >= 0:        checkpoint_number = len( first_stage ) + len( second_stage ) + len( third_stage ) + len( fourth_stage )
+                elif url_or_fname.find( '_C' ) >= 0:      checkpoint_number = len( first_stage ) + len( second_stage ) + len( third_stage )
+                elif url_or_fname.find( '_B' ) >= 0:      checkpoint_number = len( first_stage ) + len( second_stage )
+                elif url_or_fname.find( '_A' ) >= 0:      checkpoint_number = len( first_stage )
+                else:                                     failed( 'Incomprehensible posterity restore - %s' % ( url_or_fname ) )
             else:
                 self.status_lst.append( ['Cool -- resuming from checkpoint#%d' % ( checkpoint_number )] )
         else:
