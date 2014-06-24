@@ -5,7 +5,7 @@
 # TODO: aptitude --download-only ... Should I install it at end of important pkg func, or should I do it during final push?
 
 from chrubix.utils import generate_temporary_filename, g_proxy, failed, system_or_die, write_oneliner_file, wget, logme, \
-                          chroot_this, read_oneliner_file, do_a_sed, generate_smackmyglitchup_lxdm
+                          chroot_this, read_oneliner_file, do_a_sed, call_binary
 import os
 from chrubix.distros import Distro
 
@@ -68,6 +68,35 @@ def do_debian_specific_mbr_related_hacks( mountpoint ):
     assert( os.path.exists( '%s/usr/lib/modprobe.d/usb-load-ehci-first.conf' % ( mountpoint ) ) )
 
 
+def generate_mickeymouse_lxdm_patch( mountpoint, lxdm_package_path, output_patch_file ):
+    insert_this_code = 'baaa'  # '''if (187==system("bash /usr/local/bin/ersatz_lxdm.sh")) exit(187);'''
+    logme( 'generate_mickeymouse_lxdm_patch() --- entering (mountpoint=%s, output_patch_file=%s' % ( mountpoint, output_patch_file ) )
+    lxdm_folder_basename = [ r for r in \
+call_binary( ['ls', '%s%s/' % ( mountpoint, lxdm_package_path )] )[1].decode( 'utf-8' ).split( '\n' ) \
+if r.find( 'lxdm-' ) >= 0 ][0]
+    chroot_this( mountpoint, '''
+set -e
+cd %s/%s
+rm -Rf a b
+mkdir -p a/src b/src
+cp -af src/* a/src
+cp -af src/* b/src
+cat a/src/lxdm.c | sed s/'for(i=1;i<arc;i++)'/'if (187==system("bash \/usr\/local\/bin\/ersatz_lxdm.sh")) {exit(187);} for(i=1;i<arc;i++)'/ > b/src/lxdm.c
+''' % ( lxdm_package_path, lxdm_folder_basename ), on_fail = 'generate_mickeymouse_lxdm_patch() --- chroot #1 failed' )
+    file_to_tweak = '%s%s/%s/b/src/lxdm.c' % ( mountpoint, lxdm_package_path, lxdm_folder_basename )
+    assert( os.path.isfile( file_to_tweak ) )
+#    do_a_sed( file_to_tweak, 'for\\(', '%s' % ( insert_this_code ) )
+#    do_a_sed( file_to_tweak, 'for\\(i=1;i<arc;i++\\)', '%s; for \\( i=1; i<arc ; i++ \\) ' % ( insert_this_code ) )
+    chroot_this( mountpoint, '''
+cd %s/%s
+diff -p1 -r a/src b/src > %s
+''' % ( lxdm_package_path, lxdm_folder_basename, output_patch_file ) )
+    if not os.path.isfile( '%s%s' % ( mountpoint, output_patch_file ) ):
+        failed( 'generate_mickeymouse_lxdm_patch() --- failed to generate %s%s' % ( mountpoint, output_patch_file ) )
+    logme( 'generate_mickeymouse_lxdm_patch() --- generated %s%s' % ( mountpoint, output_patch_file ) )
+    logme( 'generate_mickeymouse_lxdm_patch() --- leaving' )
+
+
 # FIXME: paman and padevchooser are deprecated
 class DebianDistro( Distro ):
     important_packages = Distro.important_packages + ' ' + \
@@ -78,7 +107,7 @@ python-software-properties default-jre dpatch festival dialog libck-connector-de
 libgtk2.0-dev librsvg2-common librsvg2-dev pyqt4-dev-tools libreoffice-help-en-us libreoffice \
 firmware-libertas libxpm-dev libreadline-dev libblkid-dev python-distutils-extra \
 gtk2-engines-pixbuf libsnappy-dev libgcrypt-dev iceweasel icedove gconf2 bsdcpio bsdtar \
-x11-utils xbase-clients ssss mat florence monkeysign libxfixes-dev liblzo2-dev \
+x11-utils xbase-clients ssss mat florence monkeysign libxfixes-dev liblzo2-dev python-sqlite \
 wmaker python-cairo python-pdfrw libconfig-dev libx11-dev python-hachoir-core python-hachoir-parser \
 mat myspell-en-us msttcorefonts xorg xserver-xorg-input-synaptics xul-ext-https-everywhere \
 pulseaudio paprefs pulseaudio-module-jack pavucontrol paman alsa-tools-gui alsa-oss mythes-en-us \
@@ -150,7 +179,7 @@ mate-desktop-environment-extras i2p i2p-keyring'  # FYI, freenet is handled by i
         self.status_lst[-1] += '...kernel installed.'
         logme( 'DebianDistro - install_kernel_and_mkfs() - leaving' )
 
-    def install_package_manager_tweaks( self, yes_add_ffmpeg_repo = False ):
+    def install_debianspecific_package_manager_tweaks( self, yes_add_ffmpeg_repo = False ):
         logme( 'DebianDistro - install_package_manager_tweaks() - starting' )
         write_oneliner_file( '%s/etc/apt/sources.list' % ( self.mountpoint ), '''
 deb http://ftp.uk.debian.org/debian %s main non-free contrib
@@ -268,6 +297,8 @@ Acquire::https::Proxy "https://%s/";
     def configure_distrospecific_tweaks( self ):
         logme( 'DebianDistro - configure_distrospecific_tweaks() - starting' )
         self.status_lst.append( ['Installing distro-specific tweaks'] )
+        do_debian_specific_lxdm_related_hacks( self.mountpoint )
+        do_debian_specific_mbr_related_hacks( self.mountpoint )
         if os.path.exists( '%s/etc/apt/apt.conf' % ( self.mountpoint ) ):
             for to_remove in ( 'ftp', 'http' ):
                 do_a_sed( '%s/etc/apt/apt.conf' % ( self.mountpoint ), 'Acquire::%s::Proxy.*' % ( to_remove ), '' )
@@ -303,8 +334,6 @@ Acquire::https::Proxy "https://%s/";
         chroot_this( self.mountpoint, 'yes "" | aptitude install %s' % ( self.final_push_packages ),
                      title_str = self.title_str, status_lst = self.status_lst,
                      on_fail = 'Failed to install final push of packages' )
-        do_debian_specific_lxdm_related_hacks( self.mountpoint )
-        do_debian_specific_mbr_related_hacks( self.mountpoint )
         self.status_lst[-1] += '...there.'
         logme( 'DebianDistro - install_final_push_of_packages() - leaving' )
 
@@ -384,14 +413,18 @@ Acquire::https::Proxy "https://%s/";
         if self.status_lst is not None:
             self.status_lst.append( ["Repackaging %s" % ( package_name )] )
         assert( package_name != 'linux-chromebook' )
-        system_or_die( 'rm -Rf   %s%s/%s' % ( self.mountpoint, self.sources_basedir, package_name ) )
-        system_or_die( 'mkdir -p %s%s/%s' % ( self.mountpoint, self.sources_basedir, package_name ) )
-        files_i_want = self.deduce_filelist_from_website( src_url, package_name )
-        if files_i_want in ( None, [], '' ):
-            files_i_want = self.deduce_filelist_from_website( os.path.dirname( src_url ) + '/source/' + os.path.basename( src_url ), package_name )
-        if files_i_want in ( None, [], '' ):
-            raise FileNotFoundError( "%s is absent from the online repositories" % ( package_name ) )
-        self.download_pkgfiles_from_website( package_name, files_i_want )
+#        if package_name == 'lxdm' and
+        if os.path.exists( '%s%s/core/%s' % ( self.mountpoint, self.sources_basedir, package_name ) ):
+            self.status_lst[-1] += ' (FYI, reusing old %s sources)' % ( package_name )
+        else:
+            system_or_die( 'rm -Rf   %s%s/%s' % ( self.mountpoint, self.sources_basedir, package_name ) )
+            system_or_die( 'mkdir -p %s%s/%s' % ( self.mountpoint, self.sources_basedir, package_name ) )
+            files_i_want = self.deduce_filelist_from_website( src_url, package_name )
+            if files_i_want in ( None, [], '' ):
+                files_i_want = self.deduce_filelist_from_website( os.path.dirname( src_url ) + '/source/' + os.path.basename( src_url ), package_name )
+            if files_i_want in ( None, [], '' ):
+                raise FileNotFoundError( "%s is absent from the online repositories" % ( package_name ) )
+            self.download_pkgfiles_from_website( package_name, files_i_want )
         if self.status_lst is not None:                      self.status_lst[-1] += '...Extracting'
         self.extract_pkgfiles_accordingly( package_name, files_i_want )
         if self.status_lst is not None:                      self.status_lst[-1] += '...Tweaking'
@@ -460,7 +493,7 @@ Acquire::https::Proxy "https://%s/";
         logme( 'DebianDistro - tweak_pkgfiles_accordingly() - leaving' )
         p = '%s/%s' % ( self.sources_basedir, package_name )
         if package_name == 'lxdm':
-            generate_smackmyglitchup_lxdm( self.mountpoint, p, '%s/debian/patches/99_smackmyglitchup.patch' % ( p ) )
+            generate_mickeymouse_lxdm_patch( self.mountpoint, p, '%s/debian/patches/99_mickeymouse.patch' % ( p ) )
 
 
     def build_package_from_fileset( self, package_name ):
@@ -484,6 +517,8 @@ Acquire::https::Proxy "https://%s/";
         logme( 'DebianDistro - build_package_from_fileset() - leaving' )
         return res
 
+    def install_package_manager_tweaks( self ):
+        self.install_debianspecific_package_manager_tweaks()
 
 class WheezyDebianDistro( DebianDistro ):
     important_packages = DebianDistro.important_packages + ' libetpan15'
@@ -501,15 +536,5 @@ class JessieDebianDistro( DebianDistro ):
         self.architecture = 'armhf'
 
     def install_package_manager_tweaks( self ):
-        DebianDistro.install_package_manager_tweaks( yes_add_ffmpeg_repo = True )
-
-
-
-
-
-
-
-
-
-
+        self.install_debianspecific_package_manager_tweaks( yes_add_ffmpeg_repo = True )
 
