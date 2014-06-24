@@ -27,7 +27,7 @@ class Distro():
     '''
     '''
     # Class-level consts
-    hewwo = '2014/06/23 @ 10:23'
+    hewwo = '2014/06/24 @ 11:17'
     crypto_rootdev = "/dev/mapper/cryptroot"
     crypto_homedev = "/dev/mapper/crypthome"
     boot_prompt_string = "boot: "
@@ -45,7 +45,7 @@ python3 python-pip python-setuptools python-crypto python-yaml python-gobject rn
 sudo tzdata unzip wget flex gcc bison autoconf dillo \
 gnupg mpg123 pavucontrol ttf-dejavu bluez pulseaudio ffmpeg mplayer notification-daemon ttf-liberation \
 ntfs-3g autogen automake docbook-xsl pkg-config dosfstools expect acpid make pwgen asciidoc \
-xterm xscreensaver rxvt rxvt-unicode smem python-qrencode python-imaging \
+xterm xscreensaver rxvt rxvt-unicode smem python-qrencode python-imaging cmake \
 gimp inkscape scribus audacity pitivi poedit alsa-utils libcanberra-pulse sound-juicer \
 simple-scan macchanger brasero pm-utils mousepad keepassx claws-mail bluez-utils \
 '  # palimpsest gnome-session-fallback mate-settings-daemon-pulseaudio
@@ -622,7 +622,7 @@ Choose the 'boom' password : """ ).strip( '\r\n\r\n\r' )
         mount_sys_tmp_proc_n_dev( self.mountpoint )  # Shouldn't be necessary...
         self.install_important_packages()
 
-    def install_urwid_and_dropbox_uploader( self ):
+    def install_urwid_PySide_and_dropbox_uploader( self ):
         self.status_lst.append( ['Installing dropbox uploader, Python easy_install, and urwid' ] )
         chroot_this( self.mountpoint, 'which easy_install3 2>/dev/null && easy_install3 urwid', status_lst = self.status_lst, title_str = self.title_str )
         self.status_lst[-1] += '.'
@@ -636,6 +636,7 @@ Choose the 'boom' password : """ ).strip( '\r\n\r\n\r' )
         system_or_die( 'chmod +x %s/usr/local/bin/dropbox_uploader.sh' % ( self.mountpoint ) )
         if not os.path.exists( '%s/etc/mtab' % ( self.mountpoint ) ):
             system_or_die( 'ln -sf /proc/mounts %s/etc/mtab' % ( self.mountpoint ) )
+        chroot_this( self.mountpoint, 'easy_install-2.7 PySide' )
         self.status_lst[-1] += '...word.'
 
     def install_panic_button( self ):
@@ -724,10 +725,7 @@ exit 0
         if not os.path.exists( '%s%s' % ( self.mountpoint, self.kernel_src_basedir ) ):
             failed( 'remove_junk() deletes the linux-chromebook folder from the bootstrap OS. That is not good!' )
         # Tidy up Alarpy, the (bootstrap) mini-OS, to reduce the size footprint of _D posterity file.
-        try:
-            system_or_die( '''cd /usr/share/locale; mv locale.alias ..; mkdir -p _; mv [a-d,f-z]* _; mv e[a-m,o-z]* _; rm -Rf _; mv ../locale.alias .''' )
-        except RuntimeError:
-            logme( 'Failed to slim down the locale folder. IDGAF.' )
+        system_or_die( 'mv /usr/share/locale/locale.alias /usr/share/' )
         for path_to_delete in ( 
                                '/usr/lib/python2.7',
                                '/usr/lib/gcc',
@@ -739,15 +737,19 @@ exit 0
                                '/usr/lib/udev',
 #                               '/usr/lib/python2.7'
                                '/usr/share/doc',
-                               '/usr/share/groff'
+                               '/usr/share/groff',
                                '/usr/share/info',
                                '/usr/share/man',
                                '/usr/share/perl5',
                                '/usr/share/texinfo',
                                '/usr/share/xml',
-                               '/usr/share/zoneinfo'
+                               '/usr/share/zoneinfo',
+                               '/usr/share/locale/[a-d,f-z]*',
+                               '/usr/share/locale/e[a-m,o-z]*'
                                ):
+            logme( 'Removing %s' % ( path_to_delete ) )
             system_or_die( 'rm -Rf %s' % ( path_to_delete ) )
+        system_or_die( 'mv /usr/share/locale.alias /usr/share/locale/' )
         self.status_lst[-1] += '...removed.'
 
     def reinstall_chrubix_if_missing( self ):
@@ -1192,7 +1194,11 @@ cd client
 if ! yes | python2 setup.py install ; then
     pip2 install leap.soledad || failed "I think I failed to install soledad"
 fi
-pip2 install --no-dependencies leap.bitmask || failed "Failed to install leap.bitmask"
+pip2 install --no-dependencies leap.bitmask && return 0 || echo "Continuing"
+rm -f `find /usr/lib/python2.7/site-packages | grep psutil`
+ln -sf `find /usr -type f -name qmake` /usr/local/bin/qmake
+easy_install-2.7 psutil==1.2.1
+easy_install-2.7 --no-deps leap.bitmask || failed "Failed to install leap.bitmask"
 exit 0
 ''' % ( self.sources_basedir ) )
         f.close()
@@ -1366,11 +1372,10 @@ WantedBy=multi-user.target
                                 self.save_for_posterity_if_possible_A )
         second_stage = ( 
                                 self.install_chrubix,
-                                self.install_urwid_and_dropbox_uploader,
+                                self.install_urwid_PySide_and_dropbox_uploader,
                                 self.install_mkinitcpio_ramwipe_hooks,
                                 self.install_timezone,
                                 self.download_modify_and_build_kernel_and_mkfs,
-                                self.forcibly_rebuild_initramfs_and_vmlinux,
                                 self.save_for_posterity_if_possible_B )
         third_stage = ( 
                                 self.reinstall_chrubix_if_missing,
