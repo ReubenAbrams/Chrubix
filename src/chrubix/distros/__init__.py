@@ -1379,6 +1379,7 @@ WantedBy=multi-user.target
                                 self.install_panic_button,
                                 self.install_freenet,
                                 self.install_final_push_of_packages,  # Chrubix, wmsystemtray, boom scripts, GUI, networking, ...
+                                self.forcibly_rebuild_initramfs_and_vmlinux,
                                 self.save_for_posterity_if_possible_C )  # self.nop
 # From this point on, assume Internet access is gone.
         fourth_stage = ( 
@@ -1395,7 +1396,6 @@ WantedBy=multi-user.target
                                 self.configure_distrospecific_tweaks,
                                 self.make_sure_all_usr_local_bin_are_executable,
                                 self.remove_all_junk,
-                                self.forcibly_rebuild_initramfs_and_vmlinux,
                                 self.check_sanity_of_distro,
                                 self.nop if not MAXIMUM_COMPRESSION else self.save_for_posterity_if_possible_D )
         fifth_stage = ( 
