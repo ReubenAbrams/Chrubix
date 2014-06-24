@@ -413,7 +413,9 @@ def remove_junk( mountpoint, kernel_src_basedir ):
 
     # TODO: Consider %kernel_src_basedir/linux-chromebook/pkg/*
     chroot_this( mountpoint, 'ln -sf %s/src/chromeos-3.4 /usr/src/linux-3.4.0-ARCH' % ( kernel_src_basedir ) )
-    chroot_this( mountpoint, 'cd /usr/share/locale && mkdir -p _ && mv [a-d,f-z]* _ && mv e[a-m,o-z]* _ && rm -Rf _' )
+    chroot_this( mountpoint, 'set -e; cd /usr/share/locale; mv locale.alias ..' )
+    chroot_this( mountpoint, 'set -e; cd /usr/share/locale; mkdir -p _; mv [a-d,f-z]* _; mv e[a-m,o-z]* _; rm -Rf _; mv ../locale.alias .' )
+    chroot_this( mountpoint, 'set -e; cd /usr/share/locale; mv ../locale.alias .' )
     chroot_this( mountpoint, 'cd /usr/lib/firmware && cp s5p-mfc/s5p-mfc-v6.fw ../mfc_fw.bin && cp mrvl/sd8797_uapsta.bin .. && rm -Rf * && mkdir -p mrvl && mv ../sd8797_uapsta.bin mrvl/ && mv ../mfc_fw.bin .' )
 
 
