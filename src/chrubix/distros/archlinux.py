@@ -18,7 +18,7 @@ twisted python2-yaml python2-distutils-extra python2-gobject python2-cairo pytho
 bcprov gtk-engine-unico gtk-engine-murrine gtk-engines xorg-fonts xorg-font-utils xorg-fonts-encodings \
 libreoffice-en-US libreoffice-common libreoffice-gnome libxfixes python2-pysqlite \
 xorg-server xorg-xinit xf86-input-synaptics xf86-video-fbdev xf86-video-armsoc xlockmore \
-mate mate-themes-extras mate-nettool mate-mplayer mate-accountsdialog \
+mate mate-themes-extras mate-nettool mate-mplayer mate-accountsdialog python2-pysqlite \
 xorg-server-utils xorg-xmessage librsvg icedtea-web-java7 gconf hunspell-en chromium thunderbird windowmaker'
     install_from_AUR = 'ttf-ms-fonts gtk-theme-adwaita-x win-xp-theme wmsystemtray python2-pyptlib hachoir-core hachoir-parser mat obfsproxy java-service-wrapper i2p'  # pulseaudio-ctl pasystray-git ssss florence
     final_push_packages = Distro.final_push_packages + ' lxdm network-manager-applet'
@@ -88,7 +88,7 @@ xorg-server-utils xorg-xmessage librsvg icedtea-web-java7 gconf hunspell-en chro
 #            self.status_lst[-1] += ' %d%%' % ( progress * 100 // len( packages_lst ) )
         self.status_lst[-1] += 'installed.'
         if failed_packages != '':
-            self.status_lst[-1] += [ 'I failed to install%s, however.' % ( failed_packages )]
+            self.status_lst[-1] += [ ' I failed to install%s, however.' % ( failed_packages )]
         system_or_die( 'rm -Rf %s/var/cache/apt/archives/*' % ( self.mountpoint ) )
 
 #    def download_kernel_source( self ):  # This also downloads all the other PKGBUILDs (for btrfs-progs, jfsutils, etc.)
