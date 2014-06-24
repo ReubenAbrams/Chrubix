@@ -719,7 +719,7 @@ exit 0
         # Tidy up the actual OS
         if not os.path.exists( '%s%s' % ( self.mountpoint, self.kernel_src_basedir ) ):
             failed( 'For some reason, the linux-chromebook folder is missing from the bootstrap OS. That is not good!' )
-        self.status_lst.append( ['Removing superfluous files and diretories from OS'] )
+        self.status_lst.append( ['Removing superfluous files and directories from OS'] )
         remove_junk( self.mountpoint, self.kernel_src_basedir )
         if not os.path.exists( '%s%s' % ( self.mountpoint, self.kernel_src_basedir ) ):
             failed( 'remove_junk() deletes the linux-chromebook folder from the bootstrap OS. That is not good!' )
@@ -750,7 +750,11 @@ exit 0
             system_or_die( 'rm -Rf %s' % ( path_to_delete ) )
         self.status_lst[-1] += '...removed.'
 
-    def reinstall_chrubix_for_mosO( self ):
+    def reinstall_chrubix_if_missing( self ):
+        if os.path.exists( '%s/usr/local/bin/Chrubix/blobs/xp/tails-xp.tgz' % ( self.mountpoint ) ) \
+        and os.path.exists( '%s/usr/local/bin/Chrubix/src/tinker.py' % ( self.mountpoint ) ):
+            logme( 'No need to reinstall chrubix. It is not missing.' )
+            return 0
         try:
             system_or_die( 'rm -Rf %s/usr/local/bin/Chrubix' % ( self.mountpoint ) )
             wget( url = 'https://github.com/ReubenAbrams/Chrubix/archive/master.tar.gz',
@@ -776,7 +780,7 @@ exit 0
 #        if not os.path.exists( '%s/usr/local/bin/Chrubix' % ( self.mountpoint ) ) :
 #            self.status_lst.append( ['Someone deleted Chrubix from bootstrapped OS. Fine. I shall reinstall it.'] )
         self.status_lst.append( ['Migrating/squashing OS'] )
-        self.reinstall_chrubix_for_mosO()
+        self.reinstall_chrubix_if_missing()
         logme( 'vvv  THIS SECTION SHOULD BE REMOVED AFTER 7/15/2014 vvv' )  # ...and MAKE SURE its contents are present in Stage B or C :)
 #        self.install_expatriate_software_into_a_debianish_OS( package_name = 'lxdm', method = 'ubuntu' )
         if self.name == 'debian':
@@ -1109,6 +1113,7 @@ exit 0
                                                          status_lst = self.status_lst, title_str = self.title_str,
                                                          attempts = 1, on_fail = 'Failed to generate squashfs' )
             self.status_lst[-1] += '...generated.'
+            assert( os.path.exists( '%s/.squashfs.sqfs' % ( self.mountpoint ) ) )
         logme( 'qqq delta' )
         system_or_die( 'mkdir -p /tmp/posterity' )
         if running_on_a_test_rig():
@@ -1117,6 +1122,8 @@ exit 0
             or 0 == os.system( 'mount | grep /tmp/posterity &> /dev/null' ):
                 self.status_lst.append( 'Backing up the squashed fs' )
                 logme( 'qqq backing up squashs' )
+                os.system( 'sync;sync;sync' )
+                assert( os.path.exists( '%s/.squashfs.sqfs' % ( self.mountpoint ) ) )
                 system_or_die( 'cp -f %s/.squashfs.sqfs /tmp/posterity/%s.sqfs' % ( self.mountpoint, self.name + ( '' if self.branch is None else self.branch ) ) )
                 system_or_die( 'cp -f %s%s/src/chromeos-3.4/arch/arm/boot/vmlinux.uimg /tmp/posterity/%s.kernel' % ( self.mountpoint, self.kernel_src_basedir, self.name + ( '' if self.branch is None else self.branch ) ) )
                 os.system( 'sync;sync;sync' )
@@ -1331,7 +1338,7 @@ WantedBy=multi-user.target
         self.kernel_rebuild_required = True
         self.redo_mbr( root_partition_device = self.root_dev, chroot_here = self.mountpoint )
         self.status_lst[-1] += '...rebuilt.'
-        assert( os.path.exists( '%s%s/core/chromeos-3.4/arch/arm/boot/vmlinux.uimg' % ( self.mountpoint, self.kernel_src_basedir ) ) )
+        assert( os.path.exists( '%s%s/src/chromeos-3.4/arch/arm/boot/vmlinux.uimg' % ( self.mountpoint, self.kernel_src_basedir ) ) )
 
     def quit( self ):
         failed( 'NEFARIOUS PORPOISES' )
@@ -1358,14 +1365,15 @@ WantedBy=multi-user.target
                                 self.install_all_important_packages_in_OS,
                                 self.save_for_posterity_if_possible_A )
         second_stage = ( 
+                                self.install_chrubix,
                                 self.install_urwid_and_dropbox_uploader,
                                 self.install_mkinitcpio_ramwipe_hooks,
                                 self.install_timezone,
-                                self.install_chrubix,
                                 self.download_modify_and_build_kernel_and_mkfs,
                                 self.forcibly_rebuild_initramfs_and_vmlinux,
                                 self.save_for_posterity_if_possible_B )
         third_stage = ( 
+                                self.reinstall_chrubix_if_missing,
                                 self.install_leap_bitmask,
                                 self.install_gpg_applet,
                                 self.install_panic_button,
@@ -1374,6 +1382,7 @@ WantedBy=multi-user.target
                                 self.save_for_posterity_if_possible_C )  # self.nop
 # From this point on, assume Internet access is gone.
         fourth_stage = ( 
+                                self.reinstall_chrubix_if_missing,
                                 self.install_vbutils_and_firmware_from_cbook,
                                 self.configure_dbus_sudo_and_groups,
                                 self.configure_lxdm_login_manager,
@@ -1388,8 +1397,9 @@ WantedBy=multi-user.target
                                 self.remove_all_junk,
                                 self.forcibly_rebuild_initramfs_and_vmlinux,
                                 self.check_sanity_of_distro,
-                                self.save_for_posterity_if_possible_D if MAXIMUM_COMPRESSION else self.nop )
+                                self.nop if not MAXIMUM_COMPRESSION else self.save_for_posterity_if_possible_D )
         fifth_stage = ( 
+                                self.reinstall_chrubix_if_missing,
                                 self.install_vbutils_and_firmware_from_cbook,  # just in case the new user's tools differ from the original builder's tools
                                 self.migrate_or_squash_OS,  # Every class but Alarmist will use migrate_or_squash. Alarmist uses squash.
                                 self.unmount_and_clean_up
