@@ -97,6 +97,7 @@ simple-scan macchanger brasero pm-utils mousepad keepassx claws-mail bluez-utils
     def update_and_upgrade_all( self ):             failed( "please define in subclass" )
     def install_important_packages( self ):         failed( "please define in subclass" )
     def install_kernel_and_mkfs( self ):            failed( 'please define in subclass' )
+    def configure_boot_process( self ):               failed( 'please define in subclass' )
     def install_locale( self ):                     failed( 'please define in subclass' )
     def install_final_push_of_packages( self ):     failed( "please define in subclass -- must install network-manager and wmwsystemtray" )
     def build_mkfs_n_kernel_for_OS_w_preexisting_PKGBUILDs( self ):   failed( "please define in subclass" )
@@ -271,7 +272,9 @@ make' % ( self.sources_basedir ), title_str = self.title_str, status_lst = self.
         for save_here in ( chroot_here, '/' ):
             system_or_die( 'tar -zxf /tmp/.vbkeys.tgz -C %s' % ( save_here ),
                                 status_lst = self.status_lst, title_str = self.title_str )
-        if self.kernel_rebuild_required or not os.path.exists( '%s%s/core/chromeos-3.4/arch/arm/boot/vmlinux.uimg' % ( self.mountpoint, self.kernel_src_basedir ) ):
+        if not os.path.exists( '%s%s/core/chromeos-3.4/arch/arm/boot/vmlinux.uimg' % ( self.mountpoint, self.kernel_src_basedir ) ):
+            self.kernel_rebuild_required = True
+        if self.kernel_rebuild_required:
             logme( 'qqq Rebuilding kernel' )
             if not os.path.isdir( '%s%s' % ( chroot_here, self.kernel_src_basedir ) ):
                 failed( "The kernel's source folder is missing. Please install it." )
@@ -282,6 +285,8 @@ make' % ( self.sources_basedir ), title_str = self.title_str, status_lst = self.
             system_or_die( 'tar -zxf /tmp/.vbkeys.tgz -C %s' % ( chroot_here ), title_str = self.title_str, status_lst = self.status_lst )
             chroot_this( chroot_here, 'busybox', on_fail = 'You are using the bad busybox.' , title_str = self.title_str, status_lst = self.status_lst )
             self.status_lst.append( ['Rerunning redo_mbr.sh'] )
+            if not os.path.exists( '%s%s/core/chromeos-3.4/arch/arm/boot/vmlinux.uimg' % ( self.mountpoint, self.kernel_src_basedir ) ):
+                self.status_lst[-1] += '...because vmlinux.uimg is missing'
             system_or_die( 'bash %s/usr/local/bin/redo_mbr.sh %s %s %s' % ( chroot_here,
                                                         self.device, chroot_here, root_partition_device ),
                                                         errtxt = 'Failed to redo kernel & mbr',
@@ -314,6 +319,7 @@ make' % ( self.sources_basedir ), title_str = self.title_str, status_lst = self.
         print( "Writing kernel to boot device (replacing nv_u-boot)..." )
         kernel_flags_fname = '%s/root/.kernel.flags' % ( self.mountpoint )
         raw_kernel_fname = '%s/%s/src/chromeos-3.4/arch/arm/boot/vmlinux.uimg' % ( self.mountpoint, self.kernel_src_basedir )
+        assert( os.path.exists( raw_kernel_fname ) )
         signed_kernel_fname = '%s/root/.vmlinuz.signed' % ( self.mountpoint )
         readwrite = 'rw'
         loglevel_str = 'loglevel=%s' % ( self.loglevel )
@@ -327,11 +333,11 @@ make' % ( self.sources_basedir ), title_str = self.title_str, status_lst = self.
         return 0
 
     def install_vbutils_and_firmware_from_cbook( self ):
-        system_or_die( 'tar -zxvf /tmp/.hipxorg.tgz -C %s' % ( self.mountpoint ),
+        system_or_die( 'tar -zxf /tmp/.hipxorg.tgz -C %s' % ( self.mountpoint ),
                       status_lst = self.status_lst, title_str = self.title_str )
-        system_or_die( 'tar -zxvf /tmp/.vbtools.tgz -C %s' % ( self.mountpoint ),
+        system_or_die( 'tar -zxf /tmp/.vbtools.tgz -C %s' % ( self.mountpoint ),
                       status_lst = self.status_lst, title_str = self.title_str )
-        system_or_die( 'tar -zxvf /tmp/.firmware.tgz -C %s' % ( self.mountpoint ),
+        system_or_die( 'tar -zxf /tmp/.firmware.tgz -C %s' % ( self.mountpoint ),
                        status_lst = self.status_lst, title_str = self.title_str )
         chroot_this( self.mountpoint, 'cd /lib/firmware/ && ln -sf s5p-mfc/s5p-mfc-v6.fw mfc_fw.bin' )
 
@@ -622,7 +628,7 @@ Choose the 'boom' password : """ ).strip( '\r\n\r\n\r' )
         mount_sys_tmp_proc_n_dev( self.mountpoint )  # Shouldn't be necessary...
         self.install_important_packages()
 
-    def install_urwid_PySide_and_dropbox_uploader( self ):
+    def install_urwid_and_dropbox_uploader( self ):
         self.status_lst.append( ['Installing dropbox uploader, Python easy_install, and urwid' ] )
         chroot_this( self.mountpoint, 'which easy_install3 2>/dev/null && easy_install3 urwid', status_lst = self.status_lst, title_str = self.title_str )
         self.status_lst[-1] += '.'
@@ -636,7 +642,6 @@ Choose the 'boom' password : """ ).strip( '\r\n\r\n\r' )
         system_or_die( 'chmod +x %s/usr/local/bin/dropbox_uploader.sh' % ( self.mountpoint ) )
         if not os.path.exists( '%s/etc/mtab' % ( self.mountpoint ) ):
             system_or_die( 'ln -sf /proc/mounts %s/etc/mtab' % ( self.mountpoint ) )
-        chroot_this( self.mountpoint, 'easy_install-2.7 PySide' )
         self.status_lst[-1] += '...word.'
 
     def install_panic_button( self ):
@@ -787,11 +792,14 @@ exit 0
 #        self.install_expatriate_software_into_a_debianish_OS( package_name = 'lxdm', method = 'ubuntu' )
         if self.name == 'debian':
             self.install_expatriate_software_into_a_debianish_OS( package_name = 'lxdm', method = 'ubuntu' )
-        assert( os.path.exists( '%s/etc/lxdm/lxdm.conf' % ( self.mountpoint ) ) )
+        generate_wifi_manual_script( '%s/usr/local/bin/wifi_manual.sh' % ( self.mountpoint ) )
         logme( '^^^ THIS SECTION SHOULD BE REMOVED AFTER 7/1/2014 ^^^' )
-        assert( os.path.exists( '%s/lib/firmware/mrvl/sd8797_uapsta.bin' % ( self.mountpoint ) ) )
-        assert( os.path.exists( '%s/usr/local/bin/chrubix.sh' % ( self.mountpoint ) ) )
-        assert( os.path.exists( '%s/usr/local/bin/ersatz_lxdm.sh' % ( self.mountpoint ) ) )
+        if not os.path.exists( '%s%s/src/chromeos-3.4/arch/arm/boot/vmlinux.uimg' % ( self.mountpoint, self.kernel_src_basedir ) ):
+            system_or_die( 'cp -f /tmp/.vmlinuz.uimg %s%s/src/chromeos-3.4/arch/arm/boot/vmlinux.uimg' % ( self.mountpoint, self.kernel_src_basedir ) )
+        for f in ( '/etc/lxdm/lxdm.conf', self.kernel_src_basedir + '/src/chromeos-3.4/arch/arm/boot/vmlinux.uimg',
+                  '/lib/firmware/mrvl/sd8797_uapsta.bin', '/usr/local/bin/chrubix.sh', '/usr/local/bin/ersatz_lxdm.sh' ):
+            if not os.path.exists( self.mountpoint + f ):
+                failed( '%f does not exist' % ( f ) )
         system_or_die( 'rm -f %s/.squashfs.sqfs /.squashfs.sqfs' % ( self.mountpoint ) )
         res = ask_the_user__temp_or_perm( self.mountpoint )
         if res == 'T':
@@ -868,6 +876,10 @@ exit 0
         unmount_sys_tmp_proc_n_dev( self.mountpoint )
         logme( 'leaving phase 6 of 6. FYI, total number of lines = %d' % ( chrubix.utils.get_total_lines_so_far() ) )
         chrubix.utils.set_total_lines_so_far( chrubix.utils.get_expected_duration_of_install() )
+
+    def install_moose( self ):
+        chroot_this( self.mountpoint, """yes "Yes" | perl -MCPAN -e 'install Moose'""",
+                    status_lst = self.status_lst, title_str = self.title_str, on_fail = 'Failed to install moose' )
 
     def build_and_install_software_from_archlinux_git( self, package_name, yes_download = True, yes_build = True, yes_install = True, quiet = False ):
     #    pkgbuild_url_template = 'https://projects.archlinux.org/svntogit/packages.git/plain/trunk/%s?h=packages/%s'
@@ -1052,7 +1064,7 @@ exit 0
         mytitle = ( self.name + ( '' if self.branch is None else ' ' + self.branch ) ).title()
         do_a_sed( '%s/usr/local/bin/Chrubix/src/ui/AlarmistGreeter.ui' % ( self.mountpoint ), 'W E L C O M E', 'Welcome to %s' % ( mytitle ) )
         os.system( 'rm -f %s/usr/local/bin/redo_mbr' % ( self.mountpoint ) )
-        system_or_die( 'chmod +x %s/usr/local/bin/*' % ( self.mountpoint ) )
+        chroot_this( self.mountpoint, 'chmod +x /usr/local/bin/*' )
 #        chroot_this( self.mountpoint, 'chmod +x /usr/local/bin/*' )
 #        system_or_die( 'cp -af /tmp %s/usr/local/bin/Chrubix/bash/chrubix.sh' % ( self.mountpoint ) )
         for f in 'blobs/apps/freenet.tar.xz src/chrubix/distros/alarmist.py blobs/settings/x_alarm_chrubuntu.zip bash/chrubix.sh bash/greeter.sh bash/modify_sources.sh bash/redo_mbr.sh src/main.py src/greeter.py src/tinker.py'.split( ' ' ):
@@ -1071,6 +1083,7 @@ exit 0
         flaws = 0
         self.status_lst.append( ['Checking sanity of distro'] )
         system_or_die( 'chmod +x %s/usr/local/*' % ( self.mountpoint ) )  # Shouldn't be necessary... but it is. For some reason, greeter.sh and CHRUBIX aren't executable. Grr.
+        assert( os.path.exists( '%s%s/src/chromeos-3.4/arch/arm/boot/vmlinux.uimg' % ( self.mountpoint, self.kernel_src_basedir ) ) )
         for executable_to_find in ( 
                                     'startlxde', 'lxdm', 'wifi_auto.sh', 'wifi_manual.sh', \
                                     'chrubix.sh', 'mkinitcpio', 'dtc', 'wmsystemtray', 'florence', \
@@ -1162,7 +1175,10 @@ exit 0
 
     def install_leap_bitmask( self ):
         logme( 'Installing leap bitmask' )
-        self.status_lst.append( 'Installing leap bitmask' )
+        self.status_lst.append( 'Installing leap bitmask' )  # TODO: Move the PySide installer into Phase B (A? C?)
+        if not os.path.exists( '%s/usr/local/bin/qmake' % ( self.mountpoint ) ):
+            chroot_this( self.mountpoint, 'ln -sf `find /usr -type f -name qmake` /usr/local/bin/qmake' )
+        chroot_this( self.mountpoint, 'easy_install-2.7 PySide', status_lst = self.status_lst, title_str = self.title_str, on_fail = 'Failed to install PySide' )
         f = open( '%s/tmp/install_leap_bitmask.sh' % ( self.mountpoint ), 'w' )
         f.write( '''#!/bin/bash
 failed() {
@@ -1196,9 +1212,10 @@ if ! yes | python2 setup.py install ; then
 fi
 pip2 install --no-dependencies leap.bitmask && return 0 || echo "Continuing"
 rm -f `find /usr/lib/python2.7/site-packages | grep psutil`
-ln -sf `find /usr -type f -name qmake` /usr/local/bin/qmake
-easy_install-2.7 psutil==1.2.1
-easy_install-2.7 --no-deps leap.bitmask || failed "Failed to install leap.bitmask"
+easy_install-2.7 psutil==1.2.1 leap.common markerlib leap.bitmask || failed "Failed to install leap.bitmask" python-gnupg
+chmod 644 -R /usr/lib/python2.7/*
+ln -sf /usr/lib/python2.7/site-packages/PySide*2.7*egg/PySide/libshiboken-python2.7* /usr/lib/
+ln -sf /usr/lib/python2.7/site-packages/PySide*2.7*egg/PySide/libpyside-python2.7* /usr/lib/
 exit 0
 ''' % ( self.sources_basedir ) )
         f.close()
@@ -1345,6 +1362,8 @@ WantedBy=multi-user.target
         self.redo_mbr( root_partition_device = self.root_dev, chroot_here = self.mountpoint )
         self.status_lst[-1] += '...rebuilt.'
         assert( os.path.exists( '%s%s/src/chromeos-3.4/arch/arm/boot/vmlinux.uimg' % ( self.mountpoint, self.kernel_src_basedir ) ) )
+        assert( not self.kernel_rebuild_required )
+        system_or_die( 'cp -f %s%s/src/chromeos-3.4/arch/arm/boot/vmlinux.uimg /tmp/.vmlinux.uimg' % ( self.mountpoint, self.kernel_src_basedir ) )
 
     def quit( self ):
         failed( 'NEFARIOUS PORPOISES' )
@@ -1371,15 +1390,15 @@ WantedBy=multi-user.target
                                 self.install_all_important_packages_in_OS,
                                 self.save_for_posterity_if_possible_A )
         second_stage = ( 
-                                self.install_chrubix,
-                                self.install_urwid_PySide_and_dropbox_uploader,
-                                self.install_mkinitcpio_ramwipe_hooks,
                                 self.install_timezone,
+                                self.install_urwid_and_dropbox_uploader,
+                                self.install_leap_bitmask,
+                                self.install_mkinitcpio_ramwipe_hooks,
                                 self.download_modify_and_build_kernel_and_mkfs,
                                 self.save_for_posterity_if_possible_B )
         third_stage = ( 
-                                self.reinstall_chrubix_if_missing,
-                                self.install_leap_bitmask,
+                                self.install_chrubix,
+                                self.install_moose,
                                 self.install_gpg_applet,
                                 self.install_panic_button,
                                 self.install_freenet,
@@ -1392,6 +1411,7 @@ WantedBy=multi-user.target
                                 self.install_vbutils_and_firmware_from_cbook,
                                 self.configure_dbus_sudo_and_groups,
                                 self.configure_lxdm_login_manager,
+                                self.configure_boot_process,
                                 self.configure_privacy_tools,
                                 self.configure_chrome_or_iceweasel,
                                 self.configure_networking,
@@ -1401,6 +1421,7 @@ WantedBy=multi-user.target
                                 self.configure_distrospecific_tweaks,
                                 self.make_sure_all_usr_local_bin_are_executable,
                                 self.remove_all_junk,
+                                self.forcibly_rebuild_initramfs_and_vmlinux,  #                                self.redo_mbr( self.root_dev, self.mountpoint ),  # This forces the creation of vmlinux.uimg
                                 self.check_sanity_of_distro,
                                 self.nop if not MAXIMUM_COMPRESSION else self.save_for_posterity_if_possible_D )
         fifth_stage = ( 
@@ -1427,7 +1448,9 @@ WantedBy=multi-user.target
             checkpoint_number = 0
         logme( 'Starting at checkpoint#%d' % ( checkpoint_number ) )
         for myfunc in all_my_funcs[checkpoint_number:]:
-            logme( 'Running %s' % ( myfunc.__name__ ) )
+            logme( 'QQQ Running %s' % ( myfunc.__name__ ) )
+            if not os.path.exists( '%s%s/src/chromeos-3.4/arch/arm/boot/vmlinux.uimg' % ( self.mountpoint, self.kernel_src_basedir ) ):
+                logme( 'QQQ FYI, vmlinux.uimg is missing' )
             myfunc()
             checkpoint_number += 1
             write_oneliner_file( '%s/.checkpoint.txt' % ( self.mountpoint ), str( checkpoint_number ) )
