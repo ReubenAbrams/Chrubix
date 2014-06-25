@@ -105,6 +105,12 @@ res=999
     all=""
     while [ "`echo "$all" | wc -c`" -lt "4" ] ; do
         all="`nmcli --nocheck device wifi list | grep -v "SSID.*BSSID" | sed s/'    '/^/ | cut -d'^' -f1 | awk '{printf ", " substr($0,2,length($0)-2);}' | sed s/', '//`"
+        if [ "$all" == "" ] ; then
+            if ! ps wax | fgrep nm-applet | grep -v grep ; then
+                nm-applet &
+            fi
+            exit 0
+        fi
         sleep 1
         echo -en "."
     done
