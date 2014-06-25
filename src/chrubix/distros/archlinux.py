@@ -18,8 +18,9 @@ twisted python2-yaml python2-distutils-extra python2-gobject python2-cairo pytho
 bcprov gtk-engine-unico gtk-engine-murrine gtk-engines xorg-fonts xorg-font-utils xorg-fonts-encodings \
 libreoffice-en-US libreoffice-common libreoffice-gnome libxfixes python2-pysqlite \
 xorg-server xorg-xinit xf86-input-synaptics xf86-video-fbdev xf86-video-armsoc xlockmore \
-mate mate-themes-extras mate-nettool mate-mplayer mate-accountsdialog python2-pysqlite \
-xorg-server-utils xorg-xmessage librsvg icedtea-web-java7 gconf hunspell-en chromium thunderbird windowmaker'
+mate mate-themes-extras mate-nettool mate-mplayer mate-accountsdialog python2-pysqlite gtk2-perl \
+xorg-server-utils xorg-xmessage librsvg icedtea-web-java7 gconf hunspell-en chromium thunderbird windowmaker \
+'
     install_from_AUR = 'ttf-ms-fonts gtk-theme-adwaita-x win-xp-theme wmsystemtray python2-pyptlib hachoir-core hachoir-parser mat obfsproxy java-service-wrapper i2p'  # pulseaudio-ctl pasystray-git ssss florence
     final_push_packages = Distro.final_push_packages + ' lxdm network-manager-applet'
 
@@ -177,6 +178,8 @@ xorg-server-utils xorg-xmessage librsvg icedtea-web-java7 gconf hunspell-en chro
                 self.status_lst[-1] += ' ' + my_fname.split( '-' )[0]
             else:
                 failed( 'Failed to install ' + my_fname.split( '-' )[0] )
+#        perl-cpan-meta-check perl-class-load-xs perl-eval-closure perl-mro-compat perl-package-depreciationmanager perl-sub-name perl-task-weaken \
+# perl-test-checkdeps perl-test-without-module perl-moose
         failed_pkgs = self.install_from_AUR
         attempts = 0
         while failed_pkgs != '' and attempts < 5:
@@ -203,4 +206,5 @@ xorg-server-utils xorg-xmessage librsvg icedtea-web-java7 gconf hunspell-en chro
         self.downgrade_systemd_if_necessary( None )  # '213-5' )
         self.status_lst[-1] += '...complete.'
 
-
+    def configure_boot_process( self ):
+        logme( 'configure_boot_process() --- No further action need be taken.' )
