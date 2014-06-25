@@ -10,7 +10,6 @@ from chrubix.utils import logme
 from chrubix import generate_distro_record_from_name, save_distro_record, load_distro_record
 
 
-
 if __name__ == "__main__":
     main_list = ( 
                 'pulseaudio -k',  # 'start-pulseaudio-x11',
@@ -20,9 +19,10 @@ if __name__ == "__main__":
                 'touch /tmp/.okConnery.thisle.44',
                 'xset s off',
                 'xset -dpms',
-                'florence & sleep 3; florence hide',
-                'if ps wax | fgrep mate-session | fgrep -v grep ; then pulseaudio -k; mpg123 /etc/.mp3/winxp.mp3; fi',
                 'dconf write /apps/florence/controller/floaticon false'
+                'florence &',  # & sleep 3; florence hide
+                'gpgApplet &',
+                'if ps wax | fgrep mate-session | fgrep -v grep ; then pulseaudio -k; mpg123 /etc/.mp3/winxp.mp3; fi',
                )
     go_online_list = ( 
                       'ps wax | fgrep nm-applet | fgrep -v grep || nm-applet',
