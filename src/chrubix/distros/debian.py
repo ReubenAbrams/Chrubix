@@ -69,6 +69,7 @@ def do_debian_specific_mbr_related_hacks( mountpoint ):
 
 
 def generate_mickeymouse_lxdm_patch( mountpoint, lxdm_package_path, output_patch_file ):
+    failed( 'Noooo.' )
     insert_this_code = 'baaa'  # '''if (187==system("bash /usr/local/bin/ersatz_lxdm.sh")) exit(187);'''
     logme( 'generate_mickeymouse_lxdm_patch() --- entering (mountpoint=%s, output_patch_file=%s' % ( mountpoint, output_patch_file ) )
     lxdm_folder_basename = [ r for r in call_binary( ['ls', '%s%s/' % ( mountpoint, lxdm_package_path )] )[1].decode( 'utf-8' ).split( '\n' ) if r.find( 'lxdm-' ) >= 0 ][0]
@@ -116,7 +117,7 @@ mat myspell-en-us msttcorefonts xorg xserver-xorg-input-synaptics xul-ext-https-
 pulseaudio paprefs pulseaudio-module-jack pavucontrol paman alsa-tools-gui alsa-oss mythes-en-us \
 libpisock-dev uno-libs3 libgtk-3-bin libbcprov-java gtk2-engines-murrine libc6-dev \
 e2fslibs-dev debhelper python-dev libffi-dev python-dev libffi-dev libsqlite3-dev \
-software-properties-common libssl-dev u-boot-tools \
+software-properties-common libssl-dev u-boot-tools libgtk2-perl libmoose-perl \
 '  # Warning! Monkeysign pkg might be broken.
 # gtk-engines-unico python-distutil-extra ? python-distusil-extra python-gobject python-qrencode python-imaging
     final_push_packages = Distro.final_push_packages + ' \
@@ -300,7 +301,7 @@ Acquire::https::Proxy "https://%s/";
     def configure_distrospecific_tweaks( self ):
         logme( 'DebianDistro - configure_distrospecific_tweaks() - starting' )
         self.status_lst.append( ['Installing distro-specific tweaks'] )
-        do_debian_specific_lxdm_related_hacks( self.mountpoint )
+#        do_debian_specific_lxdm_related_hacks( self.mountpoint )
         do_debian_specific_mbr_related_hacks( self.mountpoint )
         if os.path.exists( '%s/etc/apt/apt.conf' % ( self.mountpoint ) ):
             for to_remove in ( 'ftp', 'http' ):
@@ -315,9 +316,9 @@ Acquire::https::Proxy "https://%s/";
         self.status_lst.append( '...mickeymousing lxdm' )
         p = '%s/%s' % ( self.sources_basedir, 'lxdm' )
         patch_pathname = '%s/debian/patches/99_mickeymouse.patch' % ( p )
-        generate_mickeymouse_lxdm_patch( self.mountpoint, p, patch_pathname )
-        chroot_this( self.mountpoint, '''set -e; cd %s/lxdm/lxdm-*; for f in `find ../../debian/patches/*.patch`; do patch -p1 < $f; done; make; make install''' \
-% ( self.sources_basedir ), status_lst = self.status_lst, title_str = self.title_str, on_fail = 'Failed to mickeymouse lxdm' )
+#        generate_mickeymouse_lxdm_patch( self.mountpoint, p, patch_pathname )
+#        chroot_this( self.mountpoint, '''set -e; cd %s/lxdm/lxdm-*; for f in `find ../../debian/patches/*.patch`; do patch -p1 < $f; done; make; make install''' \
+# % ( self.sources_basedir ), status_lst = self.status_lst, title_str = self.title_str, on_fail = 'Failed to mickeymouse lxdm' )
         logme( 'DebianDistro - configure_distrospecific_tweaks() - leaving' )
 
     def install_final_push_of_packages( self ):
@@ -524,6 +525,15 @@ Acquire::https::Proxy "https://%s/";
 
     def install_package_manager_tweaks( self ):
         self.install_debianspecific_package_manager_tweaks()
+
+    def configure_boot_process( self ):
+        do_a_sed( '%s/etc/inittab' % ( self.mountpoint ), '1:2345:respawn:/sbin/getty 38400 tty1', '1:2345:respawn:/bin/login -f YOUR_USER_NAME tty1 </dev/tty1 >/dev/tty1 2>&1' )
+        write_oneliner_file( '%s/root/.bash_profile' % ( self.mountpoint ), '''#!/bin/sh
+if [ -z "$DISPLAY" ] && [ $(tty) == /dev/tty1 ]; then
+    bash /usr/local/bin/ersatz_lxdm.sh
+fi
+''' )
+
 
 class WheezyDebianDistro( DebianDistro ):
     important_packages = DebianDistro.important_packages + ' libetpan15'
