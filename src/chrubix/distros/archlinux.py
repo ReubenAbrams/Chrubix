@@ -17,8 +17,8 @@ libnotify talkfilters java-runtime libxmu apache-ant junit zbar python2-setuptoo
 twisted python2-yaml python2-distutils-extra python2-gobject python2-cairo python2-poppler python2-pdfrw \
 bcprov gtk-engine-unico gtk-engine-murrine gtk-engines xorg-fonts xorg-font-utils xorg-fonts-encodings \
 libreoffice-en-US libreoffice-common libreoffice-gnome libxfixes python2-pysqlite \
-xorg-server xorg-xinit xf86-input-synaptics xf86-video-fbdev xf86-video-armsoc xlockmore \
-mate mate-themes-extras mate-nettool mate-mplayer mate-accountsdialog python2-pysqlite gtk2-perl \
+xorg-server xorg-xinit xf86-input-synaptics xf86-video-fbdev xf86-video-armsoc xlockmore phonon \
+mate mate-themes-extras mate-nettool mate-mplayer mate-accountsdialog python2-pysqlite gtk2-perl automoc4 \
 xorg-server-utils xorg-xmessage librsvg icedtea-web-java7 gconf hunspell-en chromium thunderbird windowmaker \
 '
     install_from_AUR = 'ttf-ms-fonts gtk-theme-adwaita-x win-xp-theme wmsystemtray python2-pyptlib hachoir-core hachoir-parser mat obfsproxy java-service-wrapper i2p'  # pulseaudio-ctl pasystray-git ssss florence
@@ -87,9 +87,12 @@ xorg-server-utils xorg-xmessage librsvg icedtea-web-java7 gconf hunspell-en chro
             logme( 'Installed%s OK' % ( ''.join( [' ' + r for r in lst] ) ) )
             self.status_lst[-1] += '.'
 #            self.status_lst[-1] += ' %d%%' % ( progress * 100 // len( packages_lst ) )
-        self.status_lst[-1] += 'installed.'
         if failed_packages != '':
             self.status_lst[-1] += [ ' I failed to install%s, however.' % ( failed_packages )]
+        for pkg in ( 'shiboken', 'python-pyside' ):
+            self.status_lst[-1] += '.'
+            self.build_and_install_software_from_archlinux_source( pkg, quiet = False )
+        self.status_lst[-1] += 'installed.'
         system_or_die( 'rm -Rf %s/var/cache/apt/archives/*' % ( self.mountpoint ) )
 
 #    def download_kernel_source( self ):  # This also downloads all the other PKGBUILDs (for btrfs-progs, jfsutils, etc.)

@@ -799,7 +799,7 @@ exit 0
         for f in ( '/etc/lxdm/lxdm.conf', self.kernel_src_basedir + '/src/chromeos-3.4/arch/arm/boot/vmlinux.uimg',
                   '/lib/firmware/mrvl/sd8797_uapsta.bin', '/usr/local/bin/chrubix.sh', '/usr/local/bin/ersatz_lxdm.sh' ):
             if not os.path.exists( self.mountpoint + f ):
-                failed( '%f does not exist' % ( f ) )
+                failed( '%s%s does not exist' % ( self.mountpoint, f ) )
         system_or_die( 'rm -f %s/.squashfs.sqfs /.squashfs.sqfs' % ( self.mountpoint ) )
         res = ask_the_user__temp_or_perm( self.mountpoint )
         if res == 'T':
@@ -1176,9 +1176,10 @@ exit 0
     def install_leap_bitmask( self ):
         logme( 'Installing leap bitmask' )
         self.status_lst.append( 'Installing leap bitmask' )  # TODO: Move the PySide installer into Phase B (A? C?)
-        if not os.path.exists( '%s/usr/local/bin/qmake' % ( self.mountpoint ) ):
-            chroot_this( self.mountpoint, 'ln -sf `find /usr -type f -name qmake` /usr/local/bin/qmake' )
-        chroot_this( self.mountpoint, 'easy_install-2.7 PySide', status_lst = self.status_lst, title_str = self.title_str, on_fail = 'Failed to install PySide' )
+        chroot_this( self.mountpoint, 'easy_install-2.7 psutil==1.2.1 leap.common markerlib leap.bitmask',
+            status_lst = self.status_lst, title_str = self.title_str )
+        if 0 != chroot_this( self.mountpoint, 'which qmake' ):
+            chroot_this( self.mountpoint, 'ln -sf `find /usr -type f -name qmake | head -n1` /usr/local/bin/qmake', on_fail = 'Failed to link to qmake' )
         f = open( '%s/tmp/install_leap_bitmask.sh' % ( self.mountpoint ), 'w' )
         f.write( '''#!/bin/bash
 failed() {
@@ -1210,12 +1211,10 @@ cd client
 if ! yes | python2 setup.py install ; then
     pip2 install leap.soledad || failed "I think I failed to install soledad"
 fi
-pip2 install --no-dependencies leap.bitmask && return 0 || echo "Continuing"
+pip2 install leap.bitmask && return 0 || echo "Continuing"
 rm -f `find /usr/lib/python2.7/site-packages | grep psutil`
 easy_install-2.7 psutil==1.2.1 leap.common markerlib leap.bitmask || failed "Failed to install leap.bitmask" python-gnupg
 chmod 644 -R /usr/lib/python2.7/*
-ln -sf /usr/lib/python2.7/site-packages/PySide*2.7*egg/PySide/libshiboken-python2.7* /usr/lib/
-ln -sf /usr/lib/python2.7/site-packages/PySide*2.7*egg/PySide/libpyside-python2.7* /usr/lib/
 exit 0
 ''' % ( self.sources_basedir ) )
         f.close()
@@ -1388,11 +1387,11 @@ WantedBy=multi-user.target
                                 self.configure_hostname,
                                 self.update_barebones_OS,
                                 self.install_all_important_packages_in_OS,
+                                self.install_leap_bitmask,
                                 self.save_for_posterity_if_possible_A )
         second_stage = ( 
                                 self.install_timezone,
                                 self.install_urwid_and_dropbox_uploader,
-                                self.install_leap_bitmask,
                                 self.install_mkinitcpio_ramwipe_hooks,
                                 self.download_modify_and_build_kernel_and_mkfs,
                                 self.save_for_posterity_if_possible_B )
