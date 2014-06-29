@@ -251,7 +251,7 @@ Acquire::https::Proxy "https://%s/";
         else:
             self.status_lst.append( ['Installed %d packages successfully' % ( len( packages_installed_succesfully ) )] )
             self.status_lst[-1] += '...but we failed to install%s. Retrying...' % ( ''.join( [' ' + r for r in packages_that_we_failed_to_install] ) )
-            chroot_this( self.mountpoint, 'yes 2>/dev/null | aptitude install%s' % ( ''.join( [' ' + r for r in packages_that_we_failed_to_install] ) ),
+            chroot_this( self.mountpoint, 'yes "Yes" 2>/dev/null | aptitude install%s' % ( ''.join( [' ' + r for r in packages_that_we_failed_to_install] ) ),
                          status_lst = self.status_lst, title_str = self.title_str,
                          on_fail = 'Failed to install formerly failed packages' )
         if os.path.exists( '%s/usr/bin/python3' % ( self.mountpoint ) ):
@@ -342,7 +342,7 @@ Acquire::https::Proxy "https://%s/";
             self.install_expatriate_software_into_a_debianish_OS( package_name = 'lxdm', method = 'ubuntu' )
         self.status_lst.append( ['Installing remaining packages'] )
 #        self.status_lst.append( ['Installing %s' % ( self.final_push_packages.replace( '  ', ' ' ).replace( ' ', ', ' ) )] )
-        chroot_this( self.mountpoint, 'yes "" | aptitude install %s' % ( self.final_push_packages ),
+        chroot_this( self.mountpoint, 'yes "Yes" | aptitude install %s' % ( self.final_push_packages ),
                      title_str = self.title_str, status_lst = self.status_lst,
                      on_fail = 'Failed to install final push of packages' )
         self.status_lst[-1] += '...there.'
@@ -424,6 +424,8 @@ Acquire::https::Proxy "https://%s/";
         if self.status_lst is not None:
             self.status_lst.append( ["Repackaging %s" % ( package_name )] )
         assert( package_name != 'linux-chromebook' )
+        chroot_this( self.mountpoint, 'yes "" 2>/dev/null | apt-get build-dep %s' % ( package_name ),
+                     title_str = self.title_str, status_lst = self.status_lst )
 #        if package_name == 'lxdm' and
         if os.path.exists( '%s%s/core/%s' % ( self.mountpoint, self.sources_basedir, package_name ) ):
             self.status_lst[-1] += ' (FYI, reusing old %s sources)' % ( package_name )
@@ -528,13 +530,17 @@ Acquire::https::Proxy "https://%s/";
         self.install_debianspecific_package_manager_tweaks()
 
     def configure_boot_process( self ):
-        do_a_sed( '%s/etc/inittab' % ( self.mountpoint ), '1:2345:respawn:/sbin/getty 38400 tty1', '1:2345:respawn:/bin/login -f YOUR_USER_NAME tty1 </dev/tty1 >/dev/tty1 2>&1' )
-        write_oneliner_file( '%s/root/.bash_profile' % ( self.mountpoint ), '''#!/bin/sh
-if [ -z "$DISPLAY" ] && [ $(tty) == /dev/tty1 ]; then
-    bash /usr/local/bin/ersatz_lxdm.sh
-fi
-''' )
-
+#        do_a_sed( '%s/etc/inittab' % ( self.mountpoint ), '1:2345:respawn:/sbin/getty 38400 tty1', '1:2345:respawn:/bin/login -f YOUR_USER_NAME tty1 </dev/tty1 >/dev/tty1 2>&1' )
+#        write_oneliner_file( '%s/root/.bash_profile' % ( self.mountpoint ), '''#!/bin/sh
+# if [ -z "$DISPLAY" ] && [ $(tty) == /dev/tty1 ]; then
+#    bash /usr/local/bin/ersatz_lxdm.sh
+# fi
+        do_a_sed( '%s/etc/inittab' % ( self.mountpoint ), 'id:.*:initdefault', 'id:5:initdefault' )
+        do_a_sed( '%s/etc/inittab' % ( self.mountpoint ), 'x:5:.*', '' )
+        f = open( '%s/etc/inittab' % ( self.mountpoint ), 'a' )  # This is not a typo. 'a' means 'append'.
+        f.write( '''
+x:5:respawn:/usr/local/bin/ersatz_lxdm.sh''' )
+        f.close()
 
 class WheezyDebianDistro( DebianDistro ):
     important_packages = DebianDistro.important_packages + ' libetpan15'
