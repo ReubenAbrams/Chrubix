@@ -8,9 +8,15 @@
 import sys
 import os
 from chrubix import generate_distro_record_from_name
-from chrubix.utils import fix_broken_hyperlinks, system_or_die
+from chrubix.utils import fix_broken_hyperlinks, system_or_die, chroot_this
 from chrubix.distros.debian import generate_mickeymouse_lxdm_patch
 from chrubix.utils.postinst import remove_junk, ask_the_user__guest_mode_or_user_mode__and_create_one_if_necessary
+
+
+try:
+    a = FileNotFoundError
+except:
+    FileNotFoundError = RuntimeError
 
 try:
     import urwid
@@ -156,6 +162,21 @@ elif argv[2] == 'tweak-lxdm-source':
     distro.spare_dev = '/dev/mmcblk1p2'
     p = '%s/%s' % ( distro.sources_basedir, 'lxdm' )
     generate_mickeymouse_lxdm_patch( distro.mountpoint, p, '%s/debian/patches/99_mickeymouse.patch' % ( p ) )
+elif argv[2] == 'chromium':
+    distro = generate_distro_record_from_name( argv[3] )
+    distro.mountpoint = '/tmp/_root'
+    distro.device = '/dev/mmcblk1'
+    distro.root_dev = '/dev/mmcblk1p3'
+    distro.spare_dev = '/dev/mmcblk1p2'
+    chroot_this( distro.mountpoint, 'yes "" 2>/dev/null | apt-get build-dep chromium' )
+    distro.build_and_install_package_from_deb_or_ubu_source( 'chromium-browser', 'https://packages.debian.org/' + argv[3] )
+elif argv[2] == 'install-bitmask':
+    distro = generate_distro_record_from_name( argv[3] )
+    distro.mountpoint = '/tmp/_root'
+    distro.device = '/dev/mmcblk1'
+    distro.root_dev = '/dev/mmcblk1p3'
+    distro.spare_dev = '/dev/mmcblk1p2'
+    distro.install_leap_bitmask()
 else:
     raise RuntimeError ( 'I do not understand %s' % ( argv[2] ) )
 os.system( 'sleep 5' )
