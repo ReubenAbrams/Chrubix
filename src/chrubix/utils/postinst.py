@@ -100,20 +100,20 @@ manual_mode() {
 logger "QQQ wifi-manual --- starting"
 res=999
 #clear
-  while [ "$res" -ne "0" ] ; do
+while [ "$res" -ne "0" ] ; do
     echo -en "Searching..."
     all=""
-#    while [ "`echo "$all" | wc -c`" -lt "4" ] ; do
-#        all="`nmcli --nocheck device wifi list | grep -v "SSID.*BSSID" | sed s/'    '/^/ | cut -d'^' -f1 | awk '{printf ", " substr($0,2,length($0)-2);}' | sed s/', '//`"
-#        if [ "$all" == "" ] ; then
+    while [ "`echo "$all" | wc -c`" -lt "4" ] ; do
+        all="`nmcli --nocheck dev wifi list | grep -v "SSID.*BSSID" | sed s/'    '/^/ | cut -d'^' -f1 | awk '{printf ", " substr($0,2,length($0)-2);}' | sed s/', '//`"
+        if [ "$all" = "" ] ; then
             if ! ps wax | fgrep nm-applet | grep -v grep ; then
                 nm-applet &
             fi
-            exit 0
-#        fi
-#        sleep 1
-#        echo -en "."
-#    done
+            break
+        fi
+        sleep 1
+        echo -en "."
+    done
     echo "\n\nAvailable networks: $all" | wrap -w 79
     echo ""
     echo -en "WiFi ID: "
@@ -124,8 +124,8 @@ res=999
     echo -en "Working..."
     nmcli --nocheck dev wifi connect "$id" password "$pw" && res=0 || res=1
     [ "$res" -ne "0" ] && echo "Bad ID and/or password. Try again." || echo "Success"
-  done
-  return 0
+done
+return 0
 }
 # -------------------------
 cat /etc/.alarmist.cfg 2>/dev/null | grep spoof | grep yes &>/dev/null && macchanger -r mlan0
@@ -373,12 +373,9 @@ fi
 exit $?
 ''' )
     system_or_die( 'chmod +x %s' % ( iceweasel_path ) )
-    pretend_chrome = os.path.dirname( iceweasel_path ) + '/chromium'
-    assert( not os.path.exists( pretend_chrome ) )
-    system_or_die( 'ln -sf chromium %s' % ( iceweasel_path ) )
-
-
-
+    pretend_chromium = os.path.dirname( iceweasel_path ) + '/chromium'
+    assert( not os.path.exists( pretend_chromium ) )
+    system_or_die( 'ln -sf iceweasel %s' % ( pretend_chromium ) )
 
 
 def install_chromium_privoxy_wrapper( chrome_path ):
@@ -595,6 +592,30 @@ exit 0
         failed( 'How do I hook power button into this distro?' )
 # activate acpi (sort of)
     chroot_this( mountpoint, 'systemctl enable acpid' )
+
+
+def write_boom_script( mountpoint, devices ):
+    fname_out = '%s/usr/local/bin/boom.sh' % ( mountpoint )
+    wipe_devices = ''
+    for dev in devices:
+        wipe_devices += '''dd if=/dev/urandom of=%s bs=1024k count=1 2> /dev/null
+''' % ( dev )
+    write_oneliner_file( fname_out, '''#!/bin/sh
+# If home partition, please unmount it & wipe it; also, delete its Dropbox key fragment.
+# .... Yep. Here.
+# Next, wipe all initial sectors
+%s sync;sync;sync # :-)
+# Finally, instant shutdown! Yeah!
+echo 3        > /proc/sys/kernel/printk
+echo 3        > /proc/sys/vm/drop_caches
+echo 256      > /proc/sys/vm/min_free_kbytes
+echo 1        > /proc/sys/vm/overcommit_memory
+echo 1        > /proc/sys/vm/oom_kill_allocating_task
+echo 0        > /proc/sys/vm/oom_dump_tasks
+echo 1        > /proc/sys/kernel/sysrq
+echo o        > /proc/sysrq-trigger
+''' % ( wipe_devices ) )
+    system_or_die( 'chmod +x %s' % ( fname_out ) )
 
 
 def check_and_if_necessary_fix_password_file( mountpoint, comment ):

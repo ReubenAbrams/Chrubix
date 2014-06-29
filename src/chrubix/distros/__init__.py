@@ -18,7 +18,7 @@ from chrubix.utils.postinst import write_lxdm_post_login_file, write_lxdm_pre_lo
             install_chrome_or_iceweasel_privoxy_wrapper, remove_junk, tweak_xwindow_for_cbook, install_panicbutton, \
             check_and_if_necessary_fix_password_file, install_insecure_browser, append_proxy_details_to_environment_file, \
             setup_onceaminute_timer, setup_onceeverythreeseconds_timer, write_lxdm_service_file, ask_the_user__temp_or_perm, \
-            add_user_to_the_relevant_groups, write_login_ready_file, setup_poweroffifunplugdisk_service
+            add_user_to_the_relevant_groups, write_login_ready_file, setup_poweroffifunplugdisk_service, write_boom_script
 from chrubix.utils.mbr import install_initcpio_wiperamonshutdown_files
 from xml.dom import NotFoundErr
 
@@ -27,7 +27,7 @@ class Distro():
     '''
     '''
     # Class-level consts
-    hewwo = '2014/06/24 @ 11:17'
+    hewwo = '2014/06/28 @ 18:32'
     crypto_rootdev = "/dev/mapper/cryptroot"
     crypto_homedev = "/dev/mapper/crypthome"
     boot_prompt_string = "boot: "
@@ -646,6 +646,7 @@ Choose the 'boom' password : """ ).strip( '\r\n\r\n\r' )
 
     def install_panic_button( self ):
         install_panicbutton( self.mountpoint , self.boomfname )
+        write_boom_script( self.mountpoint, ( self.root_dev, self.kernel_dev, self.spare_dev, self.device ) )
 
     def configure_hostname( self ):
         write_oneliner_file( '%s/etc/hostname' % ( self.mountpoint ), self.name )
@@ -672,6 +673,8 @@ Choose the 'boom' password : """ ).strip( '\r\n\r\n\r' )
         setup_poweroffifunplugdisk_service( self.mountpoint )
 
     def configure_chrome_or_iceweasel( self ):
+#        if 0 != chroot_this( self.mountpoint, 'which chromium', status_lst = self.status_lst, title_str = self.title_str ):
+#            self.build_and_install_package_from_deb_or_ubu_source( 'chromium-browser', 'https://packages.debian.org/' + self.branch )
         install_chrome_or_iceweasel_privoxy_wrapper( self.mountpoint )
         install_insecure_browser ( self.mountpoint )
         install_guest_browser_script( self.mountpoint )  # TODO: I'm not sure... Is this script still necessary?
@@ -1180,8 +1183,7 @@ exit 0
             status_lst = self.status_lst, title_str = self.title_str )
         if 0 != chroot_this( self.mountpoint, 'which qmake' ):
             chroot_this( self.mountpoint, 'ln -sf `find /usr -type f -name qmake | head -n1` /usr/local/bin/qmake', on_fail = 'Failed to link to qmake' )
-        f = open( '%s/tmp/install_leap_bitmask.sh' % ( self.mountpoint ), 'w' )
-        f.write( '''#!/bin/bash
+        write_oneliner_file( '%s/tmp/install_leap_bitmask.sh' % ( self.mountpoint ), '''#!/bin/bash
 failed() {
     echo "$1" >> /dev/stderr
     exit 1
@@ -1189,17 +1191,13 @@ failed() {
 
 #export http_proxy=
 #export ftp_proxy=
-
 which pip2 || ln -sf pip-2.7 /usr/bin/pip2
-
 for pkg in keyring pysqlcipher pyOpenSSL ; do
   yes "" 2>/dev/null | pip2 install $pkg || echo "Failed to install $pkg."
 done
-
 if ! yes "" 2>/dev/null | pip2 install keyring pysqlcipher pyOpenSSL ; then
     yes "" | easy_install-2.7 keyring pysqlcipher pyOpenSSL
 fi
-
 easy_install-2.7 u1db || echo "Warning - error occurred while installing u1db"
 cd %s
 rm -Rf soledad
@@ -1211,13 +1209,15 @@ cd client
 if ! yes | python2 setup.py install ; then
     pip2 install leap.soledad || failed "I think I failed to install soledad"
 fi
-pip2 install leap.bitmask && return 0 || echo "Continuing"
+mkdir -p /tmp/qqq
+cd /tmp/qqq
 rm -f `find /usr/lib/python2.7/site-packages | grep psutil`
-easy_install-2.7 psutil==1.2.1 leap.common markerlib leap.bitmask || failed "Failed to install leap.bitmask" python-gnupg
+easy_install-2.7 psutil==1.2.1
+easy_install markerlib leap.common
+pip2 install --no-dependencies leap.bitmask || failed "Failed to install leap.bitmask"
 chmod 644 -R /usr/lib/python2.7/*
 exit 0
 ''' % ( self.sources_basedir ) )
-        f.close()
         os.system( 'chmod +x %s/tmp/install_leap_bitmask.sh' % ( self.mountpoint ) )
         if 0 != chroot_this( self.mountpoint, 'bash /tmp/install_leap_bitmask.sh',
                                         status_lst = self.status_lst, title_str = self.title_str,
@@ -1268,17 +1268,18 @@ WorkingDirectory=/opt/freenet
 WantedBy=multi-user.target
 ''' )
         logme( 'Installing freenet from Java jar file' )
-        wget( url = 'https://freenetproject.org/jnlp/freenet_installer.jar', save_as_file = '%s/.new_installer_offline.jar' % ( self.mountpoint ),
-                                                        status_lst = self.status_lst, title_str = self.title_str )
-        chroot_this( self.mountpoint, 'su -l freenet /.install_freenet_like_this.sh', attempts = 1,
-                          status_lst = self.status_lst, title_str = self.title_str )
+#        wget( url = 'https://freenetproject.org/jnlp/freenet_installer.jar', save_as_file = '%s/.new_installer_offline.jar' % ( self.mountpoint ),
+#                                                        status_lst = self.status_lst, title_str = self.title_str )
+#        chroot_this( self.mountpoint, 'su -l freenet /.install_freenet_like_this.sh', attempts = 1,
+#                          status_lst = self.status_lst, title_str = self.title_str )
         system_or_die( 'rm -f %s/.new_installer_offline.jar' % ( self.mountpoint ) )
         system_or_die( 'rm -f %s/.install_freenet_like_this.sh' % ( self.mountpoint ) )
         if os.path.exists( '%s/opt/freenet/bin/wrapper' % ( self.mountpoint ) ) and os.path.exists( '%s/opt/freenet/run.sh' % ( self.mountpoint ) ):
             system_or_die( 'ln -sf wrapper-linux-armhf-32 %s/opt/freenet/bin/wrapper' % ( self.mountpoint ) )
         else:
             logme( 'OK. Traditional install of freenet failed. I shall do it from tarball instead.' )
-            chroot_this( self.mountpoint, 'tar -Jxf /usr/local/bin/Chrubix/blobs/apps/freenet.tar.xz -C /' )
+            chroot_this( self.mountpoint, 'tar -Jxf /usr/local/bin/Chrubix/blobs/apps/freenet.tar.xz -C /', on_fail = 'Failed to install Freenet from tarball' )
+        chroot_this( self.mountpoint, 'chown freenet.freenet /opt/freenet', on_fail = 'Failed to chown freenet folder' )
 
     def save_for_posterity_if_possible_A( self ):
         return self.save_for_posterity_if_possible( '_A' )
@@ -1387,7 +1388,6 @@ WantedBy=multi-user.target
                                 self.configure_hostname,
                                 self.update_barebones_OS,
                                 self.install_all_important_packages_in_OS,
-                                self.install_leap_bitmask,
                                 self.save_for_posterity_if_possible_A )
         second_stage = ( 
                                 self.install_timezone,
@@ -1398,15 +1398,16 @@ WantedBy=multi-user.target
         third_stage = ( 
                                 self.install_chrubix,
                                 self.install_moose,
+                                self.install_leap_bitmask,
                                 self.install_gpg_applet,
-                                self.install_panic_button,
-                                self.install_freenet,
                                 self.install_final_push_of_packages,  # Chrubix, wmsystemtray, boom scripts, GUI, networking, ...
                                 self.forcibly_rebuild_initramfs_and_vmlinux,
                                 self.save_for_posterity_if_possible_C )  # self.nop
 # From this point on, assume Internet access is gone.
         fourth_stage = ( 
                                 self.reinstall_chrubix_if_missing,
+                                self.install_panic_button,
+                                self.install_freenet,
                                 self.install_vbutils_and_firmware_from_cbook,
                                 self.configure_dbus_sudo_and_groups,
                                 self.configure_lxdm_login_manager,
