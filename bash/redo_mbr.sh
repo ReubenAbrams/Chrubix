@@ -318,7 +318,7 @@ $STOP_JFS_HANGUPS
 mdev -s
 mkdir -p /newroot
 /log_me_in.sh
-if [ \"\$?\" -eq \"0\" ] && [ -x \"/newroot/sbin/init\" ] ; then
+if [ \"\$?\" -eq \"0\" ] ; then
 #	$smileydecoder
     echo -en \"boot: \"
 #	echo \"'A man is not idle because he is absorbed in thought. There is visible labor and there is invisible labor.' - Victor Hugo\"
