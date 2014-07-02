@@ -125,7 +125,7 @@ xorg-server-utils xorg-xmessage librsvg icedtea-web-java7 gconf hunspell-en chro
                 file_to_download = '%s/%s/%s/%s' % ( self.mountpoint, self.sources_basedir, package_name, fname )
                 try:
                     os.unlink( file_to_download )
-                except FileNotFoundError:
+                except IOError:
                     pass
                 wget( url = 'http://projects.archlinux.org/svntogit/packages.git/plain/trunk/%s?h=packages/%s' \
                                  % ( fname, package_name ), save_as_file = file_to_download, attempts = 20,
@@ -141,7 +141,7 @@ xorg-server-utils xorg-xmessage librsvg icedtea-web-java7 gconf hunspell-en chro
         package_name = os.path.basename( source_pathname )
         package_path = os.path.dirname( source_pathname )
         str_to_add = "Kernel & rootfs" if package_name == 'linux-chromebook' else "%s" % ( package_name )
-        self.status_lst.append( [ str_to_add ] )
+        self.status_lst[-1] += '...' + str_to_add
         chroot_this( self.mountpoint, 'cd %s && makepkg --skipchecksums --asroot --noextract -f ' % ( source_pathname ), \
                                 "Failed to chroot make %s within %s" % ( package_name, package_path ),
                                 title_str = self.title_str, status_lst = self.status_lst )
