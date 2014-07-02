@@ -432,7 +432,7 @@ modify_kernel_mmc_source() {
 
 	echo "Modifying $mmc_file"
 	key_str="Select card, "
-	replacement="$key_str \*\/ `chunkymunky "card->cid.serial" "$serialno" "$haystack" "$extra_if" int` \/\* "
+	replacement="$key_str `chunkymunky "card->cid.serial" "$serialno" "$haystack" "$extra_if" int`"
 	modify_kernel_source_file "$mmc_file" "$key_str" "$replacement"
 
 	echo "Modifying $sd_file"
