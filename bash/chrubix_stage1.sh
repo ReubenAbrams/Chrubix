@@ -28,6 +28,8 @@ if [ "$USER" != "root" ] ; then
 fi
 
 
+
+
 ALARPY_URL="https://dl.dropboxusercontent.com/u/59916027/chrubix/skeletons/alarpy.tar.xz"
 FINALS_URL="https://dl.dropboxusercontent.com/u/59916027/chrubix/finals"
 CHRUBIX_URL=https://github.com/ReubenAbrams/Chrubix/archive/master.tar.gz
@@ -452,8 +454,44 @@ MEH: No encryption. No duress password. Changes are permanent. Guest Mode is sti
 }
 
 
+
+try_mbr_etc_hack() {
+	dev=/dev/mmcblk1
+	dev_p="$dev"p
+	root=/tmp/_root.`basename $dev`
+	boot=/tmp/_boot.`basename $dev`
+	kern=/tmp/_kern.`basename $dev`
+	btstrap=$root/.bootstrap
+	mkdir -p $root
+	mount "$dev_p"3 $root
+	mkdir -p $btstrap/{dev,proc,tmp,sys}
+	mkdir -p $root/{dev,proc,tmp,sys}
+	mount devtmpfs  $btstrap/dev -t devtmpfs	|| echo -en ""
+	mount sysfs     $btstrap/sys -t sysfs		|| echo -en ""
+	mount proc      $btstrap/proc -t proc		|| echo -en ""
+	mount tmpfs     $btstrap/tmp -t tmpfs		|| echo -en ""
+	mkdir -p $btstrap/tmp/_root
+	mount -o noatime "$dev_p"3 $btstrap/tmp/_root		|| echo -en ""
+	mount devtmpfs $btstrap/tmp/_root/dev -t devtmpfs	|| echo -en ""
+	mount tmpfs $btstrap/tmp/_root/tmp -t tmpfs			|| echo -en ""
+	mount proc $btstrap/tmp/_root/proc -t proc			|| echo -en ""
+	mount sys $btstrap/tmp/_root/sys -t sysfs			|| echo -en ""
+	tar -cz /usr/bin/vbutil* /usr/bin/old_bins /usr/bin/futility > $btstrap/tmp/.vbtools.tgz 2>/dev/null
+	tar -cz /usr/share/vboot > $btstrap/tmp/.vbkeys.tgz 2>/dev/null #### MAKE SURE CHRUBIX HAS ACCESS TO Y-O-U-R KEYS and YOUR vbutil* binaries ####
+	tar -cz /lib/firmware > $btstrap/tmp/.firmware.tgz 2>/dev/null # save firmware!
+	chroot_this $btstrap "/usr/local/bin/chrubix.sh tinker mbr-etc"
+	sync;sync;sync
+	umount $btstrap/tmp/_root/{dev,tmp,proc,sys} $btstrap/tmp/_root $btstrap/{dev,tmp,proc,sys} $btstrap
+	exit $? 
+}
+
+
 ##################################################################################################################################
 
+
+if [ "$1" = "mbr-etc" ] ; then
+	try_mbr_etc_hack
+fi
 
 echo "Chrubix ------ starting now"
 umount /tmp/_root*/.bootstrap/tmp/_root/{dev,tmp,proc,sys}
