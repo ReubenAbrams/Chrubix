@@ -341,7 +341,7 @@ def fix_broken_hyperlinks( dir_to_fix ):
             if os.path.exists( '%s/../%s' % ( dir_to_fix, filename ) ):
                 system_or_die( 'ln -sf ../%s %s/%s' % ( filename, dir_to_fix, filename ) )
             else:
-                raise FileNotFoundError( 'Unable to fix %s/%s' % ( dir_to_fix, filename ) )
+                raise IOError( 'Unable to fix %s/%s' % ( dir_to_fix, filename ) )
 
 def patch_kernel( mountpoint, folder, url ):
     tmpfile = generate_temporary_filename( '/tmp' )
