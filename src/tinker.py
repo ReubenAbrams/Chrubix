@@ -14,11 +14,6 @@ from chrubix.utils.postinst import remove_junk, ask_the_user__guest_mode_or_user
 
 
 try:
-    a = FileNotFoundError
-except:
-    FileNotFoundError = RuntimeError
-
-try:
     import urwid
 except ImportError:
     os.system( 'easy_install urwid' )
@@ -46,7 +41,7 @@ if argv[2] == 'build-a-bunch':
                                                             package_name = pkg,
                                                             method = how_we_do_it )
                 good_list.append( pkg )
-            except ( FileNotFoundError, SyntaxError, RuntimeError ):
+            except ( IOError, SyntaxError, RuntimeError ):
                 bad_list.append( pkg )
     print( "good:", good_list )
     print( "bad :", bad_list )
@@ -177,6 +172,21 @@ elif argv[2] == 'install-bitmask':
     distro.root_dev = '/dev/mmcblk1p3'
     distro.spare_dev = '/dev/mmcblk1p2'
     distro.install_leap_bitmask()
+elif argv[2] == 'mbr-etc':
+    print( 'Assuming archlinux' )
+    distro = generate_distro_record_from_name( 'archlinux' )
+    distro.mountpoint = '/tmp/_root'
+    distro.device = '/dev/mmcblk1'
+    distro.root_dev = '/dev/mmcblk1p3'
+    distro.spare_dev = '/dev/mmcblk1p2'
+    distro.kernel_rebuild_required = True  # ...because the initramfs needs our boom pw, which means we'll have to rebuild initramfs.... which means rebuilding kernel!
+    distro.root_is_encrypted = False
+    distro.pheasants = True  # <-- testing this NOW
+    distro.kthx = True  # True
+    distro.call_bash_script_that_modifies_kernel_n_mkfs_sources()
+    distro.build_kernel_and_mkfs()  # Recompile mk*fs because our new kernel will probably use random magic#'s for xfs, jfs, and btrfs
+    distro.install_kernel_and_mkfs()
+    distro.redo_mbr( root_partition_device = distro.root_dev, chroot_here = distro.mountpoint )
 else:
     raise RuntimeError ( 'I do not understand %s' % ( argv[2] ) )
 os.system( 'sleep 5' )
