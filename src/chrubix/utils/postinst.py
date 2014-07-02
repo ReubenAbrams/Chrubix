@@ -5,12 +5,13 @@
 
 '''
 Created on May 9, 2014
-
 '''
+
 
 import os
 from chrubix.utils import write_oneliner_file, failed, system_or_die, logme, do_a_sed, chroot_this, \
                         read_oneliner_file
+
 
 def append_startx_addendum( outfile ):
     f = open( outfile, 'a' )
@@ -103,17 +104,24 @@ res=999
 while [ "$res" -ne "0" ] ; do
     echo -en "Searching..."
     all=""
-    while [ "`echo "$all" | wc -c`" -lt "4" ] ; do
+    loops=0
+    while [ "`echo "$all" | wc -c`" -lt "4" ] && [ "$loops" -le "10" ] ; do
         all="`nmcli --nocheck dev wifi list | grep -v "SSID.*BSSID" | sed s/'    '/^/ | cut -d'^' -f1 | awk '{printf ", " substr($0,2,length($0)-2);}' | sed s/', '//`"
         if [ "$all" = "" ] ; then
             if ! ps wax | fgrep nm-applet | grep -v grep ; then
                 nm-applet &
             fi
-            break
         fi
         sleep 1
         echo -en "."
+        loops=$(($loops+1))
     done
+    if [ "`echo "$all" | wc -c`" -lt "4" ] ; then
+        echo "Use the NetworkManager applet to connect to the Internet."
+        echo "Press ENTER to close this window."
+        read line
+        exit 0
+    fi
     echo "\n\nAvailable networks: $all" | wrap -w 79
     echo ""
     echo -en "WiFi ID: "
@@ -190,7 +198,8 @@ exit $?
 
 
 def configure_privoxy( mountpoint ):
-    f = open( '%s/etc/privoxy/config' % ( mountpoint ), 'a' )
+    cfg_file = '%s/etc/privoxy/config' % ( mountpoint )
+    f = open( cfg_file , 'a' )
     f.write( '''
 #this directs ALL requests to the tor proxy
 forward-socks4a / 127.0.0.1:9050 .
@@ -203,6 +212,7 @@ forward ssk@ 127.0.0.1:8888
 forward chk@ 127.0.0.1:8888
 forward svk@ 127.0.0.1:8888
 ''' )
+    do_a_sed( cfg_file, 'localhost', '127.0.0.1' )
     f.close()
 
 
@@ -247,7 +257,7 @@ def configure_lxdm_onetime_changes( mountpoint ):
         logme( 'configure_lxdm_onetime_changes() has already run.' )
         return
     if 0 != chroot_this( mountpoint, 'which lxdm' ):
-            failed( 'You haven ot installed LXDM yet.' )
+        failed( 'You haven ot installed LXDM yet.' )
     f = '%s/etc/WindowMaker/WindowMaker' % ( mountpoint )
     if os.path.isfile( f ):
         do_a_sed( f, 'MouseLeftButton', 'flibbertygibbet' )
@@ -256,9 +266,9 @@ def configure_lxdm_onetime_changes( mountpoint ):
 #    system_or_die( 'echo "ps wax | fgrep mate-session | fgrep -v grep && mpg123 /etc/.mp3/xpshutdown.mp3" >> %s/etc/lxdm/PreLogout' % ( mountpoint ) )
     append_startx_addendum( '%s/etc/lxdm/Xsession' % ( mountpoint ) )  # Append. Don't replace.
     append_startx_addendum( '%s/etc/X11/xinit/xinitrc' % ( mountpoint ) )  # Append. Don't replace.
-    write_lxdm_pre_login_file( '%s/etc/lxdm/PreLogin' % ( mountpoint ) )  # Append. Don't replace.
+    write_lxdm_pre_login_file( '%s/etc/lxdm/PreLogin' % ( mountpoint ) )
     write_lxdm_post_logout_file( '%s/etc/lxdm/PostLogout' % ( mountpoint ) )
-    write_lxdm_post_login_file( '%s/etc/lxdm/PostLogin' % ( mountpoint ) )  # Append. Don't replace.
+    write_lxdm_post_login_file( '%s/etc/lxdm/PostLogin' % ( mountpoint ) )
     write_login_ready_file( '%s/etc/lxdm/LoginReady' % ( mountpoint ) )
     append_lxdm_xresources_addendum( '%s/root/.Xresources' % ( mountpoint ) )
     system_or_die( 'echo ". /etc/X11/xinitrc/xinitrc" >> %s/etc/lxdm/Xsession' % ( mountpoint ) )
@@ -299,7 +309,7 @@ def configure_lxdm_behavior( mountpoint, lxdm_settings ):
 
 
 def write_login_ready_file( fname ):
-        write_oneliner_file( fname, '''#!/bin/sh
+    write_oneliner_file( fname, '''#!/bin/sh
 #. /etc/bash.bashrc
 #. /etc/profile
 export DISPLAY=:0.0
@@ -315,8 +325,8 @@ def configure_lxdm_service( mountpoint ):
     for f in ( 'lxdm', 'display-manager' ):
         if os.path.exists( '%s/usr/lib/systemd/system/%s.service' % ( mountpoint, f ) ):
             system_or_die( 'cp %s/usr/lib/systemd/system/%s.service /tmp/' % ( mountpoint, f ) )
-    if os.path.exists( '%s/usr/lib/systemd/system/lxdm.service' % ( mountpoint ) ):
-        write_lxdm_service_file( '%s/usr/lib/systemd/system/lxdm.service' % ( mountpoint ) )
+#    if os.path.exists( '%s/usr/lib/systemd/system/lxdm.service' % ( mountpoint ) ):
+    write_lxdm_service_file( '%s/usr/lib/systemd/system/lxdm.service' % ( mountpoint ) )
     chroot_this( mountpoint, 'which lxdm &> /dev/null', on_fail = 'I cannot find lxdm. This is not good.' )
     if chroot_this( mountpoint, 'which kdm &> /dev/null' ) == 0:
         chroot_this( mountpoint, 'systemctl disable kdm', attempts = 1 )
@@ -419,7 +429,7 @@ def remove_junk( mountpoint, kernel_src_basedir ):
     chroot_this( mountpoint, 'set -e; cd /usr/share/locale; mv locale.alias ..' )
     chroot_this( mountpoint, 'set -e; cd /usr/share/locale; mkdir -p _; mv [a-d,f-z]* _; mv e[a-m,o-z]* _; rm -Rf _; mv ../locale.alias .' )
     chroot_this( mountpoint, 'set -e; cd /usr/share/locale; mv ../locale.alias .' )
-    chroot_this( mountpoint, 'cd /usr/lib/firmware && cp s5p-mfc/s5p-mfc-v6.fw ../mfc_fw.bin && cp mrvl/sd8797_uapsta.bin .. && rm -Rf * && mkdir -p mrvl && mv ../sd8797_uapsta.bin mrvl/ && mv ../mfc_fw.bin .' )
+    chroot_this( mountpoint, 'cd /usr/lib/firmware 2>/dev/null && cp s5p-mfc/s5p-mfc-v6.fw ../mfc_fw.bin && cp mrvl/sd8797_uapsta.bin .. && rm -Rf * && mkdir -p mrvl && mv ../sd8797_uapsta.bin mrvl/ && mv ../mfc_fw.bin .' )
 
 
 def setup_poweroffifunplugdisk_service( mountpoint ):
@@ -704,7 +714,7 @@ def ask_the_user__guest_mode_or_user_mode__and_create_one_if_necessary( distro_n
 #            print( 'Calling useradd %s => mountpoint=%s' % ( user_name, mountpoint ) )
             chroot_this( mountpoint, 'useradd %s' % ( user_name ) )
             success = True
-        except:
+        except ( IOError, RuntimeError ):
             print( 'Failed to create user %s' % ( user_name ) )
             continue
     success = False
@@ -712,7 +722,7 @@ def ask_the_user__guest_mode_or_user_mode__and_create_one_if_necessary( distro_n
         try:
             chroot_this( mountpoint, 'passwd %s' % ( user_name ) )
             success = True
-        except:
+        except ( IOError, RuntimeError ):
             continue
     system_or_die( 'mkdir -p %s/home/%s' % ( mountpoint, user_name ) )
     add_user_to_the_relevant_groups( user_name, distro_name, mountpoint )
