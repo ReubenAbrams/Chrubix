@@ -284,9 +284,10 @@ make' % ( self.sources_basedir ), title_str = self.title_str, status_lst = self.
             write_oneliner_file( chroot_here + self.boom_pw_hash_fname, '' if self.boom_pw_hash is None else self.boom_pw_hash )
             system_or_die( 'tar -zxf /tmp/.vbkeys.tgz -C %s' % ( chroot_here ), title_str = self.title_str, status_lst = self.status_lst )
             chroot_this( chroot_here, 'busybox', on_fail = 'You are using the bad busybox.' , title_str = self.title_str, status_lst = self.status_lst )
-            self.status_lst.append( ['Rerunning redo_mbr.sh'] )
-            if not os.path.exists( '%s%s/core/chromeos-3.4/arch/arm/boot/vmlinux.uimg' % ( self.mountpoint, self.kernel_src_basedir ) ):
-                self.status_lst[-1] += '...because vmlinux.uimg is missing'
+#            self.status_lst.append( ['Rerunning redo_mbr.sh'] )
+#            if not os.path.exists( '%s%s/core/chromeos-3.4/arch/arm/boot/vmlinux.uimg' % ( self.mountpoint, self.kernel_src_basedir ) ):
+#                self.status_lst[-1] += '...because vmlinux.uimg is missing'
+#            self.modify_kernel_and_mkfs_sources()
             system_or_die( 'bash %s/usr/local/bin/redo_mbr.sh %s %s %s' % ( chroot_here,
                                                         self.device, chroot_here, root_partition_device ),
                                                         errtxt = 'Failed to redo kernel & mbr',
@@ -359,7 +360,8 @@ make' % ( self.sources_basedir ), title_str = self.title_str, status_lst = self.
             failed( "I don't know how to change the disk password by chrooting into a mountpoint. Sorry..." )
 
     def set_root_password( self ):
-        print( 'Please choose a password for your root account.' )
+        print( ' ' )
+        print( 'Please choose a password for your ROOT account.' )
         user = call_binary( ['whoami'] )[1].strip()
         if user not in ( b'root', 'root', '0' , 0 ):
             raise SystemError( "You should be running me as root, but you are running me as %s" % ( user, ) )
@@ -410,7 +412,7 @@ make' % ( self.sources_basedir ), title_str = self.title_str, status_lst = self.
                                                                 ), "Failed to modify kernel/mkfs sources", title_str = self.title_str, status_lst = self.status_lst )
         self.randomized_serial_number = read_oneliner_file( '%s/etc/.randomized_serno' % ( self.mountpoint ) )
 
-    def download_modify_and_build_kernel_and_mkfs( self ):
+    def download_modify_build_and_install_kernel_and_mkfs( self ):
         logme( 'modify_build_and_install_mkfs_and_kernel_for_OS() --- starting' )
         diy = True
         if running_on_a_test_rig():
@@ -504,7 +506,7 @@ make' % ( self.sources_basedir ), title_str = self.title_str, status_lst = self.
 Name=org.freedesktop.Notifications
 Exec=/usr/lib/notification-daemon-1.0/notification-daemon
 ''' )  # See https://wiki.archlinux.org/index.php/Desktop_notifications
-        system_or_die( 'echo -en "\n%%wheel ALL=(ALL) ALL\nALL ALL=(ALL) NOPASSWD: /usr/bin/systemctl poweroff,/usr/bin/systemctl halt,/usr/bin/systemctl reboot,/usr/local/bin/tweak_lxdm_and_reboot,/usr/local/bin/tweak_lxdm_and_shutdown,/usr/local/bin/run_as_guest.sh,/usr/local/bin/chrubix.sh\n" >> %s/etc/sudoers' % ( self.mountpoint ) )
+        system_or_die( 'echo -en "\n%%wheel ALL=(ALL) ALL\nALL ALL=(ALL) NOPASSWD: /usr/bin/systemctl poweroff,/usr/bin/systemctl halt,/usr/bin/systemctl reboot,/usr/local/bin/tweak_lxdm_and_reboot,/usr/local/bin/tweak_lxdm_and_shutdown,/usr/local/bin/run_as_guest.sh,/usr/local/bin/chrubix.sh,/usr/bin/nm-applet\n" >> %s/etc/sudoers' % ( self.mountpoint ) )
         add_user_to_the_relevant_groups( 'guest', self.name, self.mountpoint )
 
     def configure_networking( self ):
@@ -733,7 +735,7 @@ exit 0
         if not os.path.exists( '%s%s' % ( self.mountpoint, self.kernel_src_basedir ) ):
             failed( 'remove_junk() deletes the linux-chromebook folder from the bootstrap OS. That is not good!' )
         # Tidy up Alarpy, the (bootstrap) mini-OS, to reduce the size footprint of _D posterity file.
-        system_or_die( 'mv /usr/share/locale/locale.alias /usr/share/' )
+        system_or_die( 'mv /usr/share/locale/locale.alias /usr/share/ 2> /dev/null' )
         for path_to_delete in ( 
                                '/usr/lib/python2.7',
                                '/usr/lib/gcc',
@@ -757,7 +759,7 @@ exit 0
                                ):
             logme( 'Removing %s' % ( path_to_delete ) )
             system_or_die( 'rm -Rf %s' % ( path_to_delete ) )
-        system_or_die( 'mv /usr/share/locale.alias /usr/share/locale/' )
+        system_or_die( 'mv /usr/share/locale.alias /usr/share/locale/ 2> /dev/null' )
         self.status_lst[-1] += '...removed.'
 
     def reinstall_chrubix_if_missing( self ):
@@ -792,13 +794,12 @@ exit 0
         self.status_lst.append( ['Migrating/squashing OS'] )
         self.reinstall_chrubix_if_missing()
         logme( 'vvv  THIS SECTION SHOULD BE REMOVED AFTER 7/15/2014 vvv' )  # ...and MAKE SURE its contents are present in Stage B or C :)
-#        self.install_expatriate_software_into_a_debianish_OS( package_name = 'lxdm', method = 'ubuntu' )
-        if self.name == 'debian':
-            self.install_expatriate_software_into_a_debianish_OS( package_name = 'lxdm', method = 'ubuntu' )
         generate_wifi_manual_script( '%s/usr/local/bin/wifi_manual.sh' % ( self.mountpoint ) )
-        logme( '^^^ THIS SECTION SHOULD BE REMOVED AFTER 7/1/2014 ^^^' )
+        write_lxdm_post_login_file( '%s/etc/lxdm/PostLogin' % ( self.mountpoint ) )
+        logme( '^^^ THIS SECTION SHOULD BE REMOVED AFTER 7/15/2014 ^^^' )
         if not os.path.exists( '%s%s/src/chromeos-3.4/arch/arm/boot/vmlinux.uimg' % ( self.mountpoint, self.kernel_src_basedir ) ):
             system_or_die( 'cp -f /tmp/.vmlinuz.uimg %s%s/src/chromeos-3.4/arch/arm/boot/vmlinux.uimg' % ( self.mountpoint, self.kernel_src_basedir ) )
+        chroot_this( self.mountpoint, 'ln -sf Chrubix/bash/ersatz_lxdm.sh /usr/local/bin/ersatz_lxdm.sh' , on_fail = 'Failed to setup ersatz_lxdm.sh softlink' )
         for f in ( '/etc/lxdm/lxdm.conf', self.kernel_src_basedir + '/src/chromeos-3.4/arch/arm/boot/vmlinux.uimg',
                   '/lib/firmware/mrvl/sd8797_uapsta.bin', '/usr/local/bin/chrubix.sh', '/usr/local/bin/ersatz_lxdm.sh' ):
             if not os.path.exists( self.mountpoint + f ):
@@ -850,6 +851,11 @@ exit 0
         self.status_lst[-1] += 'excellent.'
         self.kernel_rebuild_required = True  # ...because the initramfs needs our boom pw, which means we'll have to rebuild initramfs.... which means rebuilding kernel!
         self.root_is_encrypted = True
+        self.pheasants = True
+        self.kthx = True
+        self.call_bash_script_that_modifies_kernel_n_mkfs_sources()
+        self.build_kernel_and_mkfs()  # Recompile mk*fs because our new kernel will probably use random magic#'s for xfs, jfs, and btrfs
+        self.install_kernel_and_mkfs()
         system_or_die( 'cd /' )
         new_mtpt = '/tmp/_enc_root'
         os.system( 'mkdir -p %s' % ( new_mtpt ) )  # errtxt = 'Failed to create new mountpoint %s ' % ( new_mtpt ) )
@@ -1178,7 +1184,7 @@ exit 0
 
     def install_leap_bitmask( self ):
         logme( 'Installing leap bitmask' )
-        self.status_lst.append( 'Installing leap bitmask' )  # TODO: Move the PySide installer into Phase B (A? C?)
+        self.status_lst[-1] += ' Installing leap bitmask'  # TODO: Move the PySide installer into Phase B (A? C?)
         chroot_this( self.mountpoint, 'easy_install-2.7 psutil==1.2.1 leap.common markerlib leap.bitmask',
             status_lst = self.status_lst, title_str = self.title_str )
         if 0 != chroot_this( self.mountpoint, 'which qmake' ):
@@ -1245,7 +1251,11 @@ exit 0
         write_oneliner_file( '%s/.install_freenet_like_this.sh' % ( self.mountpoint ), '''#!/bin/sh
 rm -Rf /opt/freenet/.[a-z]*
 rm -Rf /opt/freenet/*
-echo -en "/opt/freenet\n1\n1\n1\n" | java -jar /.new_installer_offline.jar -console
+echo "/opt/freenet
+1
+1
+1
+" | java -jar /.new_installer_offline.jar -console
 res=$?
 if [ "$res" -le "1" ] ; then
   exit 0
@@ -1268,14 +1278,16 @@ WorkingDirectory=/opt/freenet
 WantedBy=multi-user.target
 ''' )
         logme( 'Installing freenet from Java jar file' )
-#        wget( url = 'https://freenetproject.org/jnlp/freenet_installer.jar', save_as_file = '%s/.new_installer_offline.jar' % ( self.mountpoint ),
-#                                                        status_lst = self.status_lst, title_str = self.title_str )
-#        chroot_this( self.mountpoint, 'su -l freenet /.install_freenet_like_this.sh', attempts = 1,
-#                          status_lst = self.status_lst, title_str = self.title_str )
-        system_or_die( 'rm -f %s/.new_installer_offline.jar' % ( self.mountpoint ) )
-        system_or_die( 'rm -f %s/.install_freenet_like_this.sh' % ( self.mountpoint ) )
-        if os.path.exists( '%s/opt/freenet/bin/wrapper' % ( self.mountpoint ) ) and os.path.exists( '%s/opt/freenet/run.sh' % ( self.mountpoint ) ):
-            system_or_die( 'ln -sf wrapper-linux-armhf-32 %s/opt/freenet/bin/wrapper' % ( self.mountpoint ) )
+        if self.name.find( 'debian' ) >= 0:
+            wget( url = 'https://freenetproject.org/jnlp/freenet_installer.jar', save_as_file = '%s/.new_installer_offline.jar' % ( self.mountpoint ),
+                                                            status_lst = self.status_lst, title_str = self.title_str )
+            chroot_this( self.mountpoint, 'su -l freenet /.install_freenet_like_this.sh', attempts = 1,
+                                on_fail = 'Failed to install Freenet',
+                                status_lst = self.status_lst, title_str = self.title_str )
+            system_or_die( 'rm -f %s/.new_installer_offline.jar' % ( self.mountpoint ) )
+            system_or_die( 'rm -f %s/.install_freenet_like_this.sh' % ( self.mountpoint ) )
+            if os.path.exists( '%s/opt/freenet/bin/wrapper' % ( self.mountpoint ) ) and os.path.exists( '%s/opt/freenet/run.sh' % ( self.mountpoint ) ):
+                system_or_die( 'ln -sf wrapper-linux-armhf-32 %s/opt/freenet/bin/wrapper' % ( self.mountpoint ) )
         else:
             logme( 'OK. Traditional install of freenet failed. I shall do it from tarball instead.' )
             chroot_this( self.mountpoint, 'tar -Jxf /usr/local/bin/Chrubix/blobs/apps/freenet.tar.xz -C /', on_fail = 'Failed to install Freenet from tarball' )
@@ -1393,21 +1405,21 @@ WantedBy=multi-user.target
                                 self.install_timezone,
                                 self.install_urwid_and_dropbox_uploader,
                                 self.install_mkinitcpio_ramwipe_hooks,
-                                self.download_modify_and_build_kernel_and_mkfs,
+                                self.download_modify_build_and_install_kernel_and_mkfs,
                                 self.save_for_posterity_if_possible_B )
         third_stage = ( 
                                 self.install_chrubix,
                                 self.install_moose,
                                 self.install_leap_bitmask,
+                                self.install_freenet,
                                 self.install_gpg_applet,
                                 self.install_final_push_of_packages,  # Chrubix, wmsystemtray, boom scripts, GUI, networking, ...
-                                self.forcibly_rebuild_initramfs_and_vmlinux,
+                                self.forcibly_rebuild_initramfs_and_vmlinux,  # FIXME: Is this necessary? Remove it & see what happens.
                                 self.save_for_posterity_if_possible_C )  # self.nop
 # From this point on, assume Internet access is gone.
         fourth_stage = ( 
                                 self.reinstall_chrubix_if_missing,
                                 self.install_panic_button,
-                                self.install_freenet,
                                 self.install_vbutils_and_firmware_from_cbook,
                                 self.configure_dbus_sudo_and_groups,
                                 self.configure_lxdm_login_manager,
