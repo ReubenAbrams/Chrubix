@@ -274,7 +274,7 @@ def chroot_this( mountpoint, cmd, on_fail = None, attempts = 3, title_str = None
         failed( '%s not found --- are you sure the chroot is operational?' % ( mountpoint ) )
 
     f = open( mountpoint + my_executable_script, 'wb' )
-    outstr = '#!/bin/sh\n%s\n%s\nexit $?\n' % ( proxy_info, cmd )
+    outstr = '#!/bin/bash\n%s\n%s\nexit $?\n' % ( proxy_info, cmd )
     f.write( outstr.encode( 'utf-8' ) )
     f.close()
     system_or_die( 'chmod +x %s' % ( mountpoint + my_executable_script ) )
@@ -373,7 +373,7 @@ def disable_root_password( mountpoint ):
 
 
 def write_spoof_script_file( my_spoof_script_fname ):  # Typically, this is used by Alarmist only.
-    write_oneliner_file( my_spoof_script_fname, '''#!/bin/sh
+    write_oneliner_file( my_spoof_script_fname, '''#!/bin/bash
 IF=$1
 STATUS=$2
 

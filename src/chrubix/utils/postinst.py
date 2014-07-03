@@ -32,7 +32,7 @@ logger "QQQ startx end of startx addendum"
 
 def write_lxdm_post_login_file( outfile ):
     f = open( outfile, 'w' )
-    f.write( '''#!/bin/sh
+    f.write( '''#!/bin/bash
 #. /etc/bash.bashrc
 #. /etc/profile
 liu=/tmp/.logged_in_user
@@ -50,7 +50,7 @@ python3 /usr/local/bin/Chrubix/src/lxdm_post_login.py
 
 def write_lxdm_post_logout_file( outfile ):
     f = open( outfile, 'w' )
-    f.write( '''#!/bin/sh
+    f.write( '''#!/bin/bash
 
 #. /etc/bash.bashrc
 #. /etc/profile
@@ -69,13 +69,13 @@ fi
 
 def write_lxdm_pre_login_file( outfile ):
     f = open( outfile, 'w' )
-    f.write( '''#!/bin/sh
+    f.write( '''#!/bin/bash
 #. /etc/bash.bashrc
 #. /etc/profile
 [ -e "/tmp/_root.old" ] && rm /tmp/_root.old
 [ -e "/tmp/_root" ] && mv /tmp/_root /tmp/_root.old
 ln -sf / /tmp/_root
-
+#chmod -R 755 /run/user        # FIXME: Makes pulseaudio and nm-applet work better under Debian... but is an ugly hack
 ''' )
     f.close()
 
@@ -95,7 +95,14 @@ URxvt.matcher.button: 1
 
 
 def generate_wifi_manual_script( outfile ):
-    write_oneliner_file( outfile, '''#/bin/sh
+    write_oneliner_file( outfile, '''#/bin/bash
+
+
+GetAvailableNetworks() {
+    nmcli --nocheck dev wifi list | grep -v "SSID.*BSSID" | sed s/'    '/^/ | cut -d'^' -f1 | awk '{printf ", " substr($0,2,length($0)-2);}' | sed s/', '//
+}
+
+
 lockfile=/tmp/.go_online_manual.lck
 manual_mode() {
 logger "QQQ wifi-manual --- starting"
@@ -105,18 +112,15 @@ while [ "$res" -ne "0" ] ; do
     echo -en "Searching..."
     all=""
     loops=0
-    while [ "`echo "$all" | wc -c`" -lt "4" ] && [ "$loops" -le "10" ] ; do
-        all="`nmcli --nocheck dev wifi list | grep -v "SSID.*BSSID" | sed s/'    '/^/ | cut -d'^' -f1 | awk '{printf ", " substr($0,2,length($0)-2);}' | sed s/', '//`"
-        if [ "$all" = "" ] ; then
-            if ! ps wax | fgrep nm-applet | grep -v grep ; then
-                nm-applet &
-            fi
-        fi
-        sleep 1
+    while [ "`echo "$all" | wc -c`" -lt "4" ] && [ "$loops" -le "8" ] ; do
+        all=`GetAvailableNetworks 2> /dev/null`
+        sleep 0.5
         echo -en "."
         loops=$(($loops+1))
     done
     if [ "`echo "$all" | wc -c`" -lt "4" ] ; then
+        echo ""
+        echo "-----------------------------------------------------------"
         echo "Use the NetworkManager applet to connect to the Internet."
         echo "Press ENTER to close this window."
         read line
@@ -144,7 +148,7 @@ exit $?
 
 
 def generate_wifi_auto_script( outfile ):
-    write_oneliner_file( outfile, '''#/bin/sh
+    write_oneliner_file( outfile, '''#/bin/bash
 lockfile=/tmp/.go_online_auto.lck
 try_to_connect() {
   local lst res netname_tabbed netname
@@ -234,7 +238,7 @@ def install_guest_browser_script( mountpoint ):
     system_or_die( 'echo "H4sIAF52SVMAA1WMvQrCMBzE9zzF2YYukkYfoBbBVQXnTKZ/TaBJpEmhQx/eUNTidMd9/MqNvFsvo2EsudfD9tTIbGQXhKOa346X0/X8L3UekzYBgjyK8gtQnu+Vp8kmKN4qX+AA/mEybVzosJ3WJI4QPZ4jxQShfzmqCgPFZod5Xgxv2eDW28LnuWBvkUV8bboAAAA=" \
 | base64 -d | gunzip > %s/usr/local/bin/run_as_guest.sh' % ( mountpoint ) )
     system_or_die( 'chmod +x %s/usr/local/bin/run_as_guest.sh' % ( mountpoint ) )
-    write_oneliner_file( '%s/usr/local/bin/run_browser_as_guest.sh' % ( mountpoint ), '''#!/bin/sh
+    write_oneliner_file( '%s/usr/local/bin/run_browser_as_guest.sh' % ( mountpoint ), '''#!/bin/bash
 GUEST_HOMEDIR=/tmp/.guest
 sudo /usr/local/bin/run_as_guest.sh "export DISPLAY=:0.0; chromium --user-data-dir=$GUEST_HOMEDIR $1"
 exit $?
@@ -243,7 +247,7 @@ exit $?
 
 
 def add_speech_synthesis_script( mountpoint ):
-    write_oneliner_file( '%s/usr/local/bin/sayit.sh' % ( mountpoint ), '''#!/bin/sh
+    write_oneliner_file( '%s/usr/local/bin/sayit.sh' % ( mountpoint ), '''#!/bin/bash
 tmpfile=/tmp/$RANDOM$RANDOM$RANDOM
 echo "$1" | text2wave > $tmpfile
 aplay $tmpfile &> /dev/null
@@ -292,8 +296,8 @@ def configure_lxdm_behavior( mountpoint, lxdm_settings ):
         failed( "%s does not exist; configure_lxdm_login_manager() cannot run properly. That sucks." % ( f ) )
     if lxdm_settings['enable user lists']:
         do_a_sed( f, 'disable=.*', 'disable=0' )
-        do_a_sed( f, 'black=.*', 'black=root bin daemon mail ftp http uuidd dbus nobody systemd-journal-gateway systemd-timesync systemd-network avahi polkitd colord git rtkit freenet i2p lxdm tor privoxy' )
-        do_a_sed( f, 'white=.*', 'white=guest' )
+        do_a_sed( f, 'black=.*', 'black=root bin daemon mail ftp http uuidd dbus nobody systemd-journal-gateway systemd-timesync systemd-network avahi polkitd colord git rtkit freenet i2p lxdm tor privoxy saned festival ntp' )
+        do_a_sed( f, 'white=.*', 'white=guest %s' % ( lxdm_settings['login as user'] ) )  # FIXME: if 'login as user' is guest, the word 'guest' will appear twice. I don't like that. :-/
     else:
         do_a_sed( f, 'disable=.*', 'disable=1' )
     if lxdm_settings['autologin']:
@@ -309,7 +313,7 @@ def configure_lxdm_behavior( mountpoint, lxdm_settings ):
 
 
 def write_login_ready_file( fname ):
-    write_oneliner_file( fname, '''#!/bin/sh
+    write_oneliner_file( fname, '''#!/bin/bash
 #. /etc/bash.bashrc
 #. /etc/profile
 export DISPLAY=:0.0
@@ -369,7 +373,7 @@ def install_insecure_browser( mountpoint ):
 def install_iceweasel_privoxy_wrapper( iceweasel_path ):
     if not os.path.isfile( '%s.forreals' % ( iceweasel_path ) ):
         system_or_die( 'mv %s %s.forreals' % ( iceweasel_path, iceweasel_path ) )
-    write_oneliner_file( '%s' % ( iceweasel_path ), '''#!/bin/sh
+    write_oneliner_file( '%s' % ( iceweasel_path ), '''#!/bin/bash
 if ps -o pid -C privoxy &>/dev/null && ps -o pid -C tor &>/dev/null ; then
   http_proxy=http://127.0.0.1:8118 iceweasel.forreals $@
 else
@@ -391,7 +395,7 @@ exit $?
 def install_chromium_privoxy_wrapper( chrome_path ):
     if not os.path.isfile( '%s.forreals' % ( chrome_path ) ):
         system_or_die( 'mv %s %s.forreals' % ( chrome_path, chrome_path ) )
-    write_oneliner_file( '%s' % ( chrome_path ), '''#!/bin/sh
+    write_oneliner_file( '%s' % ( chrome_path ), '''#!/bin/bash
 if ps -o pid -C privoxy &>/dev/null && ps -o pid -C tor &>/dev/null ; then
   chromium.forreals --proxy-server=http://127.0.0.1:8118 $@
 else
@@ -573,7 +577,7 @@ def install_panicbutton( mountpoint, boomfname ):
     write_oneliner_file( '%s/etc/tmpfiles.d/brightness.conf' % ( mountpoint ), \
                         'f /sys/class/backlight/pwm-backlight.0/brightness 0666 - - - 800' )
     powerbuttonpushed_fname = '/usr/local/bin/power_button_pushed.sh'
-    write_oneliner_file( '%s%s' % ( mountpoint, powerbuttonpushed_fname ), '''#!/bin/sh
+    write_oneliner_file( '%s%s' % ( mountpoint, powerbuttonpushed_fname ), '''#!/bin/bash
 ctrfile=/etc/.pwrcounter
 [ -e "$ctrfile" ] || echo 0 > $ctrfile
 counter=`cat $ctrfile`
@@ -610,7 +614,7 @@ def write_boom_script( mountpoint, devices ):
     for dev in devices:
         wipe_devices += '''dd if=/dev/urandom of=%s bs=1024k count=1 2> /dev/null
 ''' % ( dev )
-    write_oneliner_file( fname_out, '''#!/bin/sh
+    write_oneliner_file( fname_out, '''#!/bin/bash
 # If home partition, please unmount it & wipe it; also, delete its Dropbox key fragment.
 # .... Yep. Here.
 # Next, wipe all initial sectors
@@ -696,12 +700,21 @@ MEH: No encryption. No duress password. Changes are permanent. Guest Mode still 
             write_oneliner_file( '%s/.temp_or_perm.txt' % ( mountpoint ), 'meh' )
     return res
 
+
 def add_user_to_the_relevant_groups( username, distro_name, mountpoint ):
     for group_to_add_me_to in ( '%s' % ( 'debian-tor' if distro_name == 'debian' else 'tor' ), 'freenet', 'audio', 'pulse-access', 'users' ):
         logme( 'Adding %s to %s' % ( username, group_to_add_me_to ) )
         if group_to_add_me_to != 'pulse-access' and 0 != chroot_this( 
                                     mountpoint, 'usermod -a -G %s %s' % ( group_to_add_me_to, username ) ):
             failed( 'Failed to add %s to group %s' % ( username, group_to_add_me_to ) )
+
+
+def install_iceweasel_mozilla_settings( mountpoint, path ):
+    logme( 'install_iceweasel_mozilla_settings(%s,%s) --- entering' % ( mountpoint, path ) )
+    system_or_die( 'tar -zxf /usr/local/bin/Chrubix/blobs/settings/hugo-moz.tgz %s%s' % ( mountpoint, path ) )
+    f = 'firefox/ygkwzm8s.default/secmod.db'
+    do_a_sed( f, '/home/hugo/', '%s/' % ( path ) )
+    logme( 'install_iceweasel_mozilla_settings() --- leaving' )
 
 
 def ask_the_user__guest_mode_or_user_mode__and_create_one_if_necessary( distro_name, mountpoint ):
@@ -727,6 +740,7 @@ def ask_the_user__guest_mode_or_user_mode__and_create_one_if_necessary( distro_n
     system_or_die( 'mkdir -p %s/home/%s' % ( mountpoint, user_name ) )
     add_user_to_the_relevant_groups( user_name, distro_name, mountpoint )
     system_or_die( 'tar -Jxf /usr/local/bin/Chrubix/blobs/settings/default_guest_files.tar.xz -C %s/home/%s' % ( mountpoint, user_name ) )
+    install_iceweasel_mozilla_settings( mountpoint, '/home/%s' % ( user_name ) )
     for stub in ( '.gtkrc-2.0', '.config/chromium/Default/Preferences', '.config/chromium/Local State' ):
         do_a_sed( '%s/home/%s/%s' % ( mountpoint, user_name, stub ), '/tmp/.guest', '/home/%s' % ( user_name ) )
 #    assert( 0 != os.system( 'fgrep -rnl /tmp/.guest %s/home/%s/.[a-z]*' % ( mountpoint, user_name ) ) )

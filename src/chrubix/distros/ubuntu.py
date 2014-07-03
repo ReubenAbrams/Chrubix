@@ -23,9 +23,18 @@ class UbuntuDistro( JessieDebianDistro ):
         mount_sys_tmp_proc_n_dev( self.mountpoint )
         return 0
 
+    def install_locale( self ):
+        logme( 'UbuntuDistro - install_locale() - starting' )
+        self.do_generic_locale_configuring()
+        logme( 'UbuntuDistro - install_locale() - leaving' )
+
+
 
 class PangolinUbuntuDistro( UbuntuDistro ):
     def __init__( self , *args, **kwargs ):
         super( PangolinUbuntuDistro, self ).__init__( *args, **kwargs )
         self.branch = 'pangolin'
 
+        logme( 'FedoraDistro - install_locale() - starting' )
+        self.do_generic_locale_configuring()
+        logme( 'FedoraDistro - install_locale() - leaving' )

@@ -9,9 +9,8 @@
 import sys
 import os
 import datetime
-from chrubix.utils import logme, write_oneliner_file, \
-                    system_or_die, failed
-from chrubix.utils.postinst import configure_lxdm_behavior
+from chrubix.utils import logme, write_oneliner_file, system_or_die, failed
+from chrubix.utils.postinst import configure_lxdm_behavior, install_iceweasel_mozilla_settings
 from chrubix import generate_distro_record_from_name, save_distro_record, load_distro_record
 import hashlib
 from chrubix import generate_distro_record_from_name
@@ -34,6 +33,7 @@ def set_up_guest_homedir():
                 ):
         if 0 != os.system( cmd ):
             logme( '%s ==> failed' % ( cmd ) )
+    install_iceweasel_mozilla_settings( '/', GUEST_HOMEDIR )
     logme( 'ersatz_lxdm.py --- set_up_guest_homedir() --- leaving' )
 
 
@@ -77,13 +77,15 @@ if __name__ == "__main__":
     if os.path.exists( '/etc/.first_time_ever' ):
         do_audio_and_network_stuff()
         os.unlink( '/etc/.first_time_ever' )
-    logme( 'ersatz_lxdm.py --- configuring lxdm behavior' )
-    configure_lxdm_behavior( '/', load_distro_record().lxdm_settings )  # FIXME: This is silly. Modify record, save record, then make me reload record? (See next line.)
-    distro = load_distro_record()
-    logme( 'ersatz_lxdm.py --- calling lxdm; FYI, wm=%s' % ( load_distro_record().lxdm_settings['window manager'] ) )
-    print( 'ersatz_lxdm.py --- calling lxdm' )
-    res = os.system( 'lxdm' )
-    print( 'ersatz_lxdm.py --- back from lxdm' )
-    logme( 'ersatz_lxdm.py --- back from lxdm' )
+    logme( 'ersatz_lxdm.py --- MAIN LOOP' )
+    while 'english' != 'british':
+        logme( 'ersatz_lxdm.py --- configuring lxdm behavior' )
+        configure_lxdm_behavior( '/', load_distro_record().lxdm_settings )  # FIXME: This is silly. Modify record, save record, then make me reload record? (See next line.)
+        distro = load_distro_record()
+        logme( 'ersatz_lxdm.py --- calling lxdm; FYI, wm=%s' % ( load_distro_record().lxdm_settings['window manager'] ) )
+#        if distro.name == 'debian':
+#            os.system( 'chmod 777 /tmp/.guest /home/*' )  # FIXME: We shouldn't have to use chmod to work around lxdm's Debian-specific eccentricities
+        res = os.system( 'lxdm' )
+        logme( 'ersatz_lxdm.py --- back from lxdm' )
     sys.exit( res )
 

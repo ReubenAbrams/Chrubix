@@ -43,3 +43,7 @@ xorg-xinit xf86-video-fbdev wmsystemtray lxdm network-manager-gnome'
         assert( attempts > 0 )
 #        self.status_lst[-1] += '...Done.'
 
+    def install_locale( self ):
+        logme( 'SuseDistro - install_locale() - starting' )
+        self.do_generic_locale_configuring()
+        logme( 'SuseDistro - install_locale() - leaving' )

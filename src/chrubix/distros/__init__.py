@@ -506,7 +506,9 @@ make' % ( self.sources_basedir ), title_str = self.title_str, status_lst = self.
 Name=org.freedesktop.Notifications
 Exec=/usr/lib/notification-daemon-1.0/notification-daemon
 ''' )  # See https://wiki.archlinux.org/index.php/Desktop_notifications
-        system_or_die( 'echo -en "\n%%wheel ALL=(ALL) ALL\nALL ALL=(ALL) NOPASSWD: /usr/bin/systemctl poweroff,/usr/bin/systemctl halt,/usr/bin/systemctl reboot,/usr/local/bin/tweak_lxdm_and_reboot,/usr/local/bin/tweak_lxdm_and_shutdown,/usr/local/bin/run_as_guest.sh,/usr/local/bin/chrubix.sh,/usr/bin/nm-applet\n" >> %s/etc/sudoers' % ( self.mountpoint ) )
+        system_or_die( 'echo "%%wheel ALL=(ALL) ALL\nALL ALL=(ALL) NOPASSWD: \
+/usr/local/bin/start_privoxy_freenet_i2p_and_tor.sh,/usr/local/bin/tweak_lxdm_and_reboot,/usr/local/bin/tweak_lxdm_and_shutdown,\
+/usr/local/bin/run_as_guest.sh,/usr/local/bin/chrubix.sh,/usr/bin/nm-applet\n" >> %s/etc/sudoers' % ( self.mountpoint ) )
         add_user_to_the_relevant_groups( 'guest', self.name, self.mountpoint )
 
     def configure_networking( self ):
@@ -528,6 +530,14 @@ Exec=/usr/lib/notification-daemon-1.0/notification-daemon
         generate_wifi_manual_script( '%s/usr/local/bin/wifi_manual.sh' % ( self.mountpoint ) )
         generate_wifi_auto_script( '%s/usr/local/bin/wifi_auto.sh' % ( self.mountpoint ) )
         chroot_this( self.mountpoint, 'chmod u+s `which ping`' , title_str = self.title_str, status_lst = self.status_lst )
+        write_oneliner_file( '%s/usr/local/bin/start_privoxy_freenet_i2p_and_tor.sh' % ( self.mountpoint ), '''#!/bin/bash
+systemctl start privoxy
+systemctl start tor
+systemctl start freenet
+systemctl start i2p
+su -l i2psvc i2prouter start 2> /dev/null
+''' )
+        os.system( 'chmod +x %s/usr/local/bin/start_privoxy_freenet_i2p_and_tor.sh' % ( self.mountpoint ) )
 
     def migrate_all_data( self, new_mountpt ):
 #        self.status_lst.append( ['Migrating all data to the encrypted partition'] )
@@ -705,13 +715,13 @@ Choose the 'boom' password : """ ).strip( '\r\n\r\n\r' )
 
 #        chroot_this( self.mountpoint, "cat %s | sed s/%s':.:'/%s'::'/ > /etc/shadow" % ( tmpfile, username, username ) )
         profile_fname = '%s%s/.profile' % ( self.mountpoint, userhome )
-        write_oneliner_file( profile_fname, '''#!/bin/sh
+        write_oneliner_file( profile_fname, '''#!/bin/bash
 sudo tweak_lxdm_and_%s
 ''' % ( username ) )
         system_or_die( 'chmod +x %s' % ( profile_fname ) )
         if 0 != chroot_this( self.mountpoint, "chown -R %s.%s %s" % ( username, username, userhome ), attempts = 1, status_lst = self.status_lst, title_str = self.title_str ):
             chroot_this( self.mountpoint, "chown -R %s.root %s" % ( username, userhome ), attempts = 1, status_lst = self.status_lst, title_str = self.title_str, on_fail = 'Failed to modify permissions of %s config file' % ( username ) )
-        write_oneliner_file( '%s/usr/local/bin/tweak_lxdm_and_%s' % ( self.mountpoint, username ), '''#!/bin/sh
+        write_oneliner_file( '%s/usr/local/bin/tweak_lxdm_and_%s' % ( self.mountpoint, username ), '''#!/bin/bash
 sync;sync;sync
 systemctl %s
 exit 0
@@ -1048,7 +1058,6 @@ exit 0
             failed( 'Where is the linux-chromebook folder in the bootstrap OS? I am scared. Hold me.' )
         self.status_lst.append( ['Installing Chrubix in bootstrapped OS'] )
         # Save the old-but-grooby chrubix.sh; it was modified (its vars resolved) by chrubix_stage1.sh
-        groovy_chrubix_sh_file = generate_temporary_filename( '/tmp' )
         # Delete old copy of Chrubix from mountpoint.
         system_or_die( 'rm -Rf %s/usr/local/bin/Chrubix*' % ( self.mountpoint ) )
         # Download and install latest copy from the GitHub website.
@@ -1248,7 +1257,7 @@ exit 0
             pass
         chroot_this( self.mountpoint, 'passwd -l freenet',
                           status_lst = self.status_lst, title_str = self.title_str, on_fail = 'Failed to disable freenet user login' )
-        write_oneliner_file( '%s/.install_freenet_like_this.sh' % ( self.mountpoint ), '''#!/bin/sh
+        write_oneliner_file( '%s/.install_freenet_like_this.sh' % ( self.mountpoint ), '''#!/bin/bash
 rm -Rf /opt/freenet/.[a-z]*
 rm -Rf /opt/freenet/*
 echo "/opt/freenet

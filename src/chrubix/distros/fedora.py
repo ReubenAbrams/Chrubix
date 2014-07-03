@@ -5,8 +5,8 @@
 
 
 from chrubix.distros import Distro
-from chrubix.utils import wget, system_or_die, unmount_sys_tmp_proc_n_dev, mount_sys_tmp_proc_n_dev, logme, chroot_this
-
+from chrubix.utils import wget, system_or_die, unmount_sys_tmp_proc_n_dev, mount_sys_tmp_proc_n_dev, logme, chroot_this, \
+                        failed
 
 class FedoraDistro( Distro ):
     important_packages = Distro.important_packages + ' \
@@ -43,5 +43,31 @@ libnotify talkfilters chromium xorg-server-utils java-runtime libxmu libxfixes a
         assert( attempts > 0 )
 #        self.status_lst[-1] += '...Done.'
 
+    def install_locale( self ):
+        logme( 'FedoraDistro - install_locale() - starting' )
+#        self.do_generic_locale_configuring()
+        logme( 'FedoraDistro - install_locale() - leaving' )
 
+    def configure_distrospecific_tweaks( self ):
+        self.status_lst.append( ['configure_distrospecific_tweaks() --- TODO'] )
 
+    def download_mkfs_sources( self ):
+        self.status_lst.append( ['download_mkfs_sources() --- TODO'] )
+
+    def build_package( self, source_pathname ):
+        failed( "build_package(%s) --- please define in subclass" % ( source_pathname ) )
+
+    def install_package_manager_tweaks( self ):
+        failed( "please define in subclass. Don't forget! Exclude jfsprogs, btrfsprogs, xfsprogs, linux kernel." )
+
+    def update_and_upgrade_all( self ):
+        failed( "please define in subclass" )
+
+    def install_important_packages( self ):
+        failed( "please define in subclass" )
+
+    def install_kernel_and_mkfs( self ):
+        failed( 'please define in subclass' )
+
+    def build_mkfs_n_kernel_for_OS_w_preexisting_PKGBUILDs( self ):
+        failed( "please define in subclass" )

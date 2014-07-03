@@ -2,7 +2,6 @@
 #
 # debian.py
 
-# TODO: aptitude --download-only ... Should I install it at end of important pkg func, or should I do it during final push?
 
 from chrubix.utils import generate_temporary_filename, g_proxy, failed, system_or_die, write_oneliner_file, wget, logme, \
                           chroot_this, read_oneliner_file, do_a_sed, call_binary
@@ -70,10 +69,10 @@ def do_debian_specific_mbr_related_hacks( mountpoint ):
 
 def generate_mickeymouse_lxdm_patch( mountpoint, lxdm_package_path, output_patch_file ):
     failed( 'Noooo.' )
-    insert_this_code = 'baaa'  # '''if (187==system("bash /usr/local/bin/ersatz_lxdm.sh")) exit(187);'''
+#    insert_this_code = 'baaa'  # '''if (187==system("bash /usr/local/bin/ersatz_lxdm.sh")) exit(187);'''
     logme( 'generate_mickeymouse_lxdm_patch() --- entering (mountpoint=%s, output_patch_file=%s' % ( mountpoint, output_patch_file ) )
     lxdm_folder_basename = [ r for r in call_binary( ['ls', '%s%s/' % ( mountpoint, lxdm_package_path )] )[1].decode( 'utf-8' ).split( '\n' ) if r.find( 'lxdm-' ) >= 0 ][0]
-    chroot_this( mountpoint, '''
+    chroot_this( mountpoint, r'''
 set -e
 cd %s/%s
 rm -Rf _a _b a b
@@ -115,16 +114,18 @@ x11-utils xbase-clients ssss mat florence monkeysign libxfixes-dev liblzo2-dev p
 wmaker python-cairo python-pdfrw libconfig-dev libx11-dev python-hachoir-core python-hachoir-parser \
 mat myspell-en-us msttcorefonts xorg xserver-xorg-input-synaptics xul-ext-https-everywhere \
 pulseaudio paprefs pulseaudio-module-jack pavucontrol paman alsa-tools-gui alsa-oss mythes-en-us \
-libpisock-dev uno-libs3 libgtk-3-bin libbcprov-java gtk2-engines-murrine libc6-dev \
-e2fslibs-dev debhelper python-dev libffi-dev python-dev libffi-dev libsqlite3-dev \
+cdbs debhelper javahelper quilt adduser git-core default-jdk ant ant-optional ant-contrib \
+jflex junit4 libcommons-collections3-java libcommons-compress-java libdb-je-java libecj-java \
+libservice-wrapper-java libpisock-dev uno-libs3 libgtk-3-bin libbcprov-java gtk2-engines-murrine libc6-dev \
+e2fslibs-dev debhelper python-dev libffi-dev python-dev libffi-dev libsqlite3-dev dconf-tools \
 software-properties-common libssl-dev u-boot-tools libgtk2-perl libmoose-perl shiboken python-pyside pyside-tools qt4-qmake \
-git python-setuptools python-virtualenv python-pip libssl-dev python-openssl g++ openvpn \
+git python-setuptools python-virtualenv python-pip libssl-dev python-openssl g++ openvpn systemd-gui python3-pyqt4 \
 '  # Warning! Monkeysign pkg might be broken.
 # gtk-engines-unico python-distutil-extra ? python-distusil-extra python-gobject python-qrencode python-imaging
     final_push_packages = Distro.final_push_packages + ' \
 dbus dbus-x11 libconf-dbus-1-dev python-dbus python3-dbus liqt4-dbus dbus-glib-1.2 dbus-java-bin \
 lxsession wireless-tools wpasupplicant obfsproxy network-manager-gnome \
-mate-desktop-environment-extras i2p i2p-keyring'  # FYI, freenet is handled by install_final_push...()
+mate-desktop-environment-extras'  # FYI, freenet is handled by install_final_push...()
 # xul-ext-flashblock
 # FYI, win-xp-theme is made possible by apt-add-repository() call in ..._final_push_...().
 
@@ -221,6 +222,8 @@ Acquire::https::Proxy "https://%s/";
 
     def install_important_packages( self ):
         logme( 'DebianDistro - install_important_packages() - starting' )
+        chroot_this( self.mountpoint, '''yes "Yes, do as I say!" | apt-get install systemd systemd-sysv''' , title_str = self.title_str, status_lst = self.status_lst,
+                    on_fail = 'Failed to install systemd-sysv' )
         packages_installed_succesfully = []
         packages_that_we_failed_to_install = []
         packages_lst = self.important_packages.split( ' ' )
@@ -310,17 +313,36 @@ Acquire::https::Proxy "https://%s/";
         for pkg_name in self.list_of_mkfs_packages:
             chroot_this( self.mountpoint, 'sudo apt-mark hold %s' % ( pkg_name ) )
         self.status_lst[-1] += '...installed.'
+        svcfile = '%s/lib/systemd/system/getty@.service' % ( self.mountpoint )
+#        print( 'looking for %s' % ( svcfile ) )
+        assert( os.path.exists( svcfile ) )
+        do_a_sed( svcfile, '38400', '38400 --autologin root' )  # %%I ?
+#        chroot_this( self.mountpoint, 'mkdir -p /var/run/tor' )
+#        chroot_this( self.mountpoint, 'chown -R debian-tor /var/run/tor' )
+#        chroot_this( self.mountpoint, 'chgrp -R debian-tor /var/run/tor' )
+#        chroot_this( self.mountpoint, 'chmod 700 /var/run/tor' )
 #        chroot_this( mountpoint, '''echo "
 #            session required pam_loginuid.so
 #     session required pam_systemd.so
 #     " >> /etc/pam.d/lxdm''' )
-        self.status_lst.append( '...mickeymousing lxdm' )
-        p = '%s/%s' % ( self.sources_basedir, 'lxdm' )
-        patch_pathname = '%s/debian/patches/99_mickeymouse.patch' % ( p )
+#        self.status_lst.append( '...mickeymousing lxdm' )
+#        p = '%s/%s' % ( self.sources_basedir, 'lxdm' )
+#        patch_pathname = '%s/debian/patches/99_mickeymouse.patch' % ( p )
 #        generate_mickeymouse_lxdm_patch( self.mountpoint, p, patch_pathname )
 #        chroot_this( self.mountpoint, '''set -e; cd %s/lxdm/lxdm-*; for f in `find ../../debian/patches/*.patch`; do patch -p1 < $f; done; make; make install''' \
 # % ( self.sources_basedir ), status_lst = self.status_lst, title_str = self.title_str, on_fail = 'Failed to mickeymouse lxdm' )
         logme( 'DebianDistro - configure_distrospecific_tweaks() - leaving' )
+
+    def install_i2p( self ):
+        for cmd in ( 
+                    'yes 2>/dev/null | add-apt-repository "deb http://deb.i2p2.no/ %s main"' % ( 'wheezy' ),  # 'unstable' if self.branch == 'jessie' else 'stable' ),
+                    'yes "" 2>/dev/null | curl https://geti2p.net/_static/debian-repo.pub | apt-key add -',
+                    'yes 2>/dev/null | apt-get update'
+                   ):
+            chroot_this( self.mountpoint, cmd, title_str = self.title_str, status_lst = self.status_lst,
+                         on_fail = "Failed to run %s successfully" % ( cmd ) )
+        chroot_this( self.mountpoint, 'yes | apt-get install i2p i2p-keyring', on_fail = 'Failed to install i2p' )
+        do_a_sed( '%s/etc/passwd' % ( self.mountpoint ), 'i2p:/bin/false', 'i2p:/bin/bash' )
 
     def install_final_push_of_packages( self ):
         logme( 'DebianDistro - install_final_push_of_packages() - starting' )
@@ -328,13 +350,7 @@ Acquire::https::Proxy "https://%s/";
 #        chroot_this( self.mountpoint, 'pip install leap.bitmask', status_lst = self.status_lst, title_str = self.title_str,
 #                     on_fail = 'Failed to install leap.bitmask' )
         self.install_win_xp_theme()
-        for cmd in ( 
-                    'yes 2>/dev/null | add-apt-repository "deb http://deb.i2p2.no/ %s main"' % ( 'stable' ),  # 'unstable' if self.branch == 'jessie' else 'stable' ),
-                    'yes "" 2>/dev/null | curl https://geti2p.net/_static/debian-repo.pub | apt-key add -',
-                    'yes 2>/dev/null | apt-get update'
-                   ):
-            chroot_this( self.mountpoint, cmd, title_str = self.title_str, status_lst = self.status_lst,
-                         on_fail = "Failed to run %s successfully" % ( cmd ) )
+        self.install_i2p()
 #        self.status_lst.append( [ 'Go to https://wiki.freenetproject.org/Installing/POSIX and learn how to install Freenet'] )
         if self.final_push_packages.find( 'wmsystemtray' ) < 0:
             self.install_expatriate_software_into_a_debianish_OS( package_name = 'wmsystemtray', method = 'debian' )
@@ -361,7 +377,6 @@ Acquire::https::Proxy "https://%s/";
             chroot_this( self.mountpoint, \
                          'cd %s/win-xp-theme/src && install -d /usr/share/themes/Win-XP-theme && cp -r * /usr/share/themes/' % \
                          ( self.sources_basedir ), status_lst = self.status_lst, title_str = self.title_str, on_fail = 'Failed to install win-xp-theme from source' )
-        self.status_lst[-1] += '...success!'
 
     def steal_dtc_and_mkinitcpio_from_alarpy( self ):
         logme( 'DebianDistro - steal_dtc_and_mkinitcpio_from_alarpy() - starting' )
@@ -390,7 +405,7 @@ Acquire::https::Proxy "https://%s/";
                                                                      method = method )
                     # It'll throw an exception if it fails. So, if it gets this far, it means it succeeded.
                     return 0
-                except ( SyntaxError, SystemError, RuntimeError, AssertionError, FileNotFoundError ):
+                except ( SyntaxError, SystemError, RuntimeError, AssertionError, IOError ):
                     if self.status_lst is not None:
                         self.status_lst[-1] += '...%s method failed' % ( method )
                     continue
@@ -436,7 +451,7 @@ Acquire::https::Proxy "https://%s/";
             if files_i_want in ( None, [], '' ):
                 files_i_want = self.deduce_filelist_from_website( os.path.dirname( src_url ) + '/source/' + os.path.basename( src_url ), package_name )
             if files_i_want in ( None, [], '' ):
-                raise FileNotFoundError( "%s is absent from the online repositories" % ( package_name ) )
+                raise IOError( "%s is absent from the online repositories" % ( package_name ) )
             self.download_pkgfiles_from_website( package_name, files_i_want )
         if self.status_lst is not None:                      self.status_lst[-1] += '...Extracting'
         self.extract_pkgfiles_accordingly( package_name, files_i_want )
@@ -530,17 +545,18 @@ Acquire::https::Proxy "https://%s/";
         self.install_debianspecific_package_manager_tweaks()
 
     def configure_boot_process( self ):
-#        do_a_sed( '%s/etc/inittab' % ( self.mountpoint ), '1:2345:respawn:/sbin/getty 38400 tty1', '1:2345:respawn:/bin/login -f YOUR_USER_NAME tty1 </dev/tty1 >/dev/tty1 2>&1' )
-#        write_oneliner_file( '%s/root/.bash_profile' % ( self.mountpoint ), '''#!/bin/sh
-# if [ -z "$DISPLAY" ] && [ $(tty) == /dev/tty1 ]; then
-#    bash /usr/local/bin/ersatz_lxdm.sh
-# fi
-        do_a_sed( '%s/etc/inittab' % ( self.mountpoint ), 'id:.*:initdefault', 'id:5:initdefault' )
-        do_a_sed( '%s/etc/inittab' % ( self.mountpoint ), 'x:5:.*', '' )
-        f = open( '%s/etc/inittab' % ( self.mountpoint ), 'a' )  # This is not a typo. 'a' means 'append'.
-        f.write( '''
-x:5:respawn:/usr/local/bin/ersatz_lxdm.sh''' )
-        f.close()
+        do_a_sed( '%s/etc/inittab' % ( self.mountpoint ), '1:2345:respawn:/sbin/getty 38400 tty1', '1:2345:respawn:/bin/login -f YOUR_USER_NAME tty1 </dev/tty1 >/dev/tty1 2>&1' )
+        write_oneliner_file( '%s/root/.bash_profile' % ( self.mountpoint ), '''#!/bin/bash
+ if [ -z "$DISPLAY" ] && [ $(tty) == /dev/tty1 ]; then
+    bash /usr/local/bin/ersatz_lxdm.sh
+ fi
+''' )
+#        do_a_sed( '%s/etc/inittab' % ( self.mountpoint ), 'id:.*:initdefault', 'id:5:initdefault' )
+#        do_a_sed( '%s/etc/inittab' % ( self.mountpoint ), 'x:5:.*', '' )
+#        f = open( '%s/etc/inittab' % ( self.mountpoint ), 'a' )  # This is not a typo. 'a' means 'append'.
+#        f.write( '''
+# x:5:respawn:/usr/local/bin/ersatz_lxdm.sh''' )
+#        f.close()
 
 class WheezyDebianDistro( DebianDistro ):
     important_packages = DebianDistro.important_packages + ' libetpan15'
@@ -559,4 +575,3 @@ class JessieDebianDistro( DebianDistro ):
 
     def install_package_manager_tweaks( self ):
         self.install_debianspecific_package_manager_tweaks( yes_add_ffmpeg_repo = True )
-
