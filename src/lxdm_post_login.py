@@ -82,10 +82,10 @@ if __name__ == "__main__":
     else:
         logme( '/usr/local/bin/start_privoxy_freenet_i2p_and_tor.sh returned error(s)' )
     distro = load_distro_record()
-    if distro.name == 'debian':
-        logme( 'Debian does not like Vidalia. Fair enough.' )
-    else:
-        logme( 'starting vidalia' )
-        os.system( 'vidalia &' )
+#    if distro.name == 'debian':
+#        logme( 'Debian does not like Vidalia. Fair enough.' )
+#    else:
+#        logme( 'starting vidalia' )
+#        os.system( 'vidalia &' )
     logme( 'lxdm_post_login.py --- ending' )
     sys.exit( 0 )

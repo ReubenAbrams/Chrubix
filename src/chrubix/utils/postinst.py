@@ -711,9 +711,13 @@ def add_user_to_the_relevant_groups( username, distro_name, mountpoint ):
 
 def install_iceweasel_mozilla_settings( mountpoint, path ):
     logme( 'install_iceweasel_mozilla_settings(%s,%s) --- entering' % ( mountpoint, path ) )
-    system_or_die( 'tar -zxf /usr/local/bin/Chrubix/blobs/settings/hugo-moz.tgz %s%s' % ( mountpoint, path ) )
-    f = 'firefox/ygkwzm8s.default/secmod.db'
-    do_a_sed( f, '/home/hugo/', '%s/' % ( path ) )
+    assert( path.count( '/' ) == 2 )
+    system_or_die( 'tar -zxf /usr/local/bin/Chrubix/blobs/settings/hugo-moz.tgz -C %s%s' % ( mountpoint, path ) )
+    f = '%s%s/.mozilla/firefox/ygkwzm8s.default/secmod.db' % ( mountpoint, path )
+    system_or_die( 'cat %s | sed s/\\\\/home\\\\/hugo\\\\//\\\\%s\\\\/%s\\\\// > %s.new' % ( f, os.path.dirname( path ), os.path.basename( path ), f ) )
+    os.unlink( f )
+    os.rename( f + '.new', f )
+#    do_a_sed( f, '/home/hugo/', '%s/' % ( path ) )
     logme( 'install_iceweasel_mozilla_settings() --- leaving' )
 
 
