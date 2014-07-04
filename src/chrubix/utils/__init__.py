@@ -357,12 +357,15 @@ def patch_kernel( mountpoint, folder, url ):
 
 
 
-def set_user_password( login, password ):
+def set_user_password( login, password, mountpoint = '/' ):
 #!/usr/bin/env python
     ALPHABET = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
     salt = ''.join( random.choice( ALPHABET ) for i in range( 8 ) )
     shadow_password = crypt.crypt( password, '$1$' + salt + '$' )
-    r = subprocess.call( ( 'usermod', '-p', shadow_password, login ) )
+    if mountpoint == '/':
+        r = subprocess.call( ( 'usermod', '-p', shadow_password, login ) )
+    else:
+        r = chroot_this( mountpoint, "usermod -p '%s' %s" % ( shadow_password, login ) )
     if r != 0:
         failed( 'Failed to set password for %s' % ( login ) )
 
@@ -446,6 +449,11 @@ def running_on_a_test_rig():
             return True
     return False
 
+
+# def install_lxdm_from_source( mountpoint ):
+#    wget( url = 'https://dl.dropboxusercontent.com/u/59916027/chrubix/lxdm-0.5.0.tar.xz', extract_to_path = '%s/root' % ( mountpoint ), decompression_flag = 'J' )
+#    chroot_this( '''cd /root/lxdm-0.5.0 && ./configure && make && make install
+# ''' )
 
 def poweroff_now():
     for ( val, fname ) in ( 
