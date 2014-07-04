@@ -334,6 +334,7 @@ restore_from_squash_fs_backup_if_possible() {
 			if [ "$temp_or_perm" = "temp" ] ; then	
 				echo "Installing squashfs file"
 				pv $fname > $root/.squashfs.sqfs && echo "...copied across OK" || failed "Failed to copy the squashfs file across."
+				cp /tmp/[a,b]/$distroname.kernel /tmp/.kernel.dat
 				hack_something_squishy $distroname $root $dev_p
 				return 0
 			fi
@@ -401,7 +402,9 @@ hack_something_squishy() {
 #	else
 #		echo "Fair enough. Squashfs is not mountable (xz?). I'll use the online copy of the kernel instead."
 		kernelpath=/tmp/.kernel.dat
-		wget https://dl.dropboxusercontent.com/u/59916027/chrubix/finals/$distroname.kernel -O - > $kernelpath || failed "Failed to download $distroname.kernel"
+		if [ ! -e "$kernelpath" ] ; then
+			wget https://dl.dropboxusercontent.com/u/59916027/chrubix/finals/$distroname.kernel -O - > $kernelpath || failed "Failed to download $distroname.kernel"
+		fi
 #	fi
 	sign_and_write_custom_kernel $root "$dev_p"1 "$dev_p"3 $kernelpath "" ""  || failed "Failed to sign/write custom kernel"
 }
