@@ -306,10 +306,13 @@ Acquire::https::Proxy "https://%s/";
         for pkg_name in self.list_of_mkfs_packages:
             chroot_this( self.mountpoint, 'sudo apt-mark hold %s' % ( pkg_name ) )
         self.status_lst[-1] += '...installed.'
-        svcfile = '%s/lib/systemd/system/getty@.service' % ( self.mountpoint )
+#        svcfile = '%s/lib/systemd/system/getty@.service' % ( self.mountpoint )
+        chroot_this( self.mountpoint, 'systemctl enable lxdm.service' )
+        do_a_sed( '%s/etc/default/pulseaudio' % ( self.mountpoint ), 'PULSEAUDIO_SYSTEM_START=0', 'PULSEAUDIO_SYSTEM_START=1' )
+
 #        print( 'looking for %s' % ( svcfile ) )
-        assert( os.path.exists( svcfile ) )
-        do_a_sed( svcfile, '38400', '38400 --autologin root' )  # %%I ?
+#        assert( os.path.exists( svcfile ) )
+#        do_a_sed( svcfile, '38400', '38400 --autologin root' )  # %%I ?
 #        chroot_this( self.mountpoint, 'mkdir -p /var/run/tor' )
 #        chroot_this( self.mountpoint, 'chown -R debian-tor /var/run/tor' )
 #        chroot_this( self.mountpoint, 'chgrp -R debian-tor /var/run/tor' )
@@ -537,21 +540,6 @@ Acquire::https::Proxy "https://%s/";
 
     def install_package_manager_tweaks( self ):
         self.install_debianspecific_package_manager_tweaks()
-
-    def configure_boot_process( self ):
-        do_a_sed( '%s/etc/inittab' % ( self.mountpoint ), '1:2345:respawn:/sbin/getty 38400 tty1', '1:2345:respawn:/bin/login -f root tty1 </dev/tty1 >/dev/tty1 2>&1' )
-        do_a_sed( '%s/etc/inittab' % ( self.mountpoint ), '.*:23:respawn:/sbin/getty 38400', '###?:2345:respawn:/sbin/getty 38400' )
-        write_oneliner_file( '%s/root/.bash_profile' % ( self.mountpoint ), '''#!/bin/bash
- if [ -z "$DISPLAY" ] && [ $(tty) == /dev/tty1 ]; then
-    bash /usr/local/bin/ersatz_lxdm.sh
- fi
-''' )
-#        do_a_sed( '%s/etc/inittab' % ( self.mountpoint ), 'id:.*:initdefault', 'id:5:initdefault' )
-#        do_a_sed( '%s/etc/inittab' % ( self.mountpoint ), 'x:5:.*', '' )
-#        f = open( '%s/etc/inittab' % ( self.mountpoint ), 'a' )  # This is not a typo. 'a' means 'append'.
-#        f.write( '''
-# x:5:respawn:/usr/local/bin/ersatz_lxdm.sh''' )
-#        f.close()
 
 class WheezyDebianDistro( DebianDistro ):
     important_packages = DebianDistro.important_packages + ' libetpan15'

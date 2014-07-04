@@ -780,9 +780,10 @@ exit 0
         self.reinstall_chrubix_if_missing()
         logme( 'vvv  THIS SECTION SHOULD BE REMOVED AFTER 7/15/2014 vvv' )  # ...and MAKE SURE its contents are present in Stage B or C :)
         generate_wifi_manual_script( '%s/usr/local/bin/wifi_manual.sh' % ( self.mountpoint ) )
+        chroot_this( self.mountpoint, 'systemctl enable lxdm.service' )
         write_lxdm_post_login_file( '%s/etc/lxdm/PostLogin' % ( self.mountpoint ) )
-        do_a_sed( '%s/etc/passwd' % ( self.mountpoint ), r'guest::', r'guest:x:' )  # FIXME: Remove after 7/7
-        set_user_password( login = 'guest', password = 'guest', mountpoint = self.mountpoint )  # FIXME: Remove after 7/7
+        do_a_sed( '%s/etc/passwd' % ( self.mountpoint ), r'guest::', r'guest:x:' )  # FIXME: Remove after 7/17
+        set_user_password( login = 'guest', password = 'guest', mountpoint = self.mountpoint )  # FIXME: Remove after 7/17
         logme( '^^^ THIS SECTION SHOULD BE REMOVED AFTER 7/15/2014 ^^^' )
         if not os.path.exists( '%s%s/src/chromeos-3.4/arch/arm/boot/vmlinux.uimg' % ( self.mountpoint, self.kernel_src_basedir ) ):
             system_or_die( 'cp -f /tmp/.vmlinuz.uimg %s%s/src/chromeos-3.4/arch/arm/boot/vmlinux.uimg' % ( self.mountpoint, self.kernel_src_basedir ) )
@@ -1368,7 +1369,6 @@ WantedBy=multi-user.target
                                 self.install_vbutils_and_firmware_from_cbook,
                                 self.configure_dbus_sudo_and_groups,
                                 self.configure_lxdm_login_manager,
-                                self.configure_boot_process,
                                 self.configure_privacy_tools,
                                 self.configure_chrome_or_iceweasel,
                                 self.configure_networking,

@@ -202,6 +202,3 @@ xorg-server-utils xorg-xmessage librsvg icedtea-web-java7 gconf hunspell-en chro
         self.update_and_upgrade_all()
         self.downgrade_systemd_if_necessary( None )  # '213-5' )
         self.status_lst[-1] += '...complete.'
-
-    def configure_boot_process( self ):
-        logme( 'configure_boot_process() --- No further action need be taken.' )
