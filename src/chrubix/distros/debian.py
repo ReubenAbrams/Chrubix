@@ -4,7 +4,7 @@
 
 
 from chrubix.utils import generate_temporary_filename, g_proxy, failed, system_or_die, write_oneliner_file, wget, logme, \
-                          chroot_this, read_oneliner_file, do_a_sed, call_binary
+                          chroot_this, read_oneliner_file, do_a_sed, call_binary  # , install_lxdm_from_source
 import os
 from chrubix.distros import Distro
 
@@ -355,6 +355,7 @@ Acquire::https::Proxy "https://%s/";
         if self.final_push_packages.find( 'wmsystemtray' ) < 0:
             self.install_expatriate_software_into_a_debianish_OS( package_name = 'wmsystemtray', method = 'debian' )
         if self.final_push_packages.find( 'lxdm' ) < 0:
+#            install_lxdm_from_source( self.mountpoint )
             self.install_expatriate_software_into_a_debianish_OS( package_name = 'lxdm', method = 'ubuntu' )
         self.status_lst.append( ['Installing remaining packages'] )
 #        self.status_lst.append( ['Installing %s' % ( self.final_push_packages.replace( '  ', ' ' ).replace( ' ', ', ' ) )] )
@@ -545,7 +546,8 @@ Acquire::https::Proxy "https://%s/";
         self.install_debianspecific_package_manager_tweaks()
 
     def configure_boot_process( self ):
-        do_a_sed( '%s/etc/inittab' % ( self.mountpoint ), '1:2345:respawn:/sbin/getty 38400 tty1', '1:2345:respawn:/bin/login -f YOUR_USER_NAME tty1 </dev/tty1 >/dev/tty1 2>&1' )
+        do_a_sed( '%s/etc/inittab' % ( self.mountpoint ), '1:2345:respawn:/sbin/getty 38400 tty1', '1:2345:respawn:/bin/login -f root tty1 </dev/tty1 >/dev/tty1 2>&1' )
+        do_a_sed( '%s/etc/inittab' % ( self.mountpoint ), '.*:23:respawn:/sbin/getty 38400', '###?:2345:respawn:/sbin/getty 38400' )
         write_oneliner_file( '%s/root/.bash_profile' % ( self.mountpoint ), '''#!/bin/bash
  if [ -z "$DISPLAY" ] && [ $(tty) == /dev/tty1 ]; then
     bash /usr/local/bin/ersatz_lxdm.sh
