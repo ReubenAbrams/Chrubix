@@ -573,7 +573,7 @@ EndSection
     f.close()
 
 
-def install_panicbutton( mountpoint, boomfname ):
+def install_panicbutton_scripting( mountpoint, boomfname ):
 #        print( "Configuring acpi" )
     system_or_die( 'mkdir -p %s/etc/tmpfiles.d' % ( mountpoint ) )
     write_oneliner_file( '%s/etc/tmpfiles.d/brightness.conf' % ( mountpoint ), \

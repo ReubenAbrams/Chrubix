@@ -15,7 +15,7 @@ from chrubix.utils.postinst import write_lxdm_post_login_file, write_lxdm_pre_lo
             append_lxdm_xresources_addendum, generate_wifi_manual_script, generate_wifi_auto_script, \
             install_guest_browser_script, configure_privoxy, add_speech_synthesis_script, ask_the_user__guest_mode_or_user_mode__and_create_one_if_necessary, \
             configure_lxdm_onetime_changes, configure_lxdm_behavior, configure_lxdm_service, \
-            install_chrome_or_iceweasel_privoxy_wrapper, remove_junk, tweak_xwindow_for_cbook, install_panicbutton, \
+            install_chrome_or_iceweasel_privoxy_wrapper, remove_junk, tweak_xwindow_for_cbook, install_panicbutton_scripting, \
             check_and_if_necessary_fix_password_file, install_insecure_browser, append_proxy_details_to_environment_file, \
             setup_onceaminute_timer, setup_onceeverythreeseconds_timer, write_lxdm_service_file, ask_the_user__temp_or_perm, \
             add_user_to_the_relevant_groups, write_login_ready_file, setup_poweroffifunplugdisk_service, write_boom_script, \
@@ -660,15 +660,15 @@ Choose the 'boom' password : """ ).strip( '\r\n\r\n\r' )
         self.status_lst[-1] += '...word.'
 
     def install_panic_button( self ):
-        install_panicbutton( self.mountpoint , self.boomfname )
+        install_panicbutton_scripting( self.mountpoint , self.boomfname )
         write_boom_script( self.mountpoint, ( self.root_dev, self.kernel_dev, self.spare_dev, self.device ) )
 
     def configure_hostname( self ):
         write_oneliner_file( '%s/etc/hostname' % ( self.mountpoint ), self.name )
 
-    def configure_xwindow_for_chromebook( self ):
+    def configure_xwindow_and_onceminute_timer( self ):
         tweak_xwindow_for_cbook( self.mountpoint )
-        setup_onceaminute_timer ( self.mountpoint )
+        setup_onceaminute_timer( self.mountpoint )
 #        setup_onceeverythreeseconds_timer( self.mountpoint )
 
     def configure_lxdm_login_manager( self ):
@@ -1374,7 +1374,7 @@ WantedBy=multi-user.target
                                 self.configure_networking,
                                 self.configure_speech_synthesis_and_font_cache,
                                 self.configure_winxp_camo_and_guest_default_files,
-                                self.configure_xwindow_for_chromebook,
+                                self.configure_xwindow_and_onceminute_timer,
                                 self.configure_distrospecific_tweaks,
                                 self.make_sure_all_usr_local_bin_are_executable,
                                 self.remove_all_junk,
