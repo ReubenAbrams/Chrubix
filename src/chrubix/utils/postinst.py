@@ -704,11 +704,11 @@ MEH: No encryption. No duress password. Changes are permanent. Guest Mode still 
 
 
 def add_user_to_the_relevant_groups( username, distro_name, mountpoint ):
-    for group_to_add_me_to in ( '%s' % ( 'debian-tor' if distro_name == 'debian' else 'tor' ), 'freenet', 'audio', 'pulse-access', 'users' ):
+    for group_to_add_me_to in ( '%s' % ( 'debian-tor' if distro_name == 'debian' else 'tor' ), 'freenet', 'audio', 'pulse-access', 'pulse', 'users' ):
         logme( 'Adding %s to %s' % ( username, group_to_add_me_to ) )
-        if group_to_add_me_to != 'pulse-access' and 0 != chroot_this( 
-                                    mountpoint, 'usermod -a -G %s %s' % ( group_to_add_me_to, username ) ):
-            failed( 'Failed to add %s to group %s' % ( username, group_to_add_me_to ) )
+#        if group_to_add_me_to != 'pulse-access' and 0 !=
+        chroot_this( mountpoint, 'usermod -a -G %s %s' % ( group_to_add_me_to, username ), attempts = 1 )
+#            failed( 'Failed to add %s to group %s' % ( username, group_to_add_me_to ) )
 
 
 def install_iceweasel_mozilla_settings( mountpoint, path ):
