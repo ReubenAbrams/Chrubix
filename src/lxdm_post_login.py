@@ -70,8 +70,8 @@ if __name__ == "__main__":
     if os.path.exists( '/tmp/.do-not-automatically-connect' ):
         logme( 'lxdm_post_login.py --- ending' )
         sys.exit( 0 )
-    wait_until_online( max_delay = 8 )  # Return to me if either 8 seconds pass or we go online.
-    if not am_i_online():
+#    wait_until_online( max_delay = 8 )  # Return to me if either 8 seconds pass or we go online.
+    if not am_i_online():  # and 0 != os.system( 'ps wax | fgrep nm-applet | grep -v grep' ):
         logme( 'lxdm_post_login.py --- running nm-applet' )
         os.system( 'killall nm-applet' )
         os.system( 'sudo nm-applet --nocheck &' )

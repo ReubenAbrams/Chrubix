@@ -707,7 +707,7 @@ def add_user_to_the_relevant_groups( username, distro_name, mountpoint ):
     for group_to_add_me_to in ( '%s' % ( 'debian-tor' if distro_name == 'debian' else 'tor' ), 'freenet', 'audio', 'pulse-access', 'pulse', 'users' ):
         logme( 'Adding %s to %s' % ( username, group_to_add_me_to ) )
 #        if group_to_add_me_to != 'pulse-access' and 0 !=
-        chroot_this( mountpoint, 'usermod -a -G %s %s' % ( group_to_add_me_to, username ), attempts = 1 )
+        chroot_this( mountpoint, 'usermod -a -G %s %s 2> /dev/null' % ( group_to_add_me_to, username ), attempts = 1 )
 #            failed( 'Failed to add %s to group %s' % ( username, group_to_add_me_to ) )
 
 
@@ -715,14 +715,15 @@ def install_iceweasel_mozilla_settings( mountpoint, path ):
     logme( 'install_iceweasel_mozilla_settings(%s,%s) --- entering' % ( mountpoint, path ) )
     dirname = os.path.dirname( path )
     username = os.path.basename( path )
+    if username[0] == '.':
+        username = username[1:]  # in case path is '.guest'
     assert( path.count( '/' ) == 2 )
-    system_or_die( 'tar -zxf /usr/local/bin/Chrubix/blobs/settings/hugo-moz.tgz -C %s%s' % ( mountpoint, path ) )
+    system_or_die( 'tar -zxf /usr/local/bin/Chrubix/blobs/settings/iceweasel-moz.tgz -C %s%s' % ( mountpoint, path ) )
     f = '%s%s/.mozilla/firefox/ygkwzm8s.default/secmod.db' % ( mountpoint, path )
-    system_or_die( 'cat %s | sed s/\\\\/home\\\\/hugo\\\\//\\\\%s\\\\/%s\\\\// > %s.new' % ( f, dirname, username, f ) )
+    system_or_die( "cat %s | sed s/'\/home\/wharbargl\/'/'\/%s\/%s\/'/ > %s.new" % ( f, dirname, username, f ) )  # do_a_sed() does not work. That's why we are using the sed binary instead.
     chroot_this( mountpoint, 'chown -R %s %s' % ( username, path ) )
     os.unlink( f )
     os.rename( f + '.new', f )
-#    do_a_sed( f, '/home/hugo/', '%s/' % ( path ) )
     logme( 'install_iceweasel_mozilla_settings() --- leaving' )
 
 
