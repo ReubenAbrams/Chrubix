@@ -108,6 +108,8 @@ manual_mode() {
 logger "QQQ wifi-manual --- starting"
 res=999
 #clear
+echo "This terminal window is here in case the NetworkManager applet malfunctions."
+echo "Please try to use the applet to connect to the Internet. If if fails, use me."
 while [ "$res" -ne "0" ] ; do
     echo -en "Searching..."
     all=""
@@ -431,9 +433,9 @@ def remove_junk( mountpoint, kernel_src_basedir ):
     # TODO: Consider %kernel_src_basedir/linux-chromebook/pkg/*
     chroot_this( mountpoint, 'ln -sf %s/src/chromeos-3.4 /usr/src/linux-3.4.0-ARCH' % ( kernel_src_basedir ) )
     chroot_this( mountpoint, 'set -e; cd /usr/share/locale; mv locale.alias ..' )
-    chroot_this( mountpoint, 'set -e; cd /usr/share/locale; mkdir -p _; mv [a-d,f-z]* _; mv e[a-m,o-z]* _; rm -Rf _; mv ../locale.alias .' )
+    chroot_this( mountpoint, 'set -e; cd /usr/share/locale; mkdir -p _; mv [a-d,f-z]* _ 2> /dev/null; mv e[a-m,o-z]* _ 2> /dev/null; rm -Rf _; mv ../locale.alias .' )
     chroot_this( mountpoint, 'set -e; cd /usr/share/locale; mv ../locale.alias .' )
-    chroot_this( mountpoint, 'cd /usr/lib/firmware 2>/dev/null && cp s5p-mfc/s5p-mfc-v6.fw ../mfc_fw.bin && cp mrvl/sd8797_uapsta.bin .. && rm -Rf * && mkdir -p mrvl && mv ../sd8797_uapsta.bin mrvl/ && mv ../mfc_fw.bin .' )
+    chroot_this( mountpoint, 'cd /usr/lib/firmware 2>/dev/null && cp s5p-mfc/s5p-mfc-v6.fw ../mfc_fw.bin 2> /dev/null && cp mrvl/sd8797_uapsta.bin .. 2> /dev/null && rm -Rf * && mkdir -p mrvl && mv ../sd8797_uapsta.bin mrvl/ && mv ../mfc_fw.bin .' )
 
 
 def setup_poweroffifunplugdisk_service( mountpoint ):
@@ -711,10 +713,13 @@ def add_user_to_the_relevant_groups( username, distro_name, mountpoint ):
 
 def install_iceweasel_mozilla_settings( mountpoint, path ):
     logme( 'install_iceweasel_mozilla_settings(%s,%s) --- entering' % ( mountpoint, path ) )
+    dirname = os.path.dirname( path )
+    username = os.path.basename( path )
     assert( path.count( '/' ) == 2 )
     system_or_die( 'tar -zxf /usr/local/bin/Chrubix/blobs/settings/hugo-moz.tgz -C %s%s' % ( mountpoint, path ) )
     f = '%s%s/.mozilla/firefox/ygkwzm8s.default/secmod.db' % ( mountpoint, path )
-    system_or_die( 'cat %s | sed s/\\\\/home\\\\/hugo\\\\//\\\\%s\\\\/%s\\\\// > %s.new' % ( f, os.path.dirname( path ), os.path.basename( path ), f ) )
+    system_or_die( 'cat %s | sed s/\\\\/home\\\\/hugo\\\\//\\\\%s\\\\/%s\\\\// > %s.new' % ( f, dirname, username, f ) )
+    chroot_this( mountpoint, 'chown -R %s %s' % ( username, path ) )
     os.unlink( f )
     os.rename( f + '.new', f )
 #    do_a_sed( f, '/home/hugo/', '%s/' % ( path ) )
@@ -751,4 +756,33 @@ def ask_the_user__guest_mode_or_user_mode__and_create_one_if_necessary( distro_n
     chroot_this( mountpoint, 'chown -R %s.users /home/%s' % ( user_name, user_name ) )
     chroot_this( mountpoint, 'chmod -R 700 /home/%s' % ( user_name ) )
     return user_name
+
+
+def tidy_up_alarpy():
+        # Tidy up Alarpy, the (bootstrap) mini-OS, to reduce the size footprint of _D posterity file.
+    os.system( 'mv /usr/share/locale/locale.alias /usr/share/ 2> /dev/null' )
+    for path_to_delete in ( 
+                           '/usr/lib/python2.7',
+                           '/usr/lib/gcc',
+                           '/usr/include',
+                           '/usr/lib/gitcore',
+                           '/usr/lib/modules',
+                           '/usr/lib/perl5',
+                           '/usr/lib/zoneinfo',
+                           '/usr/lib/udev',
+#                               '/usr/lib/python2.7'
+                           '/usr/share/doc',
+                           '/usr/share/groff',
+                           '/usr/share/info',
+                           '/usr/share/man',
+                           '/usr/share/perl5',
+                           '/usr/share/texinfo',
+                           '/usr/share/xml',
+                           '/usr/share/zoneinfo',
+                           '/usr/share/locale/[a-d,f-z]*',
+                           '/usr/share/locale/e[a-m,o-z]*'
+                           ):
+        logme( 'Removing %s' % ( path_to_delete ) )
+        system_or_die( 'rm -Rf %s' % ( path_to_delete ) )
+        os.system( 'mv /usr/share/locale.alias /usr/share/locale/ 2> /dev/null' )
 
