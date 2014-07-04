@@ -9,7 +9,7 @@ from chrubix.utils import rootcryptdevice, mount_device, mount_sys_tmp_proc_n_de
             chroot_this, wget, do_a_sed, system_or_die, write_oneliner_file, read_oneliner_file, call_binary, install_mp3_files, \
             generate_temporary_filename, backup_the_resolvconf_file, install_gpg_applet, patch_kernel, \
             fix_broken_hyperlinks, disable_root_password, install_windows_xp_theme_stuff, running_on_a_test_rig, \
-    MAXIMUM_COMPRESSION
+    MAXIMUM_COMPRESSION, set_user_password
 
 from chrubix.utils.postinst import write_lxdm_post_login_file, write_lxdm_pre_login_file, write_lxdm_post_logout_file, \
             append_lxdm_xresources_addendum, generate_wifi_manual_script, generate_wifi_auto_script, \
@@ -18,7 +18,8 @@ from chrubix.utils.postinst import write_lxdm_post_login_file, write_lxdm_pre_lo
             install_chrome_or_iceweasel_privoxy_wrapper, remove_junk, tweak_xwindow_for_cbook, install_panicbutton, \
             check_and_if_necessary_fix_password_file, install_insecure_browser, append_proxy_details_to_environment_file, \
             setup_onceaminute_timer, setup_onceeverythreeseconds_timer, write_lxdm_service_file, ask_the_user__temp_or_perm, \
-            add_user_to_the_relevant_groups, write_login_ready_file, setup_poweroffifunplugdisk_service, write_boom_script
+            add_user_to_the_relevant_groups, write_login_ready_file, setup_poweroffifunplugdisk_service, write_boom_script, \
+            tidy_up_alarpy
 from chrubix.utils.mbr import install_initcpio_wiperamonshutdown_files
 from xml.dom import NotFoundErr
 
@@ -340,7 +341,7 @@ make' % ( self.sources_basedir ), title_str = self.title_str, status_lst = self.
                       status_lst = self.status_lst, title_str = self.title_str )
         system_or_die( 'tar -zxf /tmp/.firmware.tgz -C %s' % ( self.mountpoint ),
                        status_lst = self.status_lst, title_str = self.title_str )
-        chroot_this( self.mountpoint, 'cd /lib/firmware/ && ln -sf s5p-mfc/s5p-mfc-v6.fw mfc_fw.bin' )
+        chroot_this( self.mountpoint, 'cd /lib/firmware/ && ln -sf s5p-mfc/s5p-mfc-v6.fw mfc_fw.bin 2> /dev/null' )
 
     def set_disk_password( self ):
         if self.mountpoint in ( None, '', '/' ):
@@ -535,8 +536,10 @@ systemctl start privoxy
 systemctl start tor
 systemctl start freenet
 systemctl start i2p
-su -l i2psvc i2prouter start 2> /dev/null
+su -l freenet /opt/freenet/run.sh start
+su -l i2psvc i2prouter start
 ''' )
+        do_a_sed( '%s/etc/passwd' % ( self.mountpoint ), 'i2p:/bin/false', 'i2p:/bin/bash' )  # FIXME: Remove on 7/15/2014
         os.system( 'chmod +x %s/usr/local/bin/start_privoxy_freenet_i2p_and_tor.sh' % ( self.mountpoint ) )
 
     def migrate_all_data( self, new_mountpt ):
@@ -734,7 +737,8 @@ exit 0
         chroot_this( self.mountpoint, 'chmod 777 %s' % ( self.guest_homedir ), on_fail = 'Failed to chmod guest' )
         chroot_this( self.mountpoint, 'useradd guest -d %s' % ( self.guest_homedir ) , on_fail = "Failed to add user guest" )
         chroot_this( self.mountpoint, 'chmod 700 %s' % ( self.guest_homedir ), on_fail = 'Failed to chmod guest' )
-        do_a_sed( passwd_file, r'guest:x:', r'guest::' )
+#        do_a_sed( passwd_file, r'guest:x:', r'guest::' )
+        set_user_password( login = 'guest', password = 'guest', mountpoint = self.mountpoint )
 
     def remove_all_junk( self ):
         # Tidy up the actual OS
@@ -744,32 +748,7 @@ exit 0
         remove_junk( self.mountpoint, self.kernel_src_basedir )
         if not os.path.exists( '%s%s' % ( self.mountpoint, self.kernel_src_basedir ) ):
             failed( 'remove_junk() deletes the linux-chromebook folder from the bootstrap OS. That is not good!' )
-        # Tidy up Alarpy, the (bootstrap) mini-OS, to reduce the size footprint of _D posterity file.
-        system_or_die( 'mv /usr/share/locale/locale.alias /usr/share/ 2> /dev/null' )
-        for path_to_delete in ( 
-                               '/usr/lib/python2.7',
-                               '/usr/lib/gcc',
-                               '/usr/include',
-                               '/usr/lib/gitcore',
-                               '/usr/lib/modules',
-                               '/usr/lib/perl5',
-                               '/usr/lib/zoneinfo',
-                               '/usr/lib/udev',
-#                               '/usr/lib/python2.7'
-                               '/usr/share/doc',
-                               '/usr/share/groff',
-                               '/usr/share/info',
-                               '/usr/share/man',
-                               '/usr/share/perl5',
-                               '/usr/share/texinfo',
-                               '/usr/share/xml',
-                               '/usr/share/zoneinfo',
-                               '/usr/share/locale/[a-d,f-z]*',
-                               '/usr/share/locale/e[a-m,o-z]*'
-                               ):
-            logme( 'Removing %s' % ( path_to_delete ) )
-            system_or_die( 'rm -Rf %s' % ( path_to_delete ) )
-        system_or_die( 'mv /usr/share/locale.alias /usr/share/locale/ 2> /dev/null' )
+        tidy_up_alarpy()
         self.status_lst[-1] += '...removed.'
 
     def reinstall_chrubix_if_missing( self ):
@@ -806,6 +785,8 @@ exit 0
         logme( 'vvv  THIS SECTION SHOULD BE REMOVED AFTER 7/15/2014 vvv' )  # ...and MAKE SURE its contents are present in Stage B or C :)
         generate_wifi_manual_script( '%s/usr/local/bin/wifi_manual.sh' % ( self.mountpoint ) )
         write_lxdm_post_login_file( '%s/etc/lxdm/PostLogin' % ( self.mountpoint ) )
+        do_a_sed( '%s/etc/passwd' % ( self.mountpoint ), r'guest::', r'guest:x:' )  # FIXME: Remove after 7/7
+        set_user_password( login = 'guest', password = 'guest', mountpoint = self.mountpoint )  # FIXME: Remove after 7/7
         logme( '^^^ THIS SECTION SHOULD BE REMOVED AFTER 7/15/2014 ^^^' )
         if not os.path.exists( '%s%s/src/chromeos-3.4/arch/arm/boot/vmlinux.uimg' % ( self.mountpoint, self.kernel_src_basedir ) ):
             system_or_die( 'cp -f /tmp/.vmlinuz.uimg %s%s/src/chromeos-3.4/arch/arm/boot/vmlinux.uimg' % ( self.mountpoint, self.kernel_src_basedir ) )
@@ -1415,7 +1396,7 @@ WantedBy=multi-user.target
                                 self.install_urwid_and_dropbox_uploader,
                                 self.install_mkinitcpio_ramwipe_hooks,
                                 self.download_modify_build_and_install_kernel_and_mkfs,
-                                self.save_for_posterity_if_possible_B )
+                                self.nop )  # self.save_for_posterity_if_possible_B )
         third_stage = ( 
                                 self.install_chrubix,
                                 self.install_moose,
@@ -1444,7 +1425,7 @@ WantedBy=multi-user.target
                                 self.remove_all_junk,
                                 self.forcibly_rebuild_initramfs_and_vmlinux,  #                                self.redo_mbr( self.root_dev, self.mountpoint ),  # This forces the creation of vmlinux.uimg
                                 self.check_sanity_of_distro,
-                                self.nop if not MAXIMUM_COMPRESSION else self.save_for_posterity_if_possible_D )
+                                self.save_for_posterity_if_possible_D )  # self.nop if not MAXIMUM_COMPRESSION else self.save_for_posterity_if_possible_D )
         fifth_stage = ( 
                                 self.reinstall_chrubix_if_missing,
                                 self.install_vbutils_and_firmware_from_cbook,  # just in case the new user's tools differ from the original builder's tools
