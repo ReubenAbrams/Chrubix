@@ -5,8 +5,7 @@
 
 import sys
 import os
-import hashlib
-from chrubix.utils import logme, read_oneliner_file, generate_temporary_filename, write_oneliner_file, poweroff_now
+from chrubix.utils import logme, read_oneliner_file, poweroff_now
 import subprocess
 
 
