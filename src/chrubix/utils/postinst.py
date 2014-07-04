@@ -620,7 +620,8 @@ def write_boom_script( mountpoint, devices ):
 # If home partition, please unmount it & wipe it; also, delete its Dropbox key fragment.
 # .... Yep. Here.
 # Next, wipe all initial sectors
-%s sync;sync;sync # :-)
+%s
+sync;sync;sync # :-)
 # Finally, instant shutdown! Yeah!
 echo 3        > /proc/sys/kernel/printk
 echo 3        > /proc/sys/vm/drop_caches
@@ -714,13 +715,15 @@ def add_user_to_the_relevant_groups( username, distro_name, mountpoint ):
 def install_iceweasel_mozilla_settings( mountpoint, path ):
     logme( 'install_iceweasel_mozilla_settings(%s,%s) --- entering' % ( mountpoint, path ) )
     dirname = os.path.dirname( path )
+    basename = os.path.basename( path )
     username = os.path.basename( path )
     if username[0] == '.':
         username = username[1:]  # in case path is '.guest'
     assert( path.count( '/' ) == 2 )
     system_or_die( 'tar -zxf /usr/local/bin/Chrubix/blobs/settings/iceweasel-moz.tgz -C %s%s' % ( mountpoint, path ) )
     f = '%s%s/.mozilla/firefox/ygkwzm8s.default/secmod.db' % ( mountpoint, path )
-    system_or_die( "cat %s | sed s/'\/home\/wharbargl\/'/'\/%s\/%s\/'/ > %s.new" % ( f, dirname, username, f ) )  # do_a_sed() does not work. That's why we are using the sed binary instead.
+    system_or_die( "cat %s | sed s/'\/home\/wharbargl\/'/'%s\/%s\/'/ > %s.new" % ( f, dirname, basename, f ) )  # do_a_sed() does not work. That's why we are using the sed binary instead.
+    system_or_die( 'mv %s.new %s' % ( f, f ) )
     chroot_this( mountpoint, 'chown -R %s %s' % ( username, path ) )
     os.unlink( f )
     os.rename( f + '.new', f )
