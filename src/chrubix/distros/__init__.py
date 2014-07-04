@@ -732,7 +732,6 @@ exit 0
         system_or_die( 'chmod +x %s/usr/local/bin/tweak_lxdm_and_%s' % ( self.mountpoint, username ) )
 
     def add_guest_user( self ):
-        passwd_file = '%s/etc/passwd' % ( self.mountpoint )
         chroot_this( self.mountpoint, 'mkdir -p %s' % ( self.guest_homedir ), on_fail = 'Failed to mkdir for guest' )
         chroot_this( self.mountpoint, 'chmod 777 %s' % ( self.guest_homedir ), on_fail = 'Failed to chmod guest' )
         chroot_this( self.mountpoint, 'useradd guest -d %s' % ( self.guest_homedir ) , on_fail = "Failed to add user guest" )
@@ -778,8 +777,6 @@ exit 0
         os.system( 'clear; sleep 1; sync;sync;sync; clear' )
 
     def migrate_or_squash_OS( self ):  # FYI, the Alarmist distro (subclass) redefines this subroutine to disable root pw and squash the OS
-#        if not os.path.exists( '%s/usr/local/bin/Chrubix' % ( self.mountpoint ) ) :
-#            self.status_lst.append( ['Someone deleted Chrubix from bootstrapped OS. Fine. I shall reinstall it.'] )
         self.status_lst.append( ['Migrating/squashing OS'] )
         self.reinstall_chrubix_if_missing()
         logme( 'vvv  THIS SECTION SHOULD BE REMOVED AFTER 7/15/2014 vvv' )  # ...and MAKE SURE its contents are present in Stage B or C :)
@@ -805,11 +802,6 @@ exit 0
             self.lxdm_settings['login as user'] = username
             if username != 'guest':  # Login as specific user, other than guest
                 self.lxdm_settings['autologin'] = False
-            if running_on_a_test_rig():
-                self.status_lst.append( ['I would like to regenerate the squashfs file, but that code has been disabled temporarily for test porpoises.'] )
-#                self.status_lst.append( ['Because this is a test rig, I am regenerating the squashfs file.'] )
-#                self.generate_squashfs_of_my_OS()
-#                self.status_lst[-1] += ' ...regenerated.'
             self.set_root_password()
             system_or_die( 'rm -f /.squashfs.sqfs %s/.squashfs.sqfs' % ( self.mountpoint ) )
             if res == 'P':
@@ -821,13 +813,7 @@ exit 0
     def squash_OS( self ):
         self.lxdm_settings['use greeter gui'] = True
         chrubix.save_distro_record( distro_rec = self, mountpoint = self.mountpoint )
-#        self.generate_squashfs_of_my_OS()
-#        system_or_die( 'mkdir -p /tmp/ro /tmp/squashfs_dir' )
-#        system_or_die( 'mount -o loop,squashfs %s/.squashfs.sqfs /tmp/squashfs_dir' % ( self.mountpoint ) )  # /tmp/ro
-#        system_or_die( 'mount -t unionfs -o dirs=/tmp/ro=rw unionfs /tmp/squashfs_dir' )
         self.redo_mbr_for_plain_root( self.mountpoint )  # '/tmp/squashfs_dir' )
-#        system_or_die( 'umount /tmp/squashfs_dir' )
-#        system_or_die( 'umount /tmp/ro' )
         self.generate_squashfs_of_my_OS()
         system_or_die( 'rm -Rf %s/bin %s/boot %s/etc %s/home %s/lib %s/mnt %s/opt %s/root %s/run %s/sbin %s/srv %s/usr %s/var' %
                       ( self.mountpoint, self.mountpoint, self.mountpoint, self.mountpoint, self.mountpoint, self.mountpoint,
@@ -852,16 +838,6 @@ exit 0
         os.system( 'mkdir -p %s' % ( new_mtpt ) )  # errtxt = 'Failed to create new mountpoint %s ' % ( new_mtpt ) )
         self.migrate_all_data( new_mtpt )  # also mounts new_mtpt and rejigs kernel
         mount_sys_tmp_proc_n_dev( new_mtpt )
-#        os.system( 'mkdir -p %s/dev' % ( new_mtpt ) )
-#        os.system( 'mkdir -p %s/proc' % ( new_mtpt ) )
-#        os.system( 'mkdir -p %s/tmp' % ( new_mtpt ) )
-#        os.system( 'mkdir -p %s/sys' % ( new_mtpt ) )
-#        for ( my_type, my_dir ) in ( ( 'devtmpfs', 'dev' ),
-#                                ( 'proc', 'proc' ),
-#                                ( 'sysfs', 'sys' ),
-#                                ( 'tmpfs', 'tmp' ) ):
-#            assert( os.path.exists( '%s/%s' % ( new_mtpt, my_dir ) ) )
-#            chroot_this( new_mtpt, 'mount %s %s/%s -t %s' % ( my_type, new_mtpt, my_dir, my_type ), attempts = 1, title_str = self.title_str, status_lst = self.status_lst )
         self.redo_mbr_for_encrypted_root( new_mtpt )
         chrubix.save_distro_record( distro_rec = self, mountpoint = new_mtpt )  # save distro record to new disk (not old mountpoint)
         try:
@@ -897,24 +873,9 @@ exit 0
         if not os.path.isdir( '%s/%s' % ( self.mountpoint, self.kernel_src_basedir ) ):
             chroot_this( self.mountpoint, 'cd %s && git clone git://github.com/archlinuxarm/PKGBUILDs.git' % ( self.ryo_tempdir ), \
                              on_fail = "Failed to git clone kernel source", title_str = self.title_str, status_lst = self.status_lst )
-#            failed( "Seriously, by this point, we should have the whole git repo in %s, either from the precompiled tarball or from our locally built code in %s" % ( self.kernel_src_basedir, self.sources_basedir ) )
-#            self.download_kernel_source()     # NO!!! This would create recursion. No, no, no.
-#            system_or_die( 'cd %s/%s && tar -cz * > ../temp.tgz 2> /dev/null && rm -Rf *' % ( self.mountpoint , self.ryo_tempdir ) )
-#            system_or_die( 'rm -Rf %s/%s' % ( self.mountpoint, self.ryo_tempdir ) )
-#            system_or_die( 'mkdir -p %s/%s' % ( self.mountpoint, self.ryo_tempdir ) )
-#            system_or_die( 'cd %s/%s && git clone git://github.com/archlinuxarm/PKGBUILDs.git' % ( self.mountpoint, self.ryo_tempdir ),
-#                                                        title_str = self.title_str, status_lst = self.status_lst,
-#                                                        errtxt = "Unable to use git to download all PKGBUILDs" )
-#            system_or_die( 'cd %s/%s && tar -zxf ../temp.tgz 2> /dev/null' % ( self.mountpoint , self.ryo_tempdir ) )
-    #    system_or_die( 'rm -Rf %s/%s/%s' % ( self.mountpoint, self.sources_basedir, package_name ) )
-    #    system_or_die( 'mkdir -p %s/%s/%s' % ( self.mountpoint, self.sources_basedir, package_name ) )
         tmpfile = generate_temporary_filename( '/tmp' )
         cmd = 'find %s/%s -name PKGBUILD -type f | fgrep /%s/ | head -n1 > %s' % ( self.mountpoint, os.path.dirname( self.sources_basedir ), package_name, tmpfile )
-    #    self.status_lst.append( ['cmd = %s' % ( cmd )] )
-    #    print( 'cmd=%s' % ( cmd ) )
         res = os.system( cmd )
-    #    from chrubix.utils import logme
-    #    logme( 'cmd = %s' % ( cmd ) )
         if res != 0:
             failed( "Cannot find PKGBUILD file of %s" % ( package_name ) )
         pkgbuild_pathname = read_oneliner_file( tmpfile )
@@ -1106,7 +1067,7 @@ exit 0
         assert( os.path.isdir( '%s/usr/local/bin/Chrubix' % ( self.mountpoint ) ) )
         system_or_die( 'mkdir -p /tmp/posterity' )  # FIXME: remove? If I remove this, does everything (M, T, P) still work?
         system_or_die( 'rm -f %s/.squashfs.sqfs /.squashfs.sqfs' % ( self.mountpoint ) )
-        if running_on_a_test_rig() or ( True is True ):
+        if running_on_a_test_rig():
             logme( 'I am running on a test rig. Is there a backup of sqfs available?' )
             if 0 == os.system( 'mount /dev/sda4 /tmp/posterity &> /dev/null' ) \
             or 0 == os.system( 'mount /dev/sdb4 /tmp/posterity &> /dev/null' ) \
@@ -1158,12 +1119,6 @@ exit 0
                 self.status_lst[-1] += ' git or makepkg failed. Retrying...'
         failed( 'Failed to download kernel source, even after %d attempts' % ( attempt ) )
 #        self.download_package_source( os.path.basename( self.kernel_src_basedir ), ( 'PKGBUILD', ) )
-
-#    def download_kernel_source( self ):
-#        self.build_and_install_software_from_archlinux_git( package_name = os.path.basename( self.kernel_src_basedir ),
-#                                                       yes_download = True, yes_build = False, yes_install = False )
-# # git clone --depth 1 http://chromium.googlesource.com/chromiumos/third_party/kernel.git \
-# # -b chromeos-3.4 ${basedir}/kernel # NO NEED. It gives us nothing that PKGBUILD(s) doesn't give us.
 
     def configure_winxp_camo_and_guest_default_files( self ):
         install_windows_xp_theme_stuff( self.mountpoint )
@@ -1456,8 +1411,4 @@ WantedBy=multi-user.target
             myfunc()
             checkpoint_number += 1
             write_oneliner_file( '%s/.checkpoint.txt' % ( self.mountpoint ), str( checkpoint_number ) )
-#             if chrubix.utils.get_expected_duration_of_install() / chrubix.utils.get_total_lines_so_far() < 1.1:
-#                 chrubix.utils.set_expected_duration_of_install( chrubix.utils.get_total_lines_so_far() * 1.1 )
-#                 logme( 'Adjusting the numbers. Expected duration is now %d' % ( chrubix.utils.get_expected_duration_of_install() ) )
-#                 self.status_lst.append( ['Amending total expected lines; now, it is %d' % ( chrubix.utils.get_expected_duration_of_install() )] )
 
