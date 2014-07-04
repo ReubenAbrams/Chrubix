@@ -257,10 +257,13 @@ get_distro_type_the_user_wants() {
 		echo -en "Welcome to the Chrubix installer. Which GNU/Linux distro shall I install on $dev?
 
 Choose from...
-(A)rchLinux --- your best option for now
+   (A)rchLinux
+   (J)essie, a.k.a. Debian Unstable
+   (W)heezy, a.k.a. Debian Stable
+   (T) - Alarmist, a TAILS-like ARM distro
 
 ----early alpha (not ready for public consumption) ----
-(J)essie [Debian]; (W)heezy [Debian]; (F)edora; (K)ali; (S)uSE 12.3; Alarmis(t); (U)buntu
+(F)edora; (K)ali; (S)uSE 12.3; (U)buntu
 
 Which would you like me to install? "
 		read r
