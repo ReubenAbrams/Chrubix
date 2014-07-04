@@ -54,9 +54,10 @@ def am_i_online():
 def wait_until_online( max_delay = 999 ):
     logme( 'lxdm_post_login.py --- waiting until %d seconds pass OR we end up online' % ( max_delay ) )
     loops = max_delay
-    while not am_i_online and loops > 0:
+    while not am_i_online() and loops > 0:
         pause_for_one_second()
         loops -= 1
+        logme( 'still not online...' )
     logme( 'lxdm_post_login.py --- continuing' )
 
 
@@ -75,17 +76,15 @@ if __name__ == "__main__":
         os.system( 'killall nm-applet' )
         os.system( 'sudo nm-applet --nocheck &' )
     logme( 'lxdm_post_login.py --- urxvt => terminal in bkgd' )
-    os.system( '''(urxvt -geometry 120x20+0+320 -name "WiFi Setup" -e bash -c "/usr/local/bin/wifi_manual.sh" & the_pid=$!; while ! ping -c1 -W5 8.8.8.8; do sleep 1 ; done; kill $the_pid ) & ''' )
+#    os.system( '''(urxvt -geometry 120x20+0+320 -name "WiFi Setup" -e bash -c "/usr/local/bin/wifi_manual.sh" & the_pid=$!; while ! ping -c1 -W5 8.8.8.8; do sleep 1 ; done; kill $the_pid ) & ''' )
     wait_until_online()
     if 0 == os.system( 'sudo /usr/local/bin/start_privoxy_freenet_i2p_and_tor.sh' ):
         logme( 'ran /usr/local/bin/start_privoxy_freenet_i2p_and_tor.sh OK' )
     else:
         logme( '/usr/local/bin/start_privoxy_freenet_i2p_and_tor.sh returned error(s)' )
-    distro = load_distro_record()
-#    if distro.name == 'debian':
-#        logme( 'Debian does not like Vidalia. Fair enough.' )
-#    else:
-#        logme( 'starting vidalia' )
-#        os.system( 'vidalia &' )
+    if 0 == os.system( 'which iceweasel &> /dev/null' ):
+        os.system( 'iceweasel &' )
+    else:
+        os.system( 'chromium &' )
     logme( 'lxdm_post_login.py --- ending' )
     sys.exit( 0 )
