@@ -73,12 +73,12 @@ if __name__ == "__main__":
         do_audio_and_network_stuff()
         os.unlink( '/etc/.first_time_ever' )
     logme( 'ersatz_lxdm.py --- MAIN LOOP' )
-    while 'english' != 'british':
-        logme( 'ersatz_lxdm.py --- configuring lxdm behavior' )
-        configure_lxdm_behavior( '/', load_distro_record().lxdm_settings )  # This is silly. Modify record, save record, then make me reload record? (See next line.)
-        distro = load_distro_record()
-        logme( 'ersatz_lxdm.py --- calling lxdm; FYI, wm=%s' % ( load_distro_record().lxdm_settings['window manager'] ) )
-        res = os.system( 'lxdm' )
-        logme( 'ersatz_lxdm.py --- back from lxdm' )
+#    while 'english' != 'british':
+    logme( 'ersatz_lxdm.py --- configuring lxdm behavior' )
+    configure_lxdm_behavior( '/', load_distro_record().lxdm_settings )  # This is silly. Modify record, save record, then make me reload record? (See next line.)
+    distro = load_distro_record()
+    logme( 'ersatz_lxdm.py --- calling lxdm; FYI, wm=%s' % ( load_distro_record().lxdm_settings['window manager'] ) )
+    res = os.system( 'lxdm' )
+    logme( 'ersatz_lxdm.py --- back from lxdm' )
     sys.exit( res )
 

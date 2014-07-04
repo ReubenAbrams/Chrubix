@@ -9,13 +9,13 @@ from chrubix.utils import logme, read_oneliner_file, poweroff_now
 import subprocess
 
 
-def home_drive_found_in_udev( home_drive ):
+def home_drive_found_in_udev( home_drv ):
     found = False
     for this_entry in os.listdir( '/dev/disk/by-id' ) :
         full_path = '/dev/disk/by-id/' + this_entry
         real_path = os.path.realpath( full_path )
-        if real_path.find( os.path.basename( home_drive ) ) >= 0:
-#            print( 'Found home drive %s in uuid file %s => %s' % ( home_drive, full_path, real_path ) )
+        if real_path.find( os.path.basename( home_drv ) ) >= 0:
+#            print( 'Found home drive %s in uuid file %s => %s' % ( home_drv, full_path, real_path ) )
             found = True
             break
     return found

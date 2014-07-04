@@ -95,12 +95,6 @@ xorg-server-utils xorg-xmessage librsvg icedtea-web-java7 gconf hunspell-en chro
         self.status_lst[-1] += 'installed.'
         system_or_die( 'rm -Rf %s/var/cache/apt/archives/*' % ( self.mountpoint ) )
 
-#    def download_kernel_source( self ):  # This also downloads all the other PKGBUILDs (for btrfs-progs, jfsutils, etc.)
-#        logme( 'ArchlinuxDistro - download_kernel_source() - starting' )
-#        chroot_this( self.mountpoint, 'cd %s && git clone git://github.com/archlinuxarm/PKGBUILDs.git' % ( self.ryo_tempdir ), \
-#                             on_fail = "Failed to git clone kernel source", title_str = self.title_str, status_lst = self.status_lst )
-#        self.download_package_source( os.path.basename( self.kernel_src_basedir ), ( 'PKGBUILD', ) )
-
     def download_mkfs_sources( self ):
         logme( 'ArchlinuxDistro - download_mkfs_sources() - starting' )
         assert( self.list_of_mkfs_packages[0].find( 'btrfs' ) >= 0 )

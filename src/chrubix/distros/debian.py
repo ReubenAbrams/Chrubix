@@ -263,13 +263,6 @@ Acquire::https::Proxy "https://%s/";
         self.steal_dtc_and_mkinitcpio_from_alarpy()
         logme( 'DebianDistro - install_important_packages() - leaving' )
 
-#        for pkg_name in 'python2-pyptlib xul-ext-torbutton'.split( ' ' ):
-#            self.build_and_install_package_from_debian_source( pkg_name )
-
-#    def download_kernel_source( self ):
-#        self.download_package_source( destination_directory = os.path.dirname( self.kernel_src_basedir ),
-#                                      package_name = os.path.basename( self.kernel_src_basedir ) )
-
     def download_mkfs_sources( self ):
         logme( 'DebianDistro - download_mkfs_sources() - starting' )
         system_or_die( 'mkdir -p %s' % ( self.sources_basedir ) )

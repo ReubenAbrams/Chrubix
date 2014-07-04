@@ -600,7 +600,6 @@ Choose the 'boom' password : """ ).strip( '\r\n\r\n\r' )
         compression_level = 9 if chrubix.utils.MAXIMUM_COMPRESSION else 1
         self.status_lst.append( ['Creating tarball %s of my rootfs' % ( output_file )] )
         dirs_to_backup = 'bin boot etc home lib mnt opt root run sbin srv usr var'
-#        if output_file[-2:] != '_D':     # FIXME: Is it worth the trouble? Do we save *that* much space if we drop bootstrap entirely from File D? Considering enabling this line, but.... I don't know. Is it worth it? Does it WORK? :)
         for dir_name in dirs_to_backup.split( ' ' ):
             dirs_to_backup += ' .bootstrap/%s' % ( dir_name )
         system_or_die( 'cd %s && tar -c %s | xz -%d | dd bs=32k > %s/temp.data' % ( self.mountpoint, dirs_to_backup, compression_level, os.path.dirname( output_file ) ), title_str = self.title_str, status_lst = self.status_lst )
@@ -1107,7 +1106,8 @@ exit 0
         assert( os.path.exists( '%s/.squashfs.sqfs' % ( self.mountpoint ) ) )
 
     def download_kernel_source( self ):  # This also downloads all the other PKGBUILDs (for btrfs-progs, jfsutils, etc.)
-        # TODO: Consider using ArchlinuxDistro.download_package_source()
+        # Consider using ArchlinuxDistro.download_package_source()
+        attempt = 0  # to stop Eclipse from warning :)
         for attempt in range( 3 ):
             try:
                 system_or_die( 'cd %s && rm -Rf PKGBUILDs && git clone git://github.com/archlinuxarm/PKGBUILDs.git' % ( self.mountpoint + self.ryo_tempdir ), \
@@ -1129,7 +1129,7 @@ exit 0
 
     def install_leap_bitmask( self ):
         logme( 'Installing leap bitmask' )
-        self.status_lst[-1] += ' Installing leap bitmask'  # TODO: Move the PySide installer into Phase B (A? C?)
+        self.status_lst[-1] += ' Installing leap bitmask'
         chroot_this( self.mountpoint, 'easy_install-2.7 psutil==1.2.1 leap.common markerlib leap.bitmask',
             status_lst = self.status_lst, title_str = self.title_str )
         if 0 != chroot_this( self.mountpoint, 'which qmake' ):
@@ -1355,9 +1355,9 @@ WantedBy=multi-user.target
         third_stage = ( 
                                 self.install_chrubix,
                                 self.install_moose,
-                                self.install_leap_bitmask,
                                 self.install_freenet,
                                 self.install_gpg_applet,
+                                self.install_leap_bitmask,
                                 self.install_final_push_of_packages,  # Chrubix, wmsystemtray, boom scripts, GUI, networking, ...
                                 self.forcibly_rebuild_initramfs_and_vmlinux,  # FIXME: Is this necessary? Remove it & see what happens.
                                 self.save_for_posterity_if_possible_C )  # self.nop
