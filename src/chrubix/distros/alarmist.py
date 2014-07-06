@@ -14,6 +14,7 @@ class AlarmistDistro( WheezyDebianDistro ):
     def __init__( self , *args, **kwargs ):
         super( AlarmistDistro, self ).__init__( *args, **kwargs )
         self.name = 'alarmist'
+        self.branch = None
         self.typical_install_duration = 8887
 
     def migrate_or_squash_OS( self ):
