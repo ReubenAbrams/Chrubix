@@ -722,14 +722,15 @@ def install_iceweasel_mozilla_settings( mountpoint, path ):
     assert( path.count( '/' ) == 2 )
     system_or_die( 'tar -zxf /usr/local/bin/Chrubix/blobs/settings/iceweasel-moz.tgz -C %s%s' % ( mountpoint, path ) )
     f = '%s%s/.mozilla/firefox/ygkwzm8s.default/secmod.db' % ( mountpoint, path )
+    logme( 'f = %s' % ( f ) )
+    assert( os.path.exists( f ) )
     if not os.system( "cat %s | sed s/'\/home\/wharbargl\/'/'%s\/%s\/'/ > %s.new" % ( f, dirname, basename, f ) ):  # do_a_sed() does not work. That's why we are using the sed binary instead.
         logme( 'WARNING - failed to install iceweasel settings for %s' % ( username ) )
         os.system( 'xmessage -buttons OK:0 -default Yes -nearmouse "install_iceweasel_mozilla_settings() is broken" -timeout 30' )
     else:
         system_or_die( 'mv %s.new %s' % ( f, f ) )
     chroot_this( mountpoint, 'chown -R %s %s' % ( username, path ) )
-    os.unlink( f )
-    os.rename( f + '.new', f )
+    assert( os.path.exists( f ) )
     logme( 'install_iceweasel_mozilla_settings() --- leaving' )
 
 
