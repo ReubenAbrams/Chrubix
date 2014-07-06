@@ -57,7 +57,7 @@ def generate_distro_record_from_name( name_str ):
         failed( 'You must make %s set the typical_install_duration attribute' % ( name_str ) )
     set_expected_duration_of_install( rec.typical_install_duration )
     assert( None not in ( rec.name, rec.architecture ) )
-    assert( rec.branch is not None or rec.name in ( 'archlinux', 'kali', 'fedora', 'alarmist' ) )
+    assert( rec.branch is not None or rec.name in ( 'archlinux', 'kali', 'fedora' ) )
     return rec
 
 
