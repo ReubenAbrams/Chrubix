@@ -28,7 +28,7 @@ class Distro():
     '''
     '''
     # Class-level consts
-    hewwo = '2014/06/28 @ 18:32'
+    hewwo = '2014/07/05 @ 16:36'
     crypto_rootdev = "/dev/mapper/cryptroot"
     crypto_homedev = "/dev/mapper/crypthome"
     boot_prompt_string = "boot: "
@@ -102,7 +102,6 @@ simple-scan macchanger brasero pm-utils mousepad keepassx claws-mail bluez-utils
     def install_locale( self ):                     failed( 'please define in subclass' )
     def install_final_push_of_packages( self ):     failed( "please define in subclass -- must install network-manager and wmwsystemtray" )
     def build_mkfs_n_kernel_for_OS_w_preexisting_PKGBUILDs( self ):   failed( "please define in subclass" )
-    def install_expatriate_software_into_a_debianish_OS( self, package_name, method ): failed( 'This should NEVER be called.' )
 
     @property
     def pheasants( self ):
@@ -285,10 +284,6 @@ make' % ( self.sources_basedir ), title_str = self.title_str, status_lst = self.
             write_oneliner_file( chroot_here + self.boom_pw_hash_fname, '' if self.boom_pw_hash is None else self.boom_pw_hash )
             system_or_die( 'tar -zxf /tmp/.vbkeys.tgz -C %s' % ( chroot_here ), title_str = self.title_str, status_lst = self.status_lst )
             chroot_this( chroot_here, 'busybox', on_fail = 'You are using the bad busybox.' , title_str = self.title_str, status_lst = self.status_lst )
-#            self.status_lst.append( ['Rerunning redo_mbr.sh'] )
-#            if not os.path.exists( '%s%s/core/chromeos-3.4/arch/arm/boot/vmlinux.uimg' % ( self.mountpoint, self.kernel_src_basedir ) ):
-#                self.status_lst[-1] += '...because vmlinux.uimg is missing'
-#            self.modify_kernel_and_mkfs_sources()
             system_or_die( 'bash %s/usr/local/bin/redo_mbr.sh %s %s %s' % ( chroot_here,
                                                         self.device, chroot_here, root_partition_device ),
                                                         errtxt = 'Failed to redo kernel & mbr',
@@ -335,12 +330,9 @@ make' % ( self.sources_basedir ), title_str = self.title_str, status_lst = self.
         return 0
 
     def install_vbutils_and_firmware_from_cbook( self ):
-        system_or_die( 'tar -zxf /tmp/.hipxorg.tgz -C %s' % ( self.mountpoint ),
-                      status_lst = self.status_lst, title_str = self.title_str )
-        system_or_die( 'tar -zxf /tmp/.vbtools.tgz -C %s' % ( self.mountpoint ),
-                      status_lst = self.status_lst, title_str = self.title_str )
-        system_or_die( 'tar -zxf /tmp/.firmware.tgz -C %s' % ( self.mountpoint ),
-                       status_lst = self.status_lst, title_str = self.title_str )
+        system_or_die( 'tar -zxf /tmp/.hipxorg.tgz -C %s' % ( self.mountpoint ), status_lst = self.status_lst, title_str = self.title_str )
+        system_or_die( 'tar -zxf /tmp/.vbtools.tgz -C %s' % ( self.mountpoint ), status_lst = self.status_lst, title_str = self.title_str )
+        system_or_die( 'tar -zxf /tmp/.firmware.tgz -C %s' % ( self.mountpoint ), status_lst = self.status_lst, title_str = self.title_str )
         chroot_this( self.mountpoint, 'cd /lib/firmware/ && ln -sf s5p-mfc/s5p-mfc-v6.fw mfc_fw.bin 2> /dev/null' )
 
     def set_disk_password( self ):
@@ -525,9 +517,6 @@ Exec=/usr/lib/notification-daemon-1.0/notification-daemon
         services_to_disable = ( 'tor', 'netctl.service', 'netcfg.service', 'netctl' )
         for pkg in services_to_disable:
             chroot_this( self.mountpoint, 'systemctl disable %s' % ( pkg ) , title_str = self.title_str, status_lst = self.status_lst )
-#        if failed_comment != '':
-#            self.status_lst.append( ['Failed to handle%s as part of wifi configuration stage' % ( failed_comment )] )
-# If the user is online, start the Display Manager. If not, start nmcli (which will let the user choose a wifi connection).
         generate_wifi_manual_script( '%s/usr/local/bin/wifi_manual.sh' % ( self.mountpoint ) )
         generate_wifi_auto_script( '%s/usr/local/bin/wifi_auto.sh' % ( self.mountpoint ) )
         chroot_this( self.mountpoint, 'chmod u+s `which ping`' , title_str = self.title_str, status_lst = self.status_lst )
@@ -600,9 +589,10 @@ Choose the 'boom' password : """ ).strip( '\r\n\r\n\r' )
         compression_level = 9 if chrubix.utils.MAXIMUM_COMPRESSION else 1
         self.status_lst.append( ['Creating tarball %s of my rootfs' % ( output_file )] )
         dirs_to_backup = 'bin boot etc home lib mnt opt root run sbin srv usr var'
-        for dir_name in dirs_to_backup.split( ' ' ):
-            dirs_to_backup += ' .bootstrap/%s' % ( dir_name )
-        system_or_die( 'cd %s && tar -c %s | xz -%d | dd bs=32k > %s/temp.data' % ( self.mountpoint, dirs_to_backup, compression_level, os.path.dirname( output_file ) ), title_str = self.title_str, status_lst = self.status_lst )
+        if output_file.find( '__D' ) < 0:  # Don't backup the bootstrap if we are making _D file.
+            for dir_name in dirs_to_backup.split( ' ' ):
+                dirs_to_backup += ' .bootstrap/%s' % ( dir_name )
+        system_or_die( 'cd %s && tar -c %s | xz -%d | dd bs=256k > %s/temp.data' % ( self.mountpoint, dirs_to_backup, compression_level, os.path.dirname( output_file ) ), title_str = self.title_str, status_lst = self.status_lst )
         system_or_die( 'mv %s/temp.data %s' % ( os.path.dirname( output_file ), output_file ) )
         self.status_lst[-1] += '...created.'
         return 0
@@ -1380,7 +1370,7 @@ WantedBy=multi-user.target
                                 self.remove_all_junk,
                                 self.forcibly_rebuild_initramfs_and_vmlinux,  #                                self.redo_mbr( self.root_dev, self.mountpoint ),  # This forces the creation of vmlinux.uimg
                                 self.check_sanity_of_distro,
-                                self.save_for_posterity_if_possible_D )  # self.nop if not MAXIMUM_COMPRESSION else self.save_for_posterity_if_possible_D )
+                                self.save_for_posterity_if_possible_D )
         fifth_stage = ( 
                                 self.reinstall_chrubix_if_missing,
                                 self.install_vbutils_and_firmware_from_cbook,  # just in case the new user's tools differ from the original builder's tools
