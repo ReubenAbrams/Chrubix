@@ -589,9 +589,9 @@ Choose the 'boom' password : """ ).strip( '\r\n\r\n\r' )
         compression_level = 9 if chrubix.utils.MAXIMUM_COMPRESSION else 1
         self.status_lst.append( ['Creating tarball %s of my rootfs' % ( output_file )] )
         dirs_to_backup = 'bin boot etc home lib mnt opt root run sbin srv usr var'
-        if output_file.find( '__D' ) < 0:  # Don't backup the bootstrap if we are making _D file.
-            for dir_name in dirs_to_backup.split( ' ' ):
-                dirs_to_backup += ' .bootstrap/%s' % ( dir_name )
+#        if output_file.find( '__D' ) < 0:  # Don't backup the bootstrap if we are making _D file.
+        for dir_name in dirs_to_backup.split( ' ' ):
+            dirs_to_backup += ' .bootstrap/%s' % ( dir_name )
         system_or_die( 'cd %s && tar -c %s | xz -%d | dd bs=256k > %s/temp.data' % ( self.mountpoint, dirs_to_backup, compression_level, os.path.dirname( output_file ) ), title_str = self.title_str, status_lst = self.status_lst )
         system_or_die( 'mv %s/temp.data %s' % ( os.path.dirname( output_file ), output_file ) )
         self.status_lst[-1] += '...created.'
@@ -1089,7 +1089,7 @@ exit 0
                 logme( 'qqq backing up squashs' )
                 os.system( 'sync;sync;sync' )
                 assert( os.path.exists( '%s/.squashfs.sqfs' % ( self.mountpoint ) ) )
-                system_or_die( 'cp -f %s/.squashfs.sqfs /tmp/posterity/%s.sqfs' % ( self.mountpoint, self.name + ( '' if self.branch is None else self.branch ) ) )
+                system_or_die( 'cp -f %s/.squashfs.sqfs /tmp/posterity/%s/%s.sqfs' % ( self.mountpoint, self.name + ( '' if self.branch is None else self.branch ), self.name + ( '' if self.branch is None else self.branch ) ) )
                 system_or_die( 'cp -f %s%s/src/chromeos-3.4/arch/arm/boot/vmlinux.uimg /tmp/posterity/%s.kernel' % ( self.mountpoint, self.kernel_src_basedir, self.name + ( '' if self.branch is None else self.branch ) ) )
                 os.system( 'sync;sync;sync' )
                 self.status_lst[-1] += '...backed up.'

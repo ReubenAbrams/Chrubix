@@ -459,25 +459,6 @@ MEH: No encryption. No duress password. Changes are permanent. Guest Mode is sti
 }
 
 
-fake_bootstrap_by_backlinking_to_my_root() {
-	umount $btstrap/tmp/_root/{proc,sys,tmp,dev} $btstrap/tmp/_root || failed "BS1"
-	umount $btstrap/{proc,sys,tmp,dev} $root  						|| failed "BS2"
-	btstrap=/tmp/__D
-	mkdir -p $btstrap												|| failed "BS3"
-	mount -o noatime "$dev_p"3 $btstrap								|| failed "BS4"
-	mount devtmpfs  $btstrap/dev -t devtmpfs						|| failed "BS5"
-	mount sysfs     $btstrap/sys -t sysfs							|| failed "BS6"
-	mount proc      $btstrap/proc -t proc							|| failed "BS7"
-	mount tmpfs     $btstrap/tmp -t tmpfs							|| failed "BS8"
-	mkdir -p $btstrap/tmp/_root
-	mount -o noatime "$dev_p"3 $btstrap/tmp/_root					|| failed "BS9"
-	mount devtmpfs  $btstrap/tmp/_root/dev -t devtmpfs				|| failed "BS10"
-	mount sysfs     $btstrap/tmp/_root/sys -t sysfs					|| failed "BS11"
-	mount proc      $btstrap/tmp/_root/proc -t proc					|| failed "BS12"
-	mount tmpfs     $btstrap/tmp/_root/tmp -t tmpfs					|| failed "BS13"
-}
-
-
 ##################################################################################################################################
 
 
@@ -554,10 +535,6 @@ if restore_from_squash_fs_backup_if_possible ; then
 else
 	if restore_from_stage_X_backup_if_possible ; then
 		echo "Restored from stage X. Good."
-		if cat $root/.url_or_fname.txt | fgrep "__D" ; then
-			echo "There is no bootstrap. That's OK. I can hack it."
-			fake_bootstrap_by_backlinking_to_my_root
-		fi	
 	else
 		echo "OK. Starting from beginning."
 		oh_well_start_from_beginning
