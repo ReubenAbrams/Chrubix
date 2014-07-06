@@ -280,20 +280,17 @@ Which would you like me to install? "
 		esac
 	done
 	url=$FINALS_URL/$distroname"__D.tar.xz"
-	squrl=$FINALS_URL/$distroname.sqfs
+	squrl=$FINALS_URL/$distroname/$distroname.sqfs
 	echo $distroname > $lockfile
 }
 
 restore_from_stage_X_backup_if_possible() {
-	if [ -e "/tmp/FROMSCRATCH" ] ; then
-		return 99
-	fi
 	mkdir -p /tmp/a /tmp/b
 	mount /dev/sda4 /tmp/a &> /dev/null || echo -en ""
 	mount /dev/sdb4 /tmp/b &> /dev/null || echo -en ""
 	for stage in D C B A ; do
-		fnA="/tmp/a/"$distroname"__"$stage".xz"
-		fnB="/tmp/b/"$distroname"__"$stage".xz"
+		fnA="/tmp/a/$distroname/"$distroname"__"$stage".xz"
+		fnB="/tmp/b/$distroname/"$distroname"__"$stage".xz"
 		for fname in $fnA $fnB ; do
 			if [ -e "$fname" ] ; then
 				restore_stage_X_from_backup $distroname $fname $root
@@ -304,7 +301,7 @@ restore_from_stage_X_backup_if_possible() {
 		done
 	done
 	if [ ! -e "/home/chronos/user/Downloads/reubenabrams.txt" ] && wget --spider $url -O /dev/null ; then
-		url=$FINALS_URL/$distroname"__D.tar.xz"
+		url=$FINALS_URL/$distroname/$distroname"__D.tar.xz"
 		if wget $url -O - | tar -Jx -C $root ; then
 			echo "Restored ($distroname, stage D) from Dropbox"
 			echo "9999" > $root/.checkpoint.txt
@@ -527,7 +524,12 @@ if [ -e "$lockfile" ] && [ -e "/tmp/temp_or_perm" ] ; then
 	temp_or_perm=`cat /tmp/temp_or_perm`
 else
 	get_distro_type_the_user_wants
-	ask_if_user_wants_temporary_or_permanent
+	if [ "$distroname" = "alarmist" ] ; then
+		temp_or_perm="temp"
+		echo "OK. Everything will be temporary. Nothing will be permanent. (Such is Life...)"
+	else
+		ask_if_user_wants_temporary_or_permanent
+	fi
 	echo "$temp_or_perm" > /tmp/temp_or_perm
 fi
 
@@ -568,6 +570,34 @@ if restore_from_squash_fs_backup_if_possible ; then
 else
 	if restore_from_stage_X_backup_if_possible ; then
 		echo "Restored from stage X. Good."
+		if cat $root/.url_or_fname.txt | fgrep "__D" ; then
+			echo "There is no bootstrap. That's OK. I can hack it."
+			umount $btstrap/tmp/_root/{proc,sys,tmp,dev} $btstrap/tmp/_root || echo "aaaa"
+echo -en "H"
+			umount $btstrap/{proc,sys,tmp,dev} $root  || echo "bbbb"
+echo -en "e"
+			btstrap=/tmp/__D
+echo -en "l"
+			mkdir -p $btstrap			
+echo -en "l"
+			mount -o noatime "$dev_p"3 $btstrap
+echo -en "o"
+			mount devtmpfs  $btstrap/dev -t devtmpfs	|| echo "cccc"
+			mount sysfs     $btstrap/sys -t sysfs		|| echo "dddd"
+			mount proc      $btstrap/proc -t proc	|| echo "eeee"
+			mount tmpfs     $btstrap/tmp -t tmpfs	|| echo "ffff"
+echo -en "t"
+			mkdir -p $btstrap/tmp/_root
+			mount -o noatime "$dev_p"3 $btstrap/tmp/_root
+echo -en "h"
+			mount devtmpfs $btstrap/tmp/_root/dev -t devtmpfs
+echo -en "e"
+			mount tmpfs $btstrap/tmp/_root/tmp -t tmpfs		
+echo -en "r"
+			mount proc $btstrap/tmp/_root/proc -t proc		
+			mount sys $btstrap/tmp/_root/sys -t sysfs
+echo "e"
+		fi	
 	else
 		echo "OK. Starting from beginning."
 		oh_well_start_from_beginning
@@ -583,7 +613,7 @@ else
 	tar -cz /usr/bin/vbutil* /usr/bin/old_bins /usr/bin/futility > $btstrap/tmp/.vbtools.tgz 2>/dev/null
 	tar -cz /usr/share/vboot > $btstrap/tmp/.vbkeys.tgz 2>/dev/null #### MAKE SURE CHRUBIX HAS ACCESS TO Y-O-U-R KEYS and YOUR vbutil* binaries ####
 	tar -cz /lib/firmware > $btstrap/tmp/.firmware.tgz 2>/dev/null # save firmware!
-	chmod +x $btstrap/usr/local/bin/*
+	chroot_this $btstrap "chmod +x /usr/local/bin/*"
 	echo "$temp_or_perm" > $btstrap/.temp_or_perm.txt
 	ln -sf ../../bin/python3 $btstrap/usr/local/bin/python3
 	echo "************ Calling CHRUBIX, the Python powerhouse of pulchritudinous perfection ************"
