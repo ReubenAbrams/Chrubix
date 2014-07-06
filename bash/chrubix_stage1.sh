@@ -39,13 +39,13 @@ SOURCES_BASEDIR=$RYO_TEMPDIR/PKGBUILDs/core
 KERNEL_SRC_BASEDIR=$SOURCES_BASEDIR/linux-chromebook
 LOGLEVEL=2
 
-
-if ping -W2 -c1 192.168.1.66 &>/dev/null ; then
-	WGET_PROXY="http://192.168.1.66:8080"
-else
-	WGET_PROXY=""
+if [ -e "/home/chronos/user/Downloads/reubenabrams.txt" ] ; then 
+	FINALS_URL="https://dont.use.online.stuff.at.all"
+	if ping -W2 -c1 192.168.1.66 &>/dev/null ; then
+		WGET_PROXY="http://192.168.1.66:8080"
+		export http_proxy=$WGET_PROXY
+	fi
 fi
-[ "$WGET_PROXY" != "" ] && export http_proxy=$WGET_PROXY
 
 
 
@@ -168,7 +168,6 @@ partition_device() {
 	cgpt add -i  1 -t kernel -b  8192 -s 32768 -l U-Boot -S 1 -T 5 -P 10 $dev
 	cgpt add -i 12 -t data   -b 40960 -s 32768 -l Script $dev
 	lastblock=`cgpt show $dev | tail -n3 | grep "Sec GPT table" | tr -s ' ' '\t' | cut -f2`
-#	lastblock=$(($lastblock-19999))	# FIXME Why do I do this?
 	splitpoint=$(($lastblock/2))
 
 	cgpt add -i  2 -t data   -b 73728 -s `expr $splitpoint - 73728` -l Kernel $dev
@@ -241,7 +240,7 @@ restore_stage_X_from_backup() {
 	distroname=$1
 	fname=$2
 	root=$3
-	clear
+#	clear
 	echo "Using $distroname midpoint file $fname"
 	pv $fname | tar -Jx -C $root || failed "Failed to unzip $fname --- J err?"
 	echo "Restored ($distroname, stage X) from $fname"
@@ -279,7 +278,7 @@ Which would you like me to install? "
 *)   echo "Unknown distro";;
 		esac
 	done
-	url=$FINALS_URL/$distroname"__D.tar.xz"
+	url=$FINALS_URL/$distroname/$distroname"__D.xz"
 	squrl=$FINALS_URL/$distroname/$distroname.sqfs
 	echo $distroname > $lockfile
 }
@@ -300,8 +299,8 @@ restore_from_stage_X_backup_if_possible() {
 			fi
 		done
 	done
-	if [ ! -e "/home/chronos/user/Downloads/reubenabrams.txt" ] && wget --spider $url -O /dev/null ; then
-		url=$FINALS_URL/$distroname/$distroname"__D.tar.xz"
+	echo "FYI, url=$url"
+	if wget --spider $url -O /dev/null ; then
 		if wget $url -O - | tar -Jx -C $root ; then
 			echo "Restored ($distroname, stage D) from Dropbox"
 			echo "9999" > $root/.checkpoint.txt
@@ -324,8 +323,10 @@ restore_from_squash_fs_backup_if_possible() {
 	mount /dev/sda4 /tmp/a &> /dev/null || echo -en ""
 	mount /dev/sdb4 /tmp/b &> /dev/null || echo -en ""
 	
-	fnA=/tmp/a/$distroname.sqfs
-	fnB=/tmp/b/$distroname.sqfs
+	fnA=/tmp/a/$distroname/$distroname.sqfs
+	fnB=/tmp/b/$distroname/$distroname.sqfs
+	echo "fnA = $fnA"
+	echo "fnB = $fnB"
 	for fname in $fnA $fnB ; do
 		if [ -e "$fname" ] ; then
 			if [ "$temp_or_perm" = "temp" ] ; then	
@@ -337,8 +338,9 @@ restore_from_squash_fs_backup_if_possible() {
 			fi
 		fi
 	done
-	squrl=$FINALS_URL/$distroname.sqfs
-	if [ ! -e "/home/chronos/user/Downloads/reubenabrams.txt" ] && wget --spider $squrl -O - > $root/.squashfs.sqfs &> /dev/null ; then
+	squrl=$FINALS_URL/$distroname/$distroname.sqfs
+	echo "squrl = $squrl"
+	if wget --spider $squrl -O - > $root/.squashfs.sqfs &> /dev/null ; then
 		if [ "$temp_or_perm" = "temp" ] ; then
 			wget $squrl -O - > $root/.squashfs.sqfs && echo "Squashfs file downloaded and installed OK" || failed "Failed to restrieve squashfs file from URL"
 			echo "Restored ($distroname, squash fs) from Dropbox"
@@ -400,7 +402,7 @@ hack_something_squishy() {
 #		echo "Fair enough. Squashfs is not mountable (xz?). I'll use the online copy of the kernel instead."
 		kernelpath=/tmp/.kernel.dat
 		if [ ! -e "$kernelpath" ] ; then
-			wget https://dl.dropboxusercontent.com/u/59916027/chrubix/finals/$distroname.kernel -O - > $kernelpath || failed "Failed to download $distroname.kernel"
+			wget $FINALS_URL/$distroname/$distroname.kernel -O - > $kernelpath || failed "Failed to download $distroname.kernel"
 		fi
 #	fi
 	sign_and_write_custom_kernel $root "$dev_p"1 "$dev_p"3 $kernelpath "" ""  || failed "Failed to sign/write custom kernel"
@@ -410,7 +412,7 @@ hack_something_squishy() {
 oh_well_start_from_beginning() {
 	cd /
 	echo "OK. There was no Stage D available on a thumb drive or online."
-	clear
+#	clear
 	echo "Installing bootstrap filesystem..."
 	mkdir -p $btstrap
 	if [ -e "/home/chronos/user/Downloads/alarpy.tar.xz" ] ; then
@@ -457,53 +459,35 @@ MEH: No encryption. No duress password. Changes are permanent. Guest Mode is sti
 }
 
 
-
-try_mbr_etc_hack() {
-	dev=/dev/mmcblk1
-	dev_p="$dev"p
-	root=/tmp/_root.`basename $dev`
-	boot=/tmp/_boot.`basename $dev`
-	kern=/tmp/_kern.`basename $dev`
-	btstrap=$root/.bootstrap
-	mkdir -p $root
-	mount "$dev_p"3 $root
-	mkdir -p $btstrap/{dev,proc,tmp,sys}
-	mkdir -p $root/{dev,proc,tmp,sys}
-	mount devtmpfs  $btstrap/dev -t devtmpfs	|| echo -en ""
-	mount sysfs     $btstrap/sys -t sysfs		|| echo -en ""
-	mount proc      $btstrap/proc -t proc		|| echo -en ""
-	mount tmpfs     $btstrap/tmp -t tmpfs		|| echo -en ""
+fake_bootstrap_by_backlinking_to_my_root() {
+	umount $btstrap/tmp/_root/{proc,sys,tmp,dev} $btstrap/tmp/_root || failed "BS1"
+	umount $btstrap/{proc,sys,tmp,dev} $root  						|| failed "BS2"
+	mkdir -p $btstrap												|| failed "BS3"
+	mount -o noatime "$dev_p"3 $btstrap								|| failed "BS4"
+	mount devtmpfs  $btstrap/dev -t devtmpfs						|| failed "BS5"
+	mount sysfs     $btstrap/sys -t sysfs							|| failed "BS6"
+	mount proc      $btstrap/proc -t proc							|| failed "BS7"
+	mount tmpfs     $btstrap/tmp -t tmpfs							|| failed "BS8"
 	mkdir -p $btstrap/tmp/_root
-	mount -o noatime "$dev_p"3 $btstrap/tmp/_root		|| echo -en ""
-	mount devtmpfs $btstrap/tmp/_root/dev -t devtmpfs	|| echo -en ""
-	mount tmpfs $btstrap/tmp/_root/tmp -t tmpfs			|| echo -en ""
-	mount proc $btstrap/tmp/_root/proc -t proc			|| echo -en ""
-	mount sys $btstrap/tmp/_root/sys -t sysfs			|| echo -en ""
-	tar -cz /usr/bin/vbutil* /usr/bin/old_bins /usr/bin/futility > $btstrap/tmp/.vbtools.tgz 2>/dev/null
-	tar -cz /usr/share/vboot > $btstrap/tmp/.vbkeys.tgz 2>/dev/null #### MAKE SURE CHRUBIX HAS ACCESS TO Y-O-U-R KEYS and YOUR vbutil* binaries ####
-	tar -cz /lib/firmware > $btstrap/tmp/.firmware.tgz 2>/dev/null # save firmware!
-	chroot_this $btstrap "/usr/local/bin/chrubix.sh tinker mbr-etc"
-	sync;sync;sync
-	umount $btstrap/tmp/_root/{dev,tmp,proc,sys} $btstrap/tmp/_root $btstrap/{dev,tmp,proc,sys} $btstrap
-	exit $? 
+	mount -o noatime "$dev_p"3 $btstrap/tmp/_root					|| failed "BS9"
+	mount devtmpfs  $btstrap/tmp/_root/dev -t devtmpfs				|| failed "BS10"
+	mount sysfs     $btstrap/tmp/_root/sys -t sysfs					|| failed "BS11"
+	mount proc      $btstrap/tmp/_root/proc -t proc					|| failed "BS12"
+	mount tmpfs     $btstrap/tmp/_root/tmp -t tmpfs					|| failed "BS13"
 }
 
 
 ##################################################################################################################################
 
 
-if [ "$1" = "mbr-etc" ] ; then
-	try_mbr_etc_hack
-fi
-
 echo "Chrubix ------ starting now"
-umount /tmp/_root*/.bootstrap/tmp/_root/{dev,tmp,proc,sys}
-umount /tmp/_root*/.bootstrap/tmp/_root
-umount /tmp/_root*/.bootstrap/{dev,tmp,proc,sys}
-umount /tmp/_root*/.bootstrap /tmp/_root*/.ro /tmp/_root.*/.*
+umount /tmp/_root*/.bootstrap/tmp/_root/{dev,tmp,proc,sys} 2> /dev/null
+umount /tmp/_root*/.bootstrap/tmp/_root 2> /dev/null
+umount /tmp/_root*/.bootstrap/{dev,tmp,proc,sys} 2> /dev/null
+umount /tmp/_root*/.bootstrap /tmp/_root*/.ro /tmp/_root.*/.* 2> /dev/null
 set -e
-clear
-mount | grep /dev/mapper/encstateful &> /dev/null || failed "Run under ChromeOS, please."
+#clear
+mount | grep /dev/mapper/encstateful &> /dev/null || failed "Run me from within ChromeOS, please."
 mydevbyid=`deduce_my_dev`
 [ "$mydevbyid" = "" ] && failed "I am unable to figure out which device you want me to prep. Sorry..."
 [ -e "$mydevbyid" ] || failed "Please insert a thumb drive or SD card and try again. Please DO NOT INSERT your keychain thumb drive."
@@ -544,7 +528,6 @@ partition_device $dev $dev_p
 format_partitions $dev $dev_p
 mkdir -p $root
 mount $mount_opts "$dev_p"3  $root
-rm -Rf $btstrap
 mkdir -p $btstrap
 mkdir -p /tmp/a
 res=0
@@ -572,31 +555,7 @@ else
 		echo "Restored from stage X. Good."
 		if cat $root/.url_or_fname.txt | fgrep "__D" ; then
 			echo "There is no bootstrap. That's OK. I can hack it."
-			umount $btstrap/tmp/_root/{proc,sys,tmp,dev} $btstrap/tmp/_root || echo "aaaa"
-echo -en "H"
-			umount $btstrap/{proc,sys,tmp,dev} $root  || echo "bbbb"
-echo -en "e"
-			btstrap=/tmp/__D
-echo -en "l"
-			mkdir -p $btstrap			
-echo -en "l"
-			mount -o noatime "$dev_p"3 $btstrap
-echo -en "o"
-			mount devtmpfs  $btstrap/dev -t devtmpfs	|| echo "cccc"
-			mount sysfs     $btstrap/sys -t sysfs		|| echo "dddd"
-			mount proc      $btstrap/proc -t proc	|| echo "eeee"
-			mount tmpfs     $btstrap/tmp -t tmpfs	|| echo "ffff"
-echo -en "t"
-			mkdir -p $btstrap/tmp/_root
-			mount -o noatime "$dev_p"3 $btstrap/tmp/_root
-echo -en "h"
-			mount devtmpfs $btstrap/tmp/_root/dev -t devtmpfs
-echo -en "e"
-			mount tmpfs $btstrap/tmp/_root/tmp -t tmpfs		
-echo -en "r"
-			mount proc $btstrap/tmp/_root/proc -t proc		
-			mount sys $btstrap/tmp/_root/sys -t sysfs
-echo "e"
+			fake_bootstrap_by_backlinking_to_my_root
 		fi	
 	else
 		echo "OK. Starting from beginning."
