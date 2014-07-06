@@ -433,15 +433,6 @@ def install_mp3_files( mountpoint ):
         system_or_die( 'gunzip %s/%s.mp3.gz' % ( mydir, myname ) )
 
 
-#        chroot_this( self.mountpoint, 'ln -sf /opt/freenet/run.sh /usr/local/bin/start-freenet.sh' )
-#        chroot_this( self.mountpoint, 'ln -sf wrapper-linux-armhf-32 /opt/freenet/bin/wrapper-linux-armv7l-32' )
-#        chroot_this( self.mountpoint, 'ln -sf wrapper-linux-armhf-32 /opt/freenet/bin/wrapper' )
-#        if not os.path.exists( '%s/usr/local/bin/start-freenet.sh' % ( self.mountpoint ) ) \
-#        and os.path.exists( '%s/opt/freenet/run.sh' % ( self.mountpoint ) ):
-#            chroot_this( self.mountpoint, 'ln -sf /opt/freenet/run.sh /usr/local/bin/start-freenet.sh' )
-#        chroot_this( self.mountpoint, 'chown -R freenet.freenet /opt/freenet' )
-
-
 def running_on_a_test_rig():
     for a_rig_serno in ( '09278f79', '203a61bc' ):
         a_rig = '/dev/disk/by-id/mmc-SEM16G_0x%s' % ( a_rig_serno )
@@ -449,11 +440,6 @@ def running_on_a_test_rig():
             return True
     return False
 
-
-# def install_lxdm_from_source( mountpoint ):
-#    wget( url = 'https://dl.dropboxusercontent.com/u/59916027/chrubix/lxdm-0.5.0.tar.xz', extract_to_path = '%s/root' % ( mountpoint ), decompression_flag = 'J' )
-#    chroot_this( '''cd /root/lxdm-0.5.0 && ./configure && make && make install
-# ''' )
 
 def poweroff_now():
     for ( val, fname ) in ( 
