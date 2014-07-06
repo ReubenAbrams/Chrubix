@@ -592,6 +592,7 @@ Choose the 'boom' password : """ ).strip( '\r\n\r\n\r' )
 #        if output_file.find( '__D' ) < 0:  # Don't backup the bootstrap if we are making _D file.
         for dir_name in dirs_to_backup.split( ' ' ):
             dirs_to_backup += ' .bootstrap/%s' % ( dir_name )
+        system_or_die( 'mkdir -p %s%s' % ( self.mountpoint, os.path.dirname( output_file ) ) )
         system_or_die( 'cd %s && tar -c %s | xz -%d | dd bs=256k > %s/temp.data' % ( self.mountpoint, dirs_to_backup, compression_level, os.path.dirname( output_file ) ), title_str = self.title_str, status_lst = self.status_lst )
         system_or_die( 'mv %s/temp.data %s' % ( os.path.dirname( output_file ), output_file ) )
         self.status_lst[-1] += '...created.'
