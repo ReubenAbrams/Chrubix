@@ -1273,7 +1273,11 @@ WantedBy=multi-user.target
         if os.system( 'mount /dev/sda4 /tmp/posterity &> /dev/null' ) == 0 \
         or os.system( 'mount /dev/sdb4 /tmp/posterity &> /dev/null' ) == 0 \
         or os.system( 'mount | grep /tmp/posterity &> /dev/null' ) == 0:
-            fname = '/tmp/posterity/%s%s_%s.xz' % ( self.name, '' if self.branch is None else self.branch, tailend )
+            fname = '/tmp/posterity/%s%s/%s%s_%s.xz' % ( self.name,
+                                                         '' if self.branch is None else self.branch,
+                                                         self.name,
+                                                         '' if self.branch is None else self.branch,
+                                                         tailend )
             res = func_to_call( fname )
             logme( 'load_or_save_posterity_file() --- leaving' )
             return res
