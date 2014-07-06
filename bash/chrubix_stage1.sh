@@ -462,6 +462,7 @@ MEH: No encryption. No duress password. Changes are permanent. Guest Mode is sti
 fake_bootstrap_by_backlinking_to_my_root() {
 	umount $btstrap/tmp/_root/{proc,sys,tmp,dev} $btstrap/tmp/_root || failed "BS1"
 	umount $btstrap/{proc,sys,tmp,dev} $root  						|| failed "BS2"
+	btstrap=/tmp/__D
 	mkdir -p $btstrap												|| failed "BS3"
 	mount -o noatime "$dev_p"3 $btstrap								|| failed "BS4"
 	mount devtmpfs  $btstrap/dev -t devtmpfs						|| failed "BS5"
