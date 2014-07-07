@@ -17,7 +17,6 @@ except ImportError:
     QString = str
 
 
-# os.system( 'rm -f /tmp/chrubix.log' )
 logme( '**************************** WELCOME TO CHRUBIX ****************************' )
 if os.system( 'cat /proc/cmdline 2>/dev/null | fgrep root=/dev/dm-0 > /dev/null' ) == 0:
     from chrubix import exec_cli
@@ -38,11 +37,6 @@ or os.system( 'mount | grep hfs &> /dev/null' ) == 0:
 from PyQt4.QtCore import SIGNAL, SLOT, pyqtSignature
 from PyQt4.Qt import QLineEdit
 from PyQt4 import QtGui, uic
-# try:
-#    from PyQt4.QtCore import QString
-# except ImportError:
-#    # we are using Python3 so QString is not defined
-#    QString = str
 # import resources_rc
 from ui.ui_MainWindow import Ui_mnwMain
 from ui.ui_ReconfigureorexitForm import Ui_dlgReconfigureorexit
@@ -64,10 +58,6 @@ class ChangePasswordDialog( QtGui.QDialog, Ui_dlgChangepassword ):
         self._password = None
         super( ChangePasswordDialog, self ).__init__()
         uic.loadUi( "ui/ChangePasswordDialog.ui", self )
-        # Enter? => Click OK
-        # Escape => Click Cancel
-        # Click OK? => Verify password. Then clear fields & quit.
-        # Click cancel? Clear fields & quit.
         self.setupUi( self )
         self.setWindowTitle( self.__title )
         self.edlOldpass.setEchoMode( QLineEdit.Password )
