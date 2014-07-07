@@ -8,7 +8,7 @@ import sys
 import os
 import hashlib
 from chrubix.utils import logme
-from chrubix import generate_distro_record_from_name, save_distro_record, load_distro_record
+from chrubix import save_distro_record, load_distro_record
 
 
 try:
@@ -243,7 +243,7 @@ class MainWindow( QtGui.QMainWindow, Ui_mnwMain ):
             v = self.distro.lxdm_settings[k]
             w = v if type( v ) is str else str( v )
             outstr += '%s=%s\n' % ( k, w )
-        signals_are_already_blocked = self.signalsBlocked()
+#        signals_are_already_blocked = self.signalsBlocked()
         self.pteLxdmSettings.setPlainText( outstr )
 
     @pyqtSignature( "" )
