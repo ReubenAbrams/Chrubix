@@ -330,6 +330,10 @@ Acquire::https::Proxy "https://%s/";
         logme( 'DebianDistro - configure_distrospecific_tweaks() - leaving' )
 
     def install_i2p( self ):
+        write_oneliner_file( '%s/etc/apt/sources.list.d/i2p.list' % ( self.mountpoint ), '''
+deb http://deb.i2p2.no/ stable main
+deb-src http://deb.i2p2.no/ stable main
+''' )
         for cmd in ( 
                     'yes 2>/dev/null | add-apt-repository "deb http://deb.i2p2.no/ %s main"' % ( 'wheezy' ),  # 'unstable' if self.branch == 'jessie' else 'stable' ),
                     'yes "" 2>/dev/null | curl https://geti2p.net/_static/debian-repo.pub | apt-key add -',
@@ -342,11 +346,11 @@ Acquire::https::Proxy "https://%s/";
 
     def install_final_push_of_packages( self ):
         logme( 'DebianDistro - install_final_push_of_packages() - starting' )
+        self.install_i2p()
         chroot_this( self.mountpoint, 'which ping && echo "Ping installed OK" || yes 2>/dev/null | apt-get install iputils-ping', on_fail = 'Failed to install ping' )
 #        chroot_this( self.mountpoint, 'pip install leap.bitmask', status_lst = self.status_lst, title_str = self.title_str,
 #                     on_fail = 'Failed to install leap.bitmask' )
         self.install_win_xp_theme()
-        self.install_i2p()
 #        self.status_lst.append( [ 'Go to https://wiki.freenetproject.org/Installing/POSIX and learn how to install Freenet'] )
         if self.final_push_packages.find( 'wmsystemtray' ) < 0:
             self.install_expatriate_software_into_a_debianish_OS( package_name = 'wmsystemtray', method = 'debian' )
