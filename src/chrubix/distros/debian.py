@@ -9,25 +9,6 @@ import os
 from chrubix.distros import Distro
 
 
-def do_debian_specific_lxdm_related_hacks( mountpoint ):
-    write_oneliner_file( '/etc/X11/default-display-manager', '/usr/local/bin/greeter.sh' )
-    chroot_this( mountpoint, '''mv /etc/pam.d/lxdm /etc/pam.d/lxdm.orig; echo "
-        session required pam_loginuid.so
-session required pam_systemd.so
-" > /etc/pam.d/lxdm; cat /etc/pam.d/lxdm.orig >> /etc/pam.d/lxdm''' )
-    for f in ( '/etc/init/lxdm.conf', '/etc/init/lxdm.conf', '/etc/init.d/lxdm' ):
-        do_a_sed( '%s%s' % ( mountpoint, f ), 'exec lxdm-binary', 'exec ersatz_lxdm.sh' )
-        do_a_sed( '%s%s' % ( mountpoint, f ), '/usr/sbin/lxdm-binary', '/usr/local/bin/ersatz_lxdm.sh' )
-        do_a_sed( '%s%s' % ( mountpoint, f ), '/usr/sbin/lxdm', '/usr/local/bin/ersatz_lxdm.sh' )
-    # Replace alternatives/lxdm.conf and lxdm/default.conf with hyperlinks to a (real) lxdm/lxdm.conf
-    chroot_this( mountpoint, '''\
-cat /etc/lxdm/lxdm.conf > /etc/lxdm/groovy; \
-rm -f /etc/lxdm/lxdm.conf /etc/lxdm/default.conf /etc/alternatives/lxdm.conf; \
-mv /etc/lxdm/groovy /etc/lxdm/lxdm.conf; \
-ln -sf /etc/lxdm/lxdm.conf /etc/alternatives/lxdm.conf; \
-ln -sf /etc/lxdm/lxdm.conf /etc/lxdm/default.conf''' )
-
-
 def do_debian_specific_mbr_related_hacks( mountpoint ):
     logme( 'mountpoint = %s' % ( mountpoint ) )
     system_or_die( 'rm -Rf %s/usr/lib/initcpio' % ( mountpoint ) )
@@ -298,7 +279,6 @@ Acquire::https::Proxy "https://%s/";
     def configure_distrospecific_tweaks( self ):
         logme( 'DebianDistro - configure_distrospecific_tweaks() - starting' )
         self.status_lst.append( ['Installing distro-specific tweaks'] )
-#        do_debian_specific_lxdm_related_hacks( self.mountpoint )
         do_debian_specific_mbr_related_hacks( self.mountpoint )
         if os.path.exists( '%s/etc/apt/apt.conf' % ( self.mountpoint ) ):
             for to_remove in ( 'ftp', 'http' ):
