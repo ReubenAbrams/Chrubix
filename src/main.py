@@ -148,7 +148,7 @@ class MainWindow( QtGui.QMainWindow, Ui_mnwMain ):
 
     @pyqtSignature( "int" )
     def spiNoofPanicPushesRequiredChanged( self, new_val ):
-        self.panic_button = new_val
+        self.distro.panic_button = new_val
         self.setChangesMadeTrue()
 
     @pyqtSignature( "" )
@@ -173,6 +173,7 @@ class MainWindow( QtGui.QMainWindow, Ui_mnwMain ):
         self.btnChangeRootPassword.setEnabled( self.chkEncryptedRootPartition.isChecked() )
         self.btnChooseHomeKeyTD.setEnabled( self.chkHomeKeyTD.isChecked() )
         self.spiNoofPanicPushesRequired.setEnabled( self.chkPanicButton.isChecked() )
+        self.spiNoofPanicPushesRequired.setValue( self.distro.panic_button )
 
     @pyqtSignature( "" )
     def configureCheckBoxes( self ):
