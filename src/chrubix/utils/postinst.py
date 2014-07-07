@@ -726,7 +726,7 @@ def install_iceweasel_mozilla_settings( mountpoint, path ):
     assert( os.path.exists( f ) )
     s = r"cat %s | sed s/'\/home\/wharbargl\/'/'\/%s\/%s\/'/ > %s.new" % ( f, dirname.strip( '/' ), basename.strip( '/' ), f )
     logme( 'calling ==> %s' % ( s ) )
-    if not os.system( s ):  # do_a_sed() does not work. That's why we are using the sed binary instead.
+    if 0 != os.system( s ):  # do_a_sed() does not work. That's why we are using the sed binary instead.
         logme( 'WARNING - failed to install iceweasel settings for %s' % ( username ) )
         os.system( 'xmessage -buttons OK:0 -default Yes -nearmouse "install_iceweasel_mozilla_settings() is broken" -timeout 30' )
     else:
