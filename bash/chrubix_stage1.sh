@@ -272,7 +272,7 @@ Which would you like me to install? "
 "J") distroname="debianjessie";;
 "K") distroname="kali";;
 "S") distroname="suse";;
-"T") distroname="alarmist";;
+"T") distroname="alarmistwheezy";;
 "U") distroname="ubuntupangolin";;
 "W") distroname="debianwheezy";;
 *)   echo "Unknown distro";;
@@ -331,8 +331,9 @@ restore_from_squash_fs_backup_if_possible() {
 		if [ -e "$fname" ] ; then
 			if [ "$temp_or_perm" = "temp" ] ; then	
 				echo "Installing squashfs file"
+				find /tmp/[a,b]/$distroname/$distroname.kernel &> /dev/null || failed "Squashfs file is present but kernel file is not. Boo..."
 				pv $fname > $root/.squashfs.sqfs && echo "...copied across OK" || failed "Failed to copy the squashfs file across."
-				cp /tmp/[a,b]/$distroname.kernel /tmp/.kernel.dat
+				cp /tmp/[a,b]/$distroname/$distroname.kernel /tmp/.kernel.dat
 				hack_something_squishy $distroname $root $dev_p
 				return 0
 			fi
