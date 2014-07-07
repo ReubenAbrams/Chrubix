@@ -40,7 +40,7 @@ def list_command_line_options():
 
 def generate_distro_record_from_name( name_str ):
     distro_options = {
-                  'alarmist'      :AlarmistDistro,
+                  'alarmistwheezy':AlarmistDistro,
                   'archlinux'     :ArchlinuxDistro,
                   'fedora'        :FedoraDistro,
                   'debianjessie'  :JessieDebianDistro,
