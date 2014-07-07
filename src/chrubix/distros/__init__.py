@@ -28,7 +28,7 @@ class Distro():
     '''
     '''
     # Class-level consts
-    hewwo = '2014/07/05 @ 16:36'
+    hewwo = '2014/07/06 @ 20:14'
     crypto_rootdev = "/dev/mapper/cryptroot"
     crypto_homedev = "/dev/mapper/crypthome"
     boot_prompt_string = "boot: "
@@ -409,7 +409,8 @@ make' % ( self.sources_basedir ), title_str = self.title_str, status_lst = self.
         logme( 'modify_build_and_install_mkfs_and_kernel_for_OS() --- starting' )
         diy = True
         if running_on_a_test_rig():
-            fname = '/tmp/posterity/%s_PKGBUILDs.tgz' % ( self.name + ( '' if self.branch is None else self.branch ) )
+            fname = '/tmp/posterity/%s/%s_PKGBUILDs.tgz' % ( self.name + ( '' if self.branch is None else self.branch ), self.name + ( '' if self.branch is None else self.branch ) )
+            os.system( 'mkdir -p %s%s' % ( self.mountpoint, os.path.dirname( fname ) ) )
             mounted = False
             system_or_die( 'mkdir -p /tmp/posterity' )
             if os.system( 'mount /dev/sda4 /tmp/posterity &> /dev/null' ) == 0 \
@@ -589,7 +590,6 @@ Choose the 'boom' password : """ ).strip( '\r\n\r\n\r' )
         compression_level = 9 if chrubix.utils.MAXIMUM_COMPRESSION else 1
         self.status_lst.append( ['Creating tarball %s of my rootfs' % ( output_file )] )
         dirs_to_backup = 'bin boot etc home lib mnt opt root run sbin srv usr var'
-#        if output_file.find( '__D' ) < 0:  # Don't backup the bootstrap if we are making _D file.
         for dir_name in dirs_to_backup.split( ' ' ):
             dirs_to_backup += ' .bootstrap/%s' % ( dir_name )
         system_or_die( 'mkdir -p %s%s' % ( self.mountpoint, os.path.dirname( output_file ) ) )
@@ -1064,14 +1064,14 @@ exit 0
             or 0 == os.system( 'mount /dev/sdb4 /tmp/posterity &> /dev/null' ) \
             or 0 == os.system( 'mount | grep /tmp/posterity &> /dev/null' ):
                 logme( 'Perhaps.' )
-                if os.path.exists( '/tmp/posterity/%s.sqfs' % ( self.name + ( '' if self.branch is None else self.branch ) ) ):
+                if os.path.exists( '/tmp/posterity/%s/%s.sqfs' % ( self.name + ( '' if self.branch is None else self.branch ), self.name + ( '' if self.branch is None else self.branch ) ) ):
                     self.status_lst.append( ['Restoring squashfs from backup'] )
-                    system_or_die( 'cp -f /tmp/posterity/%s.sqfs /.squashfs.sqfs' % ( self.name + ( '' if self.branch is None else self.branch ) ) )
+                    system_or_die( 'cp -f /tmp/posterity/%s/%s.sqfs /.squashfs.sqfs' % ( self.name + ( '' if self.branch is None else self.branch ), self.name + ( '' if self.branch is None else self.branch ) ) )
                     self.status_lst[-1] += '...restored.'
                     logme( 'Yes.' )
                 else:
                     logme( 'No.' )
-        if not os.path.exists( '%s/.squashfs.sqfs' % ( self.mountpoint ) ):
+        if not os.path.exists( '/tmp/posterity/%s/%s.sqfs' % ( self.name + ( '' if self.branch is None else self.branch ), self.name + ( '' if self.branch is None else self.branch ) ) ):
             self.status_lst.append( ['Generating squashfs of this OS'] )
             system_or_die( 'mkdir -p %s/_to_add_to_squashfs/{dev,proc,sys,tmp,root}' % ( self.mountpoint ) )
             chroot_this( self.mountpoint, \
@@ -1091,7 +1091,7 @@ exit 0
                 os.system( 'sync;sync;sync' )
                 assert( os.path.exists( '%s/.squashfs.sqfs' % ( self.mountpoint ) ) )
                 system_or_die( 'cp -f %s/.squashfs.sqfs /tmp/posterity/%s/%s.sqfs' % ( self.mountpoint, self.name + ( '' if self.branch is None else self.branch ), self.name + ( '' if self.branch is None else self.branch ) ) )
-                system_or_die( 'cp -f %s%s/src/chromeos-3.4/arch/arm/boot/vmlinux.uimg /tmp/posterity/%s.kernel' % ( self.mountpoint, self.kernel_src_basedir, self.name + ( '' if self.branch is None else self.branch ) ) )
+                system_or_die( 'cp -f %s%s/src/chromeos-3.4/arch/arm/boot/vmlinux.uimg /tmp/posterity/%s/%s.kernel' % ( self.mountpoint, self.kernel_src_basedir, self.name + ( '' if self.branch is None else self.branch ), self.name + ( '' if self.branch is None else self.branch ) ) )
                 os.system( 'sync;sync;sync' )
                 self.status_lst[-1] += '...backed up.'
                 system_or_die( 'umount /tmp/posterity &> /dev/null' )
@@ -1263,14 +1263,14 @@ WantedBy=multi-user.target
             res = self.load_or_save_posterity_file( tailend, self.generate_tarball_of_my_rootfs )
             if 0 != res:
                 self.status_lst.append( ['Unable to save %s progress for posterity' % ( tailend )] )
-                logme( 'Failed to save for posterity' )
+                failed( 'Failed to save for posterity' )
             else:
                 logme( 'Saved for posterity. Yay.' )
             return res
 
     def load_or_save_posterity_file( self, tailend, func_to_call ):
         logme( 'load_or_save_posterity_file() --- entering' )
-        system_or_die( 'mkdir -p /tmp/posterity' )
+        os.system( 'mkdir -p /tmp/posterity' )
         if os.system( 'mount /dev/sda4 /tmp/posterity &> /dev/null' ) == 0 \
         or os.system( 'mount /dev/sdb4 /tmp/posterity &> /dev/null' ) == 0 \
         or os.system( 'mount | grep /tmp/posterity &> /dev/null' ) == 0:
@@ -1279,7 +1279,10 @@ WantedBy=multi-user.target
                                                          self.name,
                                                          '' if self.branch is None else self.branch,
                                                          tailend )
+            system_or_die( 'mkdir -p %s' % ( os.path.dirname( fname ) ) )
             res = func_to_call( fname )
+            logme( '%s(%s) returned %d' % ( func_to_call.__name__, fname, res ) )
+            assert( res == 0 )
             logme( 'load_or_save_posterity_file() --- leaving' )
             return res
         else:
