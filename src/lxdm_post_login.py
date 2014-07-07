@@ -71,10 +71,15 @@ if __name__ == "__main__":
         logme( 'lxdm_post_login.py --- ending' )
         sys.exit( 0 )
 #    wait_until_online( max_delay = 8 )  # Return to me if either 8 seconds pass or we go online.
+
     if not am_i_online():  # and 0 != os.system( 'ps wax | fgrep nm-applet | grep -v grep' ):
-        logme( 'lxdm_post_login.py --- running nm-applet' )
-        os.system( 'killall nm-applet' )
-        os.system( 'sudo nm-applet --nocheck &' )
+        os.system( 'sleep 2' )
+        if not am_i_online():
+            if 0 != os.system( 'ps wax | fgrep nm-applet | grep -v grep' ):
+                logme( 'lxdm_post_login.py --- running nm-applet' )
+#        os.system( 'killall nm-applet' )
+                os.system( 'nm-applet --nocheck &' )
+
     logme( 'lxdm_post_login.py --- urxvt => terminal in bkgd' )
 #    os.system( '''(urxvt -geometry 120x20+0+320 -name "WiFi Setup" -e bash -c "/usr/local/bin/wifi_manual.sh" & the_pid=$!; while ! ping -c1 -W5 8.8.8.8; do sleep 1 ; done; kill $the_pid ) & ''' )
     wait_until_online()

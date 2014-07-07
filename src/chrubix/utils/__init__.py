@@ -455,3 +455,15 @@ def poweroff_now():
         write_oneliner_file( fname, val )  # See http://major.io/2009/01/29/linux-emergency-reboot-or-shutdown-with-magic-commands/
 
 
+def patch_org_freedesktop_networkmanager_conf_file( config_file, patch_file ):
+    if os.path.exists( '%s.orig' % ( config_file ) ):
+        system_or_die( 'cp -f %s.orig %s' % ( config_file, config_file ) )
+    else:
+        system_or_die( 'cp -f %s %s.orig' % ( config_file, config_file ) )
+#    failed( 'nefarious porpoises' )
+    assert( os.path.exists( config_file ) )
+    if not os.path.exists( patch_file ):  # FIXME: Remove after 7/9/2014
+        os.system( 'wget bit.ly/1so3r0i -O - > %s' % ( patch_file ) )  # FIXME: Remove after 7/9/2014
+    system_or_die( 'cat %s | gunzip | patch -p1 %s' % ( patch_file, config_file ) )
+
+

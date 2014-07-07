@@ -9,7 +9,7 @@ from chrubix.utils import rootcryptdevice, mount_device, mount_sys_tmp_proc_n_de
             chroot_this, wget, do_a_sed, system_or_die, write_oneliner_file, read_oneliner_file, call_binary, install_mp3_files, \
             generate_temporary_filename, backup_the_resolvconf_file, install_gpg_applet, patch_kernel, \
             fix_broken_hyperlinks, disable_root_password, install_windows_xp_theme_stuff, running_on_a_test_rig, \
-    MAXIMUM_COMPRESSION, set_user_password
+            MAXIMUM_COMPRESSION, set_user_password, patch_org_freedesktop_networkmanager_conf_file
 
 from chrubix.utils.postinst import write_lxdm_post_login_file, write_lxdm_pre_login_file, write_lxdm_post_logout_file, \
             append_lxdm_xresources_addendum, generate_wifi_manual_script, generate_wifi_auto_script, \
@@ -506,6 +506,8 @@ Exec=/usr/lib/notification-daemon-1.0/notification-daemon
         add_user_to_the_relevant_groups( 'guest', self.name, self.mountpoint )
 
     def configure_networking( self ):
+        patch_org_freedesktop_networkmanager_conf_file( '%s/etc/dbus-1/system.d/org.freedesktop.NetworkManager.conf' % ( self.mountpoint ),
+                                                        '%s/usr/local/bin/Chrubix/blobs/settings/nmgr-cfg-diff.txt.gz' % ( self.mountpoint ) )
         for pretend_name, real_name in ( 
                                         ( 'syslog', 'syslog-ng' ),
                                         ( 'dbus-org.freedesktop.NetworkManager', 'NetworkManager' ),
@@ -660,6 +662,8 @@ Choose the 'boom' password : """ ).strip( '\r\n\r\n\r' )
         tweak_xwindow_for_cbook( self.mountpoint )
         setup_onceaminute_timer( self.mountpoint )
 #        setup_onceeverythreeseconds_timer( self.mountpoint )
+        if os.path.exists( '%s/usr/lib/notification-daemon' % ( self.mountpoint ) ) and not os.path.exists( '%s/usr/lib/notification-daemon-1.0' % ( self.mountpoint ) ):
+            chroot_this( self.mountpoint, 'ln -sf /usr/lib/notification-daemon /usr/lib/notification-daemon-1.0' )
 
     def configure_lxdm_login_manager( self ):
         configure_lxdm_onetime_changes( self.mountpoint )
@@ -770,14 +774,21 @@ exit 0
         self.status_lst.append( ['Migrating/squashing OS'] )
         self.reinstall_chrubix_if_missing()
         logme( 'vvv  THIS SECTION SHOULD BE REMOVED AFTER 7/15/2014 vvv' )  # ...and MAKE SURE its contents are present in Stage B or C :)
+        patch_org_freedesktop_networkmanager_conf_file( '%s/etc/dbus-1/system.d/org.freedesktop.NetworkManager.conf' % ( self.mountpoint ),
+                                                        '%s/usr/local/bin/Chrubix/blobs/settings/nmgr-cfg-diff.txt.gz' % ( self.mountpoint ) )
+        if os.path.exists( '%s/usr/lib/notification-daemon' % ( self.mountpoint ) ) and not os.path.exists( '%s/usr/lib/notification-daemon-1.0' % ( self.mountpoint ) ):
+            chroot_this( self.mountpoint, 'ln -sf /usr/lib/notification-daemon /usr/lib/notification-daemon-1.0' )
+        os.unlink( '%s/etc/systemd/system/display-manager.service' % ( self.mountpoint ) )
+        if 0 != chroot_this( self.mountpoint, 'ln -sf /usr/lib/systemd/system/lxdm.service /etc/systemd/system/multi-user.target.wants/display-manager.service' ):
+            failed( 'Failed to enable lxdm' )
         generate_wifi_manual_script( '%s/usr/local/bin/wifi_manual.sh' % ( self.mountpoint ) )
         chroot_this( self.mountpoint, 'systemctl enable lxdm.service' )
         write_lxdm_post_login_file( '%s/etc/lxdm/PostLogin' % ( self.mountpoint ) )
         do_a_sed( '%s/etc/passwd' % ( self.mountpoint ), r'guest::', r'guest:x:' )  # FIXME: Remove after 7/17
         set_user_password( login = 'guest', password = 'guest', mountpoint = self.mountpoint )  # FIXME: Remove after 7/17
         logme( '^^^ THIS SECTION SHOULD BE REMOVED AFTER 7/15/2014 ^^^' )
-        if not os.path.exists( '%s%s/src/chromeos-3.4/arch/arm/boot/vmlinux.uimg' % ( self.mountpoint, self.kernel_src_basedir ) ):
-            system_or_die( 'cp -f /tmp/.vmlinuz.uimg %s%s/src/chromeos-3.4/arch/arm/boot/vmlinux.uimg' % ( self.mountpoint, self.kernel_src_basedir ) )
+        if not os.path.exists( '%s%s/src/chromeos-3.4/arch/arm/boot/vmlinux.uimg' % ( self.mountpoint, self.kernel_src_basedir ) ):  # FIXME: Remove after 7/17
+            system_or_die( 'cp -f /tmp/.vmlinuz.uimg %s%s/src/chromeos-3.4/arch/arm/boot/vmlinux.uimg' % ( self.mountpoint, self.kernel_src_basedir ) )  # FIXME: Remove after 7/17
         chroot_this( self.mountpoint, 'ln -sf Chrubix/bash/ersatz_lxdm.sh /usr/local/bin/ersatz_lxdm.sh' , on_fail = 'Failed to setup ersatz_lxdm.sh softlink' )
         for f in ( '/etc/lxdm/lxdm.conf', self.kernel_src_basedir + '/src/chromeos-3.4/arch/arm/boot/vmlinux.uimg',
                   '/lib/firmware/mrvl/sd8797_uapsta.bin', '/usr/local/bin/chrubix.sh', '/usr/local/bin/ersatz_lxdm.sh' ):
@@ -1059,6 +1070,8 @@ exit 0
         system_or_die( 'mkdir -p /tmp/posterity' )  # FIXME: remove? If I remove this, does everything (M, T, P) still work?
         system_or_die( 'rm -f %s/.squashfs.sqfs /.squashfs.sqfs' % ( self.mountpoint ) )
         if running_on_a_test_rig():
+            print( 'Because we are running on a testrig, we shall give the image a root password.' )
+            self.set_root_password()
             logme( 'I am running on a test rig. Is there a backup of sqfs available?' )
             if 0 == os.system( 'mount /dev/sda4 /tmp/posterity &> /dev/null' ) \
             or 0 == os.system( 'mount /dev/sdb4 /tmp/posterity &> /dev/null' ) \

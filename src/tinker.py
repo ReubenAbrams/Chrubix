@@ -8,7 +8,7 @@
 import sys
 import os
 from chrubix import generate_distro_record_from_name
-from chrubix.utils import fix_broken_hyperlinks, system_or_die, chroot_this
+from chrubix.utils import fix_broken_hyperlinks, system_or_die, chroot_this, patch_org_freedesktop_networkmanager_conf_file
 from chrubix.distros.debian import generate_mickeymouse_lxdm_patch
 from chrubix.utils.postinst import remove_junk, ask_the_user__guest_mode_or_user_mode__and_create_one_if_necessary
 
@@ -187,6 +187,15 @@ elif argv[2] == 'mbr-etc':
     distro.build_kernel_and_mkfs()  # Recompile mk*fs because our new kernel will probably use random magic#'s for xfs, jfs, and btrfs
     distro.install_kernel_and_mkfs()
     distro.redo_mbr( root_partition_device = distro.root_dev, chroot_here = distro.mountpoint )
+elif argv[2] == 'patch-nm':
+    distro = generate_distro_record_from_name( 'debianwheezy' )
+    distro.mountpoint = '/tmp/_root'
+    distro.device = '/dev/mmcblk1'
+    distro.root_dev = '/dev/mmcblk1p3'
+    distro.spare_dev = '/dev/mmcblk1p2'
+    patch_org_freedesktop_networkmanager_conf_file( '%s/etc/dbus-1/system.d/org.freedesktop.NetworkManager.conf' % ( distro.mountpoint ),
+                                                        '%s/usr/local/bin/Chrubix/blobs/settings/nmgr-cfg-diff.txt.gz' % ( distro.mountpoint ) )
+
 else:
     raise RuntimeError ( 'I do not understand %s' % ( argv[2] ) )
 os.system( 'sleep 5' )

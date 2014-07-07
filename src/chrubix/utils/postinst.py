@@ -298,7 +298,7 @@ def configure_lxdm_behavior( mountpoint, lxdm_settings ):
         failed( "%s does not exist; configure_lxdm_login_manager() cannot run properly. That sucks." % ( f ) )
     if lxdm_settings['enable user lists']:
         do_a_sed( f, 'disable=.*', 'disable=0' )
-        do_a_sed( f, 'black=.*', 'black=root bin daemon mail ftp http uuidd dbus nobody systemd-journal-gateway systemd-timesync systemd-network avahi polkitd colord git rtkit freenet i2p lxdm tor privoxy saned festival ntp' )
+        do_a_sed( f, 'black=.*', 'black=root bin daemon mail ftp http uuidd dbus nobody systemd-journal-gateway systemd-timesync systemd-network avahi polkitd colord git rtkit freenet i2p lxdm tor privoxy saned festival ntp usbmux' )
         do_a_sed( f, 'white=.*', 'white=guest %s' % ( lxdm_settings['login as user'] ) )  # FIXME: if 'login as user' is guest, the word 'guest' will appear twice. I don't like that. :-/
     else:
         do_a_sed( f, 'disable=.*', 'disable=1' )
@@ -325,9 +325,9 @@ xset -dpms
 
 
 def configure_lxdm_service( mountpoint ):
-    if 0 != chroot_this( mountpoint, 'systemctl enable lxdm', attempts = 1 ):
-        if 0 != chroot_this( mountpoint, 'ln -sf /usr/lib/systemd/system/lxdm.service /etc/systemd/system/display-manager.service' ):
-            failed( 'Failed to enable lxdm' )
+#    if 0 != chroot_this( mountpoint, 'systemctl enable lxdm', attempts = 1 ):
+    if 0 != chroot_this( mountpoint, 'ln -sf /usr/lib/systemd/system/lxdm.service /etc/systemd/system/multi-user.target.wants/display-manager.service' ):
+        failed( 'Failed to enable lxdm' )
     for f in ( 'lxdm', 'display-manager' ):
         if os.path.exists( '%s/usr/lib/systemd/system/%s.service' % ( mountpoint, f ) ):
             system_or_die( 'cp %s/usr/lib/systemd/system/%s.service /tmp/' % ( mountpoint, f ) )
