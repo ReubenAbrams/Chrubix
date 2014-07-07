@@ -587,7 +587,7 @@ Choose the 'boom' password : """ ).strip( '\r\n\r\n\r' )
         self.status_lst[-1] += "..OK."
 
     def generate_tarball_of_my_rootfs( self, output_file ):
-        compression_level = 9 if chrubix.utils.MAXIMUM_COMPRESSION else 1
+        compression_level = 9 if chrubix.utils.MAXIMUM_COMPRESSION else 3
         self.status_lst.append( ['Creating tarball %s of my rootfs' % ( output_file )] )
         dirs_to_backup = 'bin boot etc home lib mnt opt root run sbin srv usr var'
         for dir_name in dirs_to_backup.split( ' ' ):
