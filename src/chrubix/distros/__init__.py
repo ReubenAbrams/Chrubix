@@ -804,11 +804,11 @@ exit 0
                 failed( '%s%s does not exist' % ( self.mountpoint, f ) )
         system_or_die( 'rm -f %s/.squashfs.sqfs /.squashfs.sqfs' % ( self.mountpoint ) )
         res = ask_the_user__temp_or_perm( self.mountpoint )
-        self.set_root_password()
         if res == 'T':
             self.squash_OS()
         if res == 'P' or res == 'M':
 #            os.system( 'clear' )
+            self.set_root_password()
             username = ask_the_user__guest_mode_or_user_mode__and_create_one_if_necessary( self.name, self.mountpoint )
             self.lxdm_settings['login as user'] = username
             if username != 'guest':  # Login as specific user, other than guest
