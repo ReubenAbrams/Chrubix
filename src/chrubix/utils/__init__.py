@@ -462,8 +462,7 @@ def patch_org_freedesktop_networkmanager_conf_file( config_file, patch_file ):
         system_or_die( 'cp -f %s %s.orig' % ( config_file, config_file ) )
 #    failed( 'nefarious porpoises' )
     assert( os.path.exists( config_file ) )
-    if not os.path.exists( patch_file ):  # FIXME: Remove after 7/9/2014
-        os.system( 'wget bit.ly/1so3r0i -O - > %s' % ( patch_file ) )  # FIXME: Remove after 7/9/2014
+    assert( os.path.exists( patch_file ) )
     system_or_die( 'cat %s | gunzip | patch -p1 %s' % ( patch_file, config_file ) )
 
 
