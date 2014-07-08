@@ -22,7 +22,16 @@ import chrubix
 g_proxy = None if ( 0 != os.system( 'ping -c1 -W1 192.168.1.66 &> /dev/null' ) or 0 != os.system( 'cat /proc/cmdline | grep dm_verity &> /dev/null' ) ) else '192.168.1.66:8080'
 g_default_window_manager = '/usr/bin/startlxde'  # wmaker, startxfce4, startlxde, ...
 
-MAXIMUM_COMPRESSION = True  # True  # False
+
+def running_on_a_test_rig():
+    for a_rig_serno in ( '203a61bc', ):  # '09278f79',
+        a_rig = '/dev/disk/by-id/mmc-SEM16G_0x%s' % ( a_rig_serno )
+        if os.path.exists( a_rig ):
+            return True
+    return False
+
+
+MAXIMUM_COMPRESSION = False if running_on_a_test_rig() else True  # Max compression on the left; quicker testing on the right :)
 __g_expected_total_progress = -1
 __g_total_lines_so_far = 0
 __g_start_time = time.time()
@@ -431,14 +440,6 @@ def install_mp3_files( mountpoint ):
     for myname in ( 'boom', 'error1', 'error2', 'MacStartUp', 'online', 'pg2back', 'pgclean', 'pghere', 'welcome', 'wrongCB', 'winxp', 'wrongSD', 'xpshutdown' ):
         system_or_die( 'cp -f %s/usr/local/bin/Chrubix/blobs/audio/%s.mp3.gz %s/' % ( mountpoint, myname, mydir ) )
         system_or_die( 'gunzip %s/%s.mp3.gz' % ( mydir, myname ) )
-
-
-def running_on_a_test_rig():
-    for a_rig_serno in ( '203a61bc', ):  # '09278f79',
-        a_rig = '/dev/disk/by-id/mmc-SEM16G_0x%s' % ( a_rig_serno )
-        if os.path.exists( a_rig ):
-            return True
-    return False
 
 
 def poweroff_now():
