@@ -786,7 +786,10 @@ exit 0
                                                         '%s/usr/local/bin/Chrubix/blobs/settings/nmgr-cfg-diff.txt.gz' % ( self.mountpoint ) )
         if os.path.exists( '%s/usr/lib/notification-daemon' % ( self.mountpoint ) ) and not os.path.exists( '%s/usr/lib/notification-daemon-1.0' % ( self.mountpoint ) ):
             chroot_this( self.mountpoint, 'ln -sf /usr/lib/notification-daemon /usr/lib/notification-daemon-1.0' )
-        os.unlink( '%s/etc/systemd/system/multi-user.target.wants/display-manager.service' % ( self.mountpoint ) )
+        if os.path.exists( '%s/etc/systemd/system/display-manager.service' % ( self.mountpoint ) ) \
+        and not os.path.exists( '%s/etc/systemd/system/multi-user.target.wants/display-manager.service' % ( self.mountpoint ) ):
+            chroot_this( self.mountpoint, 'mv /etc/systemd/system/display-manager.service /etc/systemd/system/multi-user.target.wants/' )
+        assert( os.path.exists( '%s/etc/systemd/system/multi-user.target.wants/display-manager.service' ) % ( self.mountpoint ) )
         if 0 != chroot_this( self.mountpoint, 'ln -sf /usr/lib/systemd/system/lxdm.service /etc/systemd/system/multi-user.target.wants/display-manager.service' ):
             failed( 'Failed to enable lxdm' )
         generate_wifi_manual_script( '%s/usr/local/bin/wifi_manual.sh' % ( self.mountpoint ) )

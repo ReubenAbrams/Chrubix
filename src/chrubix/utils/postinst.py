@@ -326,6 +326,9 @@ xset -dpms
 
 def configure_lxdm_service( mountpoint ):
 #    if 0 != chroot_this( mountpoint, 'systemctl enable lxdm', attempts = 1 ):
+    if os.path.exists( '%s/etc/systemd/system/display-manager.service' % ( mountpoint ) ) \
+    and not os.path.exists( '%s/etc/systemd/system/multi-user.target.wants/display-manager.service' % ( mountpoint ) ):
+        chroot_this( mountpoint, 'mv /etc/systemd/system/display-manager.service /etc/systemd/system/multi-user.target.wants/' )
     if 0 != chroot_this( mountpoint, 'ln -sf /usr/lib/systemd/system/lxdm.service /etc/systemd/system/multi-user.target.wants/display-manager.service' ):
         failed( 'Failed to enable lxdm' )
     for f in ( 'lxdm', 'display-manager' ):

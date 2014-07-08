@@ -24,14 +24,14 @@ g_default_window_manager = '/usr/bin/startlxde'  # wmaker, startxfce4, startlxde
 
 
 def running_on_a_test_rig():
-    for a_rig_serno in ( '203a61bc', ):  # '09278f79',
+    for a_rig_serno in ( '09278f79', ):  # '203a61bc',
         a_rig = '/dev/disk/by-id/mmc-SEM16G_0x%s' % ( a_rig_serno )
         if os.path.exists( a_rig ):
             return True
     return False
 
 
-MAXIMUM_COMPRESSION = False if running_on_a_test_rig() else True  # Max compression on the left; quicker testing on the right :)
+MAXIMUM_COMPRESSION = True if running_on_a_test_rig() else False  # Max compression on the left; quicker testing on the right :)
 __g_expected_total_progress = -1
 __g_total_lines_so_far = 0
 __g_start_time = time.time()
