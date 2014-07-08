@@ -28,6 +28,13 @@ def run_a_binary( fname ):
     output = popen.stdout.read()
     print( output )
 
+
+#---------------------------------------------------------------------------------------
+# TODO: Should we wipe RAM? I think we should.... but HOW?
+# See https://bbs.archlinux.org/viewtopic.php?id=136283
+#
+#---------------------------------------------------------------------------------------
+
 if __name__ == "__main__":
     cmdline = read_oneliner_file( '/proc/cmdline' )
     if cmdline.find( 'cryptdevice=' ) >= 0:
