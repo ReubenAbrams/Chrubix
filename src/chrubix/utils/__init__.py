@@ -22,7 +22,7 @@ import chrubix
 g_proxy = None if ( 0 != os.system( 'ping -c1 -W1 192.168.1.66 &> /dev/null' ) or 0 != os.system( 'cat /proc/cmdline | grep dm_verity &> /dev/null' ) ) else '192.168.1.66:8080'
 g_default_window_manager = '/usr/bin/startlxde'  # wmaker, startxfce4, startlxde, ...
 
-MAXIMUM_COMPRESSION = False  # True  # False
+MAXIMUM_COMPRESSION = True  # True  # False
 __g_expected_total_progress = -1
 __g_total_lines_so_far = 0
 __g_start_time = time.time()
@@ -434,7 +434,7 @@ def install_mp3_files( mountpoint ):
 
 
 def running_on_a_test_rig():
-    for a_rig_serno in ( '09278f79', '203a61bc' ):
+    for a_rig_serno in ( '203a61bc', ):  # '09278f79',
         a_rig = '/dev/disk/by-id/mmc-SEM16G_0x%s' % ( a_rig_serno )
         if os.path.exists( a_rig ):
             return True
