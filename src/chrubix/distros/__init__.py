@@ -354,21 +354,28 @@ make' % ( self.sources_basedir ), title_str = self.title_str, status_lst = self.
 
     def set_root_password( self ):
         print( ' ' )
-        print( 'Please choose a password for your ROOT account.' )
-        user = call_binary( ['whoami'] )[1].strip()
-        if user not in ( b'root', 'root', '0' , 0 ):
-            raise SystemError( "You should be running me as root, but you are running me as %s" % ( user, ) )
         res = 999
-        cmd = 'passwd' if self.mountpoint in ( None, '/' ) else 'chroot %s passwd' % ( self.mountpoint, )
-        while res != 0:
-            if os.system( 'ps -o pid -C X &>/dev/null' ) == 0 and read_oneliner_file( '/proc/cmdline' ).find( 'cros_secure' ) < 0:
-                print( 'Running X, opening a terminal, and calling passwd' )
-                os.system( "export DISPLAY=:0.0" )
-                res = os.system( 'urxvt -geometry 120x30+0+320 -name "Change Root Password" -e sh -c "%s"' % ( cmd, ) )
-            else:
-                print( 'Calling passwd' )
-                res = os.system( cmd )
-            logme( 'cmd=%s ==> res=%s' % ( cmd, res ) )
+        while res != 'Y' and res != 'N':
+            res = input( "Would you like root to be disabled completely (Y/N) ? " ).strip( '\r\n\r\n\r' ).replace( 'y', 'Y' ).replace( 'n', 'N' )
+        if res == 'Y':
+            logme( 'You want there to be no root password. Fair enough.' )
+            res = 0
+        else:
+            print( 'Please choose a password for your ROOT account.' )
+            user = call_binary( ['whoami'] )[1].strip()
+            if user not in ( b'root', 'root', '0' , 0 ):
+                raise SystemError( "You should be running me as root, but you are running me as %s" % ( user, ) )
+            res = 999
+            cmd = 'passwd' if self.mountpoint in ( None, '/' ) else 'chroot %s passwd' % ( self.mountpoint, )
+            while res != 0:
+                if os.system( 'ps -o pid -C X &>/dev/null' ) == 0 and read_oneliner_file( '/proc/cmdline' ).find( 'cros_secure' ) < 0:
+                    print( 'Running X, opening a terminal, and calling passwd' )
+                    os.system( "export DISPLAY=:0.0" )
+                    res = os.system( 'urxvt -geometry 120x30+0+320 -name "Change Root Password" -e sh -c "%s"' % ( cmd, ) )
+                else:
+                    print( 'Calling passwd' )
+                    res = os.system( cmd )
+                logme( 'cmd=%s ==> res=%s' % ( cmd, res ) )
         return res
 
     def whitelist_menu_text( self ):
@@ -595,6 +602,7 @@ Choose the 'boom' password : """ ).strip( '\r\n\r\n\r' )
         for dir_name in dirs_to_backup.split( ' ' ):
             dirs_to_backup += ' .bootstrap/%s' % ( dir_name )
         system_or_die( 'mkdir -p %s%s' % ( self.mountpoint, os.path.dirname( output_file ) ) )
+        system_or_die( 'rm -Rf %s/.*rash*' % ( os.path.dirname( output_file ) ) )
         system_or_die( 'cd %s && tar -c %s | xz -%d | dd bs=256k > %s/temp.data' % ( self.mountpoint, dirs_to_backup, compression_level, os.path.dirname( output_file ) ), title_str = self.title_str, status_lst = self.status_lst )
         system_or_die( 'mv %s/temp.data %s' % ( os.path.dirname( output_file ), output_file ) )
         self.status_lst[-1] += '...created.'
@@ -778,7 +786,7 @@ exit 0
                                                         '%s/usr/local/bin/Chrubix/blobs/settings/nmgr-cfg-diff.txt.gz' % ( self.mountpoint ) )
         if os.path.exists( '%s/usr/lib/notification-daemon' % ( self.mountpoint ) ) and not os.path.exists( '%s/usr/lib/notification-daemon-1.0' % ( self.mountpoint ) ):
             chroot_this( self.mountpoint, 'ln -sf /usr/lib/notification-daemon /usr/lib/notification-daemon-1.0' )
-        os.unlink( '%s/etc/systemd/system/display-manager.service' % ( self.mountpoint ) )
+        os.unlink( '%s/etc/systemd/system/multi-user.target.wants/display-manager.service' % ( self.mountpoint ) )
         if 0 != chroot_this( self.mountpoint, 'ln -sf /usr/lib/systemd/system/lxdm.service /etc/systemd/system/multi-user.target.wants/display-manager.service' ):
             failed( 'Failed to enable lxdm' )
         generate_wifi_manual_script( '%s/usr/local/bin/wifi_manual.sh' % ( self.mountpoint ) )
@@ -796,15 +804,15 @@ exit 0
                 failed( '%s%s does not exist' % ( self.mountpoint, f ) )
         system_or_die( 'rm -f %s/.squashfs.sqfs /.squashfs.sqfs' % ( self.mountpoint ) )
         res = ask_the_user__temp_or_perm( self.mountpoint )
+        self.set_root_password()
         if res == 'T':
             self.squash_OS()
         if res == 'P' or res == 'M':
-            os.system( 'clear' )
+#            os.system( 'clear' )
             username = ask_the_user__guest_mode_or_user_mode__and_create_one_if_necessary( self.name, self.mountpoint )
             self.lxdm_settings['login as user'] = username
             if username != 'guest':  # Login as specific user, other than guest
                 self.lxdm_settings['autologin'] = False
-            self.set_root_password()
             system_or_die( 'rm -f /.squashfs.sqfs %s/.squashfs.sqfs' % ( self.mountpoint ) )
             if res == 'P':
                 self.migrate_OS()
@@ -1070,8 +1078,6 @@ exit 0
         system_or_die( 'mkdir -p /tmp/posterity' )  # FIXME: remove? If I remove this, does everything (M, T, P) still work?
         system_or_die( 'rm -f %s/.squashfs.sqfs /.squashfs.sqfs' % ( self.mountpoint ) )
         if running_on_a_test_rig():
-            print( 'Because we are running on a testrig, we shall give the image a root password.' )
-            self.set_root_password()
             logme( 'I am running on a test rig. Is there a backup of sqfs available?' )
             if 0 == os.system( 'mount /dev/sda4 /tmp/posterity &> /dev/null' ) \
             or 0 == os.system( 'mount /dev/sdb4 /tmp/posterity &> /dev/null' ) \

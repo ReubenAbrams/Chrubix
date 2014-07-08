@@ -460,117 +460,144 @@ MEH: No encryption. No duress password. Changes are permanent. Guest Mode is sti
 }
 
 
+
+main() {
+	echo "Chrubix ------ starting now"
+	umount /tmp/_root*/.bootstrap/tmp/_root/{dev,tmp,proc,sys} 2> /dev/null || echo ""
+	umount /tmp/_root*/.bootstrap/tmp/_root 2> /dev/null || echo ""
+	umount /tmp/_root*/.bootstrap/{dev,tmp,proc,sys} 2> /dev/null || echo ""
+	umount /tmp/_root*/.bootstrap /tmp/_root*/.ro /tmp/_root.*/.* 2> /dev/null || echo ""
+	#clear
+	mount | grep /dev/mapper/encstateful &> /dev/null || failed "Run me from within ChromeOS, please."
+	mydevbyid=`deduce_my_dev`
+	[ "$mydevbyid" = "" ] && failed "I am unable to figure out which device you want me to prep. Sorry..."
+	[ -e "$mydevbyid" ] || failed "Please insert a thumb drive or SD card and try again. Please DO NOT INSERT your keychain thumb drive."
+	dev=`deduce_dev_name $mydevbyid`
+	dev_p=`deduce_dev_stamen $dev`
+	petname=`find_boot_drive | cut -d'-' -f3 | tr '_' '\n' | tail -n1 | awk '{print substr($0,length($0)-7);}' | tr '[:upper:]' '[:lower:]'`
+	fstab_opts="defaults,noatime,nodiratime" #commit=100
+	mount_opts="-o $fstab_opts"
+	format_opts="-v"
+	fstype=ext4
+	root=/tmp/_root.`basename $dev`		# Don't monkey with this...
+	boot=/tmp/_boot.`basename $dev`		# ...or this...
+	kern=/tmp/_kern.`basename $dev`		# ...or this!
+	
+	lockfile=/tmp/.chrubix.distro.`basename $dev`
+	if [ -e "$lockfile" ] && [ -e "/tmp/temp_or_perm" ] ; then
+		distroname=`cat $lockfile`
+		temp_or_perm=`cat /tmp/temp_or_perm`
+	else
+		get_distro_type_the_user_wants
+		if [ "$distroname" = "alarmist" ] ; then
+			temp_or_perm="temp"
+			echo "OK. Everything will be temporary. Nothing will be permanent. (Such is Life...)"
+		else
+			ask_if_user_wants_temporary_or_permanent
+		fi
+		echo "$temp_or_perm" > /tmp/temp_or_perm
+	fi
+	
+	btstrap=$root/.bootstrap
+	installer_fname=/tmp/$RANDOM$RANDOM$RANDOM	# Script to install tarball and/or OS... *and* mount dev, sys, tmp, etc.
+	if mount | grep "$dev" | grep "$root" &> /dev/null ; then
+		umount "$dev"* &> /dev/null || echo "Already partitioned and mounted. Reboot and try again..."
+	fi
+	sudo stop powerd || echo -en ""
+		
+	partition_device $dev $dev_p
+	format_partitions $dev $dev_p
+	mkdir -p $root
+	mount $mount_opts "$dev_p"3  $root
+	mkdir -p $btstrap
+	mkdir -p /tmp/a
+	res=0
+	mkdir -p $btstrap/{dev,proc,tmp,sys}
+	mkdir -p $root/{dev,proc,tmp,sys}
+	
+	mount devtmpfs  $btstrap/dev -t devtmpfs	|| echo -en ""
+	mount sysfs     $btstrap/sys -t sysfs		|| echo -en ""
+	mount proc      $btstrap/proc -t proc		|| echo -en ""
+	mount tmpfs     $btstrap/tmp -t tmpfs		|| echo -en ""
+	
+	mkdir -p $btstrap/tmp/_root
+	mount -o noatime "$dev_p"3 $btstrap/tmp/_root		|| echo -en ""
+	mount devtmpfs $btstrap/tmp/_root/dev -t devtmpfs	|| echo -en ""
+	mount tmpfs $btstrap/tmp/_root/tmp -t tmpfs			|| echo -en ""
+	mount proc $btstrap/tmp/_root/proc -t proc			|| echo -en ""
+	mount sys $btstrap/tmp/_root/sys -t sysfs			|| echo -en ""
+	
+	sudo crossystem dev_boot_usb=1 dev_boot_signed_only=0 || echo "WARNING - failed to configure USB and MMC to be bootable"	# dev_boot_signed_only=0
+	
+	if restore_from_squash_fs_backup_if_possible ; then
+		echo "Restored from squashfs. Good."
+	else
+		if restore_from_stage_X_backup_if_possible ; then
+			echo "Restored from stage X. Good."
+		else
+			echo "OK. Starting from beginning."
+			oh_well_start_from_beginning
+		fi
+		install_chrubix $btstrap $dev "$dev_p"3 "$dev_p"2 "$dev_p"1 $distroname
+		tar -cz /usr/lib/xorg/modules/drivers/armsoc_drv.so \
+			/usr/lib/xorg/modules/input/cmt_drv.so /usr/lib/libgestures.so.0 \
+			/usr/lib/libevdev* \
+			/usr/lib/libbase*.so \
+			/usr/lib/libmali.so* \
+			/usr/lib/libEGL.so* \
+			/usr/lib/libGLESv2.so* > $btstrap/tmp/.hipxorg.tgz 2>/dev/null
+		tar -cz /usr/bin/vbutil* /usr/bin/old_bins /usr/bin/futility > $btstrap/tmp/.vbtools.tgz 2>/dev/null
+		tar -cz /usr/share/vboot > $btstrap/tmp/.vbkeys.tgz 2>/dev/null #### MAKE SURE CHRUBIX HAS ACCESS TO Y-O-U-R KEYS and YOUR vbutil* binaries ####
+		tar -cz /lib/firmware > $btstrap/tmp/.firmware.tgz 2>/dev/null # save firmware!
+		chroot_this $btstrap "chmod +x /usr/local/bin/*"
+		echo "$temp_or_perm" > $btstrap/.temp_or_perm.txt
+		ln -sf ../../bin/python3 $btstrap/usr/local/bin/python3
+		echo "************ Calling CHRUBIX, the Python powerhouse of pulchritudinous perfection ************"
+		chroot_this     $btstrap "/usr/local/bin/chrubix.sh" && res=0 || res=$?
+		[ "$res" -ne "0" ] && failed "Because chrubix reported an error, I'm aborting... and I'm leaving everything mounted."
+	fi
+	
+	sync; umount $btstrap/tmp/_root/{tmp,proc,sys,dev} 2> /dev/null || echo -en ""
+	sync; umount $btstrap/tmp/_root/{tmp,proc,sys,dev} 2> /dev/null || echo -en ""
+	sync; umount $btstrap/{tmp,proc,sys,dev} 2> /dev/null || echo -en ""
+	sync; umount $btstrap/{tmp,proc,sys,dev} 2> /dev/null || echo -en ""
+	unmount_everything       $root $boot $kern $dev_p
+	
+	if [ "$res" -eq "0" ] ; then
+		sudo start powerd || echo -en ""
+		if [ "$DONOTREBOOT" = "" ] ; then 
+			echo -en "$distroname has been installed on $dev\nPress ENTER to reboot, or wait 60 seconds..."
+			read -t 60 line || reboot
+			reboot
+		fi
+	else
+		echo -en "\n\n\n\n\n\n\nDone, although errors occurred..."
+	fi
+	return $res
+}
+
+
 ##################################################################################################################################
 
 
-echo "Chrubix ------ starting now"
-umount /tmp/_root*/.bootstrap/tmp/_root/{dev,tmp,proc,sys} 2> /dev/null
-umount /tmp/_root*/.bootstrap/tmp/_root 2> /dev/null
-umount /tmp/_root*/.bootstrap/{dev,tmp,proc,sys} 2> /dev/null
-umount /tmp/_root*/.bootstrap /tmp/_root*/.ro /tmp/_root.*/.* 2> /dev/null
-set -e
-#clear
-mount | grep /dev/mapper/encstateful &> /dev/null || failed "Run me from within ChromeOS, please."
-mydevbyid=`deduce_my_dev`
-[ "$mydevbyid" = "" ] && failed "I am unable to figure out which device you want me to prep. Sorry..."
-[ -e "$mydevbyid" ] || failed "Please insert a thumb drive or SD card and try again. Please DO NOT INSERT your keychain thumb drive."
-dev=`deduce_dev_name $mydevbyid`
-dev_p=`deduce_dev_stamen $dev`
-petname=`find_boot_drive | cut -d'-' -f3 | tr '_' '\n' | tail -n1 | awk '{print substr($0,length($0)-7);}' | tr '[:upper:]' '[:lower:]'`
-fstab_opts="defaults,noatime,nodiratime" #commit=100
-mount_opts="-o $fstab_opts"
-format_opts="-v"
-fstype=ext4
-root=/tmp/_root.`basename $dev`		# Don't monkey with this...
-boot=/tmp/_boot.`basename $dev`		# ...or this...
-kern=/tmp/_kern.`basename $dev`		# ...or this!
-
-lockfile=/tmp/.chrubix.distro.`basename $dev`
-if [ -e "$lockfile" ] && [ -e "/tmp/temp_or_perm" ] ; then
-	distroname=`cat $lockfile`
-	temp_or_perm=`cat /tmp/temp_or_perm`
+if [ "$1" != "EVERYONE" ] ; then
+	set -e
+	main
+	exit $?
 else
-	get_distro_type_the_user_wants
-	if [ "$distroname" = "alarmist" ] ; then
-		temp_or_perm="temp"
-		echo "OK. Everything will be temporary. Nothing will be permanent. (Such is Life...)"
-	else
-		ask_if_user_wants_temporary_or_permanent
-	fi
-	echo "$temp_or_perm" > /tmp/temp_or_perm
+	set +e
+	DONOTREBOOT=yousaidit
+	mount /dev/sda4 /tmp/a &> /dev/null || echo -en ""
+	mount /dev/sdb4 /tmp/b &> /dev/null || echo -en ""
+	rm -f /media/removable/*/*/*_D.xz
+	rm -f /media/removable/*/*/*.sqfs
+	for distroname in alarmistwheezy archlinux debianjessie debianwheezy ; do
+		echo "$distroname" > /tmp/.chrubix.distro.mmcblk1
+		echo "temp" > /tmp/temp_or_perm
+		clear
+		echo "About to build $distroname..."
+		main
+		echo "Back from building $distroname"
+		echo "Built $distroname" >> /tmp/log.txt
+	done
 fi
-
-btstrap=$root/.bootstrap
-installer_fname=/tmp/$RANDOM$RANDOM$RANDOM	# Script to install tarball and/or OS... *and* mount dev, sys, tmp, etc.
-if mount | grep "$dev" | grep "$root" &> /dev/null ; then
-	umount "$dev"* &> /dev/null || echo "Already partitioned and mounted. Reboot and try again..."
-fi
-sudo stop powerd || echo -en ""
-
-partition_device $dev $dev_p
-format_partitions $dev $dev_p
-mkdir -p $root
-mount $mount_opts "$dev_p"3  $root
-mkdir -p $btstrap
-mkdir -p /tmp/a
-res=0
-mkdir -p $btstrap/{dev,proc,tmp,sys}
-mkdir -p $root/{dev,proc,tmp,sys}
-
-mount devtmpfs  $btstrap/dev -t devtmpfs	|| echo -en ""
-mount sysfs     $btstrap/sys -t sysfs		|| echo -en ""
-mount proc      $btstrap/proc -t proc		|| echo -en ""
-mount tmpfs     $btstrap/tmp -t tmpfs		|| echo -en ""
-
-mkdir -p $btstrap/tmp/_root
-mount -o noatime "$dev_p"3 $btstrap/tmp/_root		|| echo -en ""
-mount devtmpfs $btstrap/tmp/_root/dev -t devtmpfs	|| echo -en ""
-mount tmpfs $btstrap/tmp/_root/tmp -t tmpfs			|| echo -en ""
-mount proc $btstrap/tmp/_root/proc -t proc			|| echo -en ""
-mount sys $btstrap/tmp/_root/sys -t sysfs			|| echo -en ""
-
-sudo crossystem dev_boot_usb=1 dev_boot_signed_only=0 || echo "WARNING - failed to configure USB and MMC to be bootable"	# dev_boot_signed_only=0
-
-if restore_from_squash_fs_backup_if_possible ; then
-	echo "Restored from squashfs. Good."
-else
-	if restore_from_stage_X_backup_if_possible ; then
-		echo "Restored from stage X. Good."
-	else
-		echo "OK. Starting from beginning."
-		oh_well_start_from_beginning
-	fi
-	install_chrubix $btstrap $dev "$dev_p"3 "$dev_p"2 "$dev_p"1 $distroname
-	tar -cz /usr/lib/xorg/modules/drivers/armsoc_drv.so \
-		/usr/lib/xorg/modules/input/cmt_drv.so /usr/lib/libgestures.so.0 \
-		/usr/lib/libevdev* \
-		/usr/lib/libbase*.so \
-		/usr/lib/libmali.so* \
-		/usr/lib/libEGL.so* \
-		/usr/lib/libGLESv2.so* > $btstrap/tmp/.hipxorg.tgz 2>/dev/null
-	tar -cz /usr/bin/vbutil* /usr/bin/old_bins /usr/bin/futility > $btstrap/tmp/.vbtools.tgz 2>/dev/null
-	tar -cz /usr/share/vboot > $btstrap/tmp/.vbkeys.tgz 2>/dev/null #### MAKE SURE CHRUBIX HAS ACCESS TO Y-O-U-R KEYS and YOUR vbutil* binaries ####
-	tar -cz /lib/firmware > $btstrap/tmp/.firmware.tgz 2>/dev/null # save firmware!
-	chroot_this $btstrap "chmod +x /usr/local/bin/*"
-	echo "$temp_or_perm" > $btstrap/.temp_or_perm.txt
-	ln -sf ../../bin/python3 $btstrap/usr/local/bin/python3
-	echo "************ Calling CHRUBIX, the Python powerhouse of pulchritudinous perfection ************"
-	chroot_this     $btstrap "/usr/local/bin/chrubix.sh" && res=0 || res=$?
-	[ "$res" -ne "0" ] && failed "Because chrubix reported an error, I'm aborting... and I'm leaving everything mounted."
-fi
-
-sync; umount $btstrap/tmp/_root/{tmp,proc,sys,dev} 2> /dev/null || echo -en ""
-sync; umount $btstrap/tmp/_root/{tmp,proc,sys,dev} 2> /dev/null || echo -en ""
-sync; umount $btstrap/{tmp,proc,sys,dev} 2> /dev/null || echo -en ""
-sync; umount $btstrap/{tmp,proc,sys,dev} 2> /dev/null || echo -en ""
-unmount_everything       $root $boot $kern $dev_p
-
-if [ "$res" -eq "0" ] ; then
-	sudo start powerd || echo -en ""
-	echo -en "$distroname has been installed on $dev\nPress ENTER to reboot, or wait 60 seconds..."
-	read -t 60 line || reboot
-	reboot
-else
-	echo -en "\n\n\n\n\n\n\nDone, although errors occurred..."
-fi
-exit $res
