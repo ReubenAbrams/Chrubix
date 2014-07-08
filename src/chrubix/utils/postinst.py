@@ -75,7 +75,6 @@ def write_lxdm_pre_login_file( outfile ):
 [ -e "/tmp/_root.old" ] && rm /tmp/_root.old
 [ -e "/tmp/_root" ] && mv /tmp/_root /tmp/_root.old
 ln -sf / /tmp/_root
-#chmod -R 755 /run/user        # FIXME: Makes pulseaudio and nm-applet work better under Debian... but is an ugly hack
 ''' )
     f.close()
 
@@ -236,18 +235,6 @@ MSVA_PORT='6316'        # MonkeySphere?
     f.close()
 
 
-def install_guest_browser_script( mountpoint ):
-    system_or_die( 'echo "H4sIAF52SVMAA1WMvQrCMBzE9zzF2YYukkYfoBbBVQXnTKZ/TaBJpEmhQx/eUNTidMd9/MqNvFsvo2EsudfD9tTIbGQXhKOa346X0/X8L3UekzYBgjyK8gtQnu+Vp8kmKN4qX+AA/mEybVzosJ3WJI4QPZ4jxQShfzmqCgPFZod5Xgxv2eDW28LnuWBvkUV8bboAAAA=" \
-| base64 -d | gunzip > %s/usr/local/bin/run_as_guest.sh' % ( mountpoint ) )
-    system_or_die( 'chmod +x %s/usr/local/bin/run_as_guest.sh' % ( mountpoint ) )
-    write_oneliner_file( '%s/usr/local/bin/run_browser_as_guest.sh' % ( mountpoint ), '''#!/bin/bash
-GUEST_HOMEDIR=/tmp/.guest
-sudo /usr/local/bin/run_as_guest.sh "export DISPLAY=:0.0; chromium --user-data-dir=$GUEST_HOMEDIR $1"
-exit $?
-''' )
-    system_or_die( 'chmod +x %s/usr/local/bin/run_browser_as_guest.sh' % ( mountpoint ) )
-
-
 def add_speech_synthesis_script( mountpoint ):
     write_oneliner_file( '%s/usr/local/bin/sayit.sh' % ( mountpoint ), '''#!/bin/bash
 tmpfile=/tmp/$RANDOM$RANDOM$RANDOM
@@ -299,7 +286,7 @@ def configure_lxdm_behavior( mountpoint, lxdm_settings ):
     if lxdm_settings['enable user lists']:
         do_a_sed( f, 'disable=.*', 'disable=0' )
         do_a_sed( f, 'black=.*', 'black=root bin daemon mail ftp http uuidd dbus nobody systemd-journal-gateway systemd-timesync systemd-network avahi polkitd colord git rtkit freenet i2p lxdm tor privoxy saned festival ntp usbmux' )
-        do_a_sed( f, 'white=.*', 'white=guest %s' % ( lxdm_settings['login as user'] ) )  # FIXME: if 'login as user' is guest, the word 'guest' will appear twice. I don't like that. :-/
+        do_a_sed( f, 'white=.*', 'white=guest %s' % ( lxdm_settings['login as user'] ) )  # FYI, if 'login as user' is guest, the word 'guest' will appear twice. I don't like that. :-/
     else:
         do_a_sed( f, 'disable=.*', 'disable=1' )
     if lxdm_settings['autologin']:
@@ -432,8 +419,6 @@ def remove_junk( mountpoint, kernel_src_basedir ):
         chroot_this( mountpoint, 'rm -Rf %s' % ( path ) )
 #        if not os.path.exists( '%s%s' % ( mountpoint, kernel_src_basedir ) ):
 #            failed( 'rm -Rf %s ==> deletes the linux-chromebook folder from the bootstrap OS. That is suboptimal' % ( path ) )
-
-    # TODO: Consider %kernel_src_basedir/linux-chromebook/pkg/*
     chroot_this( mountpoint, 'ln -sf %s/src/chromeos-3.4 /usr/src/linux-3.4.0-ARCH' % ( kernel_src_basedir ) )
     chroot_this( mountpoint, 'set -e; cd /usr/share/locale; mv locale.alias ..' )
     chroot_this( mountpoint, 'set -e; cd /usr/share/locale; mkdir -p _; mv [a-d,f-z]* _ 2> /dev/null; mv e[a-m,o-z]* _ 2> /dev/null; rm -Rf _; mv ../locale.alias .' )

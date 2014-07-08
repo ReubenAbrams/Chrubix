@@ -81,7 +81,6 @@ diff -p1 -r a/src b/src > %s
     logme( 'generate_mickeymouse_lxdm_patch() --- leaving' )
 
 
-# FIXME: paman and padevchooser are deprecated
 class DebianDistro( Distro ):
     important_packages = Distro.important_packages + ' ' + \
 'iputils-ping python3-setuptools gnu-standards apt-utils libpopt-dev libacl1-dev libcrypto++-dev exo-utils libnotify-bin \
@@ -114,7 +113,6 @@ mate-desktop-environment-extras'  # FYI, freenet is handled by install_final_pus
         super( DebianDistro, self ).__init__( *args, **kwargs )
         self.name = 'debian'
         self.list_of_mkfs_packages = ( 'jfsutils', 'xfsprogs', 'btrfs-tools' )
-        self.typical_install_duration = 16000
 
 #    @property
 #    def kernel_src_basedir( self ):

@@ -8,7 +8,6 @@ from chrubix.utils import failed, system_or_die, chroot_this, wget, logme, do_a_
 import os
 
 
-# FIXME: paman and padevchooser are deprecated
 class ArchlinuxDistro( Distro ):
     important_packages = Distro.important_packages + ' \
 cgpt xz mkinitcpio mutagen libconfig festival-us libxpm uboot-mkimage dtc mythes-en \
@@ -29,7 +28,6 @@ xorg-server-utils xorg-xmessage librsvg icedtea-web-java7 gconf hunspell-en chro
         self.name = 'archlinux'
         self.architecture = 'armv7h'
         self.list_of_mkfs_packages = ( 'btrfs-progs', 'jfsutils', 'xfsprogs' )
-        self.typical_install_duration = 14000
 
     def install_barebones_root_filesystem( self ):
         logme( 'ArchlinuxDistro - install_barebones_root_filesystem() - starting' )
@@ -146,7 +144,8 @@ xorg-server-utils xorg-xmessage librsvg icedtea-web-java7 gconf hunspell-en chro
         self.status_lst.append( ['Installing distro-specific tweaks'] )
         friendly_list_of_packages_to_exclude = ''.join( r + ' ' for r in self.list_of_mkfs_packages ) + os.path.basename( self.kernel_src_basedir )
         do_a_sed( '%s/etc/pacman.conf' % ( self.mountpoint ), '#.*IgnorePkg.*', 'IgnorePkg = %s' % ( friendly_list_of_packages_to_exclude ) )
-        logme( 'FYI, ArchLinux has no distro-specific post-install tweaks at present' )
+        chroot_this( self.mountpoint, 'systemctl enable lxdm.service' )
+#        logme( 'FYI, ArchLinux has no distro-specific post-install tweaks at present' )
         self.status_lst[-1] += '...tweaked.'
 
     def downgrade_systemd_if_necessary( self, bad_verno ):

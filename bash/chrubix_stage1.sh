@@ -180,7 +180,6 @@ format_partitions() {
 	dev=$1
 	dev_p=$2
 	temptxt=/tmp/$RANDOM$RANDOM$RANDOM
-	old_pid_list=`ps -o pid -C chrome`
 	echo -en "Formatting partitions"
 	echo -en "."
 	yes | mkfs.ext2 "$dev_p"2 &> $temptxt || failed "Failed to format p2 - `cat $temptxt`"
@@ -192,12 +191,6 @@ format_partitions() {
 	mkfs.vfat -F 16 "$dev_p"12 &> $temptxt || failed "Failed to format p12 - `cat $temptxt`"
 	sleep 1; umount "$dev_p"* &> /dev/null || echo -en ""
 	sleep 1
-	new_pid_list=`ps -o pid -C chrome`
-#	standouts=`echo "$old_pid_list $new_pid_list" | tr -s ' ' '\n' | sort | uniq -u`
-	standouts=`ps wax | fgrep "chrome --type=" | grep -v grep | tail -n2 | cut -d' ' -f1,2 | tr ' ' '\n' | grep -x "[0-9].*"`
-#	for pid in $standouts ; do
-#		kill $pid && echo -en "" || echo -en ""
-#	done
 }
 
 
@@ -281,6 +274,7 @@ Which would you like me to install? "
 	echo $distroname > $lockfile
 }
 
+
 restore_from_stage_X_backup_if_possible() {
 	mkdir -p /tmp/a /tmp/b
 	mount /dev/sda4 /tmp/a &> /dev/null || echo -en ""
@@ -297,6 +291,7 @@ restore_from_stage_X_backup_if_possible() {
 			fi
 		done
 	done
+	[ "$url" = "" ] && url=$FINALS_URL/$distroname/$distroname"__D.xz"
 	echo "FYI, url=$url"
 	if wget --spider $url -O /dev/null ; then
 		if wget $url -O - | tar -Jx -C $root ; then
@@ -313,10 +308,6 @@ restore_from_stage_X_backup_if_possible() {
 
 
 restore_from_squash_fs_backup_if_possible() {
-#	return 98
-	if [ -e "/tmp/FROMSCRATCH" ] ; then
-		return 99
-	fi
 	mkdir -p /tmp/a /tmp/b
 	mount /dev/sda4 /tmp/a &> /dev/null || echo -en ""
 	mount /dev/sdb4 /tmp/b &> /dev/null || echo -en ""
@@ -374,10 +365,6 @@ sign_and_write_custom_kernel() {
 }
 
 
-
-
-
-
 hack_something_squishy() {
 	local distroname root dev_p
 	distroname=$1
@@ -388,20 +375,10 @@ hack_something_squishy() {
 	umount /tmp/a /tmp/b &> /dev/null || echo -en ""
 	# FYI, $root is mounted on /dev/mmcblk1p3 (or similar).
 	mkdir -p $root/.ro
-#	if mount -o loop,squashfs $root/.squashfs.sqfs $root/.ro ; then
-#		echo "OK. Squashfs is mountable. Great."
-#		for f in bin boot etc home lib mnt opt root run sbin srv usr var ; do
-#			[ -e "$root/.ro/$f" ] && ln -sf .ro/$f $root/$f || mkdir -p $root/$f
-#		done
-#		echo "Signing and writing kernel"
-#		kernelpath=$root$KERNEL_SRC_BASEDIR/src/chromeos-3.4/arch/arm/boot/vmlinux.uimg
-#	else
-#		echo "Fair enough. Squashfs is not mountable (xz?). I'll use the online copy of the kernel instead."
-		kernelpath=/tmp/.kernel.dat
-		if [ ! -e "$kernelpath" ] ; then
-			wget $FINALS_URL/$distroname/$distroname.kernel -O - > $kernelpath || failed "Failed to download $distroname.kernel"
-		fi
-#	fi
+	kernelpath=/tmp/.kernel.dat
+	if [ ! -e "$kernelpath" ] ; then
+		wget $FINALS_URL/$distroname/$distroname.kernel -O - > $kernelpath || failed "Failed to download $distroname.kernel"
+	fi
 	sign_and_write_custom_kernel $root "$dev_p"1 "$dev_p"3 $kernelpath "" ""  || failed "Failed to sign/write custom kernel"
 }
 

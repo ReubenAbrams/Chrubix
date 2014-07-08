@@ -3,17 +3,16 @@
 # distros.py
 
 
-# TODO: Make sure memory is getting wiped at shutdown (play a tune?). See https://bbs.archlinux.org/viewtopic.php?id=136283
 import os, sys, shutil, hashlib, getpass, random, pickle, time, chrubix.utils
 from chrubix.utils import rootcryptdevice, mount_device, mount_sys_tmp_proc_n_dev, logme, unmount_sys_tmp_proc_n_dev, failed, \
             chroot_this, wget, do_a_sed, system_or_die, write_oneliner_file, read_oneliner_file, call_binary, install_mp3_files, \
             generate_temporary_filename, backup_the_resolvconf_file, install_gpg_applet, patch_kernel, \
-            fix_broken_hyperlinks, disable_root_password, install_windows_xp_theme_stuff, running_on_a_test_rig, \
+            fix_broken_hyperlinks, disable_root_password, install_windows_xp_theme_stuff, running_on_any_test_rig, \
             MAXIMUM_COMPRESSION, set_user_password, patch_org_freedesktop_networkmanager_conf_file
 
 from chrubix.utils.postinst import write_lxdm_post_login_file, write_lxdm_pre_login_file, write_lxdm_post_logout_file, \
             append_lxdm_xresources_addendum, generate_wifi_manual_script, generate_wifi_auto_script, \
-            install_guest_browser_script, configure_privoxy, add_speech_synthesis_script, ask_the_user__guest_mode_or_user_mode__and_create_one_if_necessary, \
+            configure_privoxy, add_speech_synthesis_script, ask_the_user__guest_mode_or_user_mode__and_create_one_if_necessary, \
             configure_lxdm_onetime_changes, configure_lxdm_behavior, configure_lxdm_service, \
             install_chrome_or_iceweasel_privoxy_wrapper, remove_junk, tweak_xwindow_for_cbook, install_panicbutton_scripting, \
             check_and_if_necessary_fix_password_file, install_insecure_browser, append_proxy_details_to_environment_file, \
@@ -23,7 +22,7 @@ from chrubix.utils.postinst import write_lxdm_post_login_file, write_lxdm_pre_lo
 from chrubix.utils.mbr import install_initcpio_wiperamonshutdown_files
 from xml.dom import NotFoundErr
 
-# FIXME: paman and padevchooser are deprecated
+
 class Distro():
     '''
     '''
@@ -50,6 +49,7 @@ xterm xscreensaver rxvt rxvt-unicode smem python-qrencode python-imaging cmake \
 gimp inkscape scribus audacity pitivi poedit alsa-utils libcanberra-pulse sound-juicer \
 simple-scan macchanger brasero pm-utils mousepad keepassx claws-mail bluez-utils \
 '  # palimpsest gnome-session-fallback mate-settings-daemon-pulseaudio
+# FIXME: paman and padevchooser are deprecated
     final_push_packages = 'lxde tor privoxy vidalia systemd syslog-ng gnome-tweak-tool'  # Install these, all at once, when we're ready to break the Internet :)
     # Instance-level attributes
     def __init__( self, *args, **kwargs ):
@@ -72,7 +72,6 @@ simple-scan macchanger brasero pm-utils mousepad keepassx claws-mail bluez-utils
         self.status_lst = []
         self.mountpoint = None  # not mounted yet :)
         self.list_of_mkfs_packages = None  # This will be defined by subclass
-        self.typical_install_duration = -1
         self.use_dropbox = False  # for storing fragment of /home key
         self.root_is_encrypted = False
         self.home_is_encrypted = False
@@ -415,7 +414,7 @@ make' % ( self.sources_basedir ), title_str = self.title_str, status_lst = self.
     def download_modify_build_and_install_kernel_and_mkfs( self ):
         logme( 'modify_build_and_install_mkfs_and_kernel_for_OS() --- starting' )
         diy = True
-        if running_on_a_test_rig():
+        if running_on_any_test_rig():
             fname = '/tmp/posterity/%s/%s_PKGBUILDs.tgz' % ( self.name + ( '' if self.branch is None else self.branch ), self.name + ( '' if self.branch is None else self.branch ) )
             os.system( 'mkdir -p %s%s' % ( self.mountpoint, os.path.dirname( fname ) ) )
             mounted = False
@@ -511,6 +510,8 @@ Exec=/usr/lib/notification-daemon-1.0/notification-daemon
 /usr/local/bin/start_privoxy_freenet_i2p_and_tor.sh,/usr/local/bin/tweak_lxdm_and_reboot,/usr/local/bin/tweak_lxdm_and_shutdown,\
 /usr/local/bin/run_as_guest.sh,/usr/local/bin/chrubix.sh,/usr/bin/nm-applet\n" >> %s/etc/sudoers' % ( self.mountpoint ) )
         add_user_to_the_relevant_groups( 'guest', self.name, self.mountpoint )
+        if os.path.exists( '%s/usr/lib/notification-daemon' % ( self.mountpoint ) ) and not os.path.exists( '%s/usr/lib/notification-daemon-1.0' % ( self.mountpoint ) ):
+            chroot_this( self.mountpoint, 'ln -sf /usr/lib/notification-daemon /usr/lib/notification-daemon-1.0' )
 
     def configure_networking( self ):
         patch_org_freedesktop_networkmanager_conf_file( '%s/etc/dbus-1/system.d/org.freedesktop.NetworkManager.conf' % ( self.mountpoint ),
@@ -538,7 +539,7 @@ systemctl start i2p
 su -l freenet /opt/freenet/run.sh start
 su -l i2psvc i2prouter start
 ''' )
-        do_a_sed( '%s/etc/passwd' % ( self.mountpoint ), 'i2p:/bin/false', 'i2p:/bin/bash' )  # FIXME: Remove on 7/15/2014
+        do_a_sed( '%s/etc/passwd' % ( self.mountpoint ), 'i2p:/bin/false', 'i2p:/bin/bash' )  # FIXME: Probably unnecessary; try removing it; see if i2p still works :)
         os.system( 'chmod +x %s/usr/local/bin/start_privoxy_freenet_i2p_and_tor.sh' % ( self.mountpoint ) )
 
     def migrate_all_data( self, new_mountpt ):
@@ -596,7 +597,7 @@ Choose the 'boom' password : """ ).strip( '\r\n\r\n\r' )
         self.status_lst[-1] += "..OK."
 
     def generate_tarball_of_my_rootfs( self, output_file ):
-        compression_level = 9 if chrubix.utils.MAXIMUM_COMPRESSION else 1
+        compression_level = 9 if ( output_file.find( '_D' ) >= 0 and chrubix.utils.MAXIMUM_COMPRESSION is True ) else 1
         self.status_lst.append( ['Creating tarball %s of my rootfs' % ( output_file )] )
         dirs_to_backup = 'bin boot etc home lib mnt opt root run sbin srv usr var'
         for dir_name in dirs_to_backup.split( ' ' ):
@@ -670,8 +671,6 @@ Choose the 'boom' password : """ ).strip( '\r\n\r\n\r' )
         tweak_xwindow_for_cbook( self.mountpoint )
         setup_onceaminute_timer( self.mountpoint )
 #        setup_onceeverythreeseconds_timer( self.mountpoint )
-        if os.path.exists( '%s/usr/lib/notification-daemon' % ( self.mountpoint ) ) and not os.path.exists( '%s/usr/lib/notification-daemon-1.0' % ( self.mountpoint ) ):
-            chroot_this( self.mountpoint, 'ln -sf /usr/lib/notification-daemon /usr/lib/notification-daemon-1.0' )
 
     def configure_lxdm_login_manager( self ):
         configure_lxdm_onetime_changes( self.mountpoint )
@@ -694,7 +693,6 @@ Choose the 'boom' password : """ ).strip( '\r\n\r\n\r' )
 #            self.build_and_install_package_from_deb_or_ubu_source( 'chromium-browser', 'https://packages.debian.org/' + self.branch )
         install_chrome_or_iceweasel_privoxy_wrapper( self.mountpoint )
         install_insecure_browser ( self.mountpoint )
-        install_guest_browser_script( self.mountpoint )  # TODO: I'm not sure... Is this script still necessary?
 
     def configure_speech_synthesis_and_font_cache( self ):
         add_speech_synthesis_script( self.mountpoint )
@@ -739,6 +737,7 @@ exit 0
         chroot_this( self.mountpoint, 'useradd guest -d %s' % ( self.guest_homedir ) , on_fail = "Failed to add user guest" )
         chroot_this( self.mountpoint, 'chmod 700 %s' % ( self.guest_homedir ), on_fail = 'Failed to chmod guest' )
 #        do_a_sed( passwd_file, r'guest:x:', r'guest::' )
+#        do_a_sed( passwd_file, r'guest::', r'guest:x:' )
         set_user_password( login = 'guest', password = 'guest', mountpoint = self.mountpoint )
 
     def remove_all_junk( self ):
@@ -757,6 +756,7 @@ exit 0
         and os.path.exists( '%s/usr/local/bin/Chrubix/src/tinker.py' % ( self.mountpoint ) ):
             logme( 'No need to reinstall chrubix. It is not missing.' )
             return 0
+        system_or_die( 'cp -f /usr/local/bin/Chrubix/bash/chrubix.sh %s/usr/local/bin/Chrubix/bash/' % ( self.mountpoint ) )
         try:
             system_or_die( 'rm -Rf %s/usr/local/bin/Chrubix' % ( self.mountpoint ) )
             wget( url = 'https://github.com/ReubenAbrams/Chrubix/archive/master.tar.gz',
@@ -766,41 +766,24 @@ exit 0
         except SystemError:
             self.status_lst.append( ['Unable to install latest & greatest Chrubix from Internet. Using local copy instead.'] )
             system_or_die( 'tar -cz /usr/local/bin/Chrubix | tar -zx -C %s' % ( self.mountpoint ) )
-        try:
-            wget( url = 'https://dl.dropboxusercontent.com/u/59916027/chrubix/_chrubix.tar.xz',
-              decompression_flag = 'J', extract_to_path = '%s/usr/local/bin/Chrubix' % ( self.mountpoint ), quiet = True )
-        except SystemError:
-            self.status_lst.append( ['Failed to install new version via wget. That sucks. Let us continue anyway...'] )
-        system_or_die( 'cp -f /usr/local/bin/Chrubix/bash/chrubix.sh %s/usr/local/bin/Chrubix/bash/chrubix.sh' % ( self.mountpoint ) )  # FIXME: This line is probably redundant. Remove it & see what happens.
-        system_or_die( 'cp /usr/local/bin/Chrubix/bash/chrubix.sh %s/usr/local/bin/Chrubix/bash/chrubix.sh' % ( self.mountpoint ) )
-        system_or_die( 'ln -sf Chrubix/bash/chrubix.sh %s/usr/local/bin/chrubix.sh' % ( self.mountpoint ) )
-        system_or_die( 'ln -sf Chrubix/bash/ersatz_lxdm.sh %s/usr/local/bin/ersatz_lxdm.sh' % ( self.mountpoint ) )
+        if running_on_any_test_rig():
+            try:
+                wget( url = 'https://dl.dropboxusercontent.com/u/59916027/chrubix/_chrubix.tar.xz',
+                  decompression_flag = 'J', extract_to_path = '%s/usr/local/bin/Chrubix' % ( self.mountpoint ), quiet = True )
+            except SystemError:
+                self.status_lst.append( ['Failed to install new version via wget. That sucks. Let us continue anyway...'] )
+        chroot_this( self.mountpoint, 'ln -sf Chrubix/bash/chrubix.sh /usr/local/bin/chrubix.sh', on_fail = 'Failed to setup chrubix.sh' )
+        chroot_this( self.mountpoint, 'ln -sf Chrubix/bash/ersatz_lxdm.sh /usr/local/bin/ersatz_lxdm.sh', on_fail = 'Failed to setup ersatz_lxdm.sh' )
         chroot_this( self.mountpoint, 'chmod +x /usr/local/bin/*' )
         os.system( 'clear; sleep 1; sync;sync;sync; clear' )
 
     def migrate_or_squash_OS( self ):  # FYI, the Alarmist distro (subclass) redefines this subroutine to disable root pw and squash the OS
         self.status_lst.append( ['Migrating/squashing OS'] )
-        self.reinstall_chrubix_if_missing()
-        logme( 'vvv  THIS SECTION SHOULD BE REMOVED AFTER 7/15/2014 vvv' )  # TODO: ...and MAKE SURE its contents are present in Stage B or C :)
-        patch_org_freedesktop_networkmanager_conf_file( '%s/etc/dbus-1/system.d/org.freedesktop.NetworkManager.conf' % ( self.mountpoint ),
-                                                        '%s/usr/local/bin/Chrubix/blobs/settings/nmgr-cfg-diff.txt.gz' % ( self.mountpoint ) )
-        if os.path.exists( '%s/usr/lib/notification-daemon' % ( self.mountpoint ) ) and not os.path.exists( '%s/usr/lib/notification-daemon-1.0' % ( self.mountpoint ) ):
-            chroot_this( self.mountpoint, 'ln -sf /usr/lib/notification-daemon /usr/lib/notification-daemon-1.0' )
-        if os.path.exists( '%s/etc/systemd/system/display-manager.service' % ( self.mountpoint ) ) \
-        and not os.path.exists( '%s/etc/systemd/system/multi-user.target.wants/display-manager.service' % ( self.mountpoint ) ):
-            chroot_this( self.mountpoint, 'mv /etc/systemd/system/display-manager.service /etc/systemd/system/multi-user.target.wants/' )
-        assert( os.path.exists( '%s/etc/systemd/system/multi-user.target.wants/display-manager.service' ) % ( self.mountpoint ) )
-        if 0 != chroot_this( self.mountpoint, 'ln -sf /usr/lib/systemd/system/lxdm.service /etc/systemd/system/multi-user.target.wants/display-manager.service' ):
-            failed( 'Failed to enable lxdm' )
-        generate_wifi_manual_script( '%s/usr/local/bin/wifi_manual.sh' % ( self.mountpoint ) )
-        chroot_this( self.mountpoint, 'systemctl enable lxdm.service' )
-        write_lxdm_post_login_file( '%s/etc/lxdm/PostLogin' % ( self.mountpoint ) )
-        do_a_sed( '%s/etc/passwd' % ( self.mountpoint ), r'guest::', r'guest:x:' )
-        set_user_password( login = 'guest', password = 'guest', mountpoint = self.mountpoint )
+#        self.reinstall_chrubix_if_missing()
+        logme( 'vvv  THIS SECTION SHOULD BE REMOVED AFTER 7/15/2014 vvv' )
         logme( '^^^ THIS SECTION SHOULD BE REMOVED AFTER 7/15/2014 ^^^' )
         if not os.path.exists( '%s%s/src/chromeos-3.4/arch/arm/boot/vmlinux.uimg' % ( self.mountpoint, self.kernel_src_basedir ) ):
             system_or_die( 'cp -f /tmp/.vmlinuz.uimg %s%s/src/chromeos-3.4/arch/arm/boot/vmlinux.uimg' % ( self.mountpoint, self.kernel_src_basedir ) )
-        chroot_this( self.mountpoint, 'ln -sf Chrubix/bash/ersatz_lxdm.sh /usr/local/bin/ersatz_lxdm.sh' , on_fail = 'Failed to setup ersatz_lxdm.sh softlink' )
         for f in ( '/etc/lxdm/lxdm.conf', self.kernel_src_basedir + '/src/chromeos-3.4/arch/arm/boot/vmlinux.uimg',
                   '/lib/firmware/mrvl/sd8797_uapsta.bin', '/usr/local/bin/chrubix.sh', '/usr/local/bin/ersatz_lxdm.sh' ):
             if not os.path.exists( self.mountpoint + f ):
@@ -863,8 +846,7 @@ exit 0
     def unmount_and_clean_up( self ):
         self.status_lst[-1] += '...Bonzer.'
         unmount_sys_tmp_proc_n_dev( self.mountpoint )
-        logme( 'leaving phase 6 of 6. FYI, total number of lines = %d' % ( chrubix.utils.get_total_lines_so_far() ) )
-        chrubix.utils.set_total_lines_so_far( chrubix.utils.get_expected_duration_of_install() )
+        logme( 'leaving phase 6 of 6.' )
 
     def install_moose( self ):
         chroot_this( self.mountpoint, """yes "Yes" | perl -MCPAN -e 'install Moose'""",
@@ -1078,9 +1060,9 @@ exit 0
     def generate_squashfs_of_my_OS( self ):
         logme( 'qqq generate_squashfs_of_my_OS() --- hi' )
         assert( os.path.isdir( '%s/usr/local/bin/Chrubix' % ( self.mountpoint ) ) )
-        system_or_die( 'mkdir -p /tmp/posterity' )  # FIXME: remove? If I remove this, does everything (M, T, P) still work?
+        system_or_die( 'mkdir -p /tmp/posterity' )  # Might be unnecessary
         system_or_die( 'rm -f %s/.squashfs.sqfs /.squashfs.sqfs' % ( self.mountpoint ) )
-        if running_on_a_test_rig():
+        if running_on_any_test_rig():
             logme( 'I am running on a test rig. Is there a backup of sqfs available?' )
             if 0 == os.system( 'mount /dev/sda4 /tmp/posterity &> /dev/null' ) \
             or 0 == os.system( 'mount /dev/sdb4 /tmp/posterity &> /dev/null' ) \
@@ -1104,7 +1086,7 @@ exit 0
             assert( os.path.exists( '%s/.squashfs.sqfs' % ( self.mountpoint ) ) )
         logme( 'qqq delta' )
         system_or_die( 'mkdir -p /tmp/posterity' )
-        if running_on_a_test_rig():
+        if running_on_any_test_rig():
             if 0 == os.system( 'mount /dev/sda4 /tmp/posterity &> /dev/null' ) \
             or 0 == os.system( 'mount /dev/sdb4 /tmp/posterity &> /dev/null' ) \
             or 0 == os.system( 'mount | grep /tmp/posterity &> /dev/null' ):
@@ -1277,7 +1259,7 @@ WantedBy=multi-user.target
         return self.able_to_restore_from_posterity( '_D' )
 
     def save_for_posterity_if_possible( self, tailend ):
-        if not running_on_a_test_rig():
+        if not running_on_any_test_rig():
             logme( 'I am not running on a test rig. Therefore, I shall not save %s' % ( tailend ) )
             return 0
         else:
@@ -1316,7 +1298,7 @@ WantedBy=multi-user.target
         pass
 
     def able_to_restore_from_posterity( self, tailend ):
-        if not running_on_a_test_rig():
+        if not running_on_any_test_rig():
             logme( 'I am not running on a test rig. Therefore, I shall not restore %s' % ( tailend ) )
             return 0
         else:
@@ -1400,9 +1382,10 @@ WantedBy=multi-user.target
                                 self.remove_all_junk,
                                 self.forcibly_rebuild_initramfs_and_vmlinux,  #                                self.redo_mbr( self.root_dev, self.mountpoint ),  # This forces the creation of vmlinux.uimg
                                 self.check_sanity_of_distro,
+                                self.reinstall_chrubix_if_missing,
                                 self.save_for_posterity_if_possible_D )
         fifth_stage = ( 
-                                self.reinstall_chrubix_if_missing,
+                       # Chrubix ought to have been installed in /tmp/_root/{dest distro} already, by the stage 1 bash script.
                                 self.install_vbutils_and_firmware_from_cbook,  # just in case the new user's tools differ from the original builder's tools
                                 self.migrate_or_squash_OS,  # Every class but Alarmist will use migrate_or_squash. Alarmist uses squash.
                                 self.unmount_and_clean_up
@@ -1413,7 +1396,7 @@ WantedBy=multi-user.target
             if checkpoint_number == 9999:
                 url_or_fname = read_oneliner_file( '%s/.url_or_fname.txt' % ( self.mountpoint ) )
                 self.status_lst.append( ['I was restored by the stage 1 bash script from %s; cool.' % ( url_or_fname )] )
-                mount_sys_tmp_proc_n_dev( self.mountpoint )  # FIXME: This line is unnecessary, probably
+                mount_sys_tmp_proc_n_dev( self.mountpoint )  # This line is unnecessary, probably
                 if url_or_fname.find( '_D' ) >= 0:        checkpoint_number = len( first_stage ) + len( second_stage ) + len( third_stage ) + len( fourth_stage )
                 elif url_or_fname.find( '_C' ) >= 0:      checkpoint_number = len( first_stage ) + len( second_stage ) + len( third_stage )
                 elif url_or_fname.find( '_B' ) >= 0:      checkpoint_number = len( first_stage ) + len( second_stage )

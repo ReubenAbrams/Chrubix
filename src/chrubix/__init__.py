@@ -10,8 +10,7 @@ import getopt
 import hashlib
 import base64
 from chrubix.utils import call_binary, read_oneliner_file, write_oneliner_file, call_binary_and_show_progress, \
-                          wget, get_expected_duration_of_install, failed, get_total_lines_so_far, logme, \
-                          set_expected_duration_of_install
+                          wget, failed, logme
 from chrubix.utils.postinst import configure_lxdm_behavior
 from chrubix import distros
 from chrubix.distros.archlinux import ArchlinuxDistro
@@ -53,9 +52,6 @@ def generate_distro_record_from_name( name_str ):
     print( "Creating distro record for %s" % ( name_str ) )
     assert( name_str in distro_options.keys() )
     rec = distro_options[name_str]()  # rec itself handles the naming (......self.name)        #    rec.name = name_str
-    if rec.typical_install_duration <= 0:
-        failed( 'You must make %s set the typical_install_duration attribute' % ( name_str ) )
-    set_expected_duration_of_install( rec.typical_install_duration )
     assert( None not in ( rec.name, rec.architecture ) )
     assert( rec.branch is not None or rec.name in ( 'archlinux', 'kali', 'fedora' ) )
     return rec

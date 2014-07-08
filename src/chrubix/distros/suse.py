@@ -20,7 +20,6 @@ xorg-xinit xf86-video-fbdev wmsystemtray lxdm network-manager-gnome'
         super( SuseDistro, self ).__init__()
         self.name = 'suse'
         self.architecture = 'arm'
-        self.typical_install_duration = 12445
 
     def install_barebones_root_filesystem( self ):
         logme( 'SuseDistro - install_barebones_root_filesystem() - starting' )

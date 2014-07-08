@@ -23,36 +23,24 @@ g_proxy = None if ( 0 != os.system( 'ping -c1 -W1 192.168.1.66 &> /dev/null' ) o
 g_default_window_manager = '/usr/bin/startlxde'  # wmaker, startxfce4, startlxde, ...
 
 
-def running_on_a_test_rig():
-    for a_rig_serno in ( '09278f79', ):  # '203a61bc',
+def running_on_any_test_rig():
+    for a_rig_serno in ( '09278f79', '203a61bc' ):
         a_rig = '/dev/disk/by-id/mmc-SEM16G_0x%s' % ( a_rig_serno )
         if os.path.exists( a_rig ):
             return True
     return False
 
 
-MAXIMUM_COMPRESSION = True if running_on_a_test_rig() else False  # Max compression on the left; quicker testing on the right :)
-__g_expected_total_progress = -1
-__g_total_lines_so_far = 0
+def running_on_the_build_rig():
+    for a_rig_serno in ( '09278f79', ):
+        a_rig = '/dev/disk/by-id/mmc-SEM16G_0x%s' % ( a_rig_serno )
+        if os.path.exists( a_rig ):
+            return True
+    return False
+
+
+MAXIMUM_COMPRESSION = True if running_on_the_build_rig() else False  # Max compression on the left; quicker testing on the right :)
 __g_start_time = time.time()
-
-
-def set_total_lines_so_far( value ):
-    global __g_total_lines_so_far
-    __g_total_lines_so_far = value
-
-def get_total_lines_so_far():
-    return __g_total_lines_so_far
-
-
-def set_expected_duration_of_install( value ):
-    global __g_expected_total_progress
-    __g_expected_total_progress = value
-#    logme( 'I have set expected_total_lines to %d' % ( __g_expected_total_progress ) )
-
-
-def get_expected_duration_of_install():
-    return __g_expected_total_progress
 
 
 def logme( message = None ):
@@ -70,8 +58,6 @@ def call_binary_and_show_progress( binary_info, title_str, foot_str, status_lst,
     status_lst:     e.g. ['First line', 'Second line, '..and so on']
     '''
     import urwid
-    if get_expected_duration_of_install() < 0:
-        raise RuntimeError( 'You should specify maximum progress in the subclass of your Linux distro record.' )
     max_height = 28
     output_widget = urwid.Text( '' )
     status_lst = [''] + status_lst + ['']  #  # + ''.join( [r + ' ' for r in binary_info ]
@@ -108,7 +94,6 @@ def call_binary_and_show_progress( binary_info, title_str, foot_str, status_lst,
             if r not in new_lst and r != '':
                 new_lst.append( r )
 #        if not trim_output:
-        set_total_lines_so_far( get_total_lines_so_far() + len( new_lst ) )
         full_lst = old_lst + new_lst
         last_N_lines_of_lst = full_lst[-how_many_lines:]
         output_text = ''.join( [ r + '\n' for r in last_N_lines_of_lst ] )
@@ -120,15 +105,8 @@ def call_binary_and_show_progress( binary_info, title_str, foot_str, status_lst,
         if status_lst is not None:
             current_time = time.time()
             time_taken = current_time - __g_start_time
-            pc_done = get_total_lines_so_far() / get_expected_duration_of_install()
-            pc_remaining = 1. - pc_done
-            time_remaining = time_taken * pc_remaining
-            if time_taken >= 5 and pc_done >= 0.20:  # .01 means 1% ;)
-                time_remaining = ( time_taken / pc_done ) * pc_remaining
-                s = 'Installation is %d%% complete (%d/%d), %02d:%02d remaining' \
-                             % ( get_total_lines_so_far() * 100 // get_expected_duration_of_install(), get_total_lines_so_far(), get_expected_duration_of_install(),
-                                 time_remaining // 60, time_remaining % 60 )
-                frame_widget.footer = urwid.AttrWrap( urwid.Text( s, align = 'center' ), 'footer' )
+            s = 'Time taken so far: %02d:%02d' % ( time_taken // 60, time_taken % 60 )
+            frame_widget.footer = urwid.AttrWrap( urwid.Text( s, align = 'center' ), 'footer' )
             output_widget.set_text( output_text )
     def call_me( x, y ):
         x = x  # stop Eclipse warning
@@ -364,10 +342,10 @@ def patch_kernel( mountpoint, folder, url ):
         failed( 'Failed to apply %s patch to kernel.' % ( url ) )
 
 
-
-
 def set_user_password( login, password, mountpoint = '/' ):
 #!/usr/bin/env python
+    i = None
+    r = i  # ...to prevent annoying 'i not used' warning.
     ALPHABET = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
     salt = ''.join( random.choice( ALPHABET ) for i in range( 8 ) )
     shadow_password = crypt.crypt( password, '$1$' + salt + '$' )
@@ -381,7 +359,6 @@ def set_user_password( login, password, mountpoint = '/' ):
 
 def disable_root_password( mountpoint ):
     chroot_this( mountpoint, 'passwd -l root' )  # Disable root password entirely
-
 
 
 def write_spoof_script_file( my_spoof_script_fname ):  # Typically, this is used by Alarmist only.

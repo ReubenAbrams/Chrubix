@@ -17,8 +17,7 @@ libnotify talkfilters chromium xorg-server-utils java-runtime libxmu libxfixes a
     def __init__( self ):
         super( FedoraDistro, self ).__init__()
         self.name = 'fedora'
-        self.architecture = 'arm'  # FIXME: 'arm'? That's it?
-        self.typical_install_duration = 11445
+        self.architecture = 'arm'
 
     def install_barebones_root_filesystem( self ):
         logme( 'FedoraDistro - install_barebones_root_filesystem() - starting' )
@@ -49,10 +48,10 @@ libnotify talkfilters chromium xorg-server-utils java-runtime libxmu libxfixes a
         logme( 'FedoraDistro - install_locale() - leaving' )
 
     def configure_distrospecific_tweaks( self ):
-        self.status_lst.append( ['configure_distrospecific_tweaks() --- TODO'] )
+        self.status_lst.append( ['configure_distrospecific_tweaks() --- to be written'] )
 
     def download_mkfs_sources( self ):
-        self.status_lst.append( ['download_mkfs_sources() --- TODO'] )
+        self.status_lst.append( ['download_mkfs_sources() --- to be written'] )
 
     def build_package( self, source_pathname ):
         failed( "build_package(%s) --- please define in subclass" % ( source_pathname ) )
