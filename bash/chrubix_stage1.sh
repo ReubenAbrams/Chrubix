@@ -597,7 +597,7 @@ else
 		clear
 		echo "About to build $distroname..."
 		main
-		echo "Back from building $distroname"
-		echo "Built $distroname" >> /tmp/log.txt
+		echo "`date` Back from building $distroname"
+		echo "`date` Built $distroname" >> /tmp/log.txt
 	done
 fi
