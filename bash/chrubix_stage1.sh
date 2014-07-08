@@ -137,9 +137,7 @@ deduce_my_dev() {
 	possibles=""
 	for d in $mydevsbyid_a $mydevsbyid_b ; do
 		if [ "`ls -l $d | grep mmcblk0`" = "" ] && [ ! "`ls -l $d | grep $homedev`" ]; then
-#if ! ls /tmp/_root.`ls -l $d | tr '/' '\n' | tail -n1` &> /dev/null ; then
-				possibles="$possibles $d"
-#			fi
+			possibles="$possibles $d"
 		fi
 	done
 	mydevbyid=`echo "$possibles" | tr ' ' '\n' | tail -n1`
@@ -325,8 +323,6 @@ restore_from_squash_fs_backup_if_possible() {
 	
 	fnA=/tmp/a/$distroname/$distroname.sqfs
 	fnB=/tmp/b/$distroname/$distroname.sqfs
-	echo "fnA = $fnA"
-	echo "fnB = $fnB"
 	for fname in $fnA $fnB ; do
 		if [ -e "$fname" ] ; then
 			if [ "$temp_or_perm" = "temp" ] ; then	
@@ -463,10 +459,10 @@ MEH: No encryption. No duress password. Changes are permanent. Guest Mode is sti
 
 main() {
 	echo "Chrubix ------ starting now"
-	umount /tmp/_root*/.bootstrap/tmp/_root/{dev,tmp,proc,sys} 2> /dev/null || echo ""
-	umount /tmp/_root*/.bootstrap/tmp/_root 2> /dev/null || echo ""
-	umount /tmp/_root*/.bootstrap/{dev,tmp,proc,sys} 2> /dev/null || echo ""
-	umount /tmp/_root*/.bootstrap /tmp/_root*/.ro /tmp/_root.*/.* 2> /dev/null || echo ""
+	umount /tmp/_root*/.bootstrap/tmp/_root/{dev,tmp,proc,sys} 2> /dev/null || echo -en ""
+	umount /tmp/_root*/.bootstrap/tmp/_root 2> /dev/null || echo -en ""
+	umount /tmp/_root*/.bootstrap/{dev,tmp,proc,sys} 2> /dev/null || echo -en ""
+	umount /tmp/_root*/.bootstrap /tmp/_root*/.ro /tmp/_root.*/.* 2> /dev/null || echo -en ""
 	#clear
 	mount | grep /dev/mapper/encstateful &> /dev/null || failed "Run me from within ChromeOS, please."
 	mydevbyid=`deduce_my_dev`
