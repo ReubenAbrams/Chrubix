@@ -24,7 +24,7 @@ g_default_window_manager = '/usr/bin/startlxde'  # wmaker, startxfce4, startlxde
 
 
 def running_on_any_test_rig():
-    for a_rig_serno in ( '09278f79', '203a61bc' ):
+    for a_rig_serno in ( '09278f79', '203a61bc', ):
         a_rig = '/dev/disk/by-id/mmc-SEM16G_0x%s' % ( a_rig_serno )
         if os.path.exists( a_rig ):
             return True
