@@ -79,17 +79,17 @@ ln -sf / /tmp/_root
     f.close()
 
 
-def append_lxdm_xresources_addendum( outfile ):
+def append_lxdm_xresources_addendum( outfile, webbrowser ):
     f = open( outfile, 'a' )
     f.write( '''
 # ------- vvv XRESOURCES vvv ------- Make sure rxvf etc. will use chromium to open a web browser if user clicks on http:// link
     echo "
-UXTerm*VT100*translations: #override Shift <Btn1Up>: exec-formatted("/usr/local/bin/run_browser_as_guest.sh '%t'", PRIMARY)
+UXTerm*VT100*translations: #override Shift <Btn1Up>: exec-formatted("%s '%%t'", PRIMARY)
 UXTerm*charClass: 33:48,36-47:48,58-59:48,61:48,63-64:48,95:48,126:48
 URxvt.perl-ext-common: default,matcher
-URxvt.url-launcher: /usr/local/bin/run_browser_as_guest.sh
+URxvt.url-launcher: /usr/local/bin/%s
 URxvt.matcher.button: 1
-''' )
+''' % ( webbrowser, webbrowser ) )
     f.close()
 
 
@@ -263,7 +263,13 @@ def configure_lxdm_onetime_changes( mountpoint ):
     write_lxdm_post_logout_file( '%s/etc/lxdm/PostLogout' % ( mountpoint ) )
     write_lxdm_post_login_file( '%s/etc/lxdm/PostLogin' % ( mountpoint ) )
     write_login_ready_file( '%s/etc/lxdm/LoginReady' % ( mountpoint ) )
-    append_lxdm_xresources_addendum( '%s/root/.Xresources' % ( mountpoint ) )
+    if 0 == chroot_this( mountpoint, 'which iceweasel > /tmp/.where_is_it.txt' ) \
+    or 0 == chroot_this( mountpoint, 'which chromium  > /tmp/.where_is_it.txt' ):
+        webbrowser = read_oneliner_file( '%s/tmp/.where_is_it.txt' % ( mountpoint ) ).strip()
+        logme( 'webbrowser = %s' % ( webbrowser ) )
+    else:
+        failed( 'Which web browser should I use? I cannot find iceweasel. I cannot find chrome. I cannot find firefox...' )
+    append_lxdm_xresources_addendum( '%s/root/.Xresources' % ( mountpoint ), webbrowser )
     system_or_die( 'echo ". /etc/X11/xinitrc/xinitrc" >> %s/etc/lxdm/Xsession' % ( mountpoint ) )
     do_a_sed( '%s/etc/X11/xinit/xinitrc' % ( mountpoint ), '.*xterm.*', '' )
     do_a_sed( '%s/etc/X11/xinit/xinitrc' % ( mountpoint ), 'exec .*', '' )  # exec /usr/local/bin/ersatz_lxdm.sh' )
@@ -422,7 +428,7 @@ def remove_junk( mountpoint, kernel_src_basedir ):
     chroot_this( mountpoint, 'ln -sf %s/src/chromeos-3.4 /usr/src/linux-3.4.0-ARCH' % ( kernel_src_basedir ) )
     chroot_this( mountpoint, 'set -e; cd /usr/share/locale; mv locale.alias ..' )
     chroot_this( mountpoint, 'set -e; cd /usr/share/locale; mkdir -p _; mv [a-d,f-z]* _ 2> /dev/null; mv e[a-m,o-z]* _ 2> /dev/null; rm -Rf _; mv ../locale.alias .' )
-    chroot_this( mountpoint, 'set -e; cd /usr/share/locale; mv ../locale.alias .' )
+    chroot_this( mountpoint, 'set -e; cd /usr/share/locale; mv ../locale.alias .', attempts = 1 )
     chroot_this( mountpoint, 'cd /usr/lib/firmware 2>/dev/null && cp s5p-mfc/s5p-mfc-v6.fw ../mfc_fw.bin 2> /dev/null && cp mrvl/sd8797_uapsta.bin .. 2> /dev/null && rm -Rf * && mkdir -p mrvl && mv ../sd8797_uapsta.bin mrvl/ && mv ../mfc_fw.bin .' )
 
 

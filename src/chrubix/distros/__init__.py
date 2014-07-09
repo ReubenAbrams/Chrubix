@@ -27,7 +27,7 @@ class Distro():
     '''
     '''
     # Class-level consts
-    hewwo = '2014/07/06 @ 20:14'
+    hewwo = '2014/07/09 @ 09:09'
     crypto_rootdev = "/dev/mapper/cryptroot"
     crypto_homedev = "/dev/mapper/crypthome"
     boot_prompt_string = "boot: "
@@ -756,21 +756,14 @@ exit 0
         and os.path.exists( '%s/usr/local/bin/Chrubix/src/tinker.py' % ( self.mountpoint ) ):
             logme( 'No need to reinstall chrubix. It is not missing.' )
             return 0
-        try:
-            system_or_die( 'rm -Rf %s/usr/local/bin/Chrubix' % ( self.mountpoint ) )
-            wget( url = 'https://github.com/ReubenAbrams/Chrubix/archive/master.tar.gz',
-                                extract_to_path = '%s/usr/local/bin' % ( self.mountpoint ), decompression_flag = 'z',
-                                quiet = True, status_lst = self.status_lst, title_str = self.title_str )
-            system_or_die( 'mv %s/usr/local/bin/Chrubix* %s/usr/local/bin/Chrubix' % ( self.mountpoint, self.mountpoint ) )
-        except ( RuntimeError, SystemError ):
-            self.status_lst.append( ['Unable to install latest & greatest Chrubix from Internet. Using local copy instead.'] )
-            system_or_die( 'tar -cz /usr/local/bin/Chrubix | tar -zx -C %s' % ( self.mountpoint ) )
-        if running_on_any_test_rig():
-            try:
-                wget( url = 'https://dl.dropboxusercontent.com/u/59916027/chrubix/_chrubix.tar.xz',
-                  decompression_flag = 'J', extract_to_path = '%s/usr/local/bin/Chrubix' % ( self.mountpoint ), quiet = True )
-            except SystemError:
-                self.status_lst.append( ['Failed to install new version via wget. That sucks. Let us continue anyway...'] )
+        system_or_die( 'rm -Rf %s/usr/local/bin/Chrubix' % ( self.mountpoint ) )
+        system_or_die( 'cp -af /usr/local/bin/Chrubix %s/usr/local/bin/' % ( self.mountpoint ) )
+        system_or_die( 'tar -cz /usr/local/bin/Chrubix | tar -zx -C %s' % ( self.mountpoint ) )
+        if os.path.exists( '/tmp/.USE_LATEST_CHRUBIX_TARBALL' ):
+            wget( url = 'https://dl.dropboxusercontent.com/u/59916027/chrubix/_chrubix.tar.xz',
+              decompression_flag = 'J', extract_to_path = '%s/usr/local/bin/Chrubix' % ( self.mountpoint ), quiet = True )
+        else:
+            logme( 'QQQ you are not asking for the lateset Chrubix tarball; therefore, I shall not install the latest Chrubix tarball :)' )
         system_or_die( 'mkdir -p %s/usr/local/bin/Chrubix/bash/' % ( self.mountpoint ) )
         system_or_die( 'cp -f /usr/local/bin/Chrubix/bash/chrubix.sh %s/usr/local/bin/Chrubix/bash/' % ( self.mountpoint ) )
         chroot_this( self.mountpoint, 'ln -sf Chrubix/bash/chrubix.sh /usr/local/bin/chrubix.sh', on_fail = 'Failed to setup chrubix.sh' )
@@ -998,19 +991,14 @@ exit 0
         # Save the old-but-grooby chrubix.sh; it was modified (its vars resolved) by chrubix_stage1.sh
         # Delete old copy of Chrubix from mountpoint.
         system_or_die( 'rm -Rf %s/usr/local/bin/Chrubix*' % ( self.mountpoint ) )
-        # Download and install latest copy from the GitHub website.
-        if 0 != wget( url = 'https://github.com/ReubenAbrams/Chrubix/archive/master.tar.gz',
-                                extract_to_path = '%s/usr/local/bin' % ( self.mountpoint ), decompression_flag = 'z',
-                                quiet = True, status_lst = self.status_lst, title_str = self.title_str ):
-            failed( 'Failed to install Chrubix in bootstrap OS' )
-        system_or_die( 'mv %s/usr/local/bin/Chrubix* %s/usr/local/bin/Chrubix' % ( self.mountpoint, self.mountpoint ) )
+        system_or_die( 'cp -af /usr/local/bin/Chrubix %s/usr/local/bin/' % ( self.mountpoint ) )
+        system_or_die( 'tar -cz /usr/local/bin/Chrubix | tar -zx -C %s' % ( self.mountpoint ) )
         # Try to install latest-latest version (on top of GitHub version) from Dropbox.
-        if running_on_any_test_rig():
-            try:
-                wget( url = 'https://dl.dropboxusercontent.com/u/59916027/chrubix/_chrubix.tar.xz',
+        if os.path.exists( '/tmp/.USE_LATEST_CHRUBIX_TARBALL' ):
+            wget( url = 'https://dl.dropboxusercontent.com/u/59916027/chrubix/_chrubix.tar.xz',
                       decompression_flag = 'J', extract_to_path = '%s/usr/local/bin/Chrubix' % ( self.mountpoint ), quiet = True )
-            except SystemError:
-                self.status_lst.append( ['Failed to install new version via wget. That sucks. Let us continue anyway...'] )
+        else:
+            logme( 'QQQ you are not asking for the lateset Chrubix tarball; therefore, I shall not install the latest Chrubix tarball :)' )
         system_or_die( 'cp /usr/local/bin/Chrubix/bash/chrubix.sh %s/usr/local/bin/Chrubix/bash/chrubix.sh' % ( self.mountpoint ) )
         system_or_die( 'ln -sf Chrubix/bash/chrubix.sh %s/usr/local/bin/chrubix.sh' % ( self.mountpoint ) )
         assert( os.path.islink( '%s/usr/local/bin/chrubix.sh' % ( self.mountpoint ) ) )
@@ -1045,7 +1033,7 @@ exit 0
                                     'startlxde', 'lxdm', 'wifi_auto.sh', 'wifi_manual.sh', \
                                     'chrubix.sh', 'mkinitcpio', 'dtc', 'wmsystemtray', 'florence', \
                                     'pidgin', 'gpgApplet', 'macchanger', 'gpg', 'chrubix.sh', 'greeter.sh', \
-                                    'run_browser_as_guest.sh', 'dropbox_uploader.sh', 'power_button_pushed.sh', \
+                                    'dropbox_uploader.sh', 'power_button_pushed.sh', \
                                     'sayit.sh', 'vidalia', 'i2prouter', 'claws-mail', \
                                     'CHRUBIX', 'libreoffice', 'ssss-combine', 'ssss-split', 'dillo'
                                   ):
@@ -1385,7 +1373,7 @@ WantedBy=multi-user.target
                                 self.forcibly_rebuild_initramfs_and_vmlinux,  #                                self.redo_mbr( self.root_dev, self.mountpoint ),  # This forces the creation of vmlinux.uimg
                                 self.check_sanity_of_distro,
                                 self.reinstall_chrubix_if_missing,
-                                self.save_for_posterity_if_possible_D )
+                                self.nop if running_on_any_test_rig() else self.save_for_posterity_if_possible_D )
         fifth_stage = ( 
                        # Chrubix ought to have been installed in /tmp/_root/{dest distro} already, by the stage 1 bash script.
                                 self.install_vbutils_and_firmware_from_cbook,  # just in case the new user's tools differ from the original builder's tools

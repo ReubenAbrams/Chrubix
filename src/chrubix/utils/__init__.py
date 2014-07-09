@@ -24,11 +24,13 @@ g_default_window_manager = '/usr/bin/startlxde'  # wmaker, startxfce4, startlxde
 
 
 def running_on_any_test_rig():
-    for a_rig_serno in ( '09278f79', '203a61bc', ):
-        a_rig = '/dev/disk/by-id/mmc-SEM16G_0x%s' % ( a_rig_serno )
-        if os.path.exists( a_rig ):
-            return True
-    return False
+    if os.path.exists( '/tmp/.USE_LATEST_CHRUBIX_TARBALL' ):
+#    for a_rig_serno in ( '09278f79', '203a61bc', ):
+#        a_rig = '/dev/disk/by-id/mmc-SEM16G_0x%s' % ( a_rig_serno )
+#        if os.path.exists( a_rig ):
+        return True
+    else:
+        return False
 
 
 def running_on_the_build_rig():
@@ -105,7 +107,7 @@ def call_binary_and_show_progress( binary_info, title_str, foot_str, status_lst,
         if status_lst is not None:
             current_time = time.time()
             time_taken = current_time - __g_start_time
-            s = 'Time taken so far: %02d:%02d' % ( time_taken // 60, time_taken % 60 )
+            s = 'Time taken so far: %02d:%02d:%02d' % ( time_taken // 3600, ( time_taken // 60 ) % 60, time_taken % 60 )
             frame_widget.footer = urwid.AttrWrap( urwid.Text( s, align = 'center' ), 'footer' )
             output_widget.set_text( output_text )
     def call_me( x, y ):

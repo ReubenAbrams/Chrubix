@@ -526,6 +526,7 @@ main() {
 		echo "$temp_or_perm" > $btstrap/.temp_or_perm.txt
 		ln -sf ../../bin/python3 $btstrap/usr/local/bin/python3
 		echo "************ Calling CHRUBIX, the Python powerhouse of pulchritudinous perfection ************"
+		echo "yep, use latest" > $btstrap/tmp/.USE_LATEST_CHRUBIX_TARBALL
 		chroot_this     $btstrap "/usr/local/bin/chrubix.sh" && res=0 || res=$?
 		[ "$res" -ne "0" ] && failed "Because chrubix reported an error, I'm aborting... and I'm leaving everything mounted."
 	fi
@@ -553,7 +554,8 @@ main() {
 ##################################################################################################################################
 
 
-if [ "$1" != "EVERYONE" ] ; then
+
+if [ "$1" != "REBUILD-ALL" ] ; then
 	set -e
 	main
 	exit $?
@@ -562,7 +564,12 @@ else
 	DONOTREBOOT=yousaidit
 	mount /dev/sda4 /tmp/a &> /dev/null || echo -en ""
 	mount /dev/sdb4 /tmp/b &> /dev/null || echo -en ""
-	for wildcard in .kernel .sqfs _D.xz ; do 
+	if [ "$2" = "FROM-SCRATCH" ] ; then
+		my_wildcards=".kernel .sqfs _A.xz _B.xz _C.xz _D.xz"
+	else
+		my_wildcards=".kernel .sqfs"
+	fi
+	for wildcard in $my_wildcards ; do 
 		rm -f /media/removable/*/*/*"$wildcard"
 	done
 	for distroname in alarmistwheezy archlinux debianjessie debianwheezy ; do
