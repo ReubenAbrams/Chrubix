@@ -562,8 +562,9 @@ else
 	DONOTREBOOT=yousaidit
 	mount /dev/sda4 /tmp/a &> /dev/null || echo -en ""
 	mount /dev/sdb4 /tmp/b &> /dev/null || echo -en ""
-	rm -f /media/removable/*/*/*_D.xz
-	rm -f /media/removable/*/*/*.sqfs
+	for wildcard in .kernel .sqfs _D.xz ; do 
+		rm -f /media/removable/*/*/*"$wildcard"
+	done
 	for distroname in alarmistwheezy archlinux debianjessie debianwheezy ; do
 		echo "$distroname" > /tmp/.chrubix.distro.mmcblk1
 		echo "temp" > /tmp/temp_or_perm
