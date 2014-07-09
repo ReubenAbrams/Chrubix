@@ -435,7 +435,6 @@ MEH: No encryption. No duress password. Changes are permanent. Guest Mode is sti
 
 
 main() {
-	echo "Chrubix ------ starting now"
 	umount /tmp/_root*/.bootstrap/tmp/_root/{dev,tmp,proc,sys} 2> /dev/null || echo -en ""
 	umount /tmp/_root*/.bootstrap/tmp/_root 2> /dev/null || echo -en ""
 	umount /tmp/_root*/.bootstrap/{dev,tmp,proc,sys} 2> /dev/null || echo -en ""
@@ -554,7 +553,11 @@ main() {
 ##################################################################################################################################
 
 
-
+if [ "$1" != "" ] && [ "$1" != "REBUILD-ALL" ] ; then
+	failed "I do not understand '$1'"
+elif [ "$2" != "" ] && [ "$1" != "FROM-SCRATCH" ] ; then
+	failed "I do not understand '$2'"
+fi
 if [ "$1" != "REBUILD-ALL" ] ; then
 	set -e
 	main
@@ -567,7 +570,7 @@ else
 	if [ "$2" = "FROM-SCRATCH" ] ; then
 		my_wildcards=".kernel .sqfs _A.xz _B.xz _C.xz _D.xz"
 	else
-		my_wildcards=".kernel .sqfs"
+		my_wildcards=".kernel .sqfs _D.xz"
 	fi
 	for wildcard in $my_wildcards ; do 
 		rm -f /media/removable/*/*/*"$wildcard"

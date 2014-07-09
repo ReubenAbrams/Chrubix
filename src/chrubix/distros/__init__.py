@@ -8,7 +8,8 @@ from chrubix.utils import rootcryptdevice, mount_device, mount_sys_tmp_proc_n_de
             chroot_this, wget, do_a_sed, system_or_die, write_oneliner_file, read_oneliner_file, call_binary, install_mp3_files, \
             generate_temporary_filename, backup_the_resolvconf_file, install_gpg_applet, patch_kernel, \
             fix_broken_hyperlinks, disable_root_password, install_windows_xp_theme_stuff, running_on_any_test_rig, \
-            MAXIMUM_COMPRESSION, set_user_password, patch_org_freedesktop_networkmanager_conf_file
+            MAXIMUM_COMPRESSION, set_user_password, patch_org_freedesktop_networkmanager_conf_file, \
+    running_on_the_build_rig
 
 from chrubix.utils.postinst import write_lxdm_post_login_file, write_lxdm_pre_login_file, write_lxdm_post_logout_file, \
             append_lxdm_xresources_addendum, generate_wifi_manual_script, generate_wifi_auto_script, \
@@ -1373,7 +1374,7 @@ WantedBy=multi-user.target
                                 self.forcibly_rebuild_initramfs_and_vmlinux,  #                                self.redo_mbr( self.root_dev, self.mountpoint ),  # This forces the creation of vmlinux.uimg
                                 self.check_sanity_of_distro,
                                 self.reinstall_chrubix_if_missing,
-                                self.nop if running_on_any_test_rig() else self.save_for_posterity_if_possible_D )
+                                self.nop if ( running_on_any_test_rig() and not running_on_the_build_rig() ) else self.save_for_posterity_if_possible_D )
         fifth_stage = ( 
                        # Chrubix ought to have been installed in /tmp/_root/{dest distro} already, by the stage 1 bash script.
                                 self.install_vbutils_and_firmware_from_cbook,  # just in case the new user's tools differ from the original builder's tools

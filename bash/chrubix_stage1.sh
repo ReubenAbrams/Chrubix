@@ -147,7 +147,7 @@ partition_device() {
 	dev=$1
 	dev_p=$2
 
-#	clear
+	clear
 	echo -en "Partitioning "$dev"."
 	sync;sync;sync; umount $root/{dev/pts,dev,proc,sys,tmp} &> /dev/null || echo -en "."
 	sync;sync;sync; umount "$dev_p"* &> /dev/null || echo -en "."
@@ -222,7 +222,7 @@ restore_stage_X_from_backup() {
 	distroname=$1
 	fname=$2
 	root=$3
-#	clear
+	clear
 	echo "Using $distroname midpoint file $fname"
 	pv $fname | tar -Jx -C $root || failed "Failed to unzip $fname --- J err?"
 	echo "Restored ($distroname, stage X) from $fname"
@@ -400,7 +400,7 @@ main() {
 	umount /tmp/_root*/.bootstrap/tmp/_root 2> /dev/null || echo -en ""
 	umount /tmp/_root*/.bootstrap/{dev,tmp,proc,sys} 2> /dev/null || echo -en ""
 	umount /tmp/_root*/.bootstrap /tmp/_root*/.ro /tmp/_root.*/.* 2> /dev/null || echo -en ""
-	#clear
+	clear
 	mount | grep /dev/mapper/encstateful &> /dev/null || failed "Run me from within ChromeOS, please."
 	mydevbyid=`deduce_my_dev`
 	[ "$mydevbyid" = "" ] && failed "I am unable to figure out which device you want me to prep. Sorry..."
@@ -512,7 +512,11 @@ main() {
 ##################################################################################################################################
 
 
-
+if [ "$1" != "" ] && [ "$1" != "REBUILD-ALL" ] ; then
+	failed "I do not understand '$1'"
+elif [ "$2" != "" ] && [ "$1" != "FROM-SCRATCH" ] ; then
+	failed "I do not understand '$2'"
+fi
 if [ "$1" != "REBUILD-ALL" ] ; then
 	set -e
 	main
