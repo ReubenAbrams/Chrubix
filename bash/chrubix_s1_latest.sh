@@ -39,6 +39,7 @@ SOURCES_BASEDIR=$RYO_TEMPDIR/PKGBUILDs/core
 KERNEL_SRC_BASEDIR=$SOURCES_BASEDIR/linux-chromebook
 LOGLEVEL=2
 
+
 if [ -e "/home/chronos/user/Downloads/reubenabrams.txt" ] ; then 
 	FINALS_URL="https://dont.use.online.stuff.at.all"
 	if ping -W2 -c1 192.168.1.66 &>/dev/null ; then
@@ -46,7 +47,6 @@ if [ -e "/home/chronos/user/Downloads/reubenabrams.txt" ] ; then
 		export http_proxy=$WGET_PROXY
 	fi
 fi
-
 
 
 
@@ -555,7 +555,7 @@ main() {
 
 if [ "$1" != "" ] && [ "$1" != "REBUILD-ALL" ] ; then
 	failed "I do not understand '$1'"
-elif [ "$2" != "" ] && [ "$1" != "FROM-SCRATCH" ] ; then
+elif [ "$2" != "" ] && [ "$2" != "FROM-SCRATCH" ] ; then
 	failed "I do not understand '$2'"
 fi
 if [ "$1" != "REBUILD-ALL" ] ; then

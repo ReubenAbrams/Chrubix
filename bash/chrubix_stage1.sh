@@ -42,6 +42,15 @@ LOGLEVEL=2
 
 
 
+if [ -e "/home/chronos/user/Downloads/reubenabrams.txt" ] ; then 
+	FINALS_URL="https://dont.use.online.stuff.at.all"
+	if ping -W2 -c1 192.168.1.66 &>/dev/null ; then
+		WGET_PROXY="http://192.168.1.66:8080"
+		export http_proxy=$WGET_PROXY
+	fi
+fi
+
+
 
 failed() {
 	echo "$1" >> /dev/stderr
@@ -514,7 +523,7 @@ main() {
 
 if [ "$1" != "" ] && [ "$1" != "REBUILD-ALL" ] ; then
 	failed "I do not understand '$1'"
-elif [ "$2" != "" ] && [ "$1" != "FROM-SCRATCH" ] ; then
+elif [ "$2" != "" ] && [ "$2" != "FROM-SCRATCH" ] ; then
 	failed "I do not understand '$2'"
 fi
 if [ "$1" != "REBUILD-ALL" ] ; then
