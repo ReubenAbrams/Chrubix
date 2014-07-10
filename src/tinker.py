@@ -3,12 +3,12 @@
 # tinker.py
 # Test subroutine of the CHRUBIX project
 # ...for me to tinker with things :)
-#
+
 
 import sys
 import os
 from chrubix import generate_distro_record_from_name
-from chrubix.utils import fix_broken_hyperlinks, system_or_die, chroot_this, patch_org_freedesktop_networkmanager_conf_file
+from chrubix.utils import fix_broken_hyperlinks, system_or_die, chroot_this, patch_org_freedesktop_networkmanager_conf_file, failed
 from chrubix.distros.debian import generate_mickeymouse_lxdm_patch
 from chrubix.utils.postinst import remove_junk, ask_the_user__guest_mode_or_user_mode__and_create_one_if_necessary
 
@@ -135,6 +135,14 @@ elif argv[2] == 'tarball-me':
     distro.spare_dev = '/dev/mmcblk1p2'
     distro.generate_tarball_of_my_rootfs( '/tmp/out.tgz' )
     os.system( 'rm -f /tmp/out.tgz' )
+elif argv[2] == 'posterity':
+    distro = generate_distro_record_from_name( argv[3] )
+    distro.mountpoint = '/tmp/_root'
+    distro.device = '/dev/mmcblk1'
+    distro.root_dev = '/dev/mmcblk1p3'
+    distro.spare_dev = '/dev/mmcblk1p2'
+    if 0 != distro.save_for_posterity_if_possible_D():
+        failed( 'Failed to create sample distro posterity file' )
 elif argv[2] == 'new-user':
     distro = generate_distro_record_from_name( argv[3] )
     distro.mountpoint = '/tmp/_root'

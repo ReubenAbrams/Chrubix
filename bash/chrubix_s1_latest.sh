@@ -244,16 +244,15 @@ get_distro_type_the_user_wants() {
 	url=""
 	while [ "$distroname" = "" ] ; do
 		clear
+# NOT SUPPORTED: (F)edora, (S)uSE 12.3
 		echo -en "Welcome to the Chrubix installer. Which GNU/Linux distro shall I install on $dev?
 
 Choose from...
+
    (A)rchLinux
    (J)essie, a.k.a. Debian Unstable
-   (W)heezy, a.k.a. Debian Stable
    (T) - Alarmist, a TAILS-like ARM distro
-
-----early alpha (not ready for public consumption) ----
-(F)edora; (K)ali; (S)uSE 12.3; (U)buntu
+   (W)heezy, a.k.a. Debian Stable
 
 Which would you like me to install? "
 		read r

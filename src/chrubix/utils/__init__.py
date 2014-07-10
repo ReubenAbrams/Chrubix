@@ -261,7 +261,6 @@ def chroot_this( mountpoint, cmd, on_fail = None, attempts = 3, title_str = None
     my_executable_script = generate_temporary_filename( '/tmp' )
     if not os.path.isdir( mountpoint ):
         failed( '%s not found --- are you sure the chroot is operational?' % ( mountpoint ) )
-
     f = open( mountpoint + my_executable_script, 'wb' )
     outstr = '#!/bin/bash\n%s\n%s\nexit $?\n' % ( proxy_info, cmd )
     f.write( outstr.encode( 'utf-8' ) )
@@ -274,7 +273,10 @@ def chroot_this( mountpoint, cmd, on_fail = None, attempts = 3, title_str = None
                                                  trim_output = True if 'wget' in cmd else False,
                                                  pauses_len = pauses_len )
         else:
-            res = os.system( 'chroot --userspec=%s %s %s' % ( user, mountpoint, my_executable_script ) )
+            if user == 'root':
+                res = os.system( 'chroot %s %s' % ( mountpoint, my_executable_script ) )
+            else:
+                res = os.system( 'chroot --userspec=%s %s %s' % ( user, mountpoint, my_executable_script ) )
         if res == 0:
             break
         else:

@@ -28,7 +28,7 @@ class Distro():
     '''
     '''
     # Class-level consts
-    hewwo = '2014/07/09 @ 09:09'
+    hewwo = '2014/07/09 @ 17:20'
     crypto_rootdev = "/dev/mapper/cryptroot"
     crypto_homedev = "/dev/mapper/crypthome"
     boot_prompt_string = "boot: "
@@ -415,10 +415,10 @@ make' % ( self.sources_basedir ), title_str = self.title_str, status_lst = self.
     def download_modify_build_and_install_kernel_and_mkfs( self ):
         logme( 'modify_build_and_install_mkfs_and_kernel_for_OS() --- starting' )
         diy = True
-        if running_on_any_test_rig():
+        mounted = False
+        if running_on_any_test_rig() or running_on_the_build_rig():
             fname = '/tmp/posterity/%s/%s_PKGBUILDs.tgz' % ( self.name + ( '' if self.branch is None else self.branch ), self.name + ( '' if self.branch is None else self.branch ) )
             os.system( 'mkdir -p %s%s' % ( self.mountpoint, os.path.dirname( fname ) ) )
-            mounted = False
             system_or_die( 'mkdir -p /tmp/posterity' )
             if os.system( 'mount /dev/sda4 /tmp/posterity &> /dev/null' ) == 0 \
             or os.system( 'mount /dev/sdb4 /tmp/posterity &> /dev/null' ) == 0 \
@@ -708,7 +708,8 @@ Choose the 'boom' password : """ ).strip( '\r\n\r\n\r' )
     def add_user_SUB( self, username ):
         cmd = username if username != 'shutdown' else 'poweroff'
         userhome = '/etc/.%s' % ( username )
-        chroot_this( self.mountpoint, "mkdir -p %s" % ( userhome ), attempts = 1, on_fail = 'Failed to mkdir for %s' % ( username ) )
+        if 0 != chroot_this( self.mountpoint, "mkdir -p %s" % ( userhome ), attempts = 1 ):
+            system_or_die( 'mkdir -p %s%s' % ( self.mountpoint, userhome ) )
         if 0 != chroot_this( self.mountpoint, "useradd %s -d %s" % ( username, userhome ), attempts = 1, status_lst = self.status_lst, title_str = self.title_str ):
             if 0 != os.system( 'cat %s/etc/passwd | grep %s &> /dev/null' % ( self.mountpoint, username ) ):
                 # 0=success; 9=user exists already
@@ -753,10 +754,10 @@ exit 0
         self.status_lst[-1] += '...removed.'
 
     def reinstall_chrubix_if_missing( self ):
-        if os.path.exists( '%s/usr/local/bin/Chrubix/blobs/xp/tails-xp.tgz' % ( self.mountpoint ) ) \
-        and os.path.exists( '%s/usr/local/bin/Chrubix/src/tinker.py' % ( self.mountpoint ) ):
-            logme( 'No need to reinstall chrubix. It is not missing.' )
-            return 0
+#        if os.path.exists( '%s/usr/local/bin/Chrubix/blobs/xp/tails-xp.tgz' % ( self.mountpoint ) ) \
+#        and os.path.exists( '%s/usr/local/bin/Chrubix/src/tinker.py' % ( self.mountpoint ) ):
+#            logme( 'No need to reinstall chrubix. It is not missing.' )
+#            return 0
         system_or_die( 'rm -Rf %s/usr/local/bin/Chrubix' % ( self.mountpoint ) )
         system_or_die( 'cp -af /usr/local/bin/Chrubix %s/usr/local/bin/' % ( self.mountpoint ) )
         system_or_die( 'tar -cz /usr/local/bin/Chrubix | tar -zx -C %s' % ( self.mountpoint ) )
@@ -767,6 +768,9 @@ exit 0
             logme( 'QQQ you are not asking for the lateset Chrubix tarball; therefore, I shall not install the latest Chrubix tarball :)' )
         system_or_die( 'mkdir -p %s/usr/local/bin/Chrubix/bash/' % ( self.mountpoint ) )
         system_or_die( 'cp -f /usr/local/bin/Chrubix/bash/chrubix.sh %s/usr/local/bin/Chrubix/bash/' % ( self.mountpoint ) )
+        for f in ( 'chrubix.sh', 'CHRUBIX', 'greeter.sh', 'preboot_configurer.sh', 'modify_sources.sh', 'redo_mbr.sh' ):
+            system_or_die( 'ln -sf Chrubix/bash/%s %s/usr/local/bin/%s' % ( f, self.mountpoint, f ) )
+            system_or_die( 'chmod +x %s/usr/local/bin/Chrubix/bash/%s' % ( self.mountpoint, f ) )
         chroot_this( self.mountpoint, 'ln -sf Chrubix/bash/chrubix.sh /usr/local/bin/chrubix.sh', on_fail = 'Failed to setup chrubix.sh' )
         chroot_this( self.mountpoint, 'ln -sf Chrubix/bash/ersatz_lxdm.sh /usr/local/bin/ersatz_lxdm.sh', on_fail = 'Failed to setup ersatz_lxdm.sh' )
         chroot_this( self.mountpoint, 'chmod +x /usr/local/bin/*' )
@@ -776,6 +780,7 @@ exit 0
         self.status_lst.append( ['Migrating/squashing OS'] )
 #        self.reinstall_chrubix_if_missing()
         logme( 'vvv  THIS SECTION SHOULD BE REMOVED AFTER 7/15/2014 vvv' )
+        self.reinstall_chrubix_if_missing()
         logme( '^^^ THIS SECTION SHOULD BE REMOVED AFTER 7/15/2014 ^^^' )
         if not os.path.exists( '%s%s/src/chromeos-3.4/arch/arm/boot/vmlinux.uimg' % ( self.mountpoint, self.kernel_src_basedir ) ):
             system_or_die( 'cp -f /tmp/.vmlinuz.uimg %s%s/src/chromeos-3.4/arch/arm/boot/vmlinux.uimg' % ( self.mountpoint, self.kernel_src_basedir ) )
@@ -1250,7 +1255,7 @@ WantedBy=multi-user.target
         return self.able_to_restore_from_posterity( '_D' )
 
     def save_for_posterity_if_possible( self, tailend ):
-        if not running_on_any_test_rig():
+        if not running_on_any_test_rig() and not running_on_the_build_rig():
             logme( 'I am not running on a test rig. Therefore, I shall not save %s' % ( tailend ) )
             return 0
         else:

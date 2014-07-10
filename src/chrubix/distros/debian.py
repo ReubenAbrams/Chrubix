@@ -200,9 +200,10 @@ Acquire::https::Proxy "https://%s/";
         logme( 'DebianDistro - update_and_upgrade_all() - leaving' )
 
     def install_important_packages( self ):
-        logme( 'DebianDistro - install_important_packages() - starting' )
-        chroot_this( self.mountpoint, '''yes "Yes, do as I say!" | apt-get install systemd systemd-sysv''' , title_str = self.title_str, status_lst = self.status_lst,
-                    on_fail = 'Failed to install systemd-sysv' )
+        self.install_all_important_packages_other_than_systemd_sysv()
+
+    def install_all_important_packages_other_than_systemd_sysv( self ):
+        logme( 'DebianDistro - install_all_important_packages_other_than_systemd_sysv() - starting' )
         packages_installed_succesfully = []
         packages_that_we_failed_to_install = []
         packages_lst = self.important_packages.split( ' ' )
@@ -240,7 +241,7 @@ Acquire::https::Proxy "https://%s/";
             chroot_this( self.mountpoint, 'ln -sf ../../bin/python3 /usr/local/bin/python3' )
         system_or_die( 'rm -Rf %s/var/cache/apt/archives/*' % ( self.mountpoint ) )
         self.steal_dtc_and_mkinitcpio_from_alarpy()
-        logme( 'DebianDistro - install_important_packages() - leaving' )
+        logme( 'DebianDistro - install_all_important_packages_other_than_systemd_sysv() - leaving' )
 
     def download_mkfs_sources( self ):
         logme( 'DebianDistro - download_mkfs_sources() - starting' )
@@ -530,6 +531,11 @@ class WheezyDebianDistro( DebianDistro ):
         self.branch = 'wheezy'  # lowercase; yes, it matters :)
         self.architecture = 'armhf'
 
+    def install_important_packages( self ):
+        chroot_this( self.mountpoint, '''yes "Yes, do as I say!" | apt-get install systemd systemd-sysv''' , title_str = self.title_str, status_lst = self.status_lst,
+                    on_fail = 'Failed to install systemd-sysv' )
+        self.install_all_important_packages_other_than_systemd_sysv()
+
 
 class JessieDebianDistro( DebianDistro ):
     important_packages = DebianDistro.important_packages + ' libetpan-dev g++-4.8'
@@ -537,6 +543,11 @@ class JessieDebianDistro( DebianDistro ):
         super( JessieDebianDistro, self ).__init__( *args, **kwargs )
         self.branch = 'jessie'  # lowercase; yes, it matters
         self.architecture = 'armhf'
+
+    def install_important_packages( self ):
+        chroot_this( self.mountpoint, '''yes "Yes, do as I say!" | apt-get install systemd systemd-sysv''' , title_str = self.title_str, status_lst = self.status_lst,
+                    on_fail = 'Failed to install systemd-sysv' )
+        self.install_all_important_packages_other_than_systemd_sysv()
 
     def install_package_manager_tweaks( self ):
         self.install_debianspecific_package_manager_tweaks( yes_add_ffmpeg_repo = True )
