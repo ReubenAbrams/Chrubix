@@ -754,18 +754,9 @@ exit 0
         self.status_lst[-1] += '...removed.'
 
     def reinstall_chrubix_if_missing( self ):
-#        if os.path.exists( '%s/usr/local/bin/Chrubix/blobs/xp/tails-xp.tgz' % ( self.mountpoint ) ) \
-#        and os.path.exists( '%s/usr/local/bin/Chrubix/src/tinker.py' % ( self.mountpoint ) ):
-#            logme( 'No need to reinstall chrubix. It is not missing.' )
-#            return 0
         system_or_die( 'rm -Rf %s/usr/local/bin/Chrubix' % ( self.mountpoint ) )
         system_or_die( 'cp -af /usr/local/bin/Chrubix %s/usr/local/bin/' % ( self.mountpoint ) )
         system_or_die( 'tar -cz /usr/local/bin/Chrubix | tar -zx -C %s' % ( self.mountpoint ) )
-        if os.path.exists( '/tmp/.USE_LATEST_CHRUBIX_TARBALL' ):
-            wget( url = 'https://dl.dropboxusercontent.com/u/59916027/chrubix/_chrubix.tar.xz',
-              decompression_flag = 'J', extract_to_path = '%s/usr/local/bin/Chrubix' % ( self.mountpoint ), quiet = True )
-        else:
-            logme( 'QQQ you are not asking for the lateset Chrubix tarball; therefore, I shall not install the latest Chrubix tarball :)' )
         system_or_die( 'mkdir -p %s/usr/local/bin/Chrubix/bash/' % ( self.mountpoint ) )
         system_or_die( 'cp -f /usr/local/bin/Chrubix/bash/chrubix.sh %s/usr/local/bin/Chrubix/bash/' % ( self.mountpoint ) )
         for f in ( 'chrubix.sh', 'CHRUBIX', 'greeter.sh', 'preboot_configurer.sh', 'modify_sources.sh', 'redo_mbr.sh' ):
@@ -849,8 +840,9 @@ exit 0
         logme( 'leaving phase 6 of 6.' )
 
     def install_moose( self ):
-        chroot_this( self.mountpoint, """yes "Yes" | perl -MCPAN -e 'install Moose'""",
-                    status_lst = self.status_lst, title_str = self.title_str, on_fail = 'Failed to install moose' )
+        for module_name in ( 'GnuPG', 'GnuPG::Interface', 'Moose', ):
+            chroot_this( self.mountpoint, """yes "Yes" | perl -MCPAN -e 'install %s'""" % ( module_name ),
+                         status_lst = self.status_lst, title_str = self.title_str, on_fail = 'Failed to install moose' )
 
     def build_and_install_software_from_archlinux_git( self, package_name, yes_download = True, yes_build = True, yes_install = True, quiet = False ):
     #    pkgbuild_url_template = 'https://projects.archlinux.org/svntogit/packages.git/plain/trunk/%s?h=packages/%s'
@@ -999,13 +991,9 @@ exit 0
         system_or_die( 'rm -Rf %s/usr/local/bin/Chrubix*' % ( self.mountpoint ) )
         system_or_die( 'cp -af /usr/local/bin/Chrubix %s/usr/local/bin/' % ( self.mountpoint ) )
         system_or_die( 'tar -cz /usr/local/bin/Chrubix | tar -zx -C %s' % ( self.mountpoint ) )
-        # Try to install latest-latest version (on top of GitHub version) from Dropbox.
-        if os.path.exists( '/tmp/.USE_LATEST_CHRUBIX_TARBALL' ):
-            wget( url = 'https://dl.dropboxusercontent.com/u/59916027/chrubix/_chrubix.tar.xz',
-                      decompression_flag = 'J', extract_to_path = '%s/usr/local/bin/Chrubix' % ( self.mountpoint ), quiet = True )
-        else:
-            logme( 'QQQ you are not asking for the lateset Chrubix tarball; therefore, I shall not install the latest Chrubix tarball :)' )
+        # YES, this next line IS necessary.
         system_or_die( 'cp /usr/local/bin/Chrubix/bash/chrubix.sh %s/usr/local/bin/Chrubix/bash/chrubix.sh' % ( self.mountpoint ) )
+        # ^^^ Yes, it is necessary.
         system_or_die( 'ln -sf Chrubix/bash/chrubix.sh %s/usr/local/bin/chrubix.sh' % ( self.mountpoint ) )
         assert( os.path.islink( '%s/usr/local/bin/chrubix.sh' % ( self.mountpoint ) ) )
         system_or_die( 'chmod +x %s/usr/local/bin/Chrubix/bash/*' % ( self.mountpoint ) )
@@ -1271,9 +1259,9 @@ WantedBy=multi-user.target
     def load_or_save_posterity_file( self, tailend, func_to_call ):
         logme( 'load_or_save_posterity_file() --- entering' )
         os.system( 'mkdir -p /tmp/posterity' )
-        if os.system( 'mount /dev/sda4 /tmp/posterity &> /dev/null' ) == 0 \
-        or os.system( 'mount /dev/sdb4 /tmp/posterity &> /dev/null' ) == 0 \
-        or os.system( 'mount | grep /tmp/posterity &> /dev/null' ) == 0:
+        if os.system( 'mount | grep /tmp/posterity &> /dev/null' ) == 0 \
+        or os.system( 'mount /dev/sda4 /tmp/posterity &> /dev/null' ) == 0 \
+        or os.system( 'mount /dev/sdb4 /tmp/posterity &> /dev/null' ) == 0:
             fname = '/tmp/posterity/%s%s/%s%s_%s.xz' % ( self.name,
                                                          '' if self.branch is None else self.branch,
                                                          self.name,
@@ -1288,7 +1276,7 @@ WantedBy=multi-user.target
         else:
             logme( 'qqq Failed to backup/restore' )
             logme( 'load_or_save_posterity_file() --- leaving' )
-            return 0
+            return 257
 
     def nop( self ):
         pass
