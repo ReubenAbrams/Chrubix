@@ -524,7 +524,7 @@ main() {
 		echo "$temp_or_perm" > $btstrap/.temp_or_perm.txt
 		ln -sf ../../bin/python3 $btstrap/usr/local/bin/python3
 		echo "************ Calling CHRUBIX, the Python powerhouse of pulchritudinous perfection ************"
-		echo "yep, use latest" > $btstrap/tmp/.USE_LATEST_CHRUBIX_TARBALL
+		echo "yep, use latest" > $root/tmp/.USE_LATEST_CHRUBIX_TARBALL
 		chroot_this     $btstrap "/usr/local/bin/chrubix.sh" && res=0 || res=$?
 		[ "$res" -ne "0" ] && failed "Because chrubix reported an error, I'm aborting... and I'm leaving everything mounted."
 	fi
