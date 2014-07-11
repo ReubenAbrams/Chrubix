@@ -97,7 +97,7 @@ pulseaudio paprefs pulseaudio-module-jack pavucontrol paman alsa-tools-gui alsa-
 cdbs debhelper javahelper quilt adduser git-core default-jdk ant ant-optional ant-contrib \
 jflex junit4 libcommons-collections3-java libcommons-compress-java libdb-je-java libecj-java \
 libservice-wrapper-java libpisock-dev uno-libs3 libgtk-3-bin libbcprov-java gtk2-engines-murrine libc6-dev \
-e2fslibs-dev debhelper python-dev libffi-dev python-dev libffi-dev libsqlite3-dev dconf-tools \
+e2fslibs-dev debhelper python-dev libffi-dev python-dev libffi-dev libsqlite3-dev dconf-tools xul-ext-noscript \
 software-properties-common libssl-dev u-boot-tools libgtk2-perl libmoose-perl shiboken python-pyside pyside-tools qt4-qmake \
 git python-setuptools python-virtualenv python-pip libssl-dev python-openssl g++ openvpn systemd-gui python3-pyqt4 \
 '  # Warning! Monkeysign pkg might be broken.
