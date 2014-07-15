@@ -561,9 +561,11 @@ su -l i2psvc i2prouter start
                 print( "Cryptsetup returned an error during initial call" )
         res = 999
         while res != 0:
-            res = chroot_this( self.mountpoint, 'cryptsetup open %s %s' % ( self.spare_dev, os.path.basename( self.crypto_rootdev ) ) )
+            res = chroot_this( self.mountpoint, 'cryptsetup luksOpen %s %s' % ( self.spare_dev, os.path.basename( self.crypto_rootdev ) ) )
+#            if res != 0:
+#                res = chroot_this( self.mountpoint, 'cryptsetup open %s %s' % ( self.spare_dev, os.path.basename( self.crypto_rootdev ) ) )
             if res != 0:
-                print( 'Cryptsetup returned an error during second call' )
+                failed( 'Cryptsetup returned an error during second call' )
         os.system( 'clear' )
         print( """Rules for the 'boom' password:-
     1. Don't leave it blank.
@@ -1110,8 +1112,7 @@ exit 0
     def install_leap_bitmask( self ):
         logme( 'Installing leap bitmask' )
         self.status_lst[-1] += ' Installing leap bitmask'
-        chroot_this( self.mountpoint, 'easy_install-2.7 psutil==1.2.1 leap.common markerlib leap.bitmask',
-            status_lst = self.status_lst, title_str = self.title_str )
+        chroot_this( self.mountpoint, 'easy_install-2.7 psutil==1.2.1 leap.common markerlib leap.bitmask' )  # ,status_lst = self.status_lst, title_str = self.title_str )
         if 0 != chroot_this( self.mountpoint, 'which qmake' ):
             chroot_this( self.mountpoint, 'ln -sf `find /usr -type f -name qmake | head -n1` /usr/local/bin/qmake', on_fail = 'Failed to link to qmake' )
         write_oneliner_file( '%s/tmp/install_leap_bitmask.sh' % ( self.mountpoint ), '''#!/bin/bash
@@ -1391,6 +1392,9 @@ WantedBy=multi-user.target
         else:
             checkpoint_number = 0
         logme( 'Starting at checkpoint#%d' % ( checkpoint_number ) )
+        print( 'NEFARIOUS PORPOISES' )
+        self.mountpoint = '/tmp/_root'
+        mount_sys_tmp_proc_n_dev( self.mountpoint )
         for myfunc in all_my_funcs[checkpoint_number:]:
             logme( 'QQQ Running %s' % ( myfunc.__name__ ) )
             if not os.path.exists( '%s%s/src/chromeos-3.4/arch/arm/boot/vmlinux.uimg' % ( self.mountpoint, self.kernel_src_basedir ) ):

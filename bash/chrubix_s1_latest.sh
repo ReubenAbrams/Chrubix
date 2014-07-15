@@ -435,6 +435,9 @@ MEH: No encryption. No duress password. Changes are permanent. Guest Mode is sti
 
 main() {
 	umount /tmp/_root*/.bootstrap/tmp/_root/{dev,tmp,proc,sys} 2> /dev/null || echo -en ""
+	umount /tmp/_root*/.bootstrap/tmp/posterity 2> /dev/null || echo -en ""
+	umount /tmp/_root*/.bootstrap/tmp/_root/{dev,tmp,proc,sys} 2> /dev/null || echo -en ""
+	umount /tmp/_root*/.bootstrap/tmp/posterity 2> /dev/null || echo -en ""
 	umount /tmp/_root*/.bootstrap/tmp/_root 2> /dev/null || echo -en ""
 	umount /tmp/_root*/.bootstrap/{dev,tmp,proc,sys} 2> /dev/null || echo -en ""
 	umount /tmp/_root*/.bootstrap /tmp/_root*/.ro /tmp/_root.*/.* 2> /dev/null || echo -en ""
@@ -582,5 +585,8 @@ else
 		main
 		echo "`date` Back from building $distroname"
 		echo "`date` Built $distroname" >> /tmp/log.txt
+		umount "$dev_p"* || echo -en "" 
+		umount "$dev_p"* || echo -en "" 
+		umount "$dev_p"* || echo -en ""
 	done
 fi

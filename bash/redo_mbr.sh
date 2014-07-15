@@ -277,7 +277,7 @@ while [ \"\$res\" != \"0\" ] ; do
   if [ \"\$definitely_booming\" != \"\" ] ; then
     booming=\"Boom at pw entry.\"
   fi
-  echo \"\$password_str\" | cryptsetup open "$dev_p"2 `basename $rootdev`
+  echo \"\$password_str\" | cryptsetup luksOpen "$dev_p"2 `basename $rootdev`
   res=\$?
 done
 mount $mount_opts $rootdev /newroot

@@ -224,13 +224,15 @@ def mount_sys_tmp_proc_n_dev( mountpoint ):  # Consider combining or using mount
 
 
 def unmount_sys_tmp_proc_n_dev( mountpoint ):
-    for mydir, dtype in ( ( 'dev', 'devtmpfs' ), ( 'proc', 'proc' ), ( 'tmp', 'tmpfs' ), ( 'sys', 'sysfs' ) ):
-        dtype = dtype  # hide Eclipse warning
-        cmd = 'umount %s/%s 2>/dev/null' % ( mountpoint, mydir )
-        if os.system( cmd ) != 0:
-            logme ( 'Failed to ' + cmd )
-        else:
-            logme ( 'Successfully ' + cmd )
+    os.system( 'umount %s/{tmp,proc,sys,dev} 2> /dev/null' % ( mountpoint ) )
+    os.system( 'sync;sync;sync2> /dev/null' )
+    os.system( 'umount %s/{tmp,proc,sys,dev} 2> /dev/null' % ( mountpoint ) )
+    os.system( 'sync;sync;sync 2> /dev/null' )
+    os.system( 'umount %s/dev %s/proc %s/tmp %s/sys 2> /dev/null' % ( mountpoint, mountpoint, mountpoint, mountpoint ) )
+    os.system( 'sync;sync;sync' )
+    os.system( 'umount %s/dev %s/proc %s/tmp %s/sys 2> /dev/null' % ( mountpoint, mountpoint, mountpoint, mountpoint ) )
+    os.system( 'sync;sync;sync' )
+    os.system( 'umount %s' % ( mountpoint ) )
 
 
 def generate_temporary_filename( dirpath = None ):
