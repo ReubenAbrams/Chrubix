@@ -4,7 +4,7 @@
 
 
 from chrubix.utils import generate_temporary_filename, g_proxy, failed, system_or_die, write_oneliner_file, wget, logme, \
-                          chroot_this, read_oneliner_file, do_a_sed, call_binary  # , install_lxdm_from_source
+                          chroot_this, read_oneliner_file, do_a_sed, call_binary, patch_org_freedesktop_networkmanager_conf_file  # , install_lxdm_from_source
 import os
 from chrubix.distros import Distro
 
@@ -275,9 +275,13 @@ Acquire::https::Proxy "https://%s/";
 #                    status_lst = self.status_lst )
         logme( 'DebianDistro - build_package() - leaving' )
 
+
     def configure_distrospecific_tweaks( self ):
         logme( 'DebianDistro - configure_distrospecific_tweaks() - starting' )
         self.status_lst.append( ['Installing distro-specific tweaks'] )
+        if 0 != patch_org_freedesktop_networkmanager_conf_file( '%s/etc/dbus-1/system.d/org.freedesktop.NetworkManager.conf' % ( self.mountpoint ),
+                                                        '%s/usr/local/bin/Chrubix/blobs/settings/nmgr-cfg-diff.txt.gz' % ( self.mountpoint ) ):
+            self.status_lst[-1] += ' ...(FYI, I failed to patch org.freedesktop.NetworkManager.conf)'
         do_debian_specific_mbr_related_hacks( self.mountpoint )
         if os.path.exists( '%s/etc/apt/apt.conf' % ( self.mountpoint ) ):
             for to_remove in ( 'ftp', 'http' ):
