@@ -447,6 +447,7 @@ def patch_org_freedesktop_networkmanager_conf_file( config_file, patch_file ):
 #    failed( 'nefarious porpoises' )
     assert( os.path.exists( config_file ) )
     assert( os.path.exists( patch_file ) )
-    system_or_die( 'cat %s | gunzip | patch -p1 %s' % ( patch_file, config_file ) )
+    cmd = 'cat %s | gunzip | patch -p1 %s' % ( patch_file, config_file )
+    return os.system( cmd )
 
 
