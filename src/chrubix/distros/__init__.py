@@ -8,8 +8,7 @@ from chrubix.utils import rootcryptdevice, mount_device, mount_sys_tmp_proc_n_de
             chroot_this, wget, do_a_sed, system_or_die, write_oneliner_file, read_oneliner_file, call_binary, install_mp3_files, \
             generate_temporary_filename, backup_the_resolvconf_file, install_gpg_applet, patch_kernel, \
             fix_broken_hyperlinks, disable_root_password, install_windows_xp_theme_stuff, running_on_any_test_rig, \
-            MAXIMUM_COMPRESSION, set_user_password, patch_org_freedesktop_networkmanager_conf_file, \
-    running_on_the_build_rig
+            MAXIMUM_COMPRESSION, set_user_password, running_on_the_build_rig
 
 from chrubix.utils.postinst import write_lxdm_post_login_file, write_lxdm_pre_login_file, write_lxdm_post_logout_file, \
             append_lxdm_xresources_addendum, generate_wifi_manual_script, generate_wifi_auto_script, \
@@ -515,8 +514,6 @@ Exec=/usr/lib/notification-daemon-1.0/notification-daemon
             chroot_this( self.mountpoint, 'ln -sf /usr/lib/notification-daemon /usr/lib/notification-daemon-1.0' )
 
     def configure_networking( self ):
-        patch_org_freedesktop_networkmanager_conf_file( '%s/etc/dbus-1/system.d/org.freedesktop.NetworkManager.conf' % ( self.mountpoint ),
-                                                        '%s/usr/local/bin/Chrubix/blobs/settings/nmgr-cfg-diff.txt.gz' % ( self.mountpoint ) )
         for pretend_name, real_name in ( 
                                         ( 'syslog', 'syslog-ng' ),
                                         ( 'dbus-org.freedesktop.NetworkManager', 'NetworkManager' ),
@@ -695,7 +692,10 @@ Choose the 'boom' password : """ ).strip( '\r\n\r\n\r' )
 #        if 0 != chroot_this( self.mountpoint, 'which chromium', status_lst = self.status_lst, title_str = self.title_str ):
 #            self.build_and_install_package_from_deb_or_ubu_source( 'chromium-browser', 'https://packages.debian.org/' + self.branch )
         install_chrome_or_iceweasel_privoxy_wrapper( self.mountpoint )
-        install_insecure_browser ( self.mountpoint )
+        try:
+            install_insecure_browser ( self.mountpoint )
+        except:
+            self.status_lst.append( 'Warning - failed to install insecure browser' )
 
     def configure_speech_synthesis_and_font_cache( self ):
         add_speech_synthesis_script( self.mountpoint )
@@ -1252,7 +1252,7 @@ WantedBy=multi-user.target
             res = self.load_or_save_posterity_file( tailend, self.generate_tarball_of_my_rootfs )
             if 0 != res:
                 self.status_lst.append( ['Unable to save %s progress for posterity' % ( tailend )] )
-                failed( 'Failed to save for posterity' )
+#                failed( 'Failed to save for posterity' )
             else:
                 logme( 'Saved for posterity. Yay.' )
             return res
@@ -1309,9 +1309,6 @@ WantedBy=multi-user.target
         assert( os.path.exists( '%s%s/src/chromeos-3.4/arch/arm/boot/vmlinux.uimg' % ( self.mountpoint, self.kernel_src_basedir ) ) )
         assert( not self.kernel_rebuild_required )
         system_or_die( 'cp -f %s%s/src/chromeos-3.4/arch/arm/boot/vmlinux.uimg /tmp/.vmlinux.uimg' % ( self.mountpoint, self.kernel_src_basedir ) )
-
-    def quit( self ):
-        failed( 'NEFARIOUS PORPOISES' )
 
     def install( self ):
         '''
@@ -1392,7 +1389,6 @@ WantedBy=multi-user.target
         else:
             checkpoint_number = 0
         logme( 'Starting at checkpoint#%d' % ( checkpoint_number ) )
-        print( 'NEFARIOUS PORPOISES' )
         self.mountpoint = '/tmp/_root'
         mount_sys_tmp_proc_n_dev( self.mountpoint )
         for myfunc in all_my_funcs[checkpoint_number:]:
