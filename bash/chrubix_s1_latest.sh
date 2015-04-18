@@ -13,11 +13,12 @@
 # - reboots :-)
 #
 # To run me, type:-
-# # cd && rm -f that && wget bit.do/that && sudo bash that
+# # cd && rm -f latest_that && wget bit.do/latest_that && sudo bash latest_that
 # 
 # To force from-the-ground-up rebuild & to forgo online (Dropbox) URLs:-
 # # touch /tmp/FROMSCRATCH
 ###################################################################################
+
 
 
 if [ "$USER" != "root" ] ; then
@@ -31,6 +32,7 @@ fi
 
 
 ALARPY_URL="https://dl.dropboxusercontent.com/u/59916027/chrubix/skeletons/alarpy.tar.xz"
+PARTED_URL="https://dl.dropboxusercontent.com/u/59916027/chrubix/skeletons/parted_and_friends.tar.xz"
 FINALS_URL="https://dl.dropboxusercontent.com/u/59916027/chrubix/finals"
 CHRUBIX_URL=https://github.com/ReubenAbrams/Chrubix/archive/master.tar.gz
 OVERLAY_URL=https://dl.dropboxusercontent.com/u/59916027/chrubix/_chrubix.tar.xz
@@ -151,26 +153,27 @@ deduce_my_dev() {
 
 
 partition_device() {
-	local dev dev_p
+	local dev dev_p btstrap
 	dev=$1
 	dev_p=$2
+	btstrap=$3
 
 #	clear
 	echo -en "Partitioning "$dev"."
 	sync;sync;sync; umount $root/{dev/pts,dev,proc,sys,tmp} &> /dev/null || echo -en "."
 	sync;sync;sync; umount "$dev_p"* &> /dev/null || echo -en "."
 	sync;sync;sync; umount "$dev"* &> /dev/null || echo -en "."
-	parted -s $dev mklabel gpt
-	cgpt create -z $dev
-	cgpt create $dev
-	cgpt add -i  1 -t kernel -b  8192 -s 32768 -l U-Boot -S 1 -T 5 -P 10 $dev
-	cgpt add -i 12 -t data   -b 40960 -s 32768 -l Script $dev
+	chroot_this $btstrap "parted -s $dev mklabel gpt" || echo "Warning. Parted was removed from ChromeOS recently. You might have to partition your SD card on your PC or Mac."
+	chroot_this $btstrap "cgpt create -z $dev"
+	chroot_this $btstrap "cgpt create $dev"
+	chroot_this $btstrap "cgpt add -i  1 -t kernel -b  8192 -s 32768 -l U-Boot -S 1 -T 5 -P 10 $dev"
+	chroot_this $btstrap "cgpt add -i 12 -t data   -b 40960 -s 32768 -l Script $dev"
 	lastblock=`cgpt show $dev | tail -n3 | grep "Sec GPT table" | tr -s ' ' '\t' | cut -f2`
 	splitpoint=$(($lastblock/2))
 
-	cgpt add -i  2 -t data   -b 73728 -s `expr $splitpoint - 73728` -l Kernel $dev
-	cgpt add -i  3 -t data   -b $splitpoint -s `expr $lastblock - $splitpoint` -l Root $dev
-	partprobe $dev
+	chroot_this $btstrap "cgpt add -i  2 -t data   -b 73728 -s `expr $splitpoint - 73728` -l Kernel $dev"
+	chroot_this $btstrap "cgpt add -i  3 -t data   -b $splitpoint -s `expr $lastblock - $splitpoint` -l Root $dev"
+	chroot_this $btstrap "partprobe $dev"
 }
 
 
@@ -195,6 +198,7 @@ format_partitions() {
 
 
 
+
 install_chrubix() {
 	local root dev rootdev sparedev kerndev distro proxy_string
 	root=$1
@@ -210,7 +214,7 @@ install_chrubix() {
 	mv $root/usr/local/bin/Chrubix* $root/usr/local/bin/Chrubix	# rename Chrubix-master (or whatever) to Chrubix
 	wget $OVERLAY_URL -O - | tar -Jx -C $root/usr/local/bin/Chrubix || echo "Sorry. Dropbox is down. We'll have to rely on GitHub..."
 	for f in chrubix.sh greeter.sh ersatz_lxdm.sh CHRUBIX redo_mbr.sh modify_sources.sh ; do
-		ln -sf Chrubix/bash/$f $root/usr/local/bin/$f
+		ln -sf Chrubix/bash/$f $root/usr/local/bin/$f || echo "Cannot do $f softlink"
 	done
 
 	cd $root/usr/local/bin/Chrubix/bash
@@ -276,8 +280,8 @@ Which would you like me to install? "
 
 restore_from_stage_X_backup_if_possible() {
 	mkdir -p /tmp/a /tmp/b
-	mount /dev/sda4 /tmp/a &> /dev/null || echo -en ""
-	mount /dev/sdb4 /tmp/b &> /dev/null || echo -en ""
+	mount /dev/sda1 /tmp/a &> /dev/null || echo -en ""
+	mount /dev/sdb1 /tmp/b &> /dev/null || echo -en ""
 	for stage in D C B A ; do
 		fnA="/tmp/a/$distroname/"$distroname"__"$stage".xz"
 		fnB="/tmp/b/$distroname/"$distroname"__"$stage".xz"
@@ -308,8 +312,8 @@ restore_from_stage_X_backup_if_possible() {
 
 restore_from_squash_fs_backup_if_possible() {
 	mkdir -p /tmp/a /tmp/b
-	mount /dev/sda4 /tmp/a &> /dev/null || echo -en ""
-	mount /dev/sdb4 /tmp/b &> /dev/null || echo -en ""
+	mount /dev/sda1 /tmp/a &> /dev/null || echo -en ""
+	mount /dev/sdb1 /tmp/b &> /dev/null || echo -en ""
 	
 	fnA=/tmp/a/$distroname/$distroname.sqfs
 	fnB=/tmp/b/$distroname/$distroname.sqfs
@@ -382,24 +386,6 @@ hack_something_squishy() {
 }
 
 
-oh_well_start_from_beginning() {
-	cd /
-	echo "OK. There was no Stage D available on a thumb drive or online."
-#	clear
-	echo "Installing bootstrap filesystem..."
-	mkdir -p $btstrap
-	if [ -e "/home/chronos/user/Downloads/alarpy.tar.xz" ] ; then
-		tar -Jxf /home/chronos/user/Downloads/alarpy.tar.xz -C $btstrap || failed "Failed to install alarpy.tar.xz"
-	else
-		wget $ALARPY_URL -O - | tar -Jx -C $btstrap || failed "Failed to download/install alarpy.tar.xz"
-	fi
-	echo ""
-	echo "en_US.UTF-8 UTF-8" >> $btstrap/etc/locale.gen
-	chroot_this $btstrap "locale-gen"
-	echo "LANG=\"en_US.UTF-8\"" >> $btstrap/etc/locale.conf
-	echo "nameserver 8.8.8.8" >> $btstrap/etc/resolv.conf
-}
-
 
 
 
@@ -433,15 +419,18 @@ MEH: No encryption. No duress password. Changes are permanent. Guest Mode is sti
 
 
 
+
 main() {
-	umount /tmp/_root*/.bootstrap/tmp/_root/{dev,tmp,proc,sys} 2> /dev/null || echo -en ""
-	umount /tmp/_root*/.bootstrap/tmp/posterity 2> /dev/null || echo -en ""
-	umount /tmp/_root*/.bootstrap/tmp/_root/{dev,tmp,proc,sys} 2> /dev/null || echo -en ""
-	umount /tmp/_root*/.bootstrap/tmp/posterity 2> /dev/null || echo -en ""
-	umount /tmp/_root*/.bootstrap/tmp/_root 2> /dev/null || echo -en ""
-	umount /tmp/_root*/.bootstrap/{dev,tmp,proc,sys} 2> /dev/null || echo -en ""
-	umount /tmp/_root*/.bootstrap /tmp/_root*/.ro /tmp/_root.*/.* 2> /dev/null || echo -en ""
-	#clear
+	btstrap=/home/chronos/user/Downloads/.bootstrap
+	bt_tar=/home/chronos/user/Downloads/.bs.xz
+	umount $btstrap/tmp/_root/{dev,tmp,proc,sys} 2> /dev/null || echo -en ""
+	umount $btstrap/tmp/posterity 2> /dev/null || echo -en ""
+	umount $btstrap/tmp/_root/{dev,tmp,proc,sys} 2> /dev/null || echo -en ""
+	umount $btstrap/tmp/posterity 2> /dev/null || echo -en ""
+	umount $btstrap/tmp/_root 2> /dev/null || echo -en ""
+	umount $btstrap/{dev,tmp,proc,sys} 2> /dev/null || echo -en ""
+	umount /tmp/_root*/.ro /tmp/_root.*/.* 2> /dev/null || echo -en ""
+	
 	mount | grep /dev/mapper/encstateful &> /dev/null || failed "Run me from within ChromeOS, please."
 	mydevbyid=`deduce_my_dev`
 	[ "$mydevbyid" = "" ] && failed "I am unable to figure out which device you want me to prep. Sorry..."
@@ -471,16 +460,40 @@ main() {
 		fi
 		echo "$temp_or_perm" > /tmp/temp_or_perm
 	fi
-	
-	btstrap=$root/.bootstrap
+		
 	installer_fname=/tmp/$RANDOM$RANDOM$RANDOM	# Script to install tarball and/or OS... *and* mount dev, sys, tmp, etc.
 	if mount | grep "$dev" | grep "$root" &> /dev/null ; then
 		umount "$dev"* &> /dev/null || echo "Already partitioned and mounted. Reboot and try again..."
 	fi
 	sudo stop powerd || echo -en ""
-		
-	partition_device $dev $dev_p
-	format_partitions $dev $dev_p
+
+    if [ ! -e "$btstrap/bin/parted" ] ; then
+		umount $btstrap 2> /dev/null || echo -en ""
+		mkdir -p $btstrap
+		losetup -d /dev/loop1 2> /dev/null || echo -en ""
+    	dd if=/dev/zero of=/tmp/_alarpy.dat bs=1024k count=500
+    	losetup /dev/loop1 /tmp/_alarpy.dat
+    	mke2fs /dev/loop1 &> /dev/null || failed "Failed to mkfs the temp loop partition"
+    	mount /dev/loop1 $btstrap
+		wget $PARTED_URL -O - > $bt_tar		# [ -e "$bt_tar" ] || 
+		echo -en "Thinking..."
+		cat $bt_tar | tar -Jx -C $btstrap 2> /dev/null || failed "Failed to download/install parted and friends"
+	fi
+
+	mount devtmpfs  $btstrap/dev -t devtmpfs	|| echo -en ""
+	mount sysfs     $btstrap/sys -t sysfs		|| echo -en ""
+	mount proc      $btstrap/proc -t proc		|| echo -en ""
+	mount tmpfs     $btstrap/tmp -t tmpfs		|| echo -en ""
+	
+	umount /dev/mmcblk1* &> /dev/null || echo -en ""
+	partition_device $dev $dev_p $btstrap
+	format_partitions $dev $dev_p $btstrap
+	
+	umount $btstrap/{dev,sys,proc,tmp}
+
+	old_btstrap=$btstrap
+	btstrap=$root/.bootstrap
+	
 	mkdir -p $root
 	mount $mount_opts "$dev_p"3  $root
 	mkdir -p $btstrap
@@ -488,7 +501,7 @@ main() {
 	res=0
 	mkdir -p $btstrap/{dev,proc,tmp,sys}
 	mkdir -p $root/{dev,proc,tmp,sys}
-	
+
 	mount devtmpfs  $btstrap/dev -t devtmpfs	|| echo -en ""
 	mount sysfs     $btstrap/sys -t sysfs		|| echo -en ""
 	mount proc      $btstrap/proc -t proc		|| echo -en ""
@@ -496,12 +509,26 @@ main() {
 	
 	mkdir -p $btstrap/tmp/_root
 	mount -o noatime "$dev_p"3 $btstrap/tmp/_root		|| echo -en ""
+
+	wget $ALARPY_URL -O - | tar -Jx -C $btstrap 2> /dev/null || failed "Failed to download/install alarpy.tar.xz"
+	echo ""
+	echo "en_US.UTF-8 UTF-8" >> $btstrap/etc/locale.gen
+	chroot_this $btstrap "locale-gen"
+	echo "LANG=\"en_US.UTF-8\"" >> $btstrap/etc/locale.conf
+	echo "nameserver 8.8.8.8" >> $btstrap/etc/resolv.conf	
+
 	mount devtmpfs $btstrap/tmp/_root/dev -t devtmpfs	|| echo -en ""
 	mount tmpfs $btstrap/tmp/_root/tmp -t tmpfs			|| echo -en ""
 	mount proc $btstrap/tmp/_root/proc -t proc			|| echo -en ""
 	mount sys $btstrap/tmp/_root/sys -t sysfs			|| echo -en ""
 	
+	losetup -d /dev/loop1 2> /dev/null || echo -en ""
+	
 	sudo crossystem dev_boot_usb=1 dev_boot_signed_only=0 || echo "WARNING - failed to configure USB and MMC to be bootable"	# dev_boot_signed_only=0
+	if losetup | grep alarpy ; then
+		umount /tmp/_alarpy.dat || echo "FYI, unable to unmount temp skeleton"
+		losetup -d /dev/loop1 || echo "FYI, unable to dissociate loop1"
+	fi
 	
 	if restore_from_squash_fs_backup_if_possible ; then
 		echo "Restored from squashfs. Good."
@@ -510,19 +537,20 @@ main() {
 			echo "Restored from stage X. Good."
 		else
 			echo "OK. Starting from beginning."
-			oh_well_start_from_beginning
 		fi
+
 		install_chrubix $btstrap $dev "$dev_p"3 "$dev_p"2 "$dev_p"1 $distroname
+
 		tar -cz /usr/lib/xorg/modules/drivers/armsoc_drv.so \
 			/usr/lib/xorg/modules/input/cmt_drv.so /usr/lib/libgestures.so.0 \
 			/usr/lib/libevdev* \
 			/usr/lib/libbase*.so \
 			/usr/lib/libmali.so* \
 			/usr/lib/libEGL.so* \
-			/usr/lib/libGLESv2.so* > $btstrap/tmp/.hipxorg.tgz 2>/dev/null
-		tar -cz /usr/bin/vbutil* /usr/bin/old_bins /usr/bin/futility > $btstrap/tmp/.vbtools.tgz 2>/dev/null
-		tar -cz /usr/share/vboot > $btstrap/tmp/.vbkeys.tgz 2>/dev/null #### MAKE SURE CHRUBIX HAS ACCESS TO Y-O-U-R KEYS and YOUR vbutil* binaries ####
-		tar -cz /lib/firmware > $btstrap/tmp/.firmware.tgz 2>/dev/null # save firmware!
+			/usr/lib/libGLESv2.so* > $btstrap/tmp/.hipxorg.tgz 2>/dev/null || failed "Failed to save old drivers"
+		tar -cz /usr/bin/vbutil* /usr/bin/futility > $btstrap/tmp/.vbtools.tgz
+		tar -cz /usr/share/vboot > $btstrap/tmp/.vbkeys.tgz || failed "Failed to save your keys" #### MAKE SURE CHRUBIX HAS ACCESS TO Y-O-U-R KEYS and YOUR vbutil* binaries ####
+		tar -cz /lib/firmware > $btstrap/tmp/.firmware.tgz || failed "Failed to save your firmware"  # save firmware!
 		chroot_this $btstrap "chmod +x /usr/local/bin/*"
 		echo "$temp_or_perm" > $btstrap/.temp_or_perm.txt
 		ln -sf ../../bin/python3 $btstrap/usr/local/bin/python3
@@ -531,6 +559,8 @@ main() {
 		chroot_this     $btstrap "/usr/local/bin/chrubix.sh" && res=0 || res=$?
 		[ "$res" -ne "0" ] && failed "Because chrubix reported an error, I'm aborting... and I'm leaving everything mounted."
 	fi
+	
+	echo ":-)"
 	
 	sync; umount $btstrap/tmp/_root/{tmp,proc,sys,dev} 2> /dev/null || echo -en ""
 	sync; umount $btstrap/tmp/_root/{tmp,proc,sys,dev} 2> /dev/null || echo -en ""
@@ -567,8 +597,8 @@ if [ "$1" != "REBUILD-ALL" ] ; then
 else
 	set +e
 	DONOTREBOOT=yousaidit
-	mount /dev/sda4 /tmp/a &> /dev/null || echo -en ""
-	mount /dev/sdb4 /tmp/b &> /dev/null || echo -en ""
+	mount /dev/sda1 /tmp/a &> /dev/null || echo -en ""
+	mount /dev/sdb1 /tmp/b &> /dev/null || echo -en ""
 	if [ "$2" = "FROM-SCRATCH" ] ; then
 		my_wildcards=".kernel .sqfs _A.xz _B.xz _C.xz _D.xz"
 	else
