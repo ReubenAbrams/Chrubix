@@ -4,7 +4,7 @@
 
 
 from chrubix.distros import Distro
-from chrubix.utils import failed, system_or_die, chroot_this, wget, logme, do_a_sed
+from chrubix.utils import failed, system_or_die, chroot_this, wget, logme, do_a_sed, call_makepkg_or_die
 import os
 
 
@@ -17,9 +17,11 @@ twisted python2-yaml python2-distutils-extra python2-gobject python2-cairo pytho
 bcprov gtk-engine-unico gtk-engine-murrine gtk-engines xorg-fonts xorg-font-utils xorg-fonts-encodings \
 libreoffice-en-US libreoffice-common libreoffice-gnome libxfixes python2-pysqlite \
 xorg-server xorg-xinit xf86-input-synaptics xf86-video-fbdev xf86-video-armsoc xlockmore phonon \
-mate mate-themes-extras mate-nettool mate-mplayer mate-accountsdialog python2-pysqlite gtk2-perl automoc4 \
-xorg-server-utils xorg-xmessage librsvg icedtea-web-java7 gconf hunspell-en chromium thunderbird windowmaker \
+mate-panel mate-netbook mate-extra mintmenu mate-themes-extras mate-nettool mate-mplayer mate-accountsdialog \
+python2-pysqlite gtk2-perl automoc4 xorg-server-utils xorg-xmessage librsvg icedtea-web gconf \
+hunspell-en chromium thunderbird windowmaker \
 '
+# mate
     install_from_AUR = 'ttf-ms-fonts gtk-theme-adwaita-x win-xp-theme wmsystemtray python2-pyptlib hachoir-core hachoir-parser mat obfsproxy java-service-wrapper i2p'  # pulseaudio-ctl pasystray-git ssss florence
     final_push_packages = Distro.final_push_packages + ' lxdm network-manager-applet'
 
@@ -33,7 +35,9 @@ xorg-server-utils xorg-xmessage librsvg icedtea-web-java7 gconf hunspell-en chro
         logme( 'ArchlinuxDistro - install_barebones_root_filesystem() - starting' )
 #        wget( url = 'http://us.mirror.archlinuxarm.org/os/ArchLinuxARM-chromebook-latest.tar.gz', \
         os.system( 'umount %s/dev &>/dev/null' % ( self.mountpoint ) )
-        wget( url = 'https://dl.dropboxusercontent.com/u/59916027/chrubix/skeletons/ArchLinuxARM-chromebook-latest.tar.gz', \
+        my_url = 'http://us.mirror.archlinuxarm.org/os/ArchLinuxARM-chromebook-latest.tar.gz'
+        # my_url = 'https://dl.dropboxusercontent.com/u/59916027/chrubix/skeletons/ArchLinuxARM-chromebook-latest.tar.gz'
+        wget( url = my_url, \
                                                 extract_to_path = self.mountpoint, decompression_flag = 'z', \
                                                 title_str = self.title_str, status_lst = self.status_lst )
         return 0
@@ -61,9 +65,15 @@ xorg-server-utils xorg-xmessage librsvg icedtea-web-java7 gconf hunspell-en chro
 
     def update_and_upgrade_all( self ):
         logme( 'ArchlinuxDistro - update_and_upgrade_all() - starting' )
+        system_or_die( 'sync; sync; sync; sleep 1' )
         system_or_die( 'rm -f %s/var/lib/pacman/db.lck; sync; sync; sync' % ( self.mountpoint ) )
-        chroot_this( self.mountpoint, r'yes "" 2>/dev/null | pacman -Sy', "Failed to update OS" , attempts = 5, title_str = self.title_str, status_lst = self.status_lst )
+        failed( 'Aborting here for test porpoises. Why is make segfaulting...?' )
         chroot_this( self.mountpoint, r'yes "" 2>/dev/null | pacman -Syu', "Failed to upgrade OS", attempts = 5, title_str = self.title_str, status_lst = self.status_lst )
+#        if ( os.path.exists( self.mountpoint + '/usr/bin/make' ) or os.path.exists( self.mountpoint + '/bin/make' ) ) \
+#        and 0 != chroot_this( self.mountpoint, r'make', "Make segfaulted!!!", attempts = 1 ):
+#            failed( 'make segfaulted' )
+        system_or_die( 'sync; sync; sync; sleep 1' )
+
 
     def install_important_packages( self ):
         logme( 'ArchlinuxDistro - install_important_packages() - starting' )
@@ -76,7 +86,6 @@ xorg-server-utils xorg-xmessage librsvg icedtea-web-java7 gconf hunspell-en chro
             while attempts < 2 and 0 != chroot_this( self.mountpoint, 'yes "" 2>/dev/null | pacman -S --needed ' + s, title_str = self.title_str, status_lst = self.status_lst ):
                 system_or_die( 'rm -f %s/var/lib/pacman/db.lck; sync; sync; sync; sleep 1' % ( self.mountpoint ) )
                 self.update_and_upgrade_all()
-                system_or_die( 'sync; sync; sync; sleep 1' )
                 attempts += 1
             if attempts == 2:
                 for pkg in lst:
@@ -124,8 +133,11 @@ xorg-server-utils xorg-xmessage librsvg icedtea-web-java7 gconf hunspell-en chro
                                  quiet = True, title_str = self.title_str, status_lst = self.status_lst )
         system_or_die( 'mv PKGBUILD PKGBUILD.ori' )
         system_or_die( r"cat PKGBUILD.ori | sed s/march/phr34k/ | sed s/\'libutil-linux\'// | sed s/\'java-service-wrapper\'// | sed s/arch=\(.*/arch=\(\'%s\'\)/ | sed s/phr34k/march/ > PKGBUILD" % ( self.architecture ) )
-        chroot_this( self.mountpoint, 'cd %s/%s && makepkg --skipchecksums --asroot --nobuild -f' % ( self.sources_basedir, package_name ), 'Failed to download %s' % ( package_name ), \
-                                    title_str = self.title_str, status_lst = self.status_lst, attempts = 2 )
+        chroot_this( self.mountpoint, 'chown -R guest %s/%s' % ( self.sources_basedir, package_name ) )
+        call_makepkg_or_die( mountpoint = self.mountpoint, \
+                            package_path = '%s/%s' % ( self.sources_basedir, package_name ), \
+                            cmd = 'cd %s/%s && makepkg --skipchecksums --nobuild -f' % ( self.sources_basedir, package_name ),
+                            errtxt = 'Failed to download %s' % ( package_name ), title_str = self.title_str, status_lst = self.status_lst )
         return 0
 
     def build_package( self, source_pathname ):
@@ -134,9 +146,12 @@ xorg-server-utils xorg-xmessage librsvg icedtea-web-java7 gconf hunspell-en chro
         package_path = os.path.dirname( source_pathname )
         str_to_add = "Kernel & rootfs" if package_name == 'linux-chromebook' else "%s" % ( package_name )
         self.status_lst[-1] += '...' + str_to_add
-        chroot_this( self.mountpoint, 'cd %s && makepkg --skipchecksums --asroot --noextract -f ' % ( source_pathname ), \
+        chroot_this( self.mountpoint, 'chown -R guest %s/%s' % ( self.sources_basedir, package_name ) )
+        chroot_this( self.mountpoint, 'cd %s && makepkg --skipchecksums --noextract -f ' % ( source_pathname ), \
                                 "Failed to chroot make %s within %s" % ( package_name, package_path ),
-                                title_str = self.title_str, status_lst = self.status_lst )
+                                title_str = self.title_str, status_lst = self.status_lst ,
+                                user = 'guest' )
+        chroot_this( self.mountpoint, 'chown -R root %s/%s' % ( self.sources_basedir, package_name ) )
         self.status_lst[-1] += '...Built.'
 
     def configure_distrospecific_tweaks( self ):
@@ -201,3 +216,7 @@ xorg-server-utils xorg-xmessage librsvg icedtea-web-java7 gconf hunspell-en chro
         self.update_and_upgrade_all()
         self.downgrade_systemd_if_necessary( None )  # '213-5' )
         self.status_lst[-1] += '...complete.'
+
+
+
+

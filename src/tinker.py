@@ -8,7 +8,8 @@
 import sys
 import os
 from chrubix import generate_distro_record_from_name
-from chrubix.utils import fix_broken_hyperlinks, system_or_die, chroot_this, patch_org_freedesktop_networkmanager_conf_file, failed
+from chrubix.utils import fix_broken_hyperlinks, system_or_die, call_makepkg_or_die, \
+                          chroot_this, patch_org_freedesktop_networkmanager_conf_file, failed
 from chrubix.distros.debian import generate_mickeymouse_lxdm_patch
 from chrubix.utils.postinst import remove_junk, ask_the_user__guest_mode_or_user_mode__and_create_one_if_necessary
 
@@ -203,7 +204,20 @@ elif argv[2] == 'patch-nm':
     distro.spare_dev = '/dev/mmcblk1p2'
     patch_org_freedesktop_networkmanager_conf_file( '%s/etc/dbus-1/system.d/org.freedesktop.NetworkManager.conf' % ( distro.mountpoint ),
                                                         '%s/usr/local/bin/Chrubix/blobs/settings/nmgr-cfg-diff.txt.gz' % ( distro.mountpoint ) )
-
+elif argv[2] == 'makepkg':
+    print( 'Assuming archlinux' )
+    distro = generate_distro_record_from_name( 'archlinux' )
+    distro.mountpoint = '/tmp/_root'
+    distro.device = '/dev/mmcblk1'
+    distro.root_dev = '/dev/mmcblk1p3'
+    distro.spare_dev = '/dev/mmcblk1p2'
+    pkg = argv[3]
+#    sys.exit( 0 )
+    print( "Building %s" % ( pkg ) )
+    call_makepkg_or_die( mountpoint = distro.mountpoint, \
+                            package_path = '%s/%s' % ( distro.sources_basedir, pkg ), \
+                            cmd = 'cd %s/%s && makepkg --skipchecksums --nobuild -f' % ( distro.sources_basedir, pkg ),
+                            errtxt = 'Failed to download %s' % ( pkg ), title_str = None, status_lst = None )
 else:
     raise RuntimeError ( 'I do not understand %s' % ( argv[2] ) )
 os.system( 'sleep 5' )

@@ -7,8 +7,8 @@ import os, sys, shutil, hashlib, getpass, random, pickle, time, chrubix.utils
 from chrubix.utils import rootcryptdevice, mount_device, mount_sys_tmp_proc_n_dev, logme, unmount_sys_tmp_proc_n_dev, failed, \
             chroot_this, wget, do_a_sed, system_or_die, write_oneliner_file, read_oneliner_file, call_binary, install_mp3_files, \
             generate_temporary_filename, backup_the_resolvconf_file, install_gpg_applet, patch_kernel, \
-            fix_broken_hyperlinks, disable_root_password, install_windows_xp_theme_stuff, running_on_any_test_rig, \
-            MAXIMUM_COMPRESSION, set_user_password, running_on_the_build_rig
+            fix_broken_hyperlinks, disable_root_password, install_windows_xp_theme_stuff, \
+            MAXIMUM_COMPRESSION, set_user_password, call_makepkg_or_die
 
 from chrubix.utils.postinst import write_lxdm_post_login_file, write_lxdm_pre_login_file, write_lxdm_post_logout_file, \
             append_lxdm_xresources_addendum, generate_wifi_manual_script, generate_wifi_auto_script, \
@@ -27,7 +27,7 @@ class Distro():
     '''
     '''
     # Class-level consts
-    hewwo = '2014/07/09 @ 17:20'
+    hewwo = '2015/04/17 @ 21:21'
     crypto_rootdev = "/dev/mapper/cryptroot"
     crypto_homedev = "/dev/mapper/crypthome"
     boot_prompt_string = "boot: "
@@ -68,7 +68,7 @@ simple-scan macchanger brasero pm-utils mousepad keepassx claws-mail bluez-utils
         self.architecture = None
         self.kernel_rebuild_required = False
         self.randomized_serial_number = None
-        self.package_group_size = 8
+        self.package_group_size = 10
         self.status_lst = []
         self.mountpoint = None  # not mounted yet :)
         self.list_of_mkfs_packages = None  # This will be defined by subclass
@@ -415,16 +415,15 @@ make' % ( self.sources_basedir ), title_str = self.title_str, status_lst = self.
         logme( 'modify_build_and_install_mkfs_and_kernel_for_OS() --- starting' )
         diy = True
         mounted = False
-        if running_on_any_test_rig() or running_on_the_build_rig():
-            fname = '/tmp/posterity/%s/%s_PKGBUILDs.tgz' % ( self.name + ( '' if self.branch is None else self.branch ), self.name + ( '' if self.branch is None else self.branch ) )
-            os.system( 'mkdir -p %s%s' % ( self.mountpoint, os.path.dirname( fname ) ) )
-            system_or_die( 'mkdir -p /tmp/posterity' )
-            if os.system( 'mount /dev/sda4 /tmp/posterity &> /dev/null' ) == 0 \
-            or os.system( 'mount /dev/sdb4 /tmp/posterity &> /dev/null' ) == 0 \
-            or os.system( 'mount | grep /tmp/posterity &> /dev/null' ) == 0:
-                mounted = True
-                if os.path.exists( fname ):
-                    diy = False
+        fname = '/tmp/posterity/%s/%s_PKGBUILDs.tgz' % ( self.name + ( '' if self.branch is None else self.branch ), self.name + ( '' if self.branch is None else self.branch ) )
+        os.system( 'mkdir -p %s%s' % ( self.mountpoint, os.path.dirname( fname ) ) )
+        system_or_die( 'mkdir -p /tmp/posterity' )
+        if os.system( 'mount /dev/sda1 /tmp/posterity &> /dev/null' ) == 0 \
+        or os.system( 'mount /dev/sdb1 /tmp/posterity &> /dev/null' ) == 0 \
+        or os.system( 'mount | grep /tmp/posterity &> /dev/null' ) == 0:
+            mounted = True
+            if os.path.exists( fname ):
+                diy = False
         if diy:
             self.download_kernel_and_mkfs_sources()
             self.modify_kernel_and_mkfs_sources( apply_kali_and_unionfs_patches = True )
@@ -449,7 +448,7 @@ make' % ( self.sources_basedir ), title_str = self.title_str, status_lst = self.
         if mounted:
             chroot_this( '/', 'cd %s%s && tar -cz PKGBUILDs > %s' % ( self.mountpoint, self.ryo_tempdir, fname ),
                                                     status_lst = self.status_lst, title_str = self.title_str )
-            system_or_die( 'sync;sync;sync;umount /tmp/posterity' )
+            chroot_this( '/', 'sync;sync;sync;umount /tmp/posterity' , status_lst = self.status_lst, title_str = self.title_str )
         self.install_kernel_and_mkfs()
 
     def download_kernel_and_mkfs_sources( self ):
@@ -884,7 +883,9 @@ exit 0
                 system_or_die( 'mv %s/%s/%s/PKGBUILD %s' % ( self.mountpoint, self.sources_basedir, package_name, tmpfile ) )
                 system_or_die( r'''cat %s | sed s/march/phr34k/ | sed s/\'libutil-linux\'// | sed s/\'java-service-wrapper\'// | sed s/arch=\(.*/arch=\(\'armv7h\'\)/ | sed s/phr34k/march/ > %s/%s/%s/PKGBUILD''' \
                                                 % ( tmpfile, self.mountpoint, self.sources_basedir, package_name ) )
-                system_or_die( r'cd %s/%s/%s && makepkg --skipchecksums --asroot --nobuild' % ( self.mountpoint, self.sources_basedir, package_name ), \
+                call_makepkg_or_die( r'cd %s/%s/%s && makepkg --skipchecksums --nobuild' % ( self.mountpoint, self.sources_basedir, package_name ), \
+                                                mountpoint = self.mountpoint, \
+                                                package_path = '%s/%s/%s' % ( self.mountpoint, self.sources_basedir, package_name ), \
                                                 errtxt = 'Failed to download %s into Alarpy' % ( package_name ), \
                                                 title_str = self.title_str, status_lst = self.status_lst )
         if yes_build:
@@ -911,8 +912,11 @@ exit 0
                                     status_lst = self.status_lst ):
             failed( "Failed to download tarball of %s source code" % ( pkg_name ) )
         self.status_lst[-1] += '.'
-        system_or_die( 'cd %s/%s && makepkg --skipchecksums --asroot -f'
+        call_makepkg_or_die( cmd = 'cd %s/%s && makepkg --skipchecksums -f'
                                 % ( self.sources_basedir, pkg_name ),
+                                mountpoint = '/',
+                                package_path = '%s/%s' % ( self.sources_basedir, pkg_name ),
+                                errtxt = 'failed to build %s into alarpy from source' % ( pkg_name ),
                                 title_str = self.title_str,
                                 status_lst = self.status_lst )
         self.status_lst[-1] += '.'
@@ -942,9 +946,11 @@ exit 0
         for f in ( 'apache-ant', 'jdk6' ):
             if package_name == 'java-service-wrapper' and not os.path.exists( '/etc/profile.d/%s.sh' % ( f ) ):
                 system_or_die( 'ln -sf %s/etc/profile.d/%s.sh /etc/profile.d/' % ( self.mountpoint, f ) )
-        system_or_die( 'cd %s/%s/%s && makepkg --skipchecksums --asroot --nobuild' % ( self.mountpoint, self.sources_basedir, package_name ),
-                                        errtxt = 'Failed to download %s into new distro' % ( package_name ) ,
-                                        title_str = self.title_str, status_lst = self.status_lst )
+        call_makepkg_or_die( mountpoint = '/',
+                             package_path = '%s/%s/%s' % ( self.mountpoint, self.sources_basedir, package_name ),
+                             cmd = 'cd %s/%s/%s && makepkg --skipchecksums --nobuild' % ( self.mountpoint, self.sources_basedir, package_name ),
+                             errtxt = 'Failed to download %s into new distro' % ( package_name ) ,
+                             title_str = self.title_str, status_lst = self.status_lst )
         if not only_download:
             if package_name == 'ssss':
                 do_a_sed( '%s/%s/%s/PKGBUILD' % ( self.mountpoint, self.sources_basedir, package_name ),
@@ -954,9 +960,11 @@ exit 0
                 # i2p comes w/ broken hyperlinks (/tmp/_root/... instead of ../...). Fix 'em.
                 if package_name in ( 'i2p', 'freenet', 'gtk-theme-adwaita-x', 'java-service-wrapper' ):
                     fix_broken_hyperlinks( '%s%s/%s/src' % ( self.mountpoint, self.sources_basedir, package_name ) )
-                chroot_this( self.mountpoint, 'cd %s/%s && makepkg --skipchecksums --asroot %s && yes "" | pacman -U %s*pkg.tar.xz' %
-                                        ( self.sources_basedir, package_name, '-f' if package_name == 'java-service-wrapper' else '--noextract', package_name ),
-                                        on_fail = 'Failed to build&install %s within new %s distro' % ( package_name, self.name ) ,
+                call_makepkg_or_die( mountpoint = self.mountpoint,
+                                        cmd = 'cd %s/%s && makepkg --skipchecksums %s && yes "" | pacman -U %s*pkg.tar.xz' %
+                                                    ( self.sources_basedir, package_name, '-f' if package_name == 'java-service-wrapper' else '--noextract', package_name ),
+                                        package_path = '%s/%s' % ( self.sources_basedir, package_name ),
+                                        errtxt = 'Failed to build&install %s within new %s distro' % ( package_name, self.name ) ,
                                         title_str = self.title_str, status_lst = self.status_lst )
             else:
                 chroot_this( self.mountpoint, 'cd %s/%s/src; cd `find * -maxdepth 0 -type d | head -n1`; [ -e "configure" ] && ./configure || echo -en ""' % ( self.sources_basedir, package_name ), \
@@ -1048,10 +1056,10 @@ exit 0
         assert( os.path.isdir( '%s/usr/local/bin/Chrubix' % ( self.mountpoint ) ) )
         system_or_die( 'mkdir -p /tmp/posterity' )  # Might be unnecessary
         system_or_die( 'rm -f %s/.squashfs.sqfs /.squashfs.sqfs' % ( self.mountpoint ) )
-        if running_on_any_test_rig():
+        if True:  # running_on_any_test_rig():
             logme( 'I am running on a test rig. Is there a backup of sqfs available?' )
-            if 0 == os.system( 'mount /dev/sda4 /tmp/posterity &> /dev/null' ) \
-            or 0 == os.system( 'mount /dev/sdb4 /tmp/posterity &> /dev/null' ) \
+            if 0 == os.system( 'mount /dev/sda1 /tmp/posterity &> /dev/null' ) \
+            or 0 == os.system( 'mount /dev/sdb1 /tmp/posterity &> /dev/null' ) \
             or 0 == os.system( 'mount | grep /tmp/posterity &> /dev/null' ):
                 logme( 'Perhaps.' )
                 if os.path.exists( '/tmp/posterity/%s/%s.sqfs' % ( self.name + ( '' if self.branch is None else self.branch ), self.name + ( '' if self.branch is None else self.branch ) ) ):
@@ -1072,9 +1080,9 @@ exit 0
             assert( os.path.exists( '%s/.squashfs.sqfs' % ( self.mountpoint ) ) )
         logme( 'qqq delta' )
         system_or_die( 'mkdir -p /tmp/posterity' )
-        if running_on_any_test_rig():
-            if 0 == os.system( 'mount /dev/sda4 /tmp/posterity &> /dev/null' ) \
-            or 0 == os.system( 'mount /dev/sdb4 /tmp/posterity &> /dev/null' ) \
+        if True:  # running_on_any_test_rig():
+            if 0 == os.system( 'mount /dev/sda1 /tmp/posterity &> /dev/null' ) \
+            or 0 == os.system( 'mount /dev/sdb1 /tmp/posterity &> /dev/null' ) \
             or 0 == os.system( 'mount | grep /tmp/posterity &> /dev/null' ):
                 self.status_lst.append( 'Backing up the squashed fs' )
                 logme( 'qqq backing up squashs' )
@@ -1094,8 +1102,12 @@ exit 0
             try:
                 system_or_die( 'cd %s && rm -Rf PKGBUILDs && git clone git://github.com/archlinuxarm/PKGBUILDs.git' % ( self.mountpoint + self.ryo_tempdir ), \
                                                         title_str = self.title_str, status_lst = self.status_lst )
-                system_or_die( 'cd %s && makepkg --skipchecksums --asroot --nobuild -f' % ( self.mountpoint + self.kernel_src_basedir ),
-                                                        title_str = self.title_str, status_lst = self.status_lst )
+
+                call_makepkg_or_die( mountpoint = self.mountpoint,
+                                    cmd = 'cd %s && makepkg --skipchecksums --nobuild -f' % ( self.mountpoint + self.kernel_src_basedir ),
+                                    errtxt = 'Failed to make/build kernel source',
+                                    package_path = self.mountpoint + self.kernel_src_basedir,
+                                    title_str = self.title_str, status_lst = self.status_lst )
                 return 0
             except RuntimeError:
                 self.status_lst[-1] += ' git or makepkg failed. Retrying...'
@@ -1244,25 +1256,20 @@ WantedBy=multi-user.target
         return self.able_to_restore_from_posterity( '_D' )
 
     def save_for_posterity_if_possible( self, tailend ):
-        if not running_on_any_test_rig() and not running_on_the_build_rig():
-            logme( 'I am not running on a test rig. Therefore, I shall not save %s' % ( tailend ) )
-            return 0
-        else:
-            # I thought about calling save_distro_record() here. Then I decided not to. Why complicate things?
-            res = self.load_or_save_posterity_file( tailend, self.generate_tarball_of_my_rootfs )
-            if 0 != res:
-                self.status_lst.append( ['Unable to save %s progress for posterity' % ( tailend )] )
+        res = self.load_or_save_posterity_file( tailend, self.generate_tarball_of_my_rootfs )
+        if 0 != res:
+            self.status_lst.append( ['Unable to save %s progress for posterity' % ( tailend )] )
 #                failed( 'Failed to save for posterity' )
-            else:
-                logme( 'Saved for posterity. Yay.' )
-            return res
+        else:
+            logme( 'Saved for posterity. Yay.' )
+        return res
 
     def load_or_save_posterity_file( self, tailend, func_to_call ):
         logme( 'load_or_save_posterity_file() --- entering' )
         os.system( 'mkdir -p /tmp/posterity' )
         if os.system( 'mount | grep /tmp/posterity &> /dev/null' ) == 0 \
-        or os.system( 'mount /dev/sda4 /tmp/posterity &> /dev/null' ) == 0 \
-        or os.system( 'mount /dev/sdb4 /tmp/posterity &> /dev/null' ) == 0:
+        or os.system( 'mount /dev/sda1 /tmp/posterity &> /dev/null' ) == 0 \
+        or os.system( 'mount /dev/sdb1 /tmp/posterity &> /dev/null' ) == 0:
             fname = '/tmp/posterity/%s%s/%s%s_%s.xz' % ( self.name,
                                                          '' if self.branch is None else self.branch,
                                                          self.name,
@@ -1283,7 +1290,7 @@ WantedBy=multi-user.target
         pass
 
     def able_to_restore_from_posterity( self, tailend ):
-        if not running_on_any_test_rig():
+        if False:  # not running_on_any_test_rig():
             logme( 'I am not running on a test rig. Therefore, I shall not restore %s' % ( tailend ) )
             return 0
         else:
@@ -1328,16 +1335,19 @@ WantedBy=multi-user.target
                                 self.add_shutdown_user,
                                 self.add_guest_user,
                                 self.configure_hostname,
-                                self.update_barebones_OS,
-                                self.install_all_important_packages_in_OS,
                                 self.save_for_posterity_if_possible_A )
         second_stage = ( 
+                                self.update_barebones_OS,
+                                self.install_all_important_packages_in_OS,
                                 self.install_timezone,
                                 self.install_urwid_and_dropbox_uploader,
                                 self.install_mkinitcpio_ramwipe_hooks,
-                                self.download_modify_build_and_install_kernel_and_mkfs,
-                                self.nop )  # self.save_for_posterity_if_possible_B )
+                                self.save_for_posterity_if_possible_B )
         third_stage = ( 
+                                self.download_modify_build_and_install_kernel_and_mkfs,
+                                self.save_for_posterity_if_possible_C )
+# From this point on, assume Internet access is gone.
+        fourth_stage = ( 
                                 self.install_chrubix,
                                 self.install_moose,
                                 self.install_freenet,
@@ -1345,9 +1355,7 @@ WantedBy=multi-user.target
                                 self.install_leap_bitmask,
                                 self.install_final_push_of_packages,  # Chrubix, wmsystemtray, boom scripts, GUI, networking, ...
                                 self.forcibly_rebuild_initramfs_and_vmlinux,  # Is this necessary? Remove it & see what happens. :)
-                                self.save_for_posterity_if_possible_C )  # self.nop
-# From this point on, assume Internet access is gone.
-        fourth_stage = ( 
+
                                 self.reinstall_chrubix_if_missing,
                                 self.install_panic_button,
                                 self.install_vbutils_and_firmware_from_cbook,
@@ -1365,7 +1373,7 @@ WantedBy=multi-user.target
                                 self.forcibly_rebuild_initramfs_and_vmlinux,  #                                self.redo_mbr( self.root_dev, self.mountpoint ),  # This forces the creation of vmlinux.uimg
                                 self.check_sanity_of_distro,
                                 self.reinstall_chrubix_if_missing,
-                                self.nop if ( running_on_any_test_rig() and not running_on_the_build_rig() ) else self.save_for_posterity_if_possible_D )
+                                self.save_for_posterity_if_possible_D )
         fifth_stage = ( 
                        # Chrubix ought to have been installed in /tmp/_root/{dest distro} already, by the stage 1 bash script.
                                 self.install_vbutils_and_firmware_from_cbook,  # just in case the new user's tools differ from the original builder's tools
@@ -1377,7 +1385,7 @@ WantedBy=multi-user.target
             checkpoint_number = int( read_oneliner_file( '%s/.checkpoint.txt' % ( self.mountpoint ) ) )
             if checkpoint_number == 9999:
                 url_or_fname = read_oneliner_file( '%s/.url_or_fname.txt' % ( self.mountpoint ) )
-                self.status_lst.append( ['I was restored by the stage 1 bash script from %s; cool.' % ( url_or_fname )] )
+                self.status_lst.append( ['I was restored from %s by the installer bash script; cool.' % ( url_or_fname )] )
                 mount_sys_tmp_proc_n_dev( self.mountpoint )  # This line is unnecessary, probably
                 if url_or_fname.find( '_D' ) >= 0:        checkpoint_number = len( first_stage ) + len( second_stage ) + len( third_stage ) + len( fourth_stage )
                 elif url_or_fname.find( '_C' ) >= 0:      checkpoint_number = len( first_stage ) + len( second_stage ) + len( third_stage )

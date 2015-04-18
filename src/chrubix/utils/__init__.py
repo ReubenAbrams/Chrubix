@@ -23,25 +23,8 @@ g_proxy = None if ( 0 != os.system( 'ping -c1 -W1 192.168.1.66 &> /dev/null' ) o
 g_default_window_manager = '/usr/bin/startlxde'  # wmaker, startxfce4, startlxde, ...
 
 
-def running_on_any_test_rig():
-    if os.path.exists( '/tmp/.USE_LATEST_CHRUBIX_TARBALL' ):
-#    for a_rig_serno in ( '09278f79', '203a61bc', ):
-#        a_rig = '/dev/disk/by-id/mmc-SEM16G_0x%s' % ( a_rig_serno )
-#        if os.path.exists( a_rig ):
-        return True
-    else:
-        return False
 
-
-def running_on_the_build_rig():
-    for a_rig_serno in ( '09278f79', ):
-        a_rig = '/dev/disk/by-id/mmc-SEM16G_0x%s' % ( a_rig_serno )
-        if os.path.exists( a_rig ):
-            return True
-    return False
-
-
-MAXIMUM_COMPRESSION = True if running_on_the_build_rig() else False  # Max compression on the left; quicker testing on the right :)
+MAXIMUM_COMPRESSION = False  # Max compression on the left; quicker testing on the right :)
 __g_start_time = time.time()
 
 
@@ -449,5 +432,23 @@ def patch_org_freedesktop_networkmanager_conf_file( config_file, patch_file ):
     assert( os.path.exists( patch_file ) )
     cmd = 'cat %s | gunzip | patch -p1 %s' % ( patch_file, config_file )
     return os.system( cmd )
+
+
+def call_makepkg_or_die( cmd, mountpoint, package_path, errtxt, title_str, status_lst ):
+    if mountpoint in ( None, '/' ):
+        system_or_die( r'chmod 777 /dev/null' )
+        system_or_die( r'mkdir -p %s' % ( package_path ) )
+        system_or_die( r'chown -R guest %s' % ( package_path ) )
+        system_or_die( r'chmod -R 777 %s' % ( package_path ) )
+        chroot_this( mountpoint, cmd, errtxt, user = 'guest' )
+#    system_or_die( r'chown -R root %s' % ( package_path ) )
+    else:
+        chroot_this( mountpoint, r'chmod 777 /dev/null' )
+        chroot_this( mountpoint, r'mkdir -p %s' % ( package_path ) )
+        chroot_this( mountpoint, r'chown -R guest %s' % ( package_path, ) )
+        chroot_this( mountpoint, r'chmod -R 777 %s' % ( package_path ) )
+        chroot_this( mountpoint, 'cd %s && makepkg --skipchecksums --nobuild -f' % ( package_path ), 'Failed to download %s' % ( os.path.basename( package_path ) ), \
+                                    user = 'guest' )
+
 
 
