@@ -330,7 +330,7 @@ restore_from_squash_fs_backup_if_possible() {
 		fi
 	done
 	squrl=$FINALS_URL/$distroname/$distroname.sqfs
-	echo "squrl = $squrl"
+#	echo "squrl = $squrl"
 	if wget --spider $squrl -O - > $root/.squashfs.sqfs &> /dev/null ; then
 		if [ "$temp_or_perm" = "temp" ] ; then
 			wget $squrl -O - > $root/.squashfs.sqfs && echo "Squashfs file downloaded and installed OK" || failed "Failed to restrieve squashfs file from URL"
@@ -420,6 +420,20 @@ MEH: No encryption. No duress password. Changes are permanent. Guest Mode is sti
 
 
 
+oh_well_start_from_beginning() {
+	cd /
+	echo "OK. There was no Stage D available on a thumb drive or online."	
+	echo "Installing bootstrap filesystem..."
+	wget $ALARPY_URL -O - | tar -Jx -C $btstrap 2> /dev/null || failed "Failed to download/install alarpy.tar.xz"
+	echo ""
+	echo "en_US.UTF-8 UTF-8" >> $btstrap/etc/locale.gen
+	chroot_this $btstrap "locale-gen"
+	echo "LANG=\"en_US.UTF-8\"" >> $btstrap/etc/locale.conf
+	echo "nameserver 8.8.8.8" >> $btstrap/etc/resolv.conf	
+}
+
+
+
 main() {
 	btstrap=/home/chronos/user/Downloads/.bootstrap
 	bt_tar=/home/chronos/user/Downloads/.bs.xz
@@ -432,6 +446,8 @@ main() {
 	umount /tmp/_root*/.ro /tmp/_root.*/.* 2> /dev/null || echo -en ""
 	
 	mount | grep /dev/mapper/encstateful &> /dev/null || failed "Run me from within ChromeOS, please."
+	sudo stop powerd || echo -en ""
+
 	mydevbyid=`deduce_my_dev`
 	[ "$mydevbyid" = "" ] && failed "I am unable to figure out which device you want me to prep. Sorry..."
 	[ -e "$mydevbyid" ] || failed "Please insert a thumb drive or SD card and try again. Please DO NOT INSERT your keychain thumb drive."
@@ -465,7 +481,6 @@ main() {
 	if mount | grep "$dev" | grep "$root" &> /dev/null ; then
 		umount "$dev"* &> /dev/null || echo "Already partitioned and mounted. Reboot and try again..."
 	fi
-	sudo stop powerd || echo -en ""
 
     if [ ! -e "$btstrap/bin/parted" ] ; then
 		umount $btstrap 2> /dev/null || echo -en ""
@@ -475,20 +490,23 @@ main() {
     	losetup /dev/loop1 /tmp/_alarpy.dat
     	mke2fs /dev/loop1 &> /dev/null || failed "Failed to mkfs the temp loop partition"
     	mount /dev/loop1 $btstrap
-		wget $PARTED_URL -O - > $bt_tar		# [ -e "$bt_tar" ] || 
+		wget $PARTED_URL -O - > $bt_tar 
 		echo -en "Thinking..."
 		cat $bt_tar | tar -Jx -C $btstrap 2> /dev/null || failed "Failed to download/install parted and friends"
 	fi
 
+	echo -en "Still thinking..."
 	mount devtmpfs  $btstrap/dev -t devtmpfs	|| echo -en ""
 	mount sysfs     $btstrap/sys -t sysfs		|| echo -en ""
 	mount proc      $btstrap/proc -t proc		|| echo -en ""
 	mount tmpfs     $btstrap/tmp -t tmpfs		|| echo -en ""
 	
+	echo -en "Partitioning..."
 	umount /dev/mmcblk1* &> /dev/null || echo -en ""
-	partition_device $dev $dev_p $btstrap
-	format_partitions $dev $dev_p $btstrap
-	
+	partition_device $dev $dev_p $btstrap &> /dev/null || failed "Failed to partition $dev"
+	echo -en "Done. Formatting..."
+	format_partitions $dev $dev_p $btstrap &> /dev/null
+	echo "Done."
 	umount $btstrap/{dev,sys,proc,tmp}
 
 	old_btstrap=$btstrap
@@ -510,13 +528,6 @@ main() {
 	mkdir -p $btstrap/tmp/_root
 	mount -o noatime "$dev_p"3 $btstrap/tmp/_root		|| echo -en ""
 
-	wget $ALARPY_URL -O - | tar -Jx -C $btstrap 2> /dev/null || failed "Failed to download/install alarpy.tar.xz"
-	echo ""
-	echo "en_US.UTF-8 UTF-8" >> $btstrap/etc/locale.gen
-	chroot_this $btstrap "locale-gen"
-	echo "LANG=\"en_US.UTF-8\"" >> $btstrap/etc/locale.conf
-	echo "nameserver 8.8.8.8" >> $btstrap/etc/resolv.conf	
-
 	mount devtmpfs $btstrap/tmp/_root/dev -t devtmpfs	|| echo -en ""
 	mount tmpfs $btstrap/tmp/_root/tmp -t tmpfs			|| echo -en ""
 	mount proc $btstrap/tmp/_root/proc -t proc			|| echo -en ""
@@ -525,9 +536,9 @@ main() {
 	losetup -d /dev/loop1 2> /dev/null || echo -en ""
 	
 	sudo crossystem dev_boot_usb=1 dev_boot_signed_only=0 || echo "WARNING - failed to configure USB and MMC to be bootable"	# dev_boot_signed_only=0
-	if losetup | grep alarpy ; then
-		umount /tmp/_alarpy.dat || echo "FYI, unable to unmount temp skeleton"
-		losetup -d /dev/loop1 || echo "FYI, unable to dissociate loop1"
+	if losetup | grep alarpy &> /dev/null ; then
+		umount /tmp/_alarpy.dat || echo -en ""		# echo "FYI, unable to unmount temp skeleton"
+		losetup -d /dev/loop1 || echo -en "" 		# echo "FYI, unable to dissociate loop1"
 	fi
 	
 	if restore_from_squash_fs_backup_if_possible ; then
@@ -537,6 +548,7 @@ main() {
 			echo "Restored from stage X. Good."
 		else
 			echo "OK. Starting from beginning."
+			oh_well_start_from_beginning
 		fi
 
 		install_chrubix $btstrap $dev "$dev_p"3 "$dev_p"2 "$dev_p"1 $distroname
@@ -583,6 +595,7 @@ main() {
 
 
 ##################################################################################################################################
+
 
 
 if [ "$1" != "" ] && [ "$1" != "REBUILD-ALL" ] ; then
