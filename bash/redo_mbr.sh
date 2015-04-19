@@ -28,6 +28,8 @@ SQUASHFS_FNAME=/.squashfs.sqfs
 
 
 
+# FIXME --- for ERROR: file not found: `/lib/udev/rules.d/10-dm.rules' -type errors, be aware
+# ...that /lib/udev/rules.d/55-dm.rules might exist. Should we softlink to it...?
 
 
 chroot_this() {
