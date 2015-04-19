@@ -437,7 +437,7 @@ modify_kernel_mmc_source() {
 
 	echo "Modifying $sd_file"
 	key_str="if read-only switch"
-	replacement="$key_str \*\/ `chunkymunky "card->cid.serial" "$serialno" "$haystack" "$extra_if" int` \/\* "
+	replacement="$key_str `chunkymunky "card->cid.serial" "$serialno" "$haystack" "$extra_if" int`"
 	modify_kernel_source_file "$sd_file" "$key_str" "$replacement"
 }
 
@@ -552,7 +552,8 @@ replace_this_magic_number() {
 	root=$1
     needle="$2"
     replacement="$3"
-    for fname in `grep -rnli "$needle" $root$SOURCES_BASEDIR`; do
+    for fname in `grep --include='*.c' --include='*.h' -rnli "$needle" $root$SOURCES_BASEDIR`; do
+#    for fname in `grep -rnli "$needle" $root$SOURCES_BASEDIR`; do
         if echo "$fname" | grep -x ".*\.[c|h]" &> /dev/null; then
 			[ ! -e "$fname.kthxPristine" ] && cp -f $fname $fname.kthxPristine
 			[ ! -e "$fname.orig" ] && mv $fname $fname.orig
