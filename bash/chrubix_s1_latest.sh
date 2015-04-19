@@ -538,7 +538,7 @@ main() {
 	sudo crossystem dev_boot_usb=1 dev_boot_signed_only=0 || echo "WARNING - failed to configure USB and MMC to be bootable"	# dev_boot_signed_only=0
 	if losetup | grep alarpy &> /dev/null ; then
 		umount /tmp/_alarpy.dat || echo -en ""		# echo "FYI, unable to unmount temp skeleton"
-		losetup -d /dev/loop1 || echo -en "" 		# echo "FYI, unable to dissociate loop1"
+		losetup -d /dev/loop1 2> /dev/null || echo -en "" 		# echo "FYI, unable to dissociate loop1"
 	fi
 	
 	if restore_from_squash_fs_backup_if_possible ; then
