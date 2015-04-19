@@ -52,7 +52,7 @@ elif argv[2] == 'build-from-debian':
     pkg = argv[4]
 #    sys.exit( 0 )
     print( "Building %s from Deb-ish => Wheezy" % ( pkg ) )
-    distro.build_and_install_package_from_debian_source( pkg )
+    distro.build_and_install_package_from_debian_source( pkg, 'wheezy' if argv[3] == 'debianwheezy' else 'jessie' )
 elif argv[2] == 'build-from-ubuntu':
     distro = generate_distro_record_from_name( argv[3] )
     distro.mountpoint = '/tmp/_root'
@@ -218,6 +218,13 @@ elif argv[2] == 'makepkg':
                             package_path = '%s/%s' % ( distro.sources_basedir, pkg ), \
                             cmd = 'cd %s/%s && makepkg --skipchecksums --nobuild -f' % ( distro.sources_basedir, pkg ),
                             errtxt = 'Failed to download %s' % ( pkg ), title_str = None, status_lst = None )
+elif argv[2] == 'debian-i2p':
+    distro = generate_distro_record_from_name( 'debianwheezy' )
+    distro.mountpoint = '/tmp/_root'
+    distro.device = '/dev/mmcblk1'
+    distro.root_dev = '/dev/mmcblk1p3'
+    distro.spare_dev = '/dev/mmcblk1p2'
+    distro.install_i2p()
 else:
     raise RuntimeError ( 'I do not understand %s' % ( argv[2] ) )
 os.system( 'sleep 5' )
