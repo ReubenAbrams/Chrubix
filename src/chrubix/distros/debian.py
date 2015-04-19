@@ -23,6 +23,9 @@ def do_debian_specific_mbr_related_hacks( mountpoint ):
                                                   ):
         if not os.path.exists( '%s%s/%s' % ( mountpoint, wish_it_were_here, fname ) ):
             system_or_die( 'ln -sf %s/%s %s%s/' % ( is_actually_here, fname, mountpoint, wish_it_were_here ) )
+    if not os.path.exists( '%s/usr/lib/udev' % ( mountpoint ) ) \
+    and os.path.exists( '%s/lib/udev' % ( mountpoint ) ):
+        chroot_this( mountpoint, 'ln -sf /lib/udev /usr/lib/udev' )
     for missing_path in ( 
                           '/usr/lib/udev/rules.d',
                           '/usr/lib/systemd/system-generators',
@@ -319,7 +322,7 @@ deb-src http://deb.i2p2.no/ stable main
 ''' )
         for cmd in ( 
                     'yes 2>/dev/null | add-apt-repository "deb http://deb.i2p2.no/ %s main"' % ( 'wheezy' ),  # 'unstable' if self.branch == 'jessie' else 'stable' ),
-                    'yes "" 2>/dev/null | curl https://geti2p.net/_static/debian-repo.pub | apt-key add -',
+                    'yes "" 2>/dev/null | curl https://geti2p.net/_static/i2p-debian-repo.key.asc | apt-key add -',
                     'yes 2>/dev/null | apt-get update'
                    ):
             chroot_this( self.mountpoint, cmd, title_str = self.title_str, status_lst = self.status_lst,
@@ -411,10 +414,10 @@ deb-src http://deb.i2p2.no/ stable main
                                                         'http://packages.ubuntu.com/precise' )
         logme( 'DebianDistro - build_and_install_package_from_ubuntu_source() - leaving' )
 
-    def build_and_install_package_from_debian_source( self, package_name ):
+    def build_and_install_package_from_debian_source( self, package_name, which_distro = 'jessie' ):
         logme( 'DebianDistro - build_and_install_package_from_debian_source() - starting' )
         self.build_and_install_package_from_deb_or_ubu_source( package_name, \
-                                                        'https://packages.debian.org/jessie' )
+                                                        'https://packages.debian.org/%s' % ( which_distro ) )
         logme( 'DebianDistro - build_and_install_package_from_debian_source() - leaving' )
 
     def build_and_install_package_from_deb_or_ubu_source( self, package_name, src_url ):
@@ -445,6 +448,7 @@ deb-src http://deb.i2p2.no/ stable main
         self.build_package_from_fileset( package_name )
         if self.status_lst is not None:                      self.status_lst[-1] += '...Installing'
         chroot_this( self.mountpoint, 'dpkg -i %s/%s/%s_*.deb' % ( self.sources_basedir, package_name, package_name ),
+                                                                        attempts = 1,
                                                                         on_fail = 'Failed to install %s' % ( package_name ) )
         if self.status_lst is not None:                      self.status_lst[-1] += '...Yay.'
         system_or_die( 'rm -f %s%s/*.deb' % ( self.mountpoint, self.sources_basedir ) )
