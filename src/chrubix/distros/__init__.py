@@ -27,7 +27,7 @@ class Distro():
     '''
     '''
     # Class-level consts
-    hewwo = '2015/04/17 @ 21:21'
+    hewwo = '2015/04/18 @ 19:26'
     crypto_rootdev = "/dev/mapper/cryptroot"
     crypto_homedev = "/dev/mapper/crypthome"
     boot_prompt_string = "boot: "
@@ -813,7 +813,7 @@ exit 0
         chroot_this( self.mountpoint, 'chmod +x /etc/lxdm/P*' )
 
     def migrate_OS( self ):  # ....unless you're the Alarmist subclass, which redefines this as SQUASH MY OS!  :-)
-        self.status_lst[-1] += 'excellent.'
+        self.status_lst[-1] += '...excellent.'
         self.kernel_rebuild_required = True  # ...because the initramfs needs our boom pw, which means we'll have to rebuild initramfs.... which means rebuilding kernel!
         self.root_is_encrypted = True
         self.pheasants = True
@@ -1345,17 +1345,16 @@ WantedBy=multi-user.target
                                 self.save_for_posterity_if_possible_B )
         third_stage = ( 
                                 self.download_modify_build_and_install_kernel_and_mkfs,
-                                self.save_for_posterity_if_possible_C )
-# From this point on, assume Internet access is gone.
-        fourth_stage = ( 
                                 self.install_chrubix,
                                 self.install_moose,
                                 self.install_freenet,
                                 self.install_gpg_applet,
                                 self.install_leap_bitmask,
                                 self.install_final_push_of_packages,  # Chrubix, wmsystemtray, boom scripts, GUI, networking, ...
+                                self.save_for_posterity_if_possible_C )
+# From this point on, assume Internet access is gone.
+        fourth_stage = ( 
                                 self.forcibly_rebuild_initramfs_and_vmlinux,  # Is this necessary? Remove it & see what happens. :)
-
                                 self.reinstall_chrubix_if_missing,
                                 self.install_panic_button,
                                 self.install_vbutils_and_firmware_from_cbook,
