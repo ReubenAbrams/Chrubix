@@ -886,8 +886,7 @@ exit 0
                 call_makepkg_or_die( r'cd %s/%s/%s && makepkg --skipchecksums --nobuild' % ( self.mountpoint, self.sources_basedir, package_name ), \
                                                 mountpoint = self.mountpoint, \
                                                 package_path = '%s/%s/%s' % ( self.mountpoint, self.sources_basedir, package_name ), \
-                                                errtxt = 'Failed to download %s into Alarpy' % ( package_name ), \
-                                                title_str = self.title_str, status_lst = self.status_lst )
+                                                errtxt = 'Failed to download %s into Alarpy' % ( package_name ) )
         if yes_build:
             chroot_this( self.mountpoint, 'cd %s/%s; cp PKGBUILD my_build.sh; echo srcdir=src >> my_build.sh; echo build >> my_build.sh; chmod +x my_build.sh; bash my_build.sh' % ( self.sources_basedir, package_name ),
                                                          on_fail = 'Failed to build and install %s for new %s distro' % ( package_name, self.name ), \
@@ -916,9 +915,7 @@ exit 0
                                 % ( self.sources_basedir, pkg_name ),
                                 mountpoint = '/',
                                 package_path = '%s/%s' % ( self.sources_basedir, pkg_name ),
-                                errtxt = 'failed to build %s into alarpy from source' % ( pkg_name ),
-                                title_str = self.title_str,
-                                status_lst = self.status_lst )
+                                errtxt = 'failed to build %s into alarpy from source' % ( pkg_name ) )
         self.status_lst[-1] += '.'
         system_or_die( 'yes "" | pacman -U `ls %s/%s/%s*pkg.tar.xz`'
                                 % ( self.sources_basedir, pkg_name, pkg_name ),
@@ -949,8 +946,7 @@ exit 0
         call_makepkg_or_die( mountpoint = '/',
                              package_path = '%s/%s/%s' % ( self.mountpoint, self.sources_basedir, package_name ),
                              cmd = 'cd %s/%s/%s && makepkg --skipchecksums --nobuild' % ( self.mountpoint, self.sources_basedir, package_name ),
-                             errtxt = 'Failed to download %s into new distro' % ( package_name ) ,
-                             title_str = self.title_str, status_lst = self.status_lst )
+                             errtxt = 'Failed to download %s into new distro' % ( package_name ) )
         if not only_download:
             if package_name == 'ssss':
                 do_a_sed( '%s/%s/%s/PKGBUILD' % ( self.mountpoint, self.sources_basedir, package_name ),
@@ -964,8 +960,7 @@ exit 0
                                         cmd = 'cd %s/%s && makepkg --skipchecksums %s && yes "" | pacman -U %s*pkg.tar.xz' %
                                                     ( self.sources_basedir, package_name, '-f' if package_name == 'java-service-wrapper' else '--noextract', package_name ),
                                         package_path = '%s/%s' % ( self.sources_basedir, package_name ),
-                                        errtxt = 'Failed to build&install %s within new %s distro' % ( package_name, self.name ) ,
-                                        title_str = self.title_str, status_lst = self.status_lst )
+                                        errtxt = 'Failed to build&install %s within new %s distro' % ( package_name, self.name ) )
             else:
                 chroot_this( self.mountpoint, 'cd %s/%s/src; cd `find * -maxdepth 0 -type d | head -n1`; [ -e "configure" ] && ./configure || echo -en ""' % ( self.sources_basedir, package_name ), \
                                                              on_fail = 'Failed to configure %s for Alarpy' % ( package_name ), \
@@ -1106,8 +1101,7 @@ exit 0
                 call_makepkg_or_die( mountpoint = self.mountpoint,
                                     cmd = 'cd %s && makepkg --skipchecksums --nobuild -f' % ( self.mountpoint + self.kernel_src_basedir ),
                                     errtxt = 'Failed to make/build kernel source',
-                                    package_path = self.mountpoint + self.kernel_src_basedir,
-                                    title_str = self.title_str, status_lst = self.status_lst )
+                                    package_path = self.mountpoint + self.kernel_src_basedir )
                 return 0
             except RuntimeError:
                 self.status_lst[-1] += ' git or makepkg failed. Retrying...'

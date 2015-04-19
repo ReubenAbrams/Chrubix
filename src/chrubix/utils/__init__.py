@@ -434,7 +434,7 @@ def patch_org_freedesktop_networkmanager_conf_file( config_file, patch_file ):
     return os.system( cmd )
 
 
-def call_makepkg_or_die( cmd, mountpoint, package_path, errtxt, title_str, status_lst ):
+def call_makepkg_or_die( cmd, mountpoint, package_path, errtxt ):
     if mountpoint in ( None, '/' ):
         system_or_die( r'chmod 777 /dev/null' )
         system_or_die( r'mkdir -p %s' % ( package_path ) )
