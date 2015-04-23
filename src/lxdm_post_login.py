@@ -38,6 +38,8 @@ def configure_X_and_start_some_apps():
                 'gpgApplet',
                 'dconf write /apps/florence/controller/floaticon false',
                 'if ps wax | fgrep mate-session | fgrep -v grep ; then pulseaudio -k; mpg123 /etc/.mp3/winxp.mp3; fi',
+                'ip2router start',
+                '/opt/freenet start',
                )
     logme( 'lxdm_post_login.py --- fixing /tmp/.guest and /home/* permissions' )
     execute_this_list( main_list )
