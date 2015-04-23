@@ -16,7 +16,6 @@ from chrubix import distros
 from chrubix.distros.archlinux import ArchlinuxDistro
 from chrubix.distros.debian import WheezyDebianDistro, JessieDebianDistro
 from chrubix.distros.kali import KaliDistro
-from chrubix.distros.alarmist import AlarmistDistro
 from chrubix.distros.fedora import FedoraDistro
 from chrubix.distros.ubuntu import PangolinUbuntuDistro
 from chrubix.distros.suse import SuseDistro
@@ -39,7 +38,6 @@ def list_command_line_options():
 
 def generate_distro_record_from_name( name_str ):
     distro_options = {
-                  'alarmistwheezy':AlarmistDistro,
                   'archlinux'     :ArchlinuxDistro,
                   'fedora'        :FedoraDistro,
                   'debianjessie'  :JessieDebianDistro,
