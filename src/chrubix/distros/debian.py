@@ -96,7 +96,7 @@ gtk2-engines-pixbuf libsnappy-dev libgcrypt-dev iceweasel icedove gconf2 bsdcpio
 x11-utils xbase-clients ssss mat florence monkeysign libxfixes-dev liblzo2-dev python-sqlite \
 wmaker python-cairo python-pdfrw libconfig-dev libx11-dev python-hachoir-core python-hachoir-parser \
 mat myspell-en-us msttcorefonts xorg xserver-xorg-input-synaptics xul-ext-https-everywhere \
-pulseaudio paprefs pulseaudio-module-jack pavucontrol paman alsa-tools-gui alsa-oss mythes-en-us \
+pulseaudio-module-jack alsa-tools-gui alsa-oss mythes-en-us \
 cdbs debhelper javahelper quilt adduser git-core default-jdk ant ant-optional ant-contrib \
 jflex junit4 libcommons-collections3-java libcommons-compress-java libdb-je-java libecj-java \
 libservice-wrapper-java libpisock-dev uno-libs3 libgtk-3-bin libbcprov-java gtk2-engines-murrine libc6-dev \
@@ -258,7 +258,7 @@ Acquire::https::Proxy "https://%s/";
         assert( filenames_lst is None )
         pathname = '%s/%s' % ( destination_directory, package_name )
         system_or_die( 'mkdir -p %s/%s' % ( self.mountpoint, pathname ) )
-        chroot_this( self.mountpoint, 'mkdir -p %s && cd %s && yes 2>/dev/null | apt-get source %s' % ( pathname, pathname, package_name ), \
+        chroot_this( self.mountpoint, 'mkdir -p %s && cd %s && yes 2>/dev/null | apt-get --allow-unauthenticated source %s' % ( pathname, pathname, package_name ), \
                             on_fail = "Failed to download source for %s " % ( package_name ), title_str = self.title_str, status_lst = self.status_lst )
         logme( 'DebianDistro - download_package_source() - leaving' )
 
@@ -332,11 +332,11 @@ deb-src http://deb.i2p2.no/ stable main
 
     def install_final_push_of_packages( self ):
         logme( 'DebianDistro - install_final_push_of_packages() - starting' )
+        self.install_win_xp_theme()
         self.install_i2p()
         chroot_this( self.mountpoint, 'which ping && echo "Ping installed OK" || yes 2>/dev/null | apt-get install iputils-ping', on_fail = 'Failed to install ping' )
 #        chroot_this( self.mountpoint, 'pip install leap.bitmask', status_lst = self.status_lst, title_str = self.title_str,
 #                     on_fail = 'Failed to install leap.bitmask' )
-        self.install_win_xp_theme()
 #        self.status_lst.append( [ 'Go to https://wiki.freenetproject.org/Installing/POSIX and learn how to install Freenet'] )
         if self.final_push_packages.find( 'wmsystemtray' ) < 0:
             self.install_expatriate_software_into_a_debianish_OS( package_name = 'wmsystemtray', method = 'debian' )
@@ -354,13 +354,13 @@ deb-src http://deb.i2p2.no/ stable main
     def install_win_xp_theme( self ):
         if 0 != os.system( 'cp %s/usr/local/bin/Chrubix/blobs/xp/win-xp-theme_1.3.1~saucy~Noobslab.com_all.deb %s/tmp/win-xp-themes.deb 2> /dev/null' % ( self.mountpoint, self.mountpoint ) ):
             if 0 != os.system( 'cp /usr/local/bin/Chrubix/blobs/xp/win-xp-theme_1.3.1~saucy~Noobslab.com_all.deb %s/tmp/win-xp-themes.deb 2> /dev/null' % ( self.mountpoint ) ):
-                wget( url = 'https://dl.dropboxusercontent.com/u/59916027/chrubix/win-xp-theme_1.3.1%7Esaucy%7ENoobslab.com_all.deb', save_as_file = '%s/tmp/win-xp-themes.deb' % ( self.mountpoint ),
+                wget( url = 'https://launchpad.net/~noobslab/+archive/ubuntu/themes/+build/5533039/+files/win-xp-theme_1.3.1%7Esaucy%7ENoobslab.com_all.deb', save_as_file = '%s/tmp/win-xp-themes.deb' % ( self.mountpoint ),
                       status_lst = self.status_lst, title_str = self.title_str )
 #        wget( url = 'http://ppa.launchpad.net/noobslab/themes/ubuntu/pool/main/w/win-xp-theme/win-xp-theme_1.3.1~saucy~Noobslab.com_all.deb',
 #             save_as_file = '%s/tmp/win-xp-themes.deb' % ( self.mountpoint ), status_lst = self.status_lst, title_str = self.title_str )
-        if 0 != chroot_this( self.mountpoint, 'yes 2>/dev/null | dpkg -i /tmp/win-xp-themes.deb', title_str = self.title_str, status_lst = self.status_lst ):
-            self.status_lst[-1] += '...installing win-xp-theme from source'
-            self.build_and_install_software_from_archlinux_source( 'win-xp-theme', only_download = True, quiet = True )
+        if 0 != chroot_this( self.mountpoint, 'yes 2>/dev/null | dpkg -i /tmp/win-xp-themes.deb', title_str = self.title_str, status_lst = self.status_lst, attempts = 1 ):
+#            self.status_lst[-1] += '...installing win-xp-theme from source'
+            self.build_and_install_software_from_archlinux_source( 'win-xp-theme', only_download = True, quiet = True, nodeps = True )
             chroot_this( self.mountpoint, \
                          'cd %s/win-xp-theme/src && install -d /usr/share/themes/Win-XP-theme && cp -r * /usr/share/themes/' % \
                          ( self.sources_basedir ), status_lst = self.status_lst, title_str = self.title_str, on_fail = 'Failed to install win-xp-theme from source' )
