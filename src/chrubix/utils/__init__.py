@@ -409,7 +409,7 @@ def install_mp3_files( mountpoint ):
     system_or_die( 'mkdir -p %s' % ( mydir ) )
     for myname in ( 'boom', 'error1', 'error2', 'MacStartUp', 'online', 'pg2back', 'pgclean', 'pghere', 'welcome', 'wrongCB', 'winxp', 'wrongSD', 'xpshutdown' ):
         system_or_die( 'cp -f %s/usr/local/bin/Chrubix/blobs/audio/%s.mp3.gz %s/' % ( mountpoint, myname, mydir ) )
-        system_or_die( 'gunzip %s/%s.mp3.gz' % ( mydir, myname ) )
+        system_or_die( 'gunzip -f %s/%s.mp3.gz' % ( mydir, myname ) )
 
 
 def poweroff_now():
