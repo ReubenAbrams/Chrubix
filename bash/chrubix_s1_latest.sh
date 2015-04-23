@@ -431,10 +431,16 @@ oh_well_start_from_beginning() {
 }
 
 
+download_partedandfriends_in_background() {
+	wget $PARTED_URL -O - 2> /dev/null > /tmp/bt_tar.gz
+	mv /tmp/bt_tar.gz $bt_tar
+}
+
 
 main() {
 	btstrap=/home/chronos/user/Downloads/.bootstrap
 	bt_tar=/home/chronos/user/Downloads/.bs.xz
+	download_partedandfriends_in_background &
 	umount $btstrap/tmp/_root/{dev,tmp,proc,sys} 2> /dev/null || echo -en ""
 	umount $btstrap/tmp/posterity 2> /dev/null || echo -en ""
 	umount $btstrap/tmp/_root/{dev,tmp,proc,sys} 2> /dev/null || echo -en ""
@@ -466,12 +472,7 @@ main() {
 		temp_or_perm=`cat /tmp/temp_or_perm`
 	else
 		get_distro_type_the_user_wants
-		if [ "$distroname" = "alarmist" ] ; then
-			temp_or_perm="temp"
-			echo "OK. Everything will be temporary. Nothing will be permanent. (Such is Life...)"
-		else
-			ask_if_user_wants_temporary_or_permanent
-		fi
+		ask_if_user_wants_temporary_or_permanent
 		echo "$temp_or_perm" > /tmp/temp_or_perm
 	fi
 		
@@ -488,8 +489,16 @@ main() {
     	losetup /dev/loop1 /tmp/_alarpy.dat
     	mke2fs /dev/loop1 &> /dev/null || failed "Failed to mkfs the temp loop partition"
     	mount /dev/loop1 $btstrap
-		wget $PARTED_URL -O - > $bt_tar 
 		echo -en "Thinking..."
+		counter=0
+		while [ ! -e "$bt_tar" ] && [ "$counter" -le "120" ] ; do
+			echo -en "."
+			sleep 1
+			counter=$(($counter=1))
+		done
+		if [ ! -e "$bt_tar" ] ; then
+			wget $PARTED_URL -O - > $bt_tar
+		fi		
 		cat $bt_tar | tar -Jx -C $btstrap 2> /dev/null || failed "Failed to download/install parted and friends"
 	fi
 
@@ -618,7 +627,7 @@ else
 	for wildcard in $my_wildcards ; do 
 		rm -f /media/removable/*/*/*"$wildcard"
 	done
-	for distroname in alarmistwheezy archlinux debianjessie debianwheezy ; do
+	for distroname in archlinux debianjessie debianwheezy ; do	# FIXME add other distros
 		echo "$distroname" > /tmp/.chrubix.distro.mmcblk1
 		echo "temp" > /tmp/temp_or_perm
 		clear
