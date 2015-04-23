@@ -27,7 +27,7 @@ class Distro():
     '''
     '''
     # Class-level consts
-    hewwo = '2015/04/23 @ 07:31'
+    hewwo = '2015/04/23 @ 11:25'
     crypto_rootdev = "/dev/mapper/cryptroot"
     crypto_homedev = "/dev/mapper/crypthome"
     boot_prompt_string = "boot: "
@@ -416,24 +416,24 @@ make' % ( self.sources_basedir ), title_str = self.title_str, status_lst = self.
         logme( 'modify_build_and_install_mkfs_and_kernel_for_OS() --- starting' )
         diy = True
         mounted = False
-        fname = '/tmp/posterity/%s/%s_PKGBUILDs.tgz' % ( self.name + ( '' if self.branch is None else self.branch ), self.name + ( '' if self.branch is None else self.branch ) )
-        os.system( 'mkdir -p %s%s' % ( self.mountpoint, os.path.dirname( fname ) ) )
-        system_or_die( 'mkdir -p /tmp/posterity' )
-        if os.system( 'mount /dev/sda1 /tmp/posterity &> /dev/null' ) == 0 \
-        or os.system( 'mount /dev/sdb1 /tmp/posterity &> /dev/null' ) == 0 \
-        or os.system( 'mount | grep /tmp/posterity &> /dev/null' ) == 0:
-            mounted = True
-            if os.path.exists( fname ):
-                diy = False
-        if diy:
-            self.download_kernel_and_mkfs_sources()
-            self.modify_kernel_and_mkfs_sources( apply_kali_and_unionfs_patches = True )
-            self.build_kernel_and_mkfs()
-        else:
-            system_or_die( 'rm -Rf %s%s' % ( self.mountpoint, self.ryo_tempdir ) )
-            system_or_die( 'mkdir -p %s%s' % ( self.mountpoint, self.ryo_tempdir ) )
-            system_or_die( 'tar -zxf %s -C %s%s' % ( fname, self.mountpoint, self.ryo_tempdir ), status_lst = self.status_lst, title_str = self.title_str )
-            system_or_die( 'mkdir -p %s%s/initramfs_dir' % ( self.mountpoint, self.ryo_tempdir ) )
+#        fname = '/tmp/posterity/%s/%s_PKGBUILDs.tgz' % ( self.name + ( '' if self.branch is None else self.branch ), self.name + ( '' if self.branch is None else self.branch ) )
+#        os.system( 'mkdir -p %s%s' % ( self.mountpoint, os.path.dirname( fname ) ) )
+#        system_or_die( 'mkdir -p /tmp/posterity' )
+#        if os.system( 'mount /dev/sda1 /tmp/posterity &> /dev/null' ) == 0 \
+#        or os.system( 'mount /dev/sdb1 /tmp/posterity &> /dev/null' ) == 0 \
+#        or os.system( 'mount | grep /tmp/posterity &> /dev/null' ) == 0:
+#            mounted = True
+#            if os.path.exists( fname ):
+#                diy = False
+#        if diy:
+        self.download_kernel_and_mkfs_sources()
+        self.modify_kernel_and_mkfs_sources( apply_kali_and_unionfs_patches = True )
+        self.build_kernel_and_mkfs()
+#        else:
+#            system_or_die( 'rm -Rf %s%s' % ( self.mountpoint, self.ryo_tempdir ) )
+#            system_or_die( 'mkdir -p %s%s' % ( self.mountpoint, self.ryo_tempdir ) )
+#            system_or_die( 'tar -zxf %s -C %s%s' % ( fname, self.mountpoint, self.ryo_tempdir ), status_lst = self.status_lst, title_str = self.title_str )
+#            system_or_die( 'mkdir -p %s%s/initramfs_dir' % ( self.mountpoint, self.ryo_tempdir ) )
         f = '%s%s/src/chromeos-3.4/drivers/mmc/core/mmc.c' % ( self.mountpoint, self.kernel_src_basedir )
         g = '%s%s/src/chromeos-3.4/fs/btrfs/ctree.h' % ( self.mountpoint, self.kernel_src_basedir )
         assert( os.path.exists( f ) )
@@ -442,14 +442,14 @@ make' % ( self.sources_basedir ), title_str = self.title_str, status_lst = self.
             assert( 0 == os.system( 'diff %s.phez%s %s' % ( f, 'Sullied' if self.pheasants else 'Pristine', f ) ) )
             assert( 0 == os.system( 'diff %s.kthx%s %s' % ( g, 'Sullied' if self.kthx else 'Pristine', g ) ) )
         else:
-            if diy:
-                failed( 'OK, that is messed up! I downloaded AND modified AND built the sources, but they appear not to have been modified.' )
-            else:
-                failed( 'OK, that is messed up! My PKGBUILDs.tgz tarball includes unmodified sources, but that tarball was allegedly created AFTER I had modified the sources. WTF?' )
-        if mounted and diy:
-            chroot_this( '/', 'cd %s%s && tar -cz PKGBUILDs > %s' % ( self.mountpoint, self.ryo_tempdir, fname ),
-                                                    status_lst = self.status_lst, title_str = self.title_str )
-            chroot_this( '/', 'sync;sync;sync;umount /tmp/posterity' , status_lst = self.status_lst, title_str = self.title_str )
+#            if diy:
+            failed( 'OK, that is messed up! I downloaded AND modified AND built the sources, but they appear not to have been modified.' )
+#            else:
+#                failed( 'OK, that is messed up! My PKGBUILDs.tgz tarball includes unmodified sources, but that tarball was allegedly created AFTER I had modified the sources. WTF?' )
+#        if mounted and diy:
+#            chroot_this( '/', 'cd %s%s && tar -cz PKGBUILDs > %s' % ( self.mountpoint, self.ryo_tempdir, fname ),
+#                                                    status_lst = self.status_lst, title_str = self.title_str )
+#            chroot_this( '/', 'sync;sync;sync;umount /tmp/posterity' , status_lst = self.status_lst, title_str = self.title_str )
         self.install_kernel_and_mkfs()
 
     def download_kernel_and_mkfs_sources( self ):
@@ -1342,16 +1342,16 @@ WantedBy=multi-user.target
                                 self.add_shutdown_user,
                                 self.add_guest_user,
                                 self.configure_hostname,
-                                self.save_for_posterity_if_possible_A )
-        second_stage = ( 
                                 self.update_barebones_OS,
                                 self.install_all_important_packages_in_OS,
+                                self.save_for_posterity_if_possible_A )
+        second_stage = ( 
                                 self.install_timezone,
                                 self.install_urwid_and_dropbox_uploader,
                                 self.install_mkinitcpio_ramwipe_hooks,
+                                self.download_modify_build_and_install_kernel_and_mkfs,
                                 self.save_for_posterity_if_possible_B )
         third_stage = ( 
-                                self.download_modify_build_and_install_kernel_and_mkfs,
                                 self.install_chrubix,
                                 self.install_moose,
                                 self.install_freenet,
