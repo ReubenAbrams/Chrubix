@@ -8,7 +8,7 @@ from chrubix.utils import rootcryptdevice, mount_device, mount_sys_tmp_proc_n_de
             chroot_this, wget, do_a_sed, system_or_die, write_oneliner_file, read_oneliner_file, call_binary, install_mp3_files, \
             generate_temporary_filename, backup_the_resolvconf_file, install_gpg_applet, patch_kernel, \
             fix_broken_hyperlinks, disable_root_password, install_windows_xp_theme_stuff, \
-            MAXIMUM_COMPRESSION, set_user_password, call_makepkg_or_die
+            MAXIMUM_COMPRESSION, set_user_password, call_makepkg_or_die, remaining_megabytes_free_on_device
 
 from chrubix.utils.postinst import write_lxdm_post_login_file, write_lxdm_pre_login_file, write_lxdm_post_logout_file, \
             append_lxdm_xresources_addendum, generate_wifi_manual_script, generate_wifi_auto_script, \
@@ -27,7 +27,7 @@ class Distro():
     '''
     '''
     # Class-level consts
-    hewwo = '2015/04/18 @ 19:26'
+    hewwo = '2015/04/23 @ 07:31'
     crypto_rootdev = "/dev/mapper/cryptroot"
     crypto_homedev = "/dev/mapper/crypthome"
     boot_prompt_string = "boot: "
@@ -43,7 +43,8 @@ class Distro():
 liferea gobby busybox bzr cpio cryptsetup curl lzop ed parted libtool patch git nano bc pv pidgin \
 python3 python-pip python-setuptools python-crypto python-yaml python-gobject rng-tools \
 sudo tzdata unzip wget flex gcc bison autoconf dillo \
-gnupg mpg123 pavucontrol ttf-dejavu bluez pulseaudio ffmpeg mplayer notification-daemon ttf-liberation \
+gnupg mpg123 pavucontrol ttf-dejavu bluez pulseaudio paprefs pavucontrol paman \
+ffmpeg mplayer notification-daemon ttf-liberation \
 ntfs-3g autogen automake docbook-xsl pkg-config dosfstools expect acpid make pwgen asciidoc \
 xterm xscreensaver rxvt rxvt-unicode smem python-qrencode python-imaging cmake \
 gimp inkscape scribus audacity pitivi poedit alsa-utils libcanberra-pulse sound-juicer \
@@ -56,8 +57,8 @@ simple-scan macchanger brasero pm-utils mousepad keepassx claws-mail bluez-utils
         self.name = None
         self.branch = None
         self.__args = args
-        self.__pheasants = False  # If True, the new kernel will reject all USB/MMC until the one is found on which the OS resides
-        self.__kthx = False  # if True, the new kernel will use regular (not randomized) markers for filesystems
+        self.__pheasants = True  # If False, the new kernel will reject all USB/MMC until the one is found on which the OS resides
+        self.__kthx = True  # if False, the new kernel will use regular (not randomized) markers for filesystems
         self.__crypto_filesystem_format = 'ext4'
         self.__device = '/dev/null'  # e.g. /dev/mmcblk1
         self.__kernel_dev = '/dev/null'  # e.g. /dev/mmcblk1p1
@@ -445,7 +446,7 @@ make' % ( self.sources_basedir ), title_str = self.title_str, status_lst = self.
                 failed( 'OK, that is messed up! I downloaded AND modified AND built the sources, but they appear not to have been modified.' )
             else:
                 failed( 'OK, that is messed up! My PKGBUILDs.tgz tarball includes unmodified sources, but that tarball was allegedly created AFTER I had modified the sources. WTF?' )
-        if mounted:
+        if mounted and not diy:
             chroot_this( '/', 'cd %s%s && tar -cz PKGBUILDs > %s' % ( self.mountpoint, self.ryo_tempdir, fname ),
                                                     status_lst = self.status_lst, title_str = self.title_str )
             chroot_this( '/', 'sync;sync;sync;umount /tmp/posterity' , status_lst = self.status_lst, title_str = self.title_str )
@@ -680,6 +681,7 @@ Choose the 'boom' password : """ ).strip( '\r\n\r\n\r' )
         system_or_die( 'echo -en "search localhost\nnameserver 8.8.8.8\n" >> %s/etc/resolv.conf' % ( self.mountpoint ) )
 
     def install_gpg_applet( self ):
+        self.status_lst[-1] += 'GPGapplet...'
         install_gpg_applet( self.mountpoint )
 
     def configure_privacy_tools( self ):
@@ -768,7 +770,7 @@ exit 0
         chroot_this( self.mountpoint, 'chmod +x /usr/local/bin/*' )
         os.system( 'clear; sleep 1; sync;sync;sync; clear' )
 
-    def migrate_or_squash_OS( self ):  # FYI, the Alarmist distro (subclass) redefines this subroutine to disable root pw and squash the OS
+    def migrate_or_squash_OS( self ):
         self.status_lst.append( ['Migrating/squashing OS'] )
 #        self.reinstall_chrubix_if_missing()
         logme( 'vvv  THIS SECTION SHOULD BE REMOVED AFTER 7/15/2014 vvv' )
@@ -812,7 +814,7 @@ exit 0
         chroot_this( self.mountpoint, 'chmod +x /etc/lxdm/L*' )
         chroot_this( self.mountpoint, 'chmod +x /etc/lxdm/P*' )
 
-    def migrate_OS( self ):  # ....unless you're the Alarmist subclass, which redefines this as SQUASH MY OS!  :-)
+    def migrate_OS( self ):
         self.status_lst[-1] += '...excellent.'
         self.kernel_rebuild_required = True  # ...because the initramfs needs our boom pw, which means we'll have to rebuild initramfs.... which means rebuilding kernel!
         self.root_is_encrypted = True
@@ -841,6 +843,7 @@ exit 0
         logme( 'leaving phase 6 of 6.' )
 
     def install_moose( self ):
+        self.status_lst[-1] += '...Moose...'
         for module_name in ( 'GnuPG', 'GnuPG::Interface', 'Moose', ):
             chroot_this( self.mountpoint, """yes "Yes" | perl -MCPAN -e 'install %s'""" % ( module_name ),
                          status_lst = self.status_lst, title_str = self.title_str, on_fail = 'Failed to install moose' )
@@ -901,6 +904,12 @@ exit 0
 
     def build_and_install_package_into_alarpy_from_source( self, pkg_name, quiet = False ):
         logme( 'DebianDistro - build_and_install_package_into_alarpy_from_source() - starting' )
+        chroot_this( mountpoint = '/', cmd = 'yes "Y" | pacman -Syu', attempts = 3,
+                     title_str = self.title_str, status_lst = self.status_lst )
+        chroot_this( mountpoint = '/', cmd = 'pacman-db-upgrade', attempts = 1,
+                     title_str = self.title_str, status_lst = self.status_lst )
+        chroot_this( mountpoint = '/', cmd = 'yes "Y" | pacman -S fakeroot', attempts = 1,
+                     title_str = self.title_str, status_lst = self.status_lst )
         if not quiet:
             self.status_lst[-1] += 'Installing %s from source' % ( pkg_name )
         system_or_die( 'mkdir -p %s' % ( self.sources_basedir ) )
@@ -910,20 +919,23 @@ exit 0
                                     title_str = self.title_str,
                                     status_lst = self.status_lst ):
             failed( "Failed to download tarball of %s source code" % ( pkg_name ) )
-        self.status_lst[-1] += '.'
+        if not quiet:
+            self.status_lst[-1] += '.'
         call_makepkg_or_die( cmd = 'cd %s/%s && makepkg --skipchecksums -f'
                                 % ( self.sources_basedir, pkg_name ),
                                 mountpoint = '/',
                                 package_path = '%s/%s' % ( self.sources_basedir, pkg_name ),
                                 errtxt = 'failed to build %s into alarpy from source' % ( pkg_name ) )
-        self.status_lst[-1] += '.'
+        if not quiet:
+            self.status_lst[-1] += '.'
         system_or_die( 'yes "" | pacman -U `ls %s/%s/%s*pkg.tar.xz`'
                                 % ( self.sources_basedir, pkg_name, pkg_name ),
                                 title_str = self.title_str,
                                 status_lst = self.status_lst )
-        self.status_lst[-1] += 'Yep.'
+        if not quiet:
+            self.status_lst[-1] += 'Yep.'
 
-    def build_and_install_software_from_archlinux_source( self, package_name, only_download = False, quiet = False ):
+    def build_and_install_software_from_archlinux_source( self, package_name, only_download = False, quiet = False, nodeps = False ):
     #    pkgbuild_url_template = 'https://projects.archlinux.org/svntogit/packages.git/plain/trunk/%s?h=packages/%s'
         if not quiet and self.status_lst is not None:
             self.status_lst.append( ["%s ArchLinux's %s, from source, into your OS" % ( 'Downloading' if only_download else 'Installing' , package_name )] )
@@ -945,7 +957,7 @@ exit 0
                 system_or_die( 'ln -sf %s/etc/profile.d/%s.sh /etc/profile.d/' % ( self.mountpoint, f ) )
         call_makepkg_or_die( mountpoint = '/',
                              package_path = '%s/%s/%s' % ( self.mountpoint, self.sources_basedir, package_name ),
-                             cmd = 'cd %s/%s/%s && makepkg --skipchecksums --nobuild' % ( self.mountpoint, self.sources_basedir, package_name ),
+                             cmd = 'cd %s/%s/%s && makepkg --skipchecksums --nobuild %s' % ( self.mountpoint, self.sources_basedir, package_name, '--nodeps' if nodeps else '' ),
                              errtxt = 'Failed to download %s into new distro' % ( package_name ) )
         if not only_download:
             if package_name == 'ssss':
@@ -1011,7 +1023,7 @@ exit 0
         chroot_this( self.mountpoint, 'chmod +x /usr/local/bin/*' )
 #        chroot_this( self.mountpoint, 'chmod +x /usr/local/bin/*' )
 #        system_or_die( 'cp -af /tmp %s/usr/local/bin/Chrubix/bash/chrubix.sh' % ( self.mountpoint ) )
-        for f in 'blobs/apps/freenet.tar.xz src/chrubix/distros/alarmist.py blobs/settings/x_alarm_chrubuntu.zip bash/chrubix.sh bash/greeter.sh bash/modify_sources.sh bash/redo_mbr.sh src/main.py src/greeter.py src/tinker.py'.split( ' ' ):
+        for f in 'blobs/apps/freenet.tar.xz src/chrubix/distros/debian.py blobs/settings/x_alarm_chrubuntu.zip bash/chrubix.sh bash/greeter.sh bash/modify_sources.sh bash/redo_mbr.sh src/main.py src/greeter.py src/tinker.py'.split( ' ' ):
             g = '%s/usr/local/bin/Chrubix/%s' % ( self.mountpoint, f )
             if os.path.exists( g ):
                 logme( '%s exists' % ( g ) )
@@ -1095,10 +1107,10 @@ exit 0
         attempt = 0  # to stop Eclipse from warning :)
         for attempt in range( 3 ):
             try:
-                system_or_die( 'cd %s && rm -Rf PKGBUILDs && git clone git://github.com/archlinuxarm/PKGBUILDs.git' % ( self.mountpoint + self.ryo_tempdir ), \
-                                                        title_str = self.title_str, status_lst = self.status_lst )
-
-                call_makepkg_or_die( mountpoint = self.mountpoint,
+                if 0 != system_or_die( 'cd %s && rm -Rf PKGBUILDs && git clone git://github.com/archlinuxarm/PKGBUILDs.git' % ( self.mountpoint + self.ryo_tempdir ), \
+                                                        title_str = self.title_str, status_lst = self.status_lst ):
+                    failed( 'Failed to use git to clone the kernel source' )
+                call_makepkg_or_die( mountpoint = '/',
                                     cmd = 'cd %s && makepkg --skipchecksums --nobuild -f' % ( self.mountpoint + self.kernel_src_basedir ),
                                     errtxt = 'Failed to make/build kernel source',
                                     package_path = self.mountpoint + self.kernel_src_basedir )
@@ -1116,7 +1128,7 @@ exit 0
         assert( os.path.exists( '%s/etc/.mp3/winxp.mp3' % ( self.mountpoint ) ) )
 
     def install_leap_bitmask( self ):
-        logme( 'Installing leap bitmask' )
+        logme( 'bitmask...' )
         self.status_lst[-1] += ' Installing leap bitmask'
         chroot_this( self.mountpoint, 'easy_install-2.7 psutil==1.2.1 leap.common markerlib leap.bitmask' )  # ,status_lst = self.status_lst, title_str = self.title_str )
         if 0 != chroot_this( self.mountpoint, 'which qmake' ):
@@ -1165,6 +1177,7 @@ exit 0
             self.status_lst[-1] += '...yay! Succeeded :-)'
 
     def install_freenet( self ):
+        self.status_lst[-1] += 'Freenet...'
         logme( 'Deleting /opt/freenet' )
         chroot_this( self.mountpoint, 'rm -Rf /opt/freenet',
                      status_lst = self.status_lst, title_str = self.title_str, on_fail = 'Failed to remove old freenet files, if any' )
@@ -1370,7 +1383,7 @@ WantedBy=multi-user.target
         fifth_stage = ( 
                        # Chrubix ought to have been installed in /tmp/_root/{dest distro} already, by the stage 1 bash script.
                                 self.install_vbutils_and_firmware_from_cbook,  # just in case the new user's tools differ from the original builder's tools
-                                self.migrate_or_squash_OS,  # Every class but Alarmist will use migrate_or_squash. Alarmist uses squash.
+                                self.migrate_or_squash_OS,
                                 self.unmount_and_clean_up
                                 )
         all_my_funcs = first_stage + second_stage + third_stage + fourth_stage + fifth_stage
@@ -1396,6 +1409,8 @@ WantedBy=multi-user.target
             logme( 'QQQ Running %s' % ( myfunc.__name__ ) )
             if not os.path.exists( '%s%s/src/chromeos-3.4/arch/arm/boot/vmlinux.uimg' % ( self.mountpoint, self.kernel_src_basedir ) ):
                 logme( 'QQQ FYI, vmlinux.uimg is missing' )
+            if remaining_megabytes_free_on_device( self.root_dev ) < 50:
+                failed( '%s is nearly full --- you might want to tweak the partitioner in bit.do/that' % ( self.root_dev ) )
             myfunc()
             checkpoint_number += 1
             write_oneliner_file( '%s/.checkpoint.txt' % ( self.mountpoint ), str( checkpoint_number ) )
