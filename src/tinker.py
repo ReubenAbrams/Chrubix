@@ -214,10 +214,17 @@ elif argv[2] == 'makepkg':
     pkg = argv[3]
 #    sys.exit( 0 )
     print( "Building %s" % ( pkg ) )
-    call_makepkg_or_die( mountpoint = distro.mountpoint, \
+    call_makepkg_or_die( mountpoint = '/', \
                             package_path = '%s/%s' % ( distro.sources_basedir, pkg ), \
                             cmd = 'cd %s/%s && makepkg --skipchecksums --nobuild -f' % ( distro.sources_basedir, pkg ),
-                            errtxt = 'Failed to download %s' % ( pkg ), title_str = None, status_lst = None )
+                            errtxt = 'Failed to download %s' % ( pkg ) )
+elif argv[2] == 'alarpy-build':
+    distro = generate_distro_record_from_name( 'debianwheezy' )
+    distro.mountpoint = '/tmp/_root'
+    distro.device = '/dev/mmcblk1'
+    distro.root_dev = '/dev/mmcblk1p3'
+    distro.spare_dev = '/dev/mmcblk1p2'
+    distro.build_and_install_package_into_alarpy_from_source( argv[3], quiet = True )
 elif argv[2] == 'debian-i2p':
     distro = generate_distro_record_from_name( 'debianwheezy' )
     distro.mountpoint = '/tmp/_root'
@@ -225,9 +232,17 @@ elif argv[2] == 'debian-i2p':
     distro.root_dev = '/dev/mmcblk1p3'
     distro.spare_dev = '/dev/mmcblk1p2'
     distro.install_i2p()
+elif argv[2] == 'win-xp-theme':
+    distro = generate_distro_record_from_name( argv[3] )
+    distro.mountpoint = '/tmp/_root'
+    distro.device = '/dev/mmcblk1'
+    distro.root_dev = '/dev/mmcblk1p3'
+    distro.spare_dev = '/dev/mmcblk1p2'
+    distro.install_win_xp_theme()
 else:
     raise RuntimeError ( 'I do not understand %s' % ( argv[2] ) )
 os.system( 'sleep 5' )
 print( "Exiting w/ retval=%d" % ( res ) )
 sys.exit( res )
+
 
