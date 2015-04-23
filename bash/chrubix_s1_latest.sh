@@ -554,6 +554,7 @@ main() {
 		if restore_from_stage_X_backup_if_possible ; then
 			echo "Restored from stage X. Good."
 		else
+			clear
 			echo "OK. Starting from beginning."
 			oh_well_start_from_beginning
 		fi
