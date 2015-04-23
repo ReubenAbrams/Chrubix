@@ -27,7 +27,7 @@ class Distro():
     '''
     '''
     # Class-level consts
-    hewwo = '2015/04/23 @ 12:00'
+    hewwo = '2015/04/23 @ 14:20'
     crypto_rootdev = "/dev/mapper/cryptroot"
     crypto_homedev = "/dev/mapper/crypthome"
     boot_prompt_string = "boot: "
@@ -414,8 +414,8 @@ make' % ( self.sources_basedir ), title_str = self.title_str, status_lst = self.
 
     def download_modify_build_and_install_kernel_and_mkfs( self ):
         logme( 'modify_build_and_install_mkfs_and_kernel_for_OS() --- starting' )
-        diy = True
-        mounted = False
+#        diy = True
+#        mounted = False
 #        fname = '/tmp/posterity/%s/%s_PKGBUILDs.tgz' % ( self.name + ( '' if self.branch is None else self.branch ), self.name + ( '' if self.branch is None else self.branch ) )
 #        os.system( 'mkdir -p %s%s' % ( self.mountpoint, os.path.dirname( fname ) ) )
 #        system_or_die( 'mkdir -p /tmp/posterity' )
@@ -604,6 +604,10 @@ Choose the 'boom' password : """ ).strip( '\r\n\r\n\r' )
             dirs_to_backup += ' .bootstrap/%s' % ( dir_name )
         system_or_die( 'mkdir -p %s%s' % ( self.mountpoint, os.path.dirname( output_file ) ) )
         system_or_die( 'rm -Rf %s/.*rash*' % ( os.path.dirname( output_file ) ) )
+        if output_file.find( '_D' ) >= 0:
+            old_A_file = output_file.replace( '_D.', '_A.' )
+            logme( 'Deleting %s because we are creating %s' % ( old_A_file, output_file ) )
+            os.unlink( old_A_file )
         system_or_die( 'cd %s && tar -c %s | xz %s | dd bs=256k > %s/temp.data' % ( self.mountpoint, dirs_to_backup, compression_parameters, os.path.dirname( output_file ) ), title_str = self.title_str, status_lst = self.status_lst )
         system_or_die( 'mv %s/temp.data %s' % ( os.path.dirname( output_file ), output_file ) )
         self.status_lst[-1] += '...created.'
@@ -1081,7 +1085,8 @@ exit 0
             self.status_lst.append( ['Generating squashfs of this OS'] )
             system_or_die( 'mkdir -p %s/_to_add_to_squashfs/{dev,proc,sys,tmp,root}' % ( self.mountpoint ) )
             chroot_this( self.mountpoint, \
-'mksquashfs /bin /boot /etc /home /lib /mnt /opt /run /sbin /usr /srv /var /_to_add_to_squashfs/* /.squashfs.sqfs %s' % ( '-comp xz' if chrubix.utils.MAXIMUM_COMPRESSION else '' ),
+'mksquashfs /bin /boot /etc /home /lib /mnt /opt /run /sbin /usr /srv /var /_to_add_to_squashfs/* /.squashfs.sqfs %s' % \
+                                                         ( '-b 1048576 -comp xz -Xdict-size 100%' if chrubix.utils.MAXIMUM_COMPRESSION else '' ),
                                                          status_lst = self.status_lst, title_str = self.title_str,
                                                          attempts = 1, on_fail = 'Failed to generate squashfs' )
             self.status_lst[-1] += '...generated.'
