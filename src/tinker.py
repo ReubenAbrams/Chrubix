@@ -8,7 +8,7 @@
 import sys
 import os
 from chrubix import generate_distro_record_from_name
-from chrubix.utils import fix_broken_hyperlinks, system_or_die, call_makepkg_or_die, \
+from chrubix.utils import fix_broken_hyperlinks, system_or_die, call_makepkg_or_die, remaining_megabytes_free_on_device, \
                           chroot_this, patch_org_freedesktop_networkmanager_conf_file, failed
 from chrubix.distros.debian import generate_mickeymouse_lxdm_patch
 from chrubix.utils.postinst import remove_junk, ask_the_user__guest_mode_or_user_mode__and_create_one_if_necessary
@@ -239,6 +239,9 @@ elif argv[2] == 'win-xp-theme':
     distro.root_dev = '/dev/mmcblk1p3'
     distro.spare_dev = '/dev/mmcblk1p2'
     distro.install_win_xp_theme()
+elif argv[2] == 'free':
+    r = remaining_megabytes_free_on_device( argv[3] )
+    failed( 'free space on %s is %d MB' % ( argv[3], r ) )
 else:
     raise RuntimeError ( 'I do not understand %s' % ( argv[2] ) )
 os.system( 'sleep 5' )
