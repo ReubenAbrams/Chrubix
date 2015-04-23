@@ -461,8 +461,8 @@ def call_makepkg_or_die( cmd, mountpoint, package_path, errtxt ):
     chroot_this( mountpoint, r'chmod -R 700 %s' % ( gittify_this_folder ) )
 
 
-def remaining_megabytes_free_on_device( dev ):
-    lst = call_binary( ['df', '-m'] )[1].decode( 'utf-8' ).split( '\n' )
+def remaining_megabytes_free_on_device( dev ):  # FIXME broken
+    lst = call_binary( ['df', '-m', dev] )[1].decode( 'utf-8' ).split( '\n' )
     possible_candidates = [ s for s in lst if s.rfind( dev ) >= 0]
     if possible_candidates in ( None, [] ):
         failed( 'Unable to find %s remaining space' % ( dev ) )
