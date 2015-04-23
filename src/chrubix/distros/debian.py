@@ -7,6 +7,7 @@ from chrubix.utils import generate_temporary_filename, g_proxy, failed, system_o
                           chroot_this, read_oneliner_file, do_a_sed, call_binary, patch_org_freedesktop_networkmanager_conf_file  # , install_lxdm_from_source
 import os
 from chrubix.distros import Distro
+from posix import lstat
 
 
 def do_debian_specific_mbr_related_hacks( mountpoint ):
@@ -194,6 +195,9 @@ Acquire::ftp::Proxy  "ftp://%s/";
 Acquire::https::Proxy "https://%s/";
 ''' % ( g_proxy, g_proxy, g_proxy ) )
             f.close()
+        chroot_this( self.mountpoint, 'wget http://www.deb-multimedia.org/pool/main/d/deb-multimedia-keyring/deb-multimedia-keyring_2014.2_all.deb -O - > /tmp/debmult.deb', attempts = 1, title_str = self.title_str, status_lst = self.status_lst )
+        chroot_this( self.mountpoint, 'dpkg -i /tmp/debmult.deb', attempts = 1, title_str = self.title_str, status_lst = self.status_lst )
+        chroot_this( self.mountpoint, 'apt-get update', attempts = 1, title_str = self.title_str, status_lst = self.status_lst )
         logme( 'DebianDistro - install_package_manager_tweaks() - leaving' )
 
     def update_and_upgrade_all( self ):
@@ -316,18 +320,58 @@ Acquire::https::Proxy "https://%s/";
         logme( 'DebianDistro - configure_distrospecific_tweaks() - leaving' )
 
     def install_i2p( self ):
-        write_oneliner_file( '%s/etc/apt/sources.list.d/i2p.list' % ( self.mountpoint ), '''
-deb http://deb.i2p2.no/ stable main
-deb-src http://deb.i2p2.no/ stable main
-''' )
-        for cmd in ( 
-                    'yes 2>/dev/null | add-apt-repository "deb http://deb.i2p2.no/ %s main"' % ( 'wheezy' ),  # 'unstable' if self.branch == 'jessie' else 'stable' ),
-                    'yes "" 2>/dev/null | curl https://geti2p.net/_static/i2p-debian-repo.key.asc | apt-key add -',
-                    'yes 2>/dev/null | apt-get update'
-                   ):
-            chroot_this( self.mountpoint, cmd, title_str = self.title_str, status_lst = self.status_lst,
-                         on_fail = "Failed to run %s successfully" % ( cmd ) )
-        chroot_this( self.mountpoint, 'yes | apt-get install i2p i2p-keyring', on_fail = 'Failed to install i2p' )
+        i2p_website = 'http://deb.i2p2.no'
+        i2p_branch = 'unstable' if self.branch == 'jessie' else 'stable'
+        if i2p_branch != 'stable':  # For some reason, the i2p website's unstable packages do not include armhf; bummer!
+            chroot_this( self.mountpoint, 'yes "" 2>/dev/null | curl https://geti2p.net/_static/i2p-debian-repo.key.asc | apt-key add -', title_str = self.title_str, status_lst = self.status_lst )
+            chroot_this( self.mountpoint, 'yes "Y" 2> /dev/null | apt-get install service-wrapper' , title_str = self.title_str, status_lst = self.status_lst )
+            lst = call_binary( ['wget', i2p_website + '#sid', '-O', '-'] )[1].decode( 'utf-8' ).replace( '<', '\n' ).replace( '>', '\n' ).split( '\n' )
+            lstB = [ r.replace( 'a href=', '' ).strip( '"' ) for r in lst if r.find( 'deb' ) >= 0
+                    and ( r.find( 'armhf' ) >= 0 or r.find( 'all.deb' ) >= 0 )]
+            chroot_this( self.mountpoint, 'rm -Rf /tmp/i2p' )
+            chroot_this( self.mountpoint, 'mkdir -p /tmp/i2p' )
+            for my_wanted_item in ( 'i2p', 'i2p-keyring', 'i2p-doc', 'i2p-router', 'service-wrapper', 'libjbigi' ):  # FIXME i2pd?
+                r = [ r for r in lstB if r.find( '/' + my_wanted_item ) > 0][0]
+                logme( '%s => %s' % ( my_wanted_item, r ) )
+                s = self.mountpoint + '/tmp/i2p/' + os.path.basename( r )
+                short_name = s.split( '/' )[-1].split( '_' )[0]
+                logme( 'Downloading %s (%s) to %s' % ( r, short_name, s ) )
+                try:
+                    wget( '%s/%s' % ( i2p_website, r ), s, quiet = False, title_str = self.title_str, status_lst = self.status_lst, attempts = 1 )
+                except SystemError:
+                    continue
+            chroot_this( self.mountpoint, 'dpkg -i /tmp/i2p/*.deb', title_str = self.title_str, status_lst = self.status_lst, attempts = 1, on_fail = 'Failed to install I2P. Wah.' )
+#                                                                             attempts = 1,
+#                                                                             on_fail = 'Failed to install %s' % ( package_name ) )
+#             if self.status_lst is not None:                      self.status_lst[-1] += '...Extracting'
+#             self.extract_pkgfiles_accordingly( package_name, files_i_want )
+#             if self.status_lst is not None:                      self.status_lst[-1] += '...Tweaking'
+#             self.tweak_pkgfiles_accordingly( package_name )
+#             if self.status_lst is not None:                      self.status_lst[-1] += '...Building'
+#             self.build_package_from_fileset( package_name )
+#             if self.status_lst is not None:                      self.status_lst[-1] += '...Installing'
+#             chroot_this( self.mountpoint, 'dpkg -i %s/%s/%s_*.deb' % ( self.sources_basedir, package_name, package_name ),
+#                                                                             attempts = 1,
+#                                                                             on_fail = 'Failed to install %s' % ( package_name ) )
+#             if self.status_lst is not None:                      self.status_lst[-1] += '...Yay.'
+            system_or_die( 'rm -f %s%s/*.deb' % ( self.mountpoint, self.sources_basedir ) )
+        else:
+#        chroot_this( self.mountpoint, 'wget http://www.deb-multimedia.org/pool/main/d/deb-multimedia-keyring/deb-multimedia-keyring_2014.2_all.deb -O - > /tmp/debmult.deb', attempts = 1, title_str = self.title_str, status_lst = self.status_lst )
+#        chroot_this( self.mountpoint, 'dpkg -i /tmp/debmult.deb', attempts = 1, title_str = self.title_str, status_lst = self.status_lst )
+#        chroot_this( self.mountpoint, 'apt-get update', attempts = 1, title_str = self.title_str, status_lst = self.status_lst )
+            write_oneliner_file( '%s/etc/apt/sources.list.d/i2p.list' % ( self.mountpoint ), '''
+deb http://deb.i2p2.no/ %s main
+deb-src http://deb.i2p2.no/ %s main
+''' % ( i2p_branch, i2p_branch ) )
+            for cmd in ( 
+                        'yes 2>/dev/null | add-apt-repository "deb http://deb.i2p2.no/ %s main"' % ( i2p_branch ),
+                        'yes "" 2>/dev/null | curl https://geti2p.net/_static/i2p-debian-repo.key.asc | apt-key add -',
+                        'yes 2>/dev/null | apt-get update'
+                       ):
+                chroot_this( self.mountpoint, cmd, title_str = self.title_str, status_lst = self.status_lst,
+                             on_fail = "Failed to run %s successfully" % ( cmd ) )
+            chroot_this( self.mountpoint, 'yes | apt-get install i2p i2p-keyring', on_fail = 'Failed to install i2p' )
+        logme( 'tweaking i2p ID...' )
         do_a_sed( '%s/etc/passwd' % ( self.mountpoint ), 'i2p:/bin/false', 'i2p:/bin/bash' )
 
     def install_final_push_of_packages( self ):
