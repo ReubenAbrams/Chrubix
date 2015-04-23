@@ -597,14 +597,14 @@ Choose the 'boom' password : """ ).strip( '\r\n\r\n\r' )
         self.status_lst[-1] += "..OK."
 
     def generate_tarball_of_my_rootfs( self, output_file ):
-        compression_level = 9 if ( output_file.find( '_D' ) >= 0 and chrubix.utils.MAXIMUM_COMPRESSION is True ) else 1
+        compression_parameters = '-9 --extreme' if ( output_file.find( '_D' ) >= 0 and chrubix.utils.MAXIMUM_COMPRESSION is True ) else '-1'
         self.status_lst.append( ['Creating tarball %s of my rootfs' % ( output_file )] )
         dirs_to_backup = 'bin boot etc home lib mnt opt root run sbin srv usr var'
         for dir_name in dirs_to_backup.split( ' ' ):
             dirs_to_backup += ' .bootstrap/%s' % ( dir_name )
         system_or_die( 'mkdir -p %s%s' % ( self.mountpoint, os.path.dirname( output_file ) ) )
         system_or_die( 'rm -Rf %s/.*rash*' % ( os.path.dirname( output_file ) ) )
-        system_or_die( 'cd %s && tar -c %s | xz -%d | dd bs=256k > %s/temp.data' % ( self.mountpoint, dirs_to_backup, compression_level, os.path.dirname( output_file ) ), title_str = self.title_str, status_lst = self.status_lst )
+        system_or_die( 'cd %s && tar -c %s | xz %s | dd bs=256k > %s/temp.data' % ( self.mountpoint, dirs_to_backup, compression_parameters, os.path.dirname( output_file ) ), title_str = self.title_str, status_lst = self.status_lst )
         system_or_die( 'mv %s/temp.data %s' % ( os.path.dirname( output_file ), output_file ) )
         self.status_lst[-1] += '...created.'
         return 0
@@ -769,6 +769,7 @@ exit 0
         chroot_this( self.mountpoint, 'ln -sf Chrubix/bash/ersatz_lxdm.sh /usr/local/bin/ersatz_lxdm.sh', on_fail = 'Failed to setup ersatz_lxdm.sh' )
         chroot_this( self.mountpoint, 'chmod +x /usr/local/bin/*' )
         os.system( 'clear; sleep 1; sync;sync;sync; clear' )
+        install_mp3_files( self.mountpoint )
 
     def migrate_or_squash_OS( self ):
         self.status_lst.append( ['Migrating/squashing OS'] )
@@ -1124,7 +1125,6 @@ exit 0
         install_windows_xp_theme_stuff( self.mountpoint )
 #        if os.path.exists( '%s/usr/share/icons/GnomeXP' % ( self.mountpoint ) ):
 #            raise RuntimeError( 'I have already installed the groovy XP stuff, FYI.' )
-        install_mp3_files( self.mountpoint )
         assert( os.path.exists( '%s/etc/.mp3/winxp.mp3' % ( self.mountpoint ) ) )
 
     def install_leap_bitmask( self ):
