@@ -27,7 +27,7 @@ class Distro():
     '''
     '''
     # Class-level consts
-    hewwo = '2015/04/23 @ 11:25'
+    hewwo = '2015/04/23 @ 12:00'
     crypto_rootdev = "/dev/mapper/cryptroot"
     crypto_homedev = "/dev/mapper/crypthome"
     boot_prompt_string = "boot: "
@@ -330,9 +330,9 @@ make' % ( self.sources_basedir ), title_str = self.title_str, status_lst = self.
         return 0
 
     def install_vbutils_and_firmware_from_cbook( self ):
-        system_or_die( 'tar -zxf /tmp/.hipxorg.tgz -C %s' % ( self.mountpoint ), status_lst = self.status_lst, title_str = self.title_str )
-        system_or_die( 'tar -zxf /tmp/.vbtools.tgz -C %s' % ( self.mountpoint ), status_lst = self.status_lst, title_str = self.title_str )
-        system_or_die( 'tar -zxf /tmp/.firmware.tgz -C %s' % ( self.mountpoint ), status_lst = self.status_lst, title_str = self.title_str )
+        system_or_die( 'tar -zxf /tmp/.hipxorg.tgz -C %s 2> /dev/null' % ( self.mountpoint ), status_lst = self.status_lst, title_str = self.title_str )
+        system_or_die( 'tar -zxf /tmp/.vbtools.tgz -C %s 2> /dev/null' % ( self.mountpoint ), status_lst = self.status_lst, title_str = self.title_str )
+        system_or_die( 'tar -zxf /tmp/.firmware.tgz -C %s 2> /dev/null' % ( self.mountpoint ), status_lst = self.status_lst, title_str = self.title_str )
         chroot_this( self.mountpoint, 'cd /lib/firmware/ && ln -sf s5p-mfc/s5p-mfc-v6.fw mfc_fw.bin 2> /dev/null' )
 
     def set_disk_password( self ):
