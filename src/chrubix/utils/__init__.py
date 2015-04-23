@@ -250,6 +250,7 @@ def chroot_this( mountpoint, cmd, on_fail = None, attempts = 3, title_str = None
     outstr = '#!/bin/bash\n%s\n%s\nexit $?\n' % ( proxy_info, cmd )
     f.write( outstr.encode( 'utf-8' ) )
     f.close()
+    system_or_die( 'chmod 777 %s' % ( mountpoint + my_executable_script ) )
     system_or_die( 'chmod +x %s' % ( mountpoint + my_executable_script ) )
     for att in range( attempts ):
         att = att  # hide Eclipse warning
@@ -260,6 +261,8 @@ def chroot_this( mountpoint, cmd, on_fail = None, attempts = 3, title_str = None
         else:
             if user == 'root':
                 res = os.system( 'chroot %s %s' % ( mountpoint, my_executable_script ) )
+            elif mountpoint in ( '/', None ):  # build within alarpy, NOT within final distro
+                res = os.system( 'chroot --userspec=%s %s %s' % ( user, '/', my_executable_script ) )
             else:
                 res = os.system( 'chroot --userspec=%s %s %s' % ( user, mountpoint, my_executable_script ) )
         if res == 0:
@@ -325,7 +328,8 @@ def patch_kernel( mountpoint, folder, url ):
     if url[-3:] == '.gz':
         system_or_die( 'mv %s%s %s%s.gz' % ( mountpoint, tmpfile, mountpoint, tmpfile ) )
         system_or_die( 'gunzip %s%s.gz' % ( mountpoint, tmpfile ) )
-    assert( os.path.isdir( '%s%s' % ( mountpoint, folder ) ) )
+    if not os.path.isdir( '%s%s' % ( mountpoint, folder ) ):
+        failed( 'This should be a directory but it is not one. ==> %s%s' % ( mountpoint, folder ) )
     assert( os.path.isfile( '%s%s' % ( mountpoint, tmpfile ) ) )
     if 0 != chroot_this( mountpoint, 'patch -p1 --no-backup-if-mismatch -d %s < %s' % ( folder, tmpfile ), attempts = 1 ):
         failed( 'Failed to apply %s patch to kernel.' % ( url ) )
@@ -435,20 +439,38 @@ def patch_org_freedesktop_networkmanager_conf_file( config_file, patch_file ):
 
 
 def call_makepkg_or_die( cmd, mountpoint, package_path, errtxt ):
+    gittify_this_folder = package_path[:package_path.rfind( '/root' ) + 5]
+    chroot_this( mountpoint, r'chown -R git %s' % ( gittify_this_folder ) )
+    chroot_this( mountpoint, r'chmod -R 777 %s' % ( gittify_this_folder ) )
     if mountpoint in ( None, '/' ):
         system_or_die( r'chmod 777 /dev/null' )
         system_or_die( r'mkdir -p %s' % ( package_path ) )
-        system_or_die( r'chown -R guest %s' % ( package_path ) )
+        system_or_die( r'chown -R git %s' % ( package_path ) )
         system_or_die( r'chmod -R 777 %s' % ( package_path ) )
-        chroot_this( mountpoint, cmd, errtxt, user = 'guest' )
+        chroot_this( mountpoint, cmd, errtxt, user = 'git' )
 #    system_or_die( r'chown -R root %s' % ( package_path ) )
     else:
         chroot_this( mountpoint, r'chmod 777 /dev/null' )
         chroot_this( mountpoint, r'mkdir -p %s' % ( package_path ) )
-        chroot_this( mountpoint, r'chown -R guest %s' % ( package_path, ) )
-        chroot_this( mountpoint, r'chmod -R 777 %s' % ( package_path ) )
-        chroot_this( mountpoint, 'cd %s && makepkg --skipchecksums --nobuild -f' % ( package_path ), 'Failed to download %s' % ( os.path.basename( package_path ) ), \
-                                    user = 'guest' )
+#        chroot_this( mountpoint, r'chown -R nobody %s' % ( package_path, ) )
+#        chroot_this( mountpoint, r'chmod -R 777 %s' % ( package_path ) )
+#        assert( package_path[:5] == '/root' )
+        chroot_this( mountpoint, cmd, user = 'git' )
+#        chroot_this( mountpoint, 'cd %s && makepkg --skipchecksums --nobuild %s -f' % ( package_path, '--nodeps' if nodeps else '' ), user = 'git' )
+    chroot_this( mountpoint, r'chown -R root %s' % ( gittify_this_folder ) )
+    chroot_this( mountpoint, r'chmod -R 700 %s' % ( gittify_this_folder ) )
 
 
-
+def remaining_megabytes_free_on_device( dev ):
+    lst = call_binary( ['df', '-m'] )[1].decode( 'utf-8' ).split( '\n' )
+    possible_candidates = [ s for s in lst if s.rfind( dev ) >= 0]
+    if possible_candidates in ( None, [] ):
+        failed( 'Unable to find %s remaining space' % ( dev ) )
+    else:
+        this_one = possible_candidates[0].replace( '  ', ' ' ).replace( '  ', ' ' ).replace( '  ', ' ' ).replace( '  ', ' ' ).replace( '  ', ' ' )
+        res = this_one.split( ' ' )[3]
+        logme( '%s has %s MB remaining' % ( dev, res ) )
+        try:
+            return int( res )
+        except ( TypeError, SyntaxError ):
+            failed( 'Unable to return %s' % str( res ) )
