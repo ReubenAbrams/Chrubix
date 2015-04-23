@@ -34,7 +34,7 @@ fi
 ALARPY_URL="https://dl.dropboxusercontent.com/u/59916027/chrubix/skeletons/alarpy.tar.xz"
 PARTED_URL="https://dl.dropboxusercontent.com/u/59916027/chrubix/skeletons/parted_and_friends.tar.xz"
 FINALS_URL="https://dl.dropboxusercontent.com/u/59916027/chrubix/finals"
-CHRUBIX_URL=https://github.com/ReubenAbrams/Chrubix/archive/master.tar.gz
+CHRUBIX_URL="http://github.com/ReubenAbrams/Chrubix/archive/master.tar.gz"
 OVERLAY_URL=https://dl.dropboxusercontent.com/u/59916027/chrubix/_chrubix.tar.xz
 RYO_TEMPDIR=/root/.rmo
 SOURCES_BASEDIR=$RYO_TEMPDIR/PKGBUILDs/core
@@ -169,7 +169,7 @@ partition_device() {
 	chroot_this $btstrap "cgpt add -i  1 -t kernel -b  8192 -s 32768 -l U-Boot -S 1 -T 5 -P 10 $dev"
 	chroot_this $btstrap "cgpt add -i 12 -t data   -b 40960 -s 32768 -l Script $dev"
 	lastblock=`cgpt show $dev | tail -n3 | grep "Sec GPT table" | tr -s ' ' '\t' | cut -f2`
-	splitpoint=$(($lastblock/2))
+	splitpoint=$(($lastblock/2-1200999))
 
 	chroot_this $btstrap "cgpt add -i  2 -t data   -b 73728 -s `expr $splitpoint - 73728` -l Kernel $dev"
 	chroot_this $btstrap "cgpt add -i  3 -t data   -b $splitpoint -s `expr $lastblock - $splitpoint` -l Root $dev"
@@ -255,7 +255,6 @@ Choose from...
 
    (A)rchLinux
    (J)essie, a.k.a. Debian Unstable
-   (T) - Alarmist, a TAILS-like ARM distro
    (W)heezy, a.k.a. Debian Stable
 
 Which would you like me to install? "
@@ -266,7 +265,6 @@ Which would you like me to install? "
 "J") distroname="debianjessie";;
 "K") distroname="kali";;
 "S") distroname="suse";;
-"T") distroname="alarmistwheezy";;
 "U") distroname="ubuntupangolin";;
 "W") distroname="debianwheezy";;
 *)   echo "Unknown distro";;
@@ -339,7 +337,7 @@ restore_from_squash_fs_backup_if_possible() {
 			return 0
 		fi
 	else
-		echo "Online squashfs not found." > /dev/stderr
+		echo -en "\r Online squashfs not found. " > /dev/stderr
 	fi
 	return 1
 }
@@ -505,7 +503,7 @@ main() {
 	umount /dev/mmcblk1* &> /dev/null || echo -en ""
 	partition_device $dev $dev_p $btstrap &> /dev/null || failed "Failed to partition $dev"
 	echo -en "Done. Formatting..."
-	format_partitions $dev $dev_p $btstrap &> /dev/null
+	format_partitions $dev $dev_p $btstrap || failed "Failed to format $dev"
 	echo "Done."
 	umount $btstrap/{dev,sys,proc,tmp}
 
@@ -633,3 +631,5 @@ else
 		umount "$dev_p"* || echo -en ""
 	done
 fi
+
+
