@@ -226,7 +226,7 @@ elif argv[2] == 'alarpy-build':
     distro.spare_dev = '/dev/mmcblk1p2'
     distro.build_and_install_package_into_alarpy_from_source( argv[3], quiet = True )
 elif argv[2] == 'debian-i2p':
-    distro = generate_distro_record_from_name( 'debianwheezy' )
+    distro = generate_distro_record_from_name( argv[3] )
     distro.mountpoint = '/tmp/_root'
     distro.device = '/dev/mmcblk1'
     distro.root_dev = '/dev/mmcblk1p3'
