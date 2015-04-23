@@ -446,7 +446,7 @@ make' % ( self.sources_basedir ), title_str = self.title_str, status_lst = self.
                 failed( 'OK, that is messed up! I downloaded AND modified AND built the sources, but they appear not to have been modified.' )
             else:
                 failed( 'OK, that is messed up! My PKGBUILDs.tgz tarball includes unmodified sources, but that tarball was allegedly created AFTER I had modified the sources. WTF?' )
-        if mounted and not diy:
+        if mounted and diy:
             chroot_this( '/', 'cd %s%s && tar -cz PKGBUILDs > %s' % ( self.mountpoint, self.ryo_tempdir, fname ),
                                                     status_lst = self.status_lst, title_str = self.title_str )
             chroot_this( '/', 'sync;sync;sync;umount /tmp/posterity' , status_lst = self.status_lst, title_str = self.title_str )
