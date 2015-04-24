@@ -18,7 +18,6 @@ chmod +x /usr/local/bin/*
 
 export DISPLAY=:0.0
 cd /usr/local/bin/Chrubix/src
-gunzip ../blobs/audio/*mp3*gz
 
 if [ "$1" = "tinker" ] ; then
 	python3 tinker.py $@
