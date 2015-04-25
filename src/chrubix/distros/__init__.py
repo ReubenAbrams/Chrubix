@@ -640,7 +640,8 @@ Choose the 'boom' password : """ ).strip( '\r\n\r\n\r' )
     def update_barebones_OS( self ):
         self.status_lst.append( ["Updating skeleton"] )
         self.install_package_manager_tweaks()
-        self.update_and_upgrade_all()
+#        system_or_die( 'rm -f /var/lib/pacman/db.lck; sync; sync; sync; sleep 2; sync; sync; sync; sleep 2' )
+        chroot_this( '/', r'yes "" 2>/dev/null | pacman -Syu', "Failed to upgrade OS", attempts = 3, title_str = self.title_str, status_lst = self.status_lst )
         self.status_lst[-1] += "...updated."
 
     def install_all_important_packages_in_OS( self ):
@@ -956,7 +957,7 @@ exit 0
                 system_or_die( 'ln -sf %s/etc/profile.d/%s.sh /etc/profile.d/' % ( self.mountpoint, f ) )
         call_makepkg_or_die( mountpoint = '/',
                              package_path = '%s/%s/%s' % ( self.mountpoint, self.sources_basedir, package_name ),
-                             cmd = 'cd %s/%s/%s && makepkg --skipchecksums --nobuild %s' % ( self.mountpoint, self.sources_basedir, package_name, '--nodeps' if nodeps else '' ),
+                             cmd = 'cd %s/%s/%s && makepkg --skipchecksums --nodeps --nobuild %s' % ( self.mountpoint, self.sources_basedir, package_name, '--nodeps' if nodeps else '' ),
                              errtxt = 'Failed to download %s into new distro' % ( package_name ) )
         if not only_download:
             if package_name == 'ssss':
@@ -1413,4 +1414,3 @@ WantedBy=multi-user.target
             myfunc()
             checkpoint_number += 1
             write_oneliner_file( '%s/.checkpoint.txt' % ( self.mountpoint ), str( checkpoint_number ) )
-
