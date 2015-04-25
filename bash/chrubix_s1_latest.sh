@@ -42,13 +42,11 @@ KERNEL_SRC_BASEDIR=$SOURCES_BASEDIR/linux-chromebook
 LOGLEVEL=2
 
 
-if [ -e "/home/chronos/user/Downloads/reubenabrams.txt" ] ; then 
-	FINALS_URL="https://dont.use.online.stuff.at.all"
-	if ping -W2 -c1 192.168.1.66 &>/dev/null ; then
-		WGET_PROXY="http://192.168.1.66:8080"
-		export http_proxy=$WGET_PROXY
-	fi
-fi
+#if ifconfig | grep inet | fgrep 192.168.0 &> /dev/null ; then
+#	WGET_PROXY="http://192.168.0.106:8080"
+#	export http_proxy=$WGET_PROXY
+#	export WGET_PROXY=$WGET_PROXY
+#fi
 
 
 
@@ -428,30 +426,31 @@ oh_well_start_from_beginning() {
 	chroot_this $btstrap "locale-gen"
 	echo "LANG=\"en_US.UTF-8\"" >> $btstrap/etc/locale.conf
 	echo "nameserver 8.8.8.8" >> $btstrap/etc/resolv.conf
-	chroot_this $btstrap "pacman-db-upgrade"
-	chroot_this $btstrap "yes Y | pacman -Syu"
-	chroot_this $btstrap "yes Y | pacman -Sy fakeroot"
+	echo "Woohoo."
 }
 
 
 download_partedandfriends_in_background() {
-	wget $PARTED_URL -O - 2> /dev/null > /tmp/bt_tar.gz
-	mv /tmp/bt_tar.gz $bt_tar
+	wget $PARTED_URL -O - 2> /dev/null > /tmp/bt.tar.xz.downloading
+	mv /tmp/bt.tar.xz.downloading /tmp/bt.tar.xz
 }
 
 
 main() {
-	btstrap=/home/chronos/user/Downloads/.bootstrap
-	bt_tar=/home/chronos/user/Downloads/.bs.xz
 	download_partedandfriends_in_background &
-	umount $btstrap/tmp/_root/{dev,tmp,proc,sys} 2> /dev/null || echo -en ""
-	umount $btstrap/tmp/posterity 2> /dev/null || echo -en ""
-	umount $btstrap/tmp/_root/{dev,tmp,proc,sys} 2> /dev/null || echo -en ""
-	umount $btstrap/tmp/posterity 2> /dev/null || echo -en ""
-	umount $btstrap/tmp/_root 2> /dev/null || echo -en ""
-	umount $btstrap/{dev,tmp,proc,sys} 2> /dev/null || echo -en ""
-	umount /tmp/_root*/.ro /tmp/_root.*/.* 2> /dev/null || echo -en ""
-	
+	backpid=$!
+	for btstrap in /tmp/_root.mmcblk1/.bootstrap /home/chronos/user/Downloads/.bootstrap ; do	
+		umount $btstrap/tmp/_root/{dev,tmp,proc,sys} 2> /dev/null || echo -en ""
+		umount $btstrap/tmp/posterity 2> /dev/null || echo -en ""
+		umount $btstrap/tmp/_root/{dev,tmp,proc,sys} 2> /dev/null || echo -en ""
+		umount $btstrap/tmp/posterity 2> /dev/null || echo -en ""
+		umount $btstrap/tmp/_root 2> /dev/null || echo -en ""
+		umount $btstrap/{dev,tmp,proc,sys} 2> /dev/null || echo -en ""
+		umount /tmp/_root*/.ro /tmp/_root.*/.* 2> /dev/null || echo -en ""
+	done
+		
+	btstrap=/home/chronos/user/Downloads/.bootstrap
+
 	mount | grep /dev/mapper/encstateful &> /dev/null || failed "Run me from within ChromeOS, please."
 	sudo stop powerd || echo -en ""
 
@@ -468,7 +467,7 @@ main() {
 	root=/tmp/_root.`basename $dev`		# Don't monkey with this...
 	boot=/tmp/_boot.`basename $dev`		# ...or this...
 	kern=/tmp/_kern.`basename $dev`		# ...or this!
-	
+		
 	lockfile=/tmp/.chrubix.distro.`basename $dev`
 	if [ -e "$lockfile" ] && [ -e "/tmp/temp_or_perm" ] ; then
 		distroname=`cat $lockfile`
@@ -494,17 +493,20 @@ main() {
     	mount /dev/loop1 $btstrap
 		echo -en "Thinking..."
 		counter=0
-		while [ ! -e "$bt_tar" ] && [ "$counter" -le "120" ] ; do
+		while [ ! -e "/tmp/bt.tar.xz" ] && [ "$counter" -le "300" ] ; do
 			echo -en "."
 			sleep 1
-			counter=$(($counter=1))
+			counter=$(($counter+1))
 		done
-		if [ ! -e "$bt_tar" ] ; then
-			wget $PARTED_URL -O - > $bt_tar
-		fi		
-		cat $bt_tar | tar -Jx -C $btstrap 2> /dev/null || failed "Failed to download/install parted and friends"
+		if [ "$counter" -ge "300" ] ; then
+			kill $backpid || echo -en ""
+			sync;sync;sync;sleep 1
+			wget $PARTED_URL -O - > /tmp/bt.tar.xz || failed "Failed to download/install parted and friends"
+		fi
 	fi
 
+	tar -Jxf /tmp/bt.tar.xz -C $btstrap
+	
 	echo -en "Still thinking..."
 	mount devtmpfs  $btstrap/dev -t devtmpfs	|| echo -en ""
 	mount sysfs     $btstrap/sys -t sysfs		|| echo -en ""
@@ -513,7 +515,7 @@ main() {
 	
 	echo -en "Partitioning..."
 	umount /dev/mmcblk1* &> /dev/null || echo -en ""
-	partition_device $dev $dev_p $btstrap &> /dev/null || failed "Failed to partition $dev"
+	partition_device $dev $dev_p $btstrap || failed "Failed to partition $dev"
 	echo -en "Done. Formatting..."
 	format_partitions $dev $dev_p $btstrap || failed "Failed to format $dev"
 	echo "Done."
