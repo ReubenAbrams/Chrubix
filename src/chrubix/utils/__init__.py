@@ -24,7 +24,7 @@ g_default_window_manager = '/usr/bin/startlxde'  # wmaker, startxfce4, startlxde
 
 
 
-MAXIMUM_COMPRESSION = False  # Max compression on the left; quicker testing on the right :)
+MAXIMUM_COMPRESSION = True  # Max compression on the left; quicker testing on the right :)
 __g_start_time = time.time()
 
 
@@ -409,7 +409,7 @@ def install_mp3_files( mountpoint ):
     system_or_die( 'mkdir -p %s' % ( mydir ) )
     for myname in ( 'boom', 'error1', 'error2', 'MacStartUp', 'online', 'pg2back', 'pgclean', 'pghere', 'welcome', 'wrongCB', 'winxp', 'wrongSD', 'xpshutdown' ):
         system_or_die( 'cp -f %s/usr/local/bin/Chrubix/blobs/audio/%s.mp3.gz %s/' % ( mountpoint, myname, mydir ) )
-        system_or_die( 'gunzip -f %s/%s.mp3.gz' % ( mydir, myname ) )
+        system_or_die( 'gunzip -f %s/%s.mp3.gz 2> /dev/null' % ( mydir, myname ) )
 
 
 def poweroff_now():
@@ -439,26 +439,21 @@ def patch_org_freedesktop_networkmanager_conf_file( config_file, patch_file ):
 
 
 def call_makepkg_or_die( cmd, mountpoint, package_path, errtxt ):
+    my_user = 'nobody'  # git
     gittify_this_folder = package_path[:package_path.rfind( '/root' ) + 5]
-    chroot_this( mountpoint, r'chown -R git %s' % ( gittify_this_folder ) )
+    logme( 'gittifying %s' % ( gittify_this_folder ) )
+    chroot_this( mountpoint, r'mkdir -p %s' % ( package_path ) )
+    chroot_this( mountpoint, r'chown -R %s %s' % ( my_user, gittify_this_folder ) )
     chroot_this( mountpoint, r'chmod -R 777 %s' % ( gittify_this_folder ) )
-    if mountpoint in ( None, '/' ):
-        system_or_die( r'chmod 777 /dev/null' )
-        system_or_die( r'mkdir -p %s' % ( package_path ) )
-        system_or_die( r'chown -R git %s' % ( package_path ) )
-        system_or_die( r'chmod -R 777 %s' % ( package_path ) )
-        chroot_this( mountpoint, cmd, errtxt, user = 'git' )
-#    system_or_die( r'chown -R root %s' % ( package_path ) )
-    else:
-        chroot_this( mountpoint, r'chmod 777 /dev/null' )
-        chroot_this( mountpoint, r'mkdir -p %s' % ( package_path ) )
-#        chroot_this( mountpoint, r'chown -R nobody %s' % ( package_path, ) )
-#        chroot_this( mountpoint, r'chmod -R 777 %s' % ( package_path ) )
-#        assert( package_path[:5] == '/root' )
-        chroot_this( mountpoint, cmd, user = 'git' )
-#        chroot_this( mountpoint, 'cd %s && makepkg --skipchecksums --nobuild %s -f' % ( package_path, '--nodeps' if nodeps else '' ), user = 'git' )
+    chroot_this( mountpoint, r'chmod 777 /dev/null' )
+    res = chroot_this( mountpoint, cmd, user = my_user )
+#    if not os.path.exists( '%s/PKGBUILD' % ( package_path ) ):
+#        failed( 'PKGBUILD is not present in dest path' )
+    if res != 0:
+        failed( "call_makepkg_or_die(mountpoint='%s',cmd='%s',package_path='%s' failed ==> %s => res=%d" % ( mountpoint, cmd, package_path, errtxt, res ) )
     chroot_this( mountpoint, r'chown -R root %s' % ( gittify_this_folder ) )
     chroot_this( mountpoint, r'chmod -R 700 %s' % ( gittify_this_folder ) )
+    return res
 
 
 def remaining_megabytes_free_on_device( dev ):  # FIXME broken
