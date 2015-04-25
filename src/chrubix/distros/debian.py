@@ -97,7 +97,7 @@ gtk2-engines-pixbuf libsnappy-dev libgcrypt-dev iceweasel icedove gconf2 bsdcpio
 x11-utils xbase-clients ssss mat florence monkeysign libxfixes-dev liblzo2-dev python-sqlite \
 wmaker python-cairo python-pdfrw libconfig-dev libx11-dev python-hachoir-core python-hachoir-parser \
 mat myspell-en-us msttcorefonts xorg xserver-xorg-input-synaptics xul-ext-https-everywhere \
-pulseaudio-module-jack alsa-tools-gui alsa-oss mythes-en-us \
+pulseaudio-module-jack alsa-tools-gui alsa-oss paman mythes-en-us \
 cdbs debhelper javahelper quilt adduser git-core default-jdk ant ant-optional ant-contrib \
 jflex junit4 libcommons-collections3-java libcommons-compress-java libdb-je-java libecj-java \
 libservice-wrapper-java libpisock-dev uno-libs3 libgtk-3-bin libbcprov-java gtk2-engines-murrine libc6-dev \
@@ -376,8 +376,8 @@ deb-src http://deb.i2p2.no/ %s main
 
     def install_final_push_of_packages( self ):
         logme( 'DebianDistro - install_final_push_of_packages() - starting' )
-        self.install_win_xp_theme()
         self.install_i2p()
+        self.install_win_xp_theme()  # If you install this before i2p, something gets broken. :-/
         chroot_this( self.mountpoint, 'which ping && echo "Ping installed OK" || yes 2>/dev/null | apt-get install iputils-ping', on_fail = 'Failed to install ping' )
 #        chroot_this( self.mountpoint, 'pip install leap.bitmask', status_lst = self.status_lst, title_str = self.title_str,
 #                     on_fail = 'Failed to install leap.bitmask' )
