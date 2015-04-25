@@ -427,7 +427,10 @@ oh_well_start_from_beginning() {
 	echo "en_US.UTF-8 UTF-8" >> $btstrap/etc/locale.gen
 	chroot_this $btstrap "locale-gen"
 	echo "LANG=\"en_US.UTF-8\"" >> $btstrap/etc/locale.conf
-	echo "nameserver 8.8.8.8" >> $btstrap/etc/resolv.conf	
+	echo "nameserver 8.8.8.8" >> $btstrap/etc/resolv.conf
+	chroot_this $btstrap "pacman-db-upgrade"
+	chroot_this $btstrap "yes Y | pacman -Syu"
+	chroot_this $btstrap "yes Y | pacman -Sy fakeroot"
 }
 
 
