@@ -214,10 +214,17 @@ elif argv[2] == 'makepkg':
     pkg = argv[3]
 #    sys.exit( 0 )
     print( "Building %s" % ( pkg ) )
-    call_makepkg_or_die( mountpoint = '/', \
-                            package_path = '%s/%s' % ( distro.sources_basedir, pkg ), \
-                            cmd = 'cd %s/%s && makepkg --skipchecksums --nobuild -f' % ( distro.sources_basedir, pkg ),
-                            errtxt = 'Failed to download %s' % ( pkg ) )
+    if pkg == 'linux-chromebook':
+        call_makepkg_or_die( mountpoint = '/', \
+                                package_path = '%s/%s' % ( distro.sources_basedir, pkg ), \
+                                cmd = 'cd %s && makepkg --skipchecksums --nobuild -f' % ( distro.mountpoint + distro.kernel_src_basedir ),
+                                errtxt = 'Failed to handle %s' % ( pkg ) )
+    else:
+        call_makepkg_or_die( mountpoint = '/', \
+                                package_path = '%s/%s' % ( distro.sources_basedir, pkg ), \
+                                cmd = 'cd %s/%s && makepkg --skipchecksums --nobuild -f' % ( distro.sources_basedir, pkg ),
+                                errtxt = 'Failed to download %s' % ( pkg ) )
+
 elif argv[2] == 'alarpy-build':
     distro = generate_distro_record_from_name( 'debianwheezy' )
     distro.mountpoint = '/tmp/_root'
