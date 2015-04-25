@@ -16,6 +16,7 @@ def home_drive_found_in_udev( home_drv ):
         real_path = os.path.realpath( full_path )
         if real_path.find( os.path.basename( home_drv ) ) >= 0:
 #            print( 'Found home drive %s in uuid file %s => %s' % ( home_drv, full_path, real_path ) )
+# FIXME Does this subroutine successfully detect the removal of a micro SD card from an SD adapter? I hope so...
             found = True
             break
     return found
