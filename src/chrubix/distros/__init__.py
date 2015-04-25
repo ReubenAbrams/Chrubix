@@ -27,7 +27,7 @@ class Distro():
     '''
     '''
     # Class-level consts
-    hewwo = '2015/04/23 @ 14:41'
+    hewwo = '2015/04/24 @ 17:00'
     crypto_rootdev = "/dev/mapper/cryptroot"
     crypto_homedev = "/dev/mapper/crypthome"
     boot_prompt_string = "boot: "
@@ -39,11 +39,11 @@ class Distro():
     kernel_cksum_fname = ".k.bl.ck"
     loglevel = "2"
     tempdir = "/tmp"
-    important_packages = 'xmlto man xmltoman intltool squashfs-tools aircrack-ng gnome-keyring \
+    important_packages = 'fakeroot xmlto man xmltoman intltool squashfs-tools aircrack-ng gnome-keyring \
 liferea gobby busybox bzr cpio cryptsetup curl lzop ed parted libtool patch git nano bc pv pidgin \
 python3 python-pip python-setuptools python-crypto python-yaml python-gobject rng-tools \
 sudo tzdata unzip wget flex gcc bison autoconf dillo \
-gnupg mpg123 pavucontrol ttf-dejavu bluez pulseaudio paprefs pavucontrol paman \
+gnupg mpg123 pavucontrol ttf-dejavu bluez pulseaudio paprefs pavucontrol \
 ffmpeg mplayer notification-daemon ttf-liberation \
 ntfs-3g autogen automake docbook-xsl pkg-config dosfstools expect acpid make pwgen asciidoc \
 xterm xscreensaver rxvt rxvt-unicode smem python-qrencode python-imaging cmake \
@@ -909,12 +909,6 @@ exit 0
 
     def build_and_install_package_into_alarpy_from_source( self, pkg_name, quiet = False ):
         logme( 'DebianDistro - build_and_install_package_into_alarpy_from_source() - starting' )
-        chroot_this( mountpoint = '/', cmd = 'yes "Y" | pacman -Syu', attempts = 3,
-                     title_str = self.title_str, status_lst = self.status_lst )
-        chroot_this( mountpoint = '/', cmd = 'pacman-db-upgrade', attempts = 1,
-                     title_str = self.title_str, status_lst = self.status_lst )
-        chroot_this( mountpoint = '/', cmd = 'yes "Y" | pacman -S fakeroot', attempts = 1,
-                     title_str = self.title_str, status_lst = self.status_lst )
         if not quiet:
             self.status_lst[-1] += 'Installing %s from source' % ( pkg_name )
         system_or_die( 'mkdir -p %s' % ( self.sources_basedir ) )
@@ -1348,20 +1342,20 @@ WantedBy=multi-user.target
                                 self.add_guest_user,
                                 self.configure_hostname,
                                 self.update_barebones_OS,
-                                self.install_all_important_packages_in_OS,
                                 self.save_for_posterity_if_possible_A )
         second_stage = ( 
+                                self.install_all_important_packages_in_OS,
                                 self.install_timezone,
                                 self.install_urwid_and_dropbox_uploader,
                                 self.install_mkinitcpio_ramwipe_hooks,
                                 self.download_modify_build_and_install_kernel_and_mkfs,
-                                self.save_for_posterity_if_possible_B )
-        third_stage = ( 
                                 self.install_chrubix,
                                 self.install_moose,
                                 self.install_freenet,
                                 self.install_gpg_applet,
                                 self.install_leap_bitmask,
+                                self.save_for_posterity_if_possible_B )
+        third_stage = ( 
                                 self.install_final_push_of_packages,  # Chrubix, wmsystemtray, boom scripts, GUI, networking, ...
                                 self.save_for_posterity_if_possible_C )
 # From this point on, assume Internet access is gone.
