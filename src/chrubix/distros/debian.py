@@ -125,6 +125,10 @@ mate-desktop-environment-extras'  # FYI, freenet is handled by install_final_pus
     def install_barebones_root_filesystem( self ):
         logme( 'DebianDistro - install_barebones_root_filesystem() - starting' )
         system_or_die( 'mkdir -p %s' % ( self.sources_basedir ) )
+
+        if 0 != chroot_this( '/', r'yes "Y" 2>/dev/null | pacman -Syu fakeroot', attempts = 1, title_str = self.title_str, status_lst = self.status_lst ):
+            chroot_this( '/', r'pacman-db-upgrade', attempts = 1 )
+            chroot_this( '/', r'yes "Y" 2>/dev/null | pacman -Syu fakeroot', "Failed to install fakeroot", attempts = 1, title_str = self.title_str, status_lst = self.status_lst )
         if os.system( 'which debootstrap &> /dev/null' ) != 0:
             self.build_and_install_package_into_alarpy_from_source( 'debootstrap', quiet = True )
         self.status_lst.append( ['Running debootstrap, to generate Debian filesystem'] )
