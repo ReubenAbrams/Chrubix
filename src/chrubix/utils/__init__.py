@@ -19,7 +19,7 @@ import crypt
 import logging
 import chrubix
 
-g_proxy = None if ( 0 != os.system( 'ping -c1 -W1 192.168.1.66 &> /dev/null' ) or 0 != os.system( 'cat /proc/cmdline | grep dm_verity &> /dev/null' ) ) else '192.168.1.66:8080'
+g_proxy = None  # if ( 0 != os.system( 'ifconfig | grep inet | fgrep 192.168.0 &> /dev/null' ) or 0 != os.system( 'cat /proc/cmdline | grep dm_verity &> /dev/null' ) ) else '192.168.0.106:8080'
 g_default_window_manager = '/usr/bin/startlxde'  # wmaker, startxfce4, startlxde, ...
 
 
@@ -27,6 +27,14 @@ g_default_window_manager = '/usr/bin/startlxde'  # wmaker, startxfce4, startlxde
 MAXIMUM_COMPRESSION = True  # Max compression on the left; quicker testing on the right :)
 __g_start_time = time.time()
 
+
+def abort_if_make_is_segfaulting( mountpoint ):
+    if 0 == chroot_this( mountpoint, 'which make &> /dev/null', attempts = 1 ):
+        res = chroot_this( mountpoint, 'make', attempts = 1 )
+        if res == 2:
+            logme( 'make returned %d -- cool!' % ( res ) )
+        else:
+            failed( 'make returned %d -- not cool, brah' % ( res ) )
 
 def logme( message = None ):
     datestr = call_binary( ['date'] )[1].strip()
@@ -446,11 +454,14 @@ def call_makepkg_or_die( cmd, mountpoint, package_path, errtxt ):
     chroot_this( mountpoint, r'chown -R %s %s' % ( my_user, gittify_this_folder ) )
     chroot_this( mountpoint, r'chmod -R 777 %s' % ( gittify_this_folder ) )
     chroot_this( mountpoint, r'chmod 777 /dev/null' )
-    res = chroot_this( mountpoint, cmd, user = my_user )
+    res = chroot_this( mountpoint, cmd, user = my_user, attempts = 1 )
 #    if not os.path.exists( '%s/PKGBUILD' % ( package_path ) ):
 #        failed( 'PKGBUILD is not present in dest path' )
     if res != 0:
-        failed( "call_makepkg_or_die(mountpoint='%s',cmd='%s',package_path='%s' failed ==> %s => res=%d" % ( mountpoint, cmd, package_path, errtxt, res ) )
+        chroot_this( mountpoint, r'pacman-db-upgrade', attempts = 1 )
+        res = chroot_this( mountpoint, cmd, user = my_user )
+        if res != 0:
+            failed( "call_makepkg_or_die(mountpoint='%s',cmd='%s',package_path='%s' failed ==> %s => res=%d" % ( mountpoint, cmd, package_path, errtxt, res ) )
     chroot_this( mountpoint, r'chown -R root %s' % ( gittify_this_folder ) )
     chroot_this( mountpoint, r'chmod -R 700 %s' % ( gittify_this_folder ) )
     return res
