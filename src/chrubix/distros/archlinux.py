@@ -17,12 +17,12 @@ twisted python2-yaml python2-distutils-extra python2-gobject python2-cairo pytho
 bcprov gtk-engine-unico gtk-engine-murrine gtk-engines xorg-fonts xorg-font-utils xorg-fonts-encodings \
 libreoffice-en-US libreoffice-common libreoffice-gnome libxfixes python2-pysqlite \
 xorg-server xorg-xinit xf86-input-synaptics xf86-video-fbdev xf86-video-armsoc xlockmore phonon \
-mate-panel mate-netbook mate-extra mintmenu mate-themes-extras mate-nettool mate-mplayer mate-accountsdialog \
+mate-panel mate-netbook mate-extra mate-themes-extras mate-nettool mate-mplayer mate-accountsdialog \
 python2-pysqlite gtk2-perl automoc4 xorg-server-utils xorg-xmessage librsvg icedtea-web gconf \
 hunspell-en chromium thunderbird windowmaker \
 '
 # mate
-    install_from_AUR = 'ttf-ms-fonts gtk-theme-adwaita-x win-xp-theme wmsystemtray python2-pyptlib hachoir-core hachoir-parser mat obfsproxy java-service-wrapper i2p'  # pulseaudio-ctl pasystray-git ssss florence
+    install_from_AUR = 'paman mintmenu ttf-ms-fonts gtk-theme-adwaita-x win-xp-theme wmsystemtray python2-pyptlib hachoir-core hachoir-parser mat obfsproxy java-service-wrapper i2p'  # pulseaudio-ctl pasystray-git ssss florence
     final_push_packages = Distro.final_push_packages + ' lxdm network-manager-applet'
 
     def __init__( self , *args, **kwargs ):
@@ -66,13 +66,9 @@ hunspell-en chromium thunderbird windowmaker \
     def update_and_upgrade_all( self ):
         logme( 'ArchlinuxDistro - update_and_upgrade_all() - starting' )
         system_or_die( 'sync; sync; sync; sleep 1' )
-        system_or_die( 'rm -f %s/var/lib/pacman/db.lck; sync; sync; sync' % ( self.mountpoint ) )
-        failed( 'Aborting here for test porpoises. Why is make segfaulting...?' )
+        system_or_die( 'rm -f %s/var/lib/pacman/db.lck; sync; sync; sync; sleep 1; sync; sync; sync; sleep 1' % ( self.mountpoint ) )
         chroot_this( self.mountpoint, r'yes "" 2>/dev/null | pacman -Syu', "Failed to upgrade OS", attempts = 5, title_str = self.title_str, status_lst = self.status_lst )
-#        if ( os.path.exists( self.mountpoint + '/usr/bin/make' ) or os.path.exists( self.mountpoint + '/bin/make' ) ) \
-#        and 0 != chroot_this( self.mountpoint, r'make', "Make segfaulted!!!", attempts = 1 ):
-#            failed( 'make segfaulted' )
-        system_or_die( 'sync; sync; sync; sleep 1' )
+        system_or_die( 'sync; sync; sync; sleep 1; sync; sync; sync; sleep 1' )
 
 
     def install_important_packages( self ):
@@ -84,7 +80,7 @@ hunspell-en chromium thunderbird windowmaker \
             s = ''.join( [r + ' ' for r in lst] )
             attempts = 0
             while attempts < 2 and 0 != chroot_this( self.mountpoint, 'yes "" 2>/dev/null | pacman -S --needed ' + s, title_str = self.title_str, status_lst = self.status_lst ):
-                system_or_die( 'rm -f %s/var/lib/pacman/db.lck; sync; sync; sync; sleep 1' % ( self.mountpoint ) )
+                system_or_die( 'rm -f %s/var/lib/pacman/db.lck; sync; sync; sync; sleep 1; sync; sync; sync; sleep 1; ' % ( self.mountpoint ) )
                 self.update_and_upgrade_all()
                 attempts += 1
             if attempts == 2:
@@ -107,7 +103,7 @@ hunspell-en chromium thunderbird windowmaker \
         assert( self.list_of_mkfs_packages[0].find( 'btrfs' ) >= 0 )
         assert( self.list_of_mkfs_packages[1].find( 'jfs' ) >= 0 )
         assert( self.list_of_mkfs_packages[2].find( 'xfs' ) >= 0 )
-        self.download_package_source( self.list_of_mkfs_packages[0], ( 'PKGBUILD', 'btrfs-progs.install', 'initcpio-hook-btrfs', 'initcpio-install-btrfs', '01-fix-manpages.patch' ) )
+        self.download_package_source( self.list_of_mkfs_packages[0], ( 'PKGBUILD', 'btrfs-progs.install', 'initcpio-hook-btrfs', 'initcpio-install-btrfs' ) )  # , '01-fix-manpages.patch' ) )
         self.download_package_source( self.list_of_mkfs_packages[1], ( 'PKGBUILD', 'inttypes.patch' ) )
         self.download_package_source( self.list_of_mkfs_packages[2], ( 'PKGBUILD', ) )
 
@@ -137,7 +133,7 @@ hunspell-en chromium thunderbird windowmaker \
         call_makepkg_or_die( mountpoint = self.mountpoint, \
                             package_path = '%s/%s' % ( self.sources_basedir, package_name ), \
                             cmd = 'cd %s/%s && makepkg --skipchecksums --nobuild -f' % ( self.sources_basedir, package_name ),
-                            errtxt = 'Failed to download %s' % ( package_name ), title_str = self.title_str, status_lst = self.status_lst )
+                            errtxt = 'Failed to download %s' % ( package_name ) )
         return 0
 
     def build_package( self, source_pathname ):
