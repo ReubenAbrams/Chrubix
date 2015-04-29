@@ -9,17 +9,18 @@ from chrubix.utils import wget, system_or_die, unmount_sys_tmp_proc_n_dev, mount
 
 
 class SuseDistro( Distro ):
-    important_packages = Distro.important_packages + ' \
- cgpt xz mkinitcpio libxpm dtc xmlto festival-us uboot-mkimage \
-mesa gptfdisk bluez-libs alsa-plugins acpisdl libcanberra icedtea-web-java7 \
-libnotify talkfilters chromium xorg-server-utils java-runtime libxmu libxfixes apache-ant junit'
-    final_push_packages = Distro.important_packages + '\
-xorg-server xf86-input-synaptics xf86-video-armsoc xorg-xmessage xlockmore pyqt \
-xorg-xinit xf86-video-fbdev wmsystemtray lxdm network-manager-gnome'
     def __init__( self ):
         super( SuseDistro, self ).__init__()
         self.name = 'suse'
         self.architecture = 'arm'
+        assert( self.important_packages not in ( '', None ) )
+        self.important_packages += ' \
+ cgpt xz mkinitcpio libxpm dtc xmlto festival-us uboot-mkimage \
+mesa gptfdisk bluez-libs alsa-plugins acpisdl libcanberra icedtea-web-java7 \
+libnotify talkfilters chromium xorg-server-utils java-runtime libxmu libxfixes apache-ant junit'
+        self.final_push_packages += '\
+xorg-server xf86-input-synaptics xf86-video-armsoc xorg-xmessage xlockmore pyqt \
+xorg-xinit xf86-video-fbdev wmsystemtray lxdm network-manager-gnome'
 
     def install_barebones_root_filesystem( self ):
         logme( 'SuseDistro - install_barebones_root_filesystem() - starting' )
@@ -42,7 +43,3 @@ xorg-xinit xf86-video-fbdev wmsystemtray lxdm network-manager-gnome'
         assert( attempts > 0 )
 #        self.status_lst[-1] += '...Done.'
 
-    def install_locale( self ):
-        logme( 'SuseDistro - install_locale() - starting' )
-        self.do_generic_locale_configuring()
-        logme( 'SuseDistro - install_locale() - leaving' )
