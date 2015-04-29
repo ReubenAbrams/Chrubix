@@ -14,10 +14,10 @@ from chrubix.utils import call_binary, read_oneliner_file, write_oneliner_file, 
 from chrubix.utils.postinst import configure_lxdm_behavior
 from chrubix import distros
 from chrubix.distros.archlinux import ArchlinuxDistro
-from chrubix.distros.debian import WheezyDebianDistro, JessieDebianDistro
+from chrubix.distros.debian import WheezyDebianDistro, JessieDebianDistro, StretchDebianDistro
 from chrubix.distros.kali import KaliDistro
 from chrubix.distros.fedora import FedoraDistro
-from chrubix.distros.ubuntu import PangolinUbuntuDistro
+from chrubix.distros.ubuntu import VividUbuntuDistro
 from chrubix.distros.suse import SuseDistro
 
 
@@ -39,11 +39,12 @@ def list_command_line_options():
 def generate_distro_record_from_name( name_str ):
     distro_options = {
                   'archlinux'     :ArchlinuxDistro,
-                  'fedora'        :FedoraDistro,
+                  'fedora19'      :NineteenFedoraDistro,
                   'debianjessie'  :JessieDebianDistro,
                   'kali'          :KaliDistro,
-                  'ubuntupangolin':PangolinUbuntuDistro,
+                  'ubuntuvivid'   :VividUbuntuDistro,
                   'suse'          :SuseDistro,
+                  'debianstretch' :StretchDebianDistro,
                   'debianwheezy'  :WheezyDebianDistro,
                   }
     os.system( 'cd /' )
