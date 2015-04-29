@@ -9,8 +9,6 @@ from chrubix.utils import disable_root_password, failed
 
 
 class AlarmistDistro( WheezyDebianDistro ):
-    important_packages = WheezyDebianDistro.important_packages
-    final_push_packages = WheezyDebianDistro.final_push_packages
     def __init__( self , *args, **kwargs ):
         super( AlarmistDistro, self ).__init__( *args, **kwargs )
         self.name = 'alarmist'
