@@ -27,7 +27,7 @@ class Distro():
     '''
     '''
     # Class-level consts
-    hewwo = '2015/04/24 @ 17:00'
+    hewwo = '2015/04/25 @ 20:04'
     crypto_rootdev = "/dev/mapper/cryptroot"
     crypto_homedev = "/dev/mapper/crypthome"
     boot_prompt_string = "boot: "
@@ -69,7 +69,7 @@ simple-scan macchanger brasero pm-utils mousepad keepassx claws-mail bluez-utils
         self.architecture = None
         self.kernel_rebuild_required = False
         self.randomized_serial_number = None
-        self.package_group_size = 10
+        self.package_group_size = 10  # May be overridden by subclass
         self.status_lst = []
         self.mountpoint = None  # not mounted yet :)
         self.list_of_mkfs_packages = None  # This will be defined by subclass
@@ -99,7 +99,7 @@ simple-scan macchanger brasero pm-utils mousepad keepassx claws-mail bluez-utils
     def install_important_packages( self ):         failed( "please define in subclass" )
     def install_kernel_and_mkfs( self ):            failed( 'please define in subclass' )
     def configure_boot_process( self ):               failed( 'please define in subclass' )
-    def install_locale( self ):                     failed( 'please define in subclass' )
+#    def install_locale( self ):                     failed( 'please define in subclass' )
     def install_final_push_of_packages( self ):     failed( "please define in subclass -- must install network-manager and wmwsystemtray" )
     def build_mkfs_n_kernel_for_OS_w_preexisting_PKGBUILDs( self ):   failed( "please define in subclass" )
 
@@ -267,8 +267,9 @@ make' % ( self.sources_basedir ), title_str = self.title_str, status_lst = self.
         self.redo_mbr( root_partition_device = self.root_dev, chroot_here = chroot_here )
 
     def redo_mbr( self, root_partition_device, chroot_here ):  # ,root_partition_dev             ... Also generates hybrid initramfs
-        res = 0
         logme( 'redo_mbr() --- starting' )
+        self.reinstall_chrubix_if_missing()  # FIXME remove after 6/1/2015
+        res = 0
         for save_here in ( chroot_here, '/' ):
             system_or_die( 'tar -zxf /tmp/.vbkeys.tgz -C %s' % ( save_here ),
                                 status_lst = self.status_lst, title_str = self.title_str )
@@ -604,10 +605,10 @@ Choose the 'boom' password : """ ).strip( '\r\n\r\n\r' )
             dirs_to_backup += ' .bootstrap/%s' % ( dir_name )
         system_or_die( 'mkdir -p %s%s' % ( self.mountpoint, os.path.dirname( output_file ) ) )
         system_or_die( 'rm -Rf %s/.*rash*' % ( os.path.dirname( output_file ) ) )
-        if output_file.find( '_D' ) >= 0:
-            old_A_file = output_file.replace( '_D.', '_A.' )
-            logme( 'Deleting %s because we are creating %s' % ( old_A_file, output_file ) )
-            os.unlink( old_A_file )
+#        if output_file.find( '_D' ) >= 0:
+#            old_A_file = output_file.replace( '_D.', '_A.' )
+#            logme( 'Deleting %s because we are creating %s' % ( old_A_file, output_file ) )
+#            os.unlink( old_A_file )
         system_or_die( 'cd %s && tar -c %s | xz %s | dd bs=256k > %s/temp.data' % ( self.mountpoint, dirs_to_backup, compression_parameters, os.path.dirname( output_file ) ), title_str = self.title_str, status_lst = self.status_lst )
         system_or_die( 'mv %s/temp.data %s' % ( os.path.dirname( output_file ), output_file ) )
         self.status_lst[-1] += '...created.'
@@ -936,6 +937,8 @@ exit 0
             self.status_lst[-1] += 'Yep.'
 
     def build_and_install_software_from_archlinux_source( self, package_name, only_download = False, quiet = False, nodeps = False ):
+        chroot_this( '/', 'yes "" 2>/dev/null | pacman -S --needed --force fakeroot', title_str = self.title_str, status_lst = self.status_lst,
+                         on_fail = 'Failed to install fakeroot #1' )
     #    pkgbuild_url_template = 'https://projects.archlinux.org/svntogit/packages.git/plain/trunk/%s?h=packages/%s'
         if not quiet and self.status_lst is not None:
             self.status_lst.append( ["%s ArchLinux's %s, from source, into your OS" % ( 'Downloading' if only_download else 'Installing' , package_name )] )
@@ -989,7 +992,7 @@ exit 0
         if not quiet and self.status_lst is not None:
             self.status_lst[-1] += '...OK.'
 
-    def do_generic_locale_configuring( self ):
+    def install_locale( self ):
         write_oneliner_file( '%s/etc/locale.conf' % ( self.mountpoint ), '''LANG="en_US.UTF-8"
 ''' )
         write_oneliner_file( '%s/etc/locale.gen' % ( self.mountpoint ), '''en_US.UTF-8 UTF-8
@@ -1357,12 +1360,13 @@ WantedBy=multi-user.target
                                 self.install_leap_bitmask,
                                 self.save_for_posterity_if_possible_B )
         third_stage = ( 
+                                self.reinstall_chrubix_if_missing,
                                 self.install_final_push_of_packages,  # Chrubix, wmsystemtray, boom scripts, GUI, networking, ...
                                 self.save_for_posterity_if_possible_C )
 # From this point on, assume Internet access is gone.
         fourth_stage = ( 
-                                self.forcibly_rebuild_initramfs_and_vmlinux,  # Is this necessary? Remove it & see what happens. :)
                                 self.reinstall_chrubix_if_missing,
+                                self.forcibly_rebuild_initramfs_and_vmlinux,  # Is this necessary? Remove it & see what happens. :)
                                 self.install_panic_button,
                                 self.install_vbutils_and_firmware_from_cbook,
                                 self.configure_dbus_sudo_and_groups,
@@ -1409,7 +1413,8 @@ WantedBy=multi-user.target
             logme( 'QQQ Running %s' % ( myfunc.__name__ ) )
             if not os.path.exists( '%s%s/src/chromeos-3.4/arch/arm/boot/vmlinux.uimg' % ( self.mountpoint, self.kernel_src_basedir ) ):
                 logme( 'QQQ FYI, vmlinux.uimg is missing' )
-            if remaining_megabytes_free_on_device( self.root_dev ) < 50:
+            chroot_this( self.mountpoint, 'rm -Rf /usr/share/doc' )
+            if remaining_megabytes_free_on_device( self.root_dev ) < 100:
                 failed( '%s is nearly full --- you might want to tweak the partitioner in bit.do/that' % ( self.root_dev ) )
             myfunc()
             checkpoint_number += 1
