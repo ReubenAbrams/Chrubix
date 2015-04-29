@@ -11,13 +11,14 @@ from chrubix.utils import wget, system_or_die, unmount_sys_tmp_proc_n_dev, mount
 
 
 class KaliDistro( JessieDebianDistro ):
-    important_packages = JessieDebianDistro.important_packages + ' kali-menu kali-defaults hydra john wireshark libnfc-bin'
-    final_push_packages = JessieDebianDistro.final_push_packages + ' aircrack-ng passing-the-hash'
 
     def __init__( self , *args, **kwargs ):
         super( KaliDistro, self ).__init__( *args, **kwargs )
         self.name = 'kali'
         self.branch = None
+        assert( self.important_packages not in ( '', None ) )
+        self.important_packages += ' kali-menu kali-defaults hydra john wireshark libnfc-bin'
+        self.final_push_packages += ' aircrack-ng passing-the-hash'
 
     def install_barebones_root_filesystem( self ):
         unmount_sys_tmp_proc_n_dev( self.mountpoint )
