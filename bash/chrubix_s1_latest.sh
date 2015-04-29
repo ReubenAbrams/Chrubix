@@ -251,19 +251,24 @@ get_distro_type_the_user_wants() {
 
 Choose from...
 
-   (A)rchLinux
-   (J)essie, a.k.a. Debian Unstable
-   (W)heezy, a.k.a. Debian Stable
+   (A)rchLinux <== ArchLinuxArm's make package is broken. It keeps segfaulting.
+   (F)edora 19
+   (S)tretch, a.k.a. Debian Testing
+   (J)essie, a.k.a. Debian Stable
+   (W)heezy, a.k.a. Debian Oldstable
+   (U)buntu 15.04, a.k.a. Vivid <== kernel/jfsutils problems
+   
 
 Which would you like me to install? "
 		read r
 		case $r in
 "A") distroname="archlinux";;
-"F") distroname="fedora";;
+"F") distroname="fedora19";;
 "J") distroname="debianjessie";;
 "K") distroname="kali";;
-"S") distroname="suse";;
-"U") distroname="ubuntupangolin";;
+"E") distroname="suse";;
+"S") distroname="ubuntustretch";;
+"U") distroname="ubuntuvivid";;
 "W") distroname="debianwheezy";;
 *)   echo "Unknown distro";;
 		esac
@@ -448,7 +453,7 @@ main() {
 		umount $btstrap/{dev,tmp,proc,sys} 2> /dev/null || echo -en ""
 		umount /tmp/_root*/.ro /tmp/_root.*/.* 2> /dev/null || echo -en ""
 	done
-		
+			
 	btstrap=/home/chronos/user/Downloads/.bootstrap
 
 	mount | grep /dev/mapper/encstateful &> /dev/null || failed "Run me from within ChromeOS, please."
@@ -633,7 +638,7 @@ else
 	for wildcard in $my_wildcards ; do 
 		rm -f /media/removable/*/*/*"$wildcard"
 	done
-	for distroname in archlinux debianjessie debianwheezy ; do	# FIXME add other distros
+	for distroname in debianjessie debianwheezy debianstretch ubuntuvivid archlinux ; do	# FIXME add other distros
 		echo "$distroname" > /tmp/.chrubix.distro.mmcblk1
 		echo "temp" > /tmp/temp_or_perm
 		clear
