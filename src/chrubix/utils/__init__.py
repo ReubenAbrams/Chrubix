@@ -23,7 +23,6 @@ g_proxy = None  # if ( 0 != os.system( 'ifconfig | grep inet | fgrep 192.168.0 &
 g_default_window_manager = '/usr/bin/startlxde'  # wmaker, startxfce4, startlxde, ...
 
 
-
 MAXIMUM_COMPRESSION = True  # Max compression on the left; quicker testing on the right :)
 __g_start_time = time.time()
 
@@ -260,6 +259,7 @@ def chroot_this( mountpoint, cmd, on_fail = None, attempts = 3, title_str = None
     f.close()
     system_or_die( 'chmod 777 %s' % ( mountpoint + my_executable_script ) )
     system_or_die( 'chmod +x %s' % ( mountpoint + my_executable_script ) )
+    logme( 'chroot_this() --- calling %s' % ( cmd ) )
     for att in range( attempts ):
         att = att  # hide Eclipse warning
         if title_str is not None or status_lst is not None:
