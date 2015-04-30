@@ -8,6 +8,9 @@ from chrubix.distros import Distro
 from chrubix.utils import wget, system_or_die, unmount_sys_tmp_proc_n_dev, mount_sys_tmp_proc_n_dev, logme, chroot_this
 
 
+# SEE https://en.opensuse.org/HCL:ARMChromebook
+
+
 class SuseDistro( Distro ):
     def __init__( self ):
         super( SuseDistro, self ).__init__()
@@ -25,7 +28,7 @@ xorg-xinit xf86-video-fbdev wmsystemtray lxdm network-manager-gnome'
     def install_barebones_root_filesystem( self ):
         logme( 'SuseDistro - install_barebones_root_filesystem() - starting' )
         unmount_sys_tmp_proc_n_dev( self.mountpoint )
-        wget( url = 'https://dl.dropboxusercontent.com/u/59916027/chrubix/skeletons/suse-rootfs.tar.xz', extract_to_path = self.mountpoint, decompression_flag = 'J', title_str = self.title_str, status_lst = self.status_lst )
+        wget( url = 'http://download.opensuse.org/repositories/devel:/ARM:/13.1:/Contrib:/Chromebook/images/openSUSE-13.1-ARM-XFCE-chromebook.armv7l.raw.xz', extract_to_path = self.mountpoint, decompression_flag = 'J', title_str = self.title_str, status_lst = self.status_lst )
         mount_sys_tmp_proc_n_dev( self.mountpoint )
         return 0
 

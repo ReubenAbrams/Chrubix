@@ -16,7 +16,7 @@ from chrubix import distros
 from chrubix.distros.archlinux import ArchlinuxDistro
 from chrubix.distros.debian import WheezyDebianDistro, JessieDebianDistro, StretchDebianDistro
 from chrubix.distros.kali import KaliDistro
-from chrubix.distros.fedora import FedoraDistro
+from chrubix.distros.fedora import NineteenFedoraDistro
 from chrubix.distros.ubuntu import VividUbuntuDistro
 from chrubix.distros.suse import SuseDistro
 
