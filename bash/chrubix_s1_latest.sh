@@ -325,7 +325,7 @@ restore_from_squash_fs_backup_if_possible() {
 				find /tmp/[a,b]/$distroname/$distroname.kernel &> /dev/null || failed "Squashfs file is present but kernel file is not. Boo..."
 				pv $fname > $root/.squashfs.sqfs && echo "...copied across OK" || failed "Failed to copy the squashfs file across."
 				cp /tmp/[a,b]/$distroname/$distroname.kernel /tmp/.kernel.dat
-				hack_something_squishy $distroname $root $dev_p
+				grab_sqfs_kernel_and_install_it $distroname $root $dev_p
 				return 0
 			fi
 		fi
@@ -336,7 +336,7 @@ restore_from_squash_fs_backup_if_possible() {
 		if [ "$temp_or_perm" = "temp" ] ; then
 			wget $squrl -O - > $root/.squashfs.sqfs && echo "Squashfs file downloaded and installed OK" || failed "Failed to restrieve squashfs file from URL"
 			echo "Restored ($distroname, squash fs) from Dropbox"
-			hack_something_squishy $distroname $root $dev_p
+			grab_sqfs_kernel_and_install_it $distroname $root $dev_p
 			return 0
 		fi
 	else
@@ -359,17 +359,20 @@ sign_and_write_custom_kernel() {
 	[ -e "$vmlinux_path" ] || failed "Cannot find original kernel path '$vmlinux_path'"
 	dd if=/dev/zero of=$writehere bs=1k 2> /dev/null || echo -en "..."
 	echo "$extra_params_A $extra_params_B" | grep crypt &> /dev/null && readwrite=ro || readwrite=rw # TODO Shouldn't it be rw always?
-	echo "console=tty1  $extra_params_A root=$rootdev rootwait $readwrite quiet systemd.show_status=0 loglevel=$LOGLEVEL lsm.module_locking=0 init=/sbin/init $extra_params_B" > /tmp/kernel.flags
-	vbutil_kernel --pack /tmp/vmlinuz.signed --keyblock /usr/share/vboot/devkeys/kernel.keyblock --version 1 \
+	echo "console=tty1  $extra_params_A root=$rootdev rootwait $readwrite quiet systemd.show_status=0 loglevel=$LOGLEVEL lsm.module_locking=0 init=/sbin/init $extra_params_B" > $old_btstrap/tmp/kernel.flags
+	tar -cJ /usr/share/vboot | tar -Jx -C $old_btstrap
+	cp -f $vmlinux_path $old_btstrap/tmp/vmlinux.file
+	chroot_this $old_btstrap "vbutil_kernel --pack /tmp/vmlinuz.signed --keyblock /usr/share/vboot/devkeys/kernel.keyblock --version 1 \
 --signprivate /usr/share/vboot/devkeys/kernel_data_key.vbprivk --config /tmp/kernel.flags \
---vmlinuz $vmlinux_path --arch arm && echo -en "..." || failed "Failed to sign kernel"
+--vmlinuz /tmp/vmlinux.file --arch arm &&" || failed "Failed to sign kernel"
 	sync;sync;sync;sleep 1
-	dd if=/tmp/vmlinuz.signed of=$writehere &> /dev/null && echo -en "..." || failed "Failed to write kernel to $writehere"
+	dd if=$old_btstrap/tmp/vmlinuz.signed of=$writehere &> /dev/null && echo -en "..." || failed "Failed to write kernel to $writehere"
 	echo "OK."
 }
 
 
-hack_something_squishy() {
+
+grab_sqfs_kernel_and_install_it() {
 	local distroname root dev_p
 	distroname=$1
 	root=$2
@@ -435,15 +438,14 @@ oh_well_start_from_beginning() {
 }
 
 
-download_partedandfriends_in_background() {
-	wget $PARTED_URL -O - 2> /dev/null > /tmp/bt.tar.xz.downloading
-	mv /tmp/bt.tar.xz.downloading /tmp/bt.tar.xz
-}
+#download_partedandfriends_in_background() {
+#	wget $PARTED_URL -O - 2> /dev/null > /tmp/bt.tar.xz.downloading && mv /tmp/bt.tar.xz.downloading /tmp/bt.tar.xz
+#}
 
 
 main() {
-	download_partedandfriends_in_background &
-	backpid=$!
+#	download_partedandfriends_in_background &
+#	backpid=$!
 	for btstrap in /tmp/_root.mmcblk1/.bootstrap /home/chronos/user/Downloads/.bootstrap ; do	
 		umount $btstrap/tmp/_root/{dev,tmp,proc,sys} 2> /dev/null || echo -en ""
 		umount $btstrap/tmp/posterity 2> /dev/null || echo -en ""
@@ -496,18 +498,7 @@ main() {
     	losetup /dev/loop1 /tmp/_alarpy.dat
     	mke2fs /dev/loop1 &> /dev/null || failed "Failed to mkfs the temp loop partition"
     	mount /dev/loop1 $btstrap
-		echo -en "Thinking..."
-		counter=0
-		while [ ! -e "/tmp/bt.tar.xz" ] && [ "$counter" -le "300" ] ; do
-			echo -en "."
-			sleep 1
-			counter=$(($counter+1))
-		done
-		if [ "$counter" -ge "300" ] ; then
-			kill $backpid || echo -en ""
-			sync;sync;sync;sleep 1
-			wget $PARTED_URL -O - > /tmp/bt.tar.xz || failed "Failed to download/install parted and friends"
-		fi
+		wget $PARTED_URL -O - > /tmp/bt.tar.xz || failed "Failed to download/install parted and friends"
 	fi
 
 	tar -Jxf /tmp/bt.tar.xz -C $btstrap
@@ -524,7 +515,6 @@ main() {
 	echo -en "Done. Formatting..."
 	format_partitions $dev $dev_p $btstrap || failed "Failed to format $dev"
 	echo "Done."
-	umount $btstrap/{dev,sys,proc,tmp}
 
 	old_btstrap=$btstrap
 	btstrap=$root/.bootstrap
@@ -550,17 +540,16 @@ main() {
 	mount proc $btstrap/tmp/_root/proc -t proc			|| echo -en ""
 	mount sys $btstrap/tmp/_root/sys -t sysfs			|| echo -en ""
 	
-	losetup -d /dev/loop1 2> /dev/null || echo -en ""
-	
 	sudo crossystem dev_boot_usb=1 dev_boot_signed_only=0 || echo "WARNING - failed to configure USB and MMC to be bootable"	# dev_boot_signed_only=0
 	if losetup | grep alarpy &> /dev/null ; then
 		umount /tmp/_alarpy.dat || echo -en ""		# echo "FYI, unable to unmount temp skeleton"
 		losetup -d /dev/loop1 2> /dev/null || echo -en "" 		# echo "FYI, unable to dissociate loop1"
 	fi
 	
-	if restore_from_squash_fs_backup_if_possible ; then
+	if [ "$temp_or_perm" = "temp" ] && restore_from_squash_fs_backup_if_possible ; then
 		echo "Restored from squashfs. Good."
 	else
+		echo "OK. For whatever reason, we aren't using squashfs. Fine."
 		if restore_from_stage_X_backup_if_possible ; then
 			echo "Restored from stage X. Good."
 		else
@@ -591,7 +580,9 @@ main() {
 	fi
 	
 	echo ":-)"
-	
+
+	sync; umount $old_btstrap/{dev,sys,proc,tmp} || echo -en ""
+	losetup -d /dev/loop1 2> /dev/null || echo -en ""
 	sync; umount $btstrap/tmp/_root/{tmp,proc,sys,dev} 2> /dev/null || echo -en ""
 	sync; umount $btstrap/tmp/_root/{tmp,proc,sys,dev} 2> /dev/null || echo -en ""
 	sync; umount $btstrap/{tmp,proc,sys,dev} 2> /dev/null || echo -en ""
@@ -613,7 +604,6 @@ main() {
 
 
 ##################################################################################################################################
-
 
 
 if [ "$1" != "" ] && [ "$1" != "REBUILD-ALL" ] ; then
