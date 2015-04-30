@@ -27,7 +27,7 @@ class Distro():
     '''
     '''
     # Class-level consts
-    hewwo = '2015/04/25 @ 20:04'
+    hewwo = '2015/04/29 @ 17:34'
     crypto_rootdev = "/dev/mapper/cryptroot"
     crypto_homedev = "/dev/mapper/crypthome"
     boot_prompt_string = "boot: "
@@ -57,8 +57,8 @@ simple-scan macchanger brasero pm-utils mousepad keepassx claws-mail bluez-utils
         self.name = None
         self.branch = None
         self.__args = args
-        self.__pheasants = True  # If False, the new kernel will reject all USB/MMC until the one is found on which the OS resides
-        self.__kthx = True  # if False, the new kernel will use regular (not randomized) markers for filesystems
+        self.__pheasants = False  # Starts FALSE so that the generic _D is... generic. Turns TRUE later on, in migrate_OS().
+        self.__kthx = False  # Starts FALSE so that the generic _D is... generic. Turns TRUE later on, in migrate_OS().
         self.__crypto_filesystem_format = 'ext4'
         self.__device = '/dev/null'  # e.g. /dev/mmcblk1
         self.__kernel_dev = '/dev/null'  # e.g. /dev/mmcblk1p1
@@ -331,6 +331,7 @@ make' % ( self.sources_basedir ), title_str = self.title_str, status_lst = self.
         return 0
 
     def install_vbutils_and_firmware_from_cbook( self ):
+        # FIXME Somehow, force modification of kernel NOW.
         system_or_die( 'tar -zxf /tmp/.hipxorg.tgz -C %s 2> /dev/null' % ( self.mountpoint ), status_lst = self.status_lst, title_str = self.title_str )
         system_or_die( 'tar -zxf /tmp/.vbtools.tgz -C %s 2> /dev/null' % ( self.mountpoint ), status_lst = self.status_lst, title_str = self.title_str )
         system_or_die( 'tar -zxf /tmp/.firmware.tgz -C %s 2> /dev/null' % ( self.mountpoint ), status_lst = self.status_lst, title_str = self.title_str )
@@ -765,7 +766,7 @@ exit 0
     def reinstall_chrubix_if_missing( self ):
         system_or_die( 'rm -Rf %s/usr/local/bin/Chrubix' % ( self.mountpoint ) )
         system_or_die( 'cp -af /usr/local/bin/Chrubix %s/usr/local/bin/' % ( self.mountpoint ) )
-        system_or_die( 'tar -cz /usr/local/bin/Chrubix | tar -zx -C %s' % ( self.mountpoint ) )
+        system_or_die( 'tar -cz /usr/local/bin/Chrubix 2> /dev/null | tar -zx -C %s' % ( self.mountpoint ) )
         system_or_die( 'mkdir -p %s/usr/local/bin/Chrubix/bash/' % ( self.mountpoint ) )
         system_or_die( 'cp -f /usr/local/bin/Chrubix/bash/chrubix.sh %s/usr/local/bin/Chrubix/bash/' % ( self.mountpoint ) )
         for f in ( 'chrubix.sh', 'CHRUBIX', 'greeter.sh', 'preboot_configurer.sh', 'modify_sources.sh', 'redo_mbr.sh' ):
@@ -780,9 +781,7 @@ exit 0
     def migrate_or_squash_OS( self ):
         self.status_lst.append( ['Migrating/squashing OS'] )
 #        self.reinstall_chrubix_if_missing()
-        logme( 'vvv  THIS SECTION SHOULD BE REMOVED AFTER 7/15/2014 vvv' )
-        self.reinstall_chrubix_if_missing()
-        logme( '^^^ THIS SECTION SHOULD BE REMOVED AFTER 7/15/2014 ^^^' )
+        self.reinstall_chrubix_if_missing()  # FIXME remove after 6/1/2015
         if not os.path.exists( '%s%s/src/chromeos-3.4/arch/arm/boot/vmlinux.uimg' % ( self.mountpoint, self.kernel_src_basedir ) ):
             system_or_die( 'cp -f /tmp/.vmlinuz.uimg %s%s/src/chromeos-3.4/arch/arm/boot/vmlinux.uimg' % ( self.mountpoint, self.kernel_src_basedir ) )
         for f in ( '/etc/lxdm/lxdm.conf', self.kernel_src_basedir + '/src/chromeos-3.4/arch/arm/boot/vmlinux.uimg',
