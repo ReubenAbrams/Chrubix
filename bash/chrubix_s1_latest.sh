@@ -267,7 +267,7 @@ Which would you like me to install? "
 "J") distroname="debianjessie";;
 "K") distroname="kali";;
 "E") distroname="suse";;
-"S") distroname="ubuntustretch";;
+"S") distroname="debianstretch";;
 "U") distroname="ubuntuvivid";;
 "W") distroname="debianwheezy";;
 *)   echo "Unknown distro";;
@@ -511,8 +511,10 @@ main() {
 	
 	echo -en "Partitioning..."
 	umount /dev/mmcblk1* &> /dev/null || echo -en ""
-	partition_device $dev $dev_p $btstrap || failed "Failed to partition $dev"
-	echo -en "Done. Formatting..."
+	if ! partition_device $dev $dev_p $btstrap &> /tmp/partitioning_stuff.txt ; then
+		cat /tmp/partitioning_stuff.txt
+		failed "Failed to partition $dev"
+	fi
 	format_partitions $dev $dev_p $btstrap || failed "Failed to format $dev"
 	echo "Done."
 
@@ -541,10 +543,6 @@ main() {
 	mount sys $btstrap/tmp/_root/sys -t sysfs			|| echo -en ""
 	
 	sudo crossystem dev_boot_usb=1 dev_boot_signed_only=0 || echo "WARNING - failed to configure USB and MMC to be bootable"	# dev_boot_signed_only=0
-	if losetup | grep alarpy &> /dev/null ; then
-		umount /tmp/_alarpy.dat || echo -en ""		# echo "FYI, unable to unmount temp skeleton"
-		losetup -d /dev/loop1 2> /dev/null || echo -en "" 		# echo "FYI, unable to dissociate loop1"
-	fi
 	
 	if [ "$temp_or_perm" = "temp" ] && restore_from_squash_fs_backup_if_possible ; then
 		echo "Restored from squashfs. Good."
@@ -581,7 +579,7 @@ main() {
 	
 	echo ":-)"
 
-	sync; umount $old_btstrap/{dev,sys,proc,tmp} || echo -en ""
+	sync; umount $old_btstrap/{dev,sys,proc,tmp} 2> /dev/null || echo -en ""
 	losetup -d /dev/loop1 2> /dev/null || echo -en ""
 	sync; umount $btstrap/tmp/_root/{tmp,proc,sys,dev} 2> /dev/null || echo -en ""
 	sync; umount $btstrap/tmp/_root/{tmp,proc,sys,dev} 2> /dev/null || echo -en ""
@@ -591,11 +589,8 @@ main() {
 	
 	if [ "$res" -eq "0" ] ; then
 		sudo start powerd || echo -en ""
-		if [ "$DONOTREBOOT" = "" ] ; then 
-			echo -en "$distroname has been installed on $dev\nPress ENTER to reboot, or wait 60 seconds..."
-			read -t 60 line || reboot
-			reboot
-		fi
+		echo -en "$distroname has been installed on $dev\nPress reboot and then press Ctrl-U to boot into Linux."
+		read line && reboot		# read -t 60 line || reboot; reboot
 	else
 		echo -en "\n\n\n\n\n\n\nDone, although errors occurred..."
 	fi
