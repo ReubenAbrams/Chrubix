@@ -39,7 +39,7 @@ def configure_X_and_start_some_apps():
                 'dconf write /apps/florence/controller/floaticon false',
                 'if ps wax | fgrep mate-session | fgrep -v grep ; then pulseaudio -k; mpg123 /etc/.mp3/winxp.mp3; fi',
                 'ip2router start',
-                '/opt/freenet start',
+                'su freenet -c “/opt/freenet/run.sh start"',  # /opt/freenet start',
                )
     logme( 'lxdm_post_login.py --- fixing /tmp/.guest and /home/* permissions' )
     execute_this_list( main_list )
@@ -76,7 +76,7 @@ if __name__ == "__main__":
 
     os.system( 'sleep 2' )
     if not am_i_online():  # and 0 != os.system( 'ps wax | fgrep nm-applet | grep -v grep' ):
-        if 0 == os.system( 'cat /etc/os-release | grep archlinux' ):
+        if 0 != os.system( 'cat /etc/os-release | grep -i wheezy' ):  # archlinux, jessie need sudo'd nm-applet
             logme( 'lxdm_post_login.py --- killing and sudoing nm-applet' )
             os.system( 'killall nm-applet' )
             os.system( 'sudo nm-applet --nocheck &' )
