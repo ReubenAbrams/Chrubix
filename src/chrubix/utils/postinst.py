@@ -372,6 +372,39 @@ def install_iceweasel_privoxy_wrapper( iceweasel_path ):
     if not os.path.isfile( '%s.forreals' % ( iceweasel_path ) ):
         system_or_die( 'mv %s %s.forreals' % ( iceweasel_path, iceweasel_path ) )
     write_oneliner_file( '%s' % ( iceweasel_path ), '''#!/bin/bash
+
+
+chop_up_broadway() {
+    lines=`wc -l prefs.js | cut -d' ' -f1`
+    startlines=`grep -n "network" prefs.js | cut -d':' -f1 | head -n1`
+    endlines=$(($lines-$startlines))
+    mv prefs.js prefs.js.orig
+    cat prefs.js.orig | head -n$startlines > prefs.js
+    echo "user_pref(\\\"network.proxy.backup.ftp_port\\\", 8118);
+user_pref(\\\"network.proxy.backup.socks_port\\\", 8118);
+user_pref(\\\"network.proxy.backup.ssl_port\\\", 8118);
+user_pref(\\\"network.proxy.ftp_port\\\", 8118);
+user_pref(\\\"network.proxy.http_port\\\", 8118);
+user_pref(\\\"network.proxy.socks_port\\\", 8118);
+user_pref(\\\"network.proxy.ssl_port\\\", 8118);
+user_pref(\\\"network.proxy.ftp\\\", \\\"127.0.0.1\\\");
+user_pref(\\\"network.proxy.http\\\", \\\"127.0.0.1\\\");
+user_pref(\\\"network.proxy.socks\\\", \\\"127.0.0.1\\\");
+user_pref(\\\"network.proxy.ssl\\\", \\\"127.0.0.1\\\");
+user_pref(\\\"network.proxy.type\\\", 1);
+" >> prefs.js
+    cat prefs.js.orig | tail -n$endlines >> prefs.js
+}
+
+# --------------------------------------------------------------
+
+
+cd ~/.mozilla/firefox/*.default*/
+if ! cat prefs.js | grep 8118 ; then
+    chop_up_broadway
+fi
+#exit 0
+
 if ps -o pid -C privoxy &>/dev/null && ps -o pid -C tor &>/dev/null ; then
   http_proxy=http://127.0.0.1:8118 iceweasel.forreals $@
 else
@@ -383,6 +416,7 @@ else
   fi
 fi
 exit $?
+
 ''' )
     system_or_die( 'chmod +x %s' % ( iceweasel_path ) )
     pretend_chromium = os.path.dirname( iceweasel_path ) + '/chromium'
