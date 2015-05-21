@@ -203,7 +203,7 @@ make_initramfs_homemade() {
 	garfield="H4sIAJ5cQFMAA5WWW47DIAxF/7OKIP8hDdlQpOx/F1O/bR4pdTWdEu4xBhvCeb4boB2L5wDSqBVKmQq5Czu5oc1ByX2AvSCtV6l0g7a+aFGA3it+SFtANX9/I8ZC+hAoFrjrGakgZC0bGHVdT4dBFJb4W7iPXdd1njdyt1FljXmb1uO5hVgiPrePVV7E+x6ZAq4GWSdmKlHP89w3uCQa5UCjb60RRNiFoyHVNCOsBf19BqxpNg9JLz6zTLLYmgFTkrlPNPQIgjQGSOslmEQqYNGnkIKl0mWTbgJtOZ0jlIXEtWyAJC8pgqBxdqIGA4d/HqosTNaBfXkoMseawTimz8nD0B+lHzFNUCThUeCsaqiIWm9acv3DlH/oFWVtXd2wveiLdEdMuS+DoCBSp5T/FPETSsroCDW4pgAMSKde2MkziI6m/uBaAjKpHwGK6viRiMu1j3TMl4l0ydxDiu7FXwi0lMlNBhfbsX3KN9Mm6GVSU7q+kVJ3DGsF7sFIagaKb5WRnr2mwHdjCXDYmSOTad5HYTetcKeMtnGTLXDl9N8w8PvoGYfFwOkwS50DXufwNr7i9/B18HKEv/IDbR5Ad0q4CcV7jEUQfMdbHNagBIEecs6mk7BbTHVfcjYQL7fD6CDef0o46ocJmY8iV66+Bs1leFf0XeKjgLsxFyE2WHqQONQJ5HTE6aWXVnQgdwG1cCV+cZFjGF83ekBM75STIFYOBocdbo43+T6i4x9WhIAHTg0AAA=="
 
 #	smileydecoder=""
-	smileydecoder="echo \"$thumbsup\" | base64 -d | gunzip"           # yes, \"$garfield\"; no, the $ shouldn't be backslashed
+	smileydecoder="echo \"$thumbsup\" | base64 -d | gunzip"           # LEAVE IT! Yes, \"$whatever\"; no, the $ shouldn't be backslashed
 	booming=""
 	[ "$rootdev" != "" ] || failed "Please specify rootdev when calling make_initramfs_homemade(). Thanks."
 	rm -Rf $root$INITRAMFS_DIRECTORY
@@ -465,7 +465,7 @@ sign_and_write_custom_kernel() {
 	echo "console=tty1  $extra_params_A root=$rootdev rootwait $readwrite quiet systemd.show_status=0 loglevel=$LOGLEVEL lsm.module_locking=0 init=/sbin/init $extra_params_B" > $root/root/.kernel.flags
 	vbutil_kernel --pack $root/root/.vmlinuz.signed --keyblock /usr/share/vboot/devkeys/kernel.keyblock --version 1 \
 --signprivate /usr/share/vboot/devkeys/kernel_data_key.vbprivk --config $root/root/.kernel.flags \
---vmlinuz $root$KERNEL_SRC_BASEDIR/src/chromeos-3.4/arch/arm/boot/vmlinux.uimg --arch arm \
+--vmlinuz $root$KERNEL_SRC_BASEDIR/src/chromeos-3.4/arch/arm/boot/vmlinux.uimg --arch arm --bootloader $root/root/.kernel.flags \
 && echo -en "..." || failed "Failed to sign kernel"
 	sync;sync;sync;sleep 1
 	dd if=$root/root/.vmlinuz.signed of=$writehere &> /dev/null && echo -en "..." || failed "Failed to write kernel to $writehere"
