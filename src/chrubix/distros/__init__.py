@@ -27,7 +27,7 @@ class Distro():
     '''
     '''
     # Class-level consts
-    hewwo = '2015/04/29 @ 17:34'
+    hewwo = '2015/05/19 @ 16:42'
     crypto_rootdev = "/dev/mapper/cryptroot"
     crypto_homedev = "/dev/mapper/crypthome"
     boot_prompt_string = "boot: "
@@ -97,6 +97,7 @@ simple-scan macchanger brasero pm-utils mousepad keepassx claws-mail bluez-utils
     def install_package_manager_tweaks( self ):     failed( "please define in subclass. Don't forget! Exclude jfsprogs, btrfsprogs, xfsprogs, linux kernel." )
     def update_and_upgrade_all( self ):             failed( "please define in subclass" )
     def install_important_packages( self ):         failed( "please define in subclass" )
+    def install_i2p( self ):                          failed( "please define in subclass" )
     def install_kernel_and_mkfs( self ):            failed( 'please define in subclass' )
     def configure_boot_process( self ):               failed( 'please define in subclass' )
 #    def install_locale( self ):                     failed( 'please define in subclass' )
@@ -325,8 +326,8 @@ make' % ( self.sources_basedir ), title_str = self.title_str, status_lst = self.
  'console=tty1 %s root=%s rootwait %s quiet systemd.show_status=0 %s lsm.module_locking=0 init=/sbin/init %s' \
                             % ( extra_params_A, my_root_device, readwrite, loglevel_str, extra_params_B ) )
         system_or_die( 'dd if=/dev/zero of=%s bs=1k count=1 2> /dev/null' % ( self.kernel_dev ) )
-        system_or_die( 'vbutil_kernel --pack %s --keyblock /usr/share/vboot/devkeys/kernel.keyblock --version 1 --signprivate /usr/share/vboot/devkeys/kernel_data_key.vbprivk --config %s/root/.kernel.flags --vmlinuz %s --arch arm' \
-                            % ( signed_kernel_fname, self.mountpoint, raw_kernel_fname ) )
+        system_or_die( 'vbutil_kernel --pack %s --keyblock /usr/share/vboot/devkeys/kernel.keyblock --version 1 --signprivate /usr/share/vboot/devkeys/kernel_data_key.vbprivk --config %s/root/.kernel.flags --vmlinuz %s --arch arm --bootloader %s/root/.kernel.flags' \
+                            % ( signed_kernel_fname, self.mountpoint, raw_kernel_fname, self.mountpoint ), "Failed to sign kernel" )
         system_or_die( 'dd if=%s of=%s' % ( signed_kernel_fname, self.kernel_dev ), "Failed to write kernel" )
         return 0
 
@@ -643,7 +644,7 @@ Choose the 'boom' password : """ ).strip( '\r\n\r\n\r' )
         self.status_lst.append( ["Updating skeleton"] )
         self.install_package_manager_tweaks()
 #        system_or_die( 'rm -f /var/lib/pacman/db.lck; sync; sync; sync; sleep 2; sync; sync; sync; sleep 2' )
-        chroot_this( '/', r'yes "" 2>/dev/null | pacman -Syu', "Failed to upgrade OS", attempts = 3, title_str = self.title_str, status_lst = self.status_lst )
+        chroot_this( '/', r'yes "" 2>/dev/null | pacman -Sy', "Failed to upgrade OS", attempts = 3, title_str = self.title_str, status_lst = self.status_lst )
         self.status_lst[-1] += "...updated."
 
     def install_all_important_packages_in_OS( self ):
@@ -774,8 +775,16 @@ exit 0
             system_or_die( 'chmod +x %s/usr/local/bin/Chrubix/bash/%s' % ( self.mountpoint, f ) )
         chroot_this( self.mountpoint, 'ln -sf Chrubix/bash/chrubix.sh /usr/local/bin/chrubix.sh', on_fail = 'Failed to setup chrubix.sh' )
         chroot_this( self.mountpoint, 'ln -sf Chrubix/bash/ersatz_lxdm.sh /usr/local/bin/ersatz_lxdm.sh', on_fail = 'Failed to setup ersatz_lxdm.sh' )
-        chroot_this( self.mountpoint, 'chmod +x /usr/local/bin/*' )
-        os.system( 'clear; sleep 1; sync;sync;sync; clear' )
+        for f in ( 'chmod +x /usr/local/bin/*',
+                   'chmod -R 755 /usr/local/bin/Chrubix',
+                   'chown -R 0 /usr/local/bin/Chrubix',
+                   'mkdir /usr/local/bin/Chrubix/src.new',
+                   'mv /usr/local/bin/Chrubix/src/* /usr/local/bin/Chrubix/src.new',
+                   'mv /usr/local/bin/Chrubix/src /usr/local/bin/Chrubix/src.orig',
+                   'mv /usr/local/bin/Chrubix/src.new /usr/local/bin/Chrubix/src',
+                   'clear; sleep 1; sync;sync;sync; clear',
+                  ):
+            chroot_this( self.mountpoint, f )
         install_mp3_files( self.mountpoint )
 
     def migrate_or_squash_OS( self ):
@@ -796,6 +805,7 @@ exit 0
 #            os.system( 'clear' )
             self.set_root_password()
             username = ask_the_user__guest_mode_or_user_mode__and_create_one_if_necessary( self.name, self.mountpoint )
+            self.status_lst.append( ['Setting up guest user etc. ...'] )
             self.lxdm_settings['login as user'] = username
             if username != 'guest':  # Login as specific user, other than guest
                 self.lxdm_settings['autologin'] = False
@@ -936,7 +946,7 @@ exit 0
             self.status_lst[-1] += 'Yep.'
 
     def build_and_install_software_from_archlinux_source( self, package_name, only_download = False, quiet = False, nodeps = False ):
-        chroot_this( '/', 'yes "" 2>/dev/null | pacman -S --needed --force fakeroot', title_str = self.title_str, status_lst = self.status_lst,
+        chroot_this( '/', 'yes "" 2>/dev/null | pacman -Sy --needed --force fakeroot', title_str = self.title_str, status_lst = self.status_lst,
                          on_fail = 'Failed to install fakeroot #1' )
     #    pkgbuild_url_template = 'https://projects.archlinux.org/svntogit/packages.git/plain/trunk/%s?h=packages/%s'
         if not quiet and self.status_lst is not None:
@@ -1320,6 +1330,7 @@ WantedBy=multi-user.target
     def forcibly_rebuild_initramfs_and_vmlinux( self ):
         self.status_lst.append( ['Forcibly rebuilding kernel and vmlinux'] )
         self.kernel_rebuild_required = True
+#        self.build_kernel_and_mkfs()
         self.redo_mbr( root_partition_device = self.root_dev, chroot_here = self.mountpoint )
         self.status_lst[-1] += '...rebuilt.'
         assert( os.path.exists( '%s%s/src/chromeos-3.4/arch/arm/boot/vmlinux.uimg' % ( self.mountpoint, self.kernel_src_basedir ) ) )
@@ -1385,6 +1396,7 @@ WantedBy=multi-user.target
                                 self.save_for_posterity_if_possible_D )
         fifth_stage = ( 
                        # Chrubix ought to have been installed in /tmp/_root/{dest distro} already, by the stage 1 bash script.
+#                                self.install_i2p,
                                 self.install_vbutils_and_firmware_from_cbook,  # just in case the new user's tools differ from the original builder's tools
                                 self.migrate_or_squash_OS,
                                 self.unmount_and_clean_up
