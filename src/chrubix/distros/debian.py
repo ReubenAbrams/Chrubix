@@ -128,9 +128,9 @@ mate-desktop-environment-extras'  # FYI, freenet is handled by install_final_pus
     def install_barebones_root_filesystem( self ):
         logme( 'DebianDistro - install_barebones_root_filesystem() - starting' )
         system_or_die( 'mkdir -p %s' % ( self.sources_basedir ) )
-        if 0 != chroot_this( '/', r'yes "Y" 2>/dev/null | pacman -Syu fakeroot', attempts = 1, title_str = self.title_str, status_lst = self.status_lst ):
+        if 0 != chroot_this( '/', r'yes "Y" 2>/dev/null | pacman -Sy fakeroot', attempts = 1, title_str = self.title_str, status_lst = self.status_lst ):
             chroot_this( '/', r'pacman-db-upgrade', attempts = 1 )
-            chroot_this( '/', r'yes "Y" 2>/dev/null | pacman -Syu fakeroot', "Failed to install fakeroot", attempts = 1, title_str = self.title_str, status_lst = self.status_lst )
+            chroot_this( '/', r'yes "Y" 2>/dev/null | pacman -Sy fakeroot', "Failed to install fakeroot", attempts = 1, title_str = self.title_str, status_lst = self.status_lst )
         if os.system( 'which debootstrap &> /dev/null' ) != 0:
             self.build_and_install_package_into_alarpy_from_source( 'debootstrap', quiet = True )
         self.status_lst.append( ['Running debootstrap, to generate filesystem => %s' % ( self.title_str )] )
@@ -307,6 +307,8 @@ Acquire::https::Proxy "https://%s/";
             do_a_sed( '%s/etc/default/pulseaudio' % ( self.mountpoint ), 'PULSEAUDIO_SYSTEM_START=0', 'PULSEAUDIO_SYSTEM_START=1' )
         except:
             self.status_lst[-1] += ' *** Unable to modify /etc/default/pulseaudio --- is it missing? *** '
+# #        chroot_this( self.mountpoint, 'wget http://www.deb-multimedia.org/pool/main/d/deb-multimedia-keyring/deb-multimedia-keyring_2014.2_all.deb -O - > /tmp/debmult.deb', attempts = 1, title_str = self.title_str, status_lst = self.status_lst )
+# #        chroot_this( self.mountpoint, 'dpkg -i /tmp/debmult.deb', attempts = 1, title_str = self.title_str, status_lst = self.status_lst )
 #        print( 'looking for %s' % ( svcfile ) )
 #        assert( os.path.exists( svcfile ) )
 #        do_a_sed( svcfile, '38400', '38400 --autologin root' )  # %%I ?
@@ -326,32 +328,11 @@ Acquire::https::Proxy "https://%s/";
 # % ( self.sources_basedir ), status_lst = self.status_lst, title_str = self.title_str, on_fail = 'Failed to mickeymouse lxdm' )
         logme( 'DebianDistro - configure_distrospecific_tweaks() - leaving' )
 
-#     def install_i2p( self ):
-# #        chroot_this( self.mountpoint, 'wget http://www.deb-multimedia.org/pool/main/d/deb-multimedia-keyring/deb-multimedia-keyring_2014.2_all.deb -O - > /tmp/debmult.deb', attempts = 1, title_str = self.title_str, status_lst = self.status_lst )
-# #        chroot_this( self.mountpoint, 'dpkg -i /tmp/debmult.deb', attempts = 1, title_str = self.title_str, status_lst = self.status_lst )
-#         assert( self.branch in ( 'wheezy', 'jessie', 'stretch' ) )
-#         our_branch = self.branch if self.branch in ( 'wheezy', 'jessie' ) else 'unstable'
-#         write_oneliner_file( '%s/etc/apt/sources.list.d/i2p.list' % ( self.mountpoint ), '''
-# deb http://deb.i2p2.no/ %s main
-# deb-src http://deb.i2p2.no/ %s main
-# ''' % ( our_branch, our_branch ) )
-#         for cmd in (
-#                         'yes 2>/dev/null | add-apt-repository "deb http://deb.i2p2.no/ %s main"' % ( self.branch ),
-#                         'yes "" 2>/dev/null | curl https://geti2p.net/_static/i2p-debian-repo.key.asc | apt-key add -',
-#                         'yes 2>/dev/null | apt-get update'
-#                    ):
-#             chroot_this( self.mountpoint, cmd, title_str = self.title_str, status_lst = self.status_lst,
-#                              on_fail = "Failed to run %s successfully" % ( cmd ) )
-#         chroot_this( self.mountpoint, 'yes | apt-get install i2p i2p-keyring', on_fail = 'Failed to install i2p' )
-#         logme( 'tweaking i2p ID...' )
-#         do_a_sed( '%s/etc/passwd' % ( self.mountpoint ), 'i2p:/bin/false', 'i2p:/bin/bash' )
-
-
     def install_i2p( self ):
-        package_name = 'service-wrapper-java'
-        self.build_and_install_package_from_deb_or_ubu_source( package_name, \
-                                                        'http://deb.i2p2.no/pool/main/%s' % ( package_name[:1] ),
-                                                        neutralize_dependency_vernos = True )
+#        package_name = 'service-wrapper-java'
+#        self.build_and_install_package_from_deb_or_ubu_source( package_name, \
+#                                                        'http://deb.i2p2.no/pool/main/%s' % ( package_name[:1] ),
+#                                                        neutralize_dependency_vernos = True )
         f = '/tmp/i2p.txt'
         jar_fname = '/tmp/i2p.jar'
         if 0 != system_or_die( "wget https://geti2p.net/en/download -O - | tr ' ' '\n' | tr '<' '\n' | tr '>' '\n' | tr '=' '\n' | grep i2pinstall | grep jar | grep download | head -n1 > %s" % ( f ) ):
@@ -366,14 +347,22 @@ Acquire::https::Proxy "https://%s/";
             wget( url = actual_download_path, save_as_file = '%s%s.DLnow' % ( self.mountpoint, jar_fname ) )
             system_or_die( 'mv %s%s.DLnow %s%s' % ( self.mountpoint, jar_fname, self.mountpoint, jar_fname ) )
         write_oneliner_file( '%s/.install_i2p_like_this.sh' % ( self.mountpoint ), '''#!/bin/bash
-rm -Rf /opt/i2p/.[a-z]*
-rm -Rf /opt/i2p/*
-echo "1
-/opt/i2p
-1
-1
-1
-" | java -jar %s -console
+
+clear
+echo "Specify /opt/i2p as the installation directory, please."
+echo "Specify /opt/i2p as the installation directory, please."
+echo "Specify /opt/i2p as the installation directory, please."
+echo "Specify /opt/i2p as the installation directory, please."
+echo "Specify /opt/i2p as the installation directory, please."
+echo "Specify /opt/i2p as the installation directory, please."
+echo ""
+rm -Rf /opt/i2p/.[a-z]* 2> /dev/null
+rm -Rf /opt/i2p/* 2> /dev/null
+#echo "1
+#/opt/i2p
+#1
+#" |
+java -jar %s -console
 res=$?
 if [ "$res" -le "1" ] ; then
   exit 0
@@ -382,15 +371,19 @@ else
 fi
 ''' % ( jar_fname ) )
         system_or_die( 'chmod +x %s/.install_i2p_like_this.sh' % ( self.mountpoint ) )
-        chroot_this( self.mountpoint, 'su -l freenet /.install_i2p_like_this.sh', attempts = 1,
-                                on_fail = 'Failed to install I2P',
-                                status_lst = self.status_lst, title_str = self.title_str )
+#        chroot_this( self.mountpoint, 'su -l freenet /.install_i2p_like_this.sh', attempts = 1,
+#                                on_fail = 'Failed to install I2P',
+#                                status_lst = self.status_lst, title_str = self.title_str )
+        if 0 != os.system( 'chroot %s /.install_i2p_like_this.sh' % ( self.mountpoint ) ):  # --userspec=freenet
+            failed( 'Failed to install i2p' )
+        assert( os.path.exists( '%s/opt/i2p' % ( self.mountpoint ) ) )
+        self.add_user_SUB( 'i2psvc' , '/opt/i2p' )
+        do_a_sed( '%s/etc/passwd' % ( self.mountpoint ), 'i2psvc:i2psvc', 'i2psvc:/bin/bash' )
+        chroot_this( self.mountpoint, 'chown -R i2psvc /opt/i2p' )
         logme( 'tweaking i2p ID...' )
-        do_a_sed( '%s/etc/passwd' % ( self.mountpoint ), 'i2p:/bin/false', 'i2p:/bin/bash' )
 
     def install_final_push_of_packages( self ):
         logme( 'DebianDistro - install_final_push_of_packages() - starting' )
-        self.install_i2p()
         self.install_win_xp_theme()  # If you install this before i2p, something gets broken. :-/
         chroot_this( self.mountpoint, 'yes "" | apt-get -f install' )  # This shouldn't be necessary...
         chroot_this( self.mountpoint, 'which ping && echo "Ping installed OK" || yes 2>/dev/null | apt-get install iputils-ping', on_fail = 'Failed to install ping' )
@@ -398,10 +391,18 @@ fi
 #                     on_fail = 'Failed to install leap.bitmask' )
 #        self.status_lst.append( [ 'Go to https://wiki.freenetproject.org/Installing/POSIX and learn how to install Freenet'] )
         if self.final_push_packages.find( 'wmsystemtray' ) < 0:
-            self.install_expatriate_software_into_a_debianish_OS( package_name = 'wmsystemtray', method = 'debian' )
+            try:
+                self.install_expatriate_software_into_a_debianish_OS( package_name = 'wmsystemtray', method = 'debian' )
+            except RuntimeError:
+                os.system( 'sync;sync;sync' )
+                os.system( 'sleep 2' )
+                os.system( 'sync;sync;sync' )
+                os.system( 'sleep 2' )
+                self.install_expatriate_software_into_a_debianish_OS( package_name = 'wmsystemtray', method = 'debian' )
         if self.final_push_packages.find( 'lxdm' ) < 0:
 #            install_lxdm_from_source( self.mountpoint )
             self.install_expatriate_software_into_a_debianish_OS( package_name = 'lxdm', method = 'ubuntu' )
+        self.install_i2p()
         self.status_lst.append( ['Installing remaining packages'] )
 #        self.status_lst.append( ['Installing %s' % ( self.final_push_packages.replace( '  ', ' ' ).replace( ' ', ', ' ) )] )
         chroot_this( self.mountpoint, 'yes "Yes" | aptitude install %s' % ( self.final_push_packages ),
@@ -649,6 +650,23 @@ class WheezyDebianDistro( DebianDistro ):
                     on_fail = 'Failed to install systemd-sysv' )
         super( WheezyDebianDistro, self ).install_important_packages()  # FIXME yes_add_ffmpeg_repo = True )
 
+#     def install_i2p( self ):
+#         assert( self.branch in ( 'wheezy', 'jessie', 'stretch' ) )
+#         our_branch = self.branch if self.branch in ( 'wheezy', 'jessie' ) else 'unstable'
+#         write_oneliner_file( '%s/etc/apt/sources.list.d/i2p.list' % ( self.mountpoint ), '''
+# deb http://deb.i2p2.no/ %s main
+# deb-src http://deb.i2p2.no/ %s main
+# ''' % ( our_branch, our_branch ) )
+#         for cmd in (
+#                         'yes 2>/dev/null | add-apt-repository "deb http://deb.i2p2.no/ %s main"' % ( self.branch ),
+#                         'yes "" 2>/dev/null | curl https://geti2p.net/_static/i2p-debian-repo.key.asc | apt-key add -',
+#                         'yes 2>/dev/null | apt-get update'
+#                    ):
+#             chroot_this( self.mountpoint, cmd, title_str = self.title_str, status_lst = self.status_lst,
+#                              on_fail = "Failed to run %s successfully" % ( cmd ) )
+#         chroot_this( self.mountpoint, 'yes | apt-get install i2p i2p-keyring', on_fail = 'Failed to install i2p' )
+#         logme( 'tweaking i2p ID...' )
+#         do_a_sed( '%s/etc/passwd' % ( self.mountpoint ), 'i2p:/bin/false', 'i2p:/bin/bash' )
 
 class JessieDebianDistro( DebianDistro ):
     def __init__( self , *args, **kwargs ):
