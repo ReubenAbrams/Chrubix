@@ -1,6 +1,7 @@
 #!/usr/local/bin/python3
 #
 # utils.py
+from _sqlite3 import InternalError
 
 '''
 Created on May 1, 2014
@@ -23,7 +24,7 @@ g_proxy = None  # if ( 0 != os.system( 'ifconfig | grep inet | fgrep 192.168.0 &
 g_default_window_manager = '/usr/bin/startlxde'  # wmaker, startxfce4, startlxde, ...
 
 
-MAXIMUM_COMPRESSION = True  # Max compression on the left; quicker testing on the right :)
+MAXIMUM_COMPRESSION = False  # True  # Max compression on the left; quicker testing on the right :)
 __g_start_time = time.time()
 
 
@@ -79,7 +80,10 @@ def call_binary_and_show_progress( binary_info, title_str, foot_str, status_lst,
     loop = urwid.MainLoop( frame_widget, unhandled_input = exit_on_enter )
     def received_output( data ):
         old_lst = output_widget.text.split( '\n' )
-        new_data = data.decode( 'utf-8' ).strip( ' .\r\n' ).strip()
+        try:
+            new_data = data.decode( 'utf-8' ).strip( ' .\r\n' ).strip()
+        except UnicodeDecodeError:
+            new_data = '(unicode error)'
         new_lst_A = [ r.strip( '. \r\n' ) for r in new_data.replace( '\r', '\n' ).split( '\n' ) if len( r.strip() ) >= lower_limit]
         new_lst = []
         for r in [ s.strip() for s in new_lst_A]:
@@ -237,13 +241,13 @@ def system_or_die( cmd, errtxt = None, title_str = None, status_lst = None ):
     else:
         res = os.system( cmd )
     if res != 0:
+        logme( 'system_or_die(%s) is returning w/ res=%d' % ( cmd, res ) )
         if errtxt is None:
             failed( '%s failed\nres=%d' % ( cmd, res ) )
         else:
             failed( '%s failed\n%s\nres=%d' % ( cmd, errtxt, res ) )
         os.system( 'clear' )
 #        logme( "%s failed" % ( cmd, ) )
-    logme( 'system_or_die(%s) is returning w/ res=%d' % ( cmd, res ) )
     return res
 
 
@@ -255,11 +259,13 @@ def chroot_this( mountpoint, cmd, on_fail = None, attempts = 3, title_str = None
         failed( '%s not found --- are you sure the chroot is operational?' % ( mountpoint ) )
     f = open( mountpoint + my_executable_script, 'wb' )
     outstr = '#!/bin/bash\n%s\n%s\nexit $?\n' % ( proxy_info, cmd )
+    if os.path.exists( mountpoint + '/bin/sh' ) and not os.path.exists( mountpoint + '/bin/bash' ):
+        failed( InternalError, 'That is wrong. There is /bin/sh but not /bin/bash. Ugh.' )
     f.write( outstr.encode( 'utf-8' ) )
     f.close()
     system_or_die( 'chmod 777 %s' % ( mountpoint + my_executable_script ) )
     system_or_die( 'chmod +x %s' % ( mountpoint + my_executable_script ) )
-    logme( 'chroot_this() --- calling %s' % ( cmd ) )
+#    logme( 'chroot_this() --- calling %s' % ( cmd ) )
     for att in range( attempts ):
         att = att  # hide Eclipse warning
         if title_str is not None or status_lst is not None:
@@ -280,6 +286,7 @@ def chroot_this( mountpoint, cmd, on_fail = None, attempts = 3, title_str = None
             time.sleep( pauses_len )
     if res != 0 and on_fail is not None:
         failed( '%s chroot in %s of "%s" failed after several attempts; %s' % ( proxy_info, mountpoint, cmd, on_fail ) )
+#    if os.path.exists( mountpoint + my_executable_script ):
     os.unlink( mountpoint + my_executable_script )
     os.system( 'sync;sync;sync' )
     logme( 'chroot("%s") is returning w/ res=%d' % ( cmd, res ) )
@@ -395,7 +402,7 @@ def install_windows_xp_theme_stuff( mountpoint ):
     my_temp_dir = '%s/tmp/.luna.tmp' % ( mountpoint )
     system_or_die( 'mkdir -p %s' % ( my_temp_dir ) )
     system_or_die( 'tar -zxf %s/usr/local/bin/Chrubix/blobs/xp/tails-xp.tgz -C %s' % ( mountpoint, mountpoint ) )
-    system_or_die( 'tar -zxf %s/usr/local/bin/Chrubix/blobs/xp/linux_xp_luna_theme_install.tar.gz -C %s' % ( mountpoint, my_temp_dir ) )
+    system_or_die( 'tar -zxf %s/usr/local/bin/Chrubix/blobs/xp/linux_xp_luna_theme_install.tar.gz -C %s &> /dev/null' % ( mountpoint, my_temp_dir ) )
     for area in ( 'icons', 'themes' ):
         system_or_die( 'cp -af %s/%s/Luna %s/usr/share/%s/' % ( my_temp_dir, area, mountpoint, area ) )
     system_or_die( 'cp -af %s/usr/share/icons/GnomeXP/* %s/usr/share/icons/Luna/' % ( mountpoint, mountpoint ) )
