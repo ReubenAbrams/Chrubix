@@ -15,8 +15,6 @@
 # To run me, type:-
 # # cd && rm -f latest_that && wget bit.do/latest_that && sudo bash latest_that
 # 
-# To force from-the-ground-up rebuild & to forgo online (Dropbox) URLs:-
-# # touch /tmp/FROMSCRATCH
 ###################################################################################
 
 
@@ -33,13 +31,15 @@ fi
 
 ALARPY_URL="https://dl.dropboxusercontent.com/u/59916027/chrubix/skeletons/alarpy.tar.xz"
 PARTED_URL="https://dl.dropboxusercontent.com/u/59916027/chrubix/skeletons/parted_and_friends.tar.xz"
-FINALS_URL="https://dl.dropboxusercontent.com/u/59916027/chrubix/finals"
+echo "$0" | fgrep latest_that &> /dev/null || FINALS_URL="https://dl.dropboxusercontent.com/u/59916027/chrubix/finals"
 CHRUBIX_URL="http://github.com/ReubenAbrams/Chrubix/archive/master.tar.gz"
 OVERLAY_URL=https://dl.dropboxusercontent.com/u/59916027/chrubix/_chrubix.tar.xz
 RYO_TEMPDIR=/root/.rmo
 SOURCES_BASEDIR=$RYO_TEMPDIR/PKGBUILDs/core
 KERNEL_SRC_BASEDIR=$SOURCES_BASEDIR/linux-chromebook
 LOGLEVEL=2
+    
+
 
 
 #if ifconfig | grep inet | fgrep 192.168.0 &> /dev/null ; then
