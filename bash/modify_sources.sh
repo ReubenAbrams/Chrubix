@@ -635,13 +635,6 @@ restore_to_pristine_state_if_necessary() {
 }
 
 
-generate_patches_afterward() {
-	local root
-	root=$1
-
-}
-
-
 # ------------------------------------------------------------------
 
 
@@ -677,7 +670,6 @@ petname=`find_boot_drive | cut -d'-' -f3 | tr '_' '\n' | tail -n1 | awk '{print 
 cores=1
 restore_to_pristine_state_if_necessary $root
 modify_mkfs_n_kernel  $root $boot $kern $dev $dev_p $petname $cores
-#generate_patches_afterward $root
 res=$?
 echo "Exiting w/ res=$res"
 exit $res
