@@ -51,7 +51,7 @@ elif argv[2] == 'build-from-debian':
     distro.mountpoint = '/tmp/_root'
     pkg = argv[4]
 #    sys.exit( 0 )
-    print( "Building %s from Deb-ish => Wheezy" % ( pkg ) )
+    print( "Building %s from Deb-ish => %s" % ( pkg, argv[3] ) )
     distro.build_and_install_package_from_debian_source( pkg, 'wheezy' if argv[3] == 'debianwheezy' else 'jessie' )
 elif argv[2] == 'build-from-ubuntu':
     distro = generate_distro_record_from_name( argv[3] )
@@ -234,10 +234,12 @@ elif argv[2] == 'alarpy-build':
     distro.build_and_install_package_into_alarpy_from_source( argv[3], quiet = True )
 elif argv[2] == 'install-i2p':
     distro = generate_distro_record_from_name( argv[3] )
-    distro.mountpoint = '/tmp/_root'
-    distro.device = '/dev/mmcblk1'
-    distro.root_dev = '/dev/mmcblk1p3'
-    distro.spare_dev = '/dev/mmcblk1p2'
+    assert( os.path.isdir( argv[4] ) is True )
+    distro.mountpoint = argv[4]
+#    distro.mountpoint = '/tmp/_root'
+#    distro.device = '/dev/mmcblk1'
+#    distro.root_dev = '/dev/mmcblk1p3'
+#    distro.spare_dev = '/dev/mmcblk1p2'
     distro.install_i2p()
 elif argv[2] == 'win-xp-theme':
     distro = generate_distro_record_from_name( argv[3] )
