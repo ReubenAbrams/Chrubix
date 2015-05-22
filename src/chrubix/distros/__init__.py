@@ -538,6 +538,7 @@ systemctl start tor
 systemctl start freenet
 systemctl start i2p
 su -l freenet /opt/freenet/run.sh start
+su -l root /opt/i2p/runplain.sh
 su -l i2psvc i2prouter start
 ''' )
         do_a_sed( '%s/etc/passwd' % ( self.mountpoint ), 'i2p:/bin/false', 'i2p:/bin/bash' )  # FIXME: Probably unnecessary; try removing it; see if i2p still works :)
@@ -716,9 +717,10 @@ Choose the 'boom' password : """ ).strip( '\r\n\r\n\r' )
     def add_shutdown_user( self ):
         self.add_user_SUB( 'shutdown' )
 
-    def add_user_SUB( self, username ):
+    def add_user_SUB( self, username, userhome = None ):
         cmd = username if username != 'shutdown' else 'poweroff'
-        userhome = '/etc/.%s' % ( username )
+        if userhome is None:
+            userhome = '/etc/.%s' % ( username )
         if 0 != chroot_this( self.mountpoint, "mkdir -p %s" % ( userhome ), attempts = 1 ):
             system_or_die( 'mkdir -p %s%s' % ( self.mountpoint, userhome ) )
         if 0 != chroot_this( self.mountpoint, "useradd %s -d %s" % ( username, userhome ), attempts = 1, status_lst = self.status_lst, title_str = self.title_str ):
@@ -1394,9 +1396,7 @@ WantedBy=multi-user.target
                                 self.check_sanity_of_distro,
                                 self.reinstall_chrubix_if_missing,
                                 self.save_for_posterity_if_possible_D )
-        fifth_stage = ( 
-                       # Chrubix ought to have been installed in /tmp/_root/{dest distro} already, by the stage 1 bash script.
-#                                self.install_i2p,
+        fifth_stage = ( # Chrubix ought to have been installed in /tmp/_root/{dest distro} already, by the stage 1 bash script.
                                 self.install_vbutils_and_firmware_from_cbook,  # just in case the new user's tools differ from the original builder's tools
                                 self.migrate_or_squash_OS,
                                 self.unmount_and_clean_up
