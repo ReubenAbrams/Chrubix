@@ -312,7 +312,7 @@ may be ueful in public places in order to avoid attracting suspicion.</string>
      <string>No</string>
     </property>
     <property name="checked">
-     <bool>true</bool>
+     <bool>false</bool>
     </property>
    </widget>
    <widget class="QRadioButton" name="radCamouflageYes">
@@ -326,6 +326,9 @@ may be ueful in public places in order to avoid attracting suspicion.</string>
     </property>
     <property name="text">
      <string>Yes</string>
+    </property>
+    <property name="checked">
+     <bool>true</bool>
     </property>
    </widget>
   </widget>
