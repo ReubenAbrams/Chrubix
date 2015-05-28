@@ -26,6 +26,6 @@ elif [ "$1" = "greeter" ] ; then
 elif [ "$1" = "ersatz_lxdm" ] ; then
 	python3 ersatz_lxdm.py $@
 else
-	python3 main.py -Koff -Poff -d$dev -r$rootdev -s$sparedev -k$kerndev -D$distroname
+	python3 main.py -Kkkk -Pppp -d$dev -r$rootdev -s$sparedev -k$kerndev -D$distroname
 fi
 exit $?
