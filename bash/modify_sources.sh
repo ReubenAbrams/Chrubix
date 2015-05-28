@@ -7,18 +7,16 @@
 #################################################################################
 
 
-NOPHEASANTS=""			# if left blank, the new kernel will use a whitelist and a randomize margic number (for btrfs, jfs, xfs)
-NOKTHX=""
+NOPHEASANTS=""			# If var is blank, the new kernel will use a whitelist 
+NOKTHX=""				# if var is blank, the new kernel use a randomize margic number (for btrfs, jfs, xfs)
 LOGLEVEL="2"		# .... or "6 debug verbose" .... or "2 debug verbose" or "2 quiet"
 BOOMFNAME=/etc/.boom
 BOOT_PROMPT_STRING="boot: "
 TEMPDIR=/tmp
-SNOWBALL=nv_uboot-snow.kpart.bz2
 ARCHLINUX_ARCHITECTURE=armv7h
 RYO_TEMPDIR=/root/.rmo
 BOOM_PW_FILE=/etc/.sha512bm
 KERNEL_CKSUM_FNAME=.k.bl.ck
-SPLITPOINT=NONONONONONONONO
 CRYPTOROOTDEV=/dev/mapper/cryptroot			# do not tamper with this, please
 CRYPTOHOMEDEV=/dev/mapper/crypthome
 SOURCES_BASEDIR=$RYO_TEMPDIR/PKGBUILDs/core
@@ -29,6 +27,7 @@ RAMFS_BOOMFILE=.sha512boom
 GUEST_HOMEDIR=/tmp/.guest
 DISTRO=ArchLinux
 STOP_JFS_HANGUPS="echo 0 > /proc/sys/kernel/hung_task_timeout_secs"
+MAX_LENGTH_OF_STRING_OF_BAD_PHEASANTS_CAUGHT=512
 
 
 
@@ -39,7 +38,7 @@ STOP_JFS_HANGUPS="echo 0 > /proc/sys/kernel/hung_task_timeout_secs"
 make_initramfs_saralee() {
 	local f myhooks root autogenerator_fname
 	root=$1
-echo "make_initramfs_saralee() -- root=$root"
+	echo "make_initramfs_saralee() -- root=$root"
 	rm -Rf $root$INITRAMFS_DIRECTORY
 	mkdir -p $root$INITRAMFS_DIRECTORY
 	cd $root$INITRAMFS_DIRECTORY
@@ -71,28 +70,32 @@ COMPRESSION=\"lzma\"
 
 
 modify_mkfs_n_kernel() {
-	local root boot kern dev dev_p fstype petname serialno haystack tmpfile cores linepos relfname fname
+	local root boot kern dev dev_p fstype petname serialno haystack tmpfile linepos relfname fname
 	root=$1
 	boot=$2
 	kern=$3
 	dev=$4
 	dev_p=$5
 	petname=$6
-	cores=$7
+
 	tmpfile=/tmp/$RANDOM$RANDOM$RANDOM
-	serialno=`get_dev_serialno $dev`
-echo "modify_mkfs_n_kernel() ---- dev=$dev --- serialno=$serialno"
-	haystack="`deduce_whitelist "$dev"`"          # $serialno" # Don't need to include serialno. Whitelist will add it automatically because it's plugged in already.
+
+	serialno=$petname    # `get_dev_serialno $dev`
+	echo "modify_mkfs_n_kernel() ---- dev=$dev --- serialno=$serialno"
+	haystack="`deduce_whitelist "$dev"` (null)"          # $serialno" # Don't need to include serialno. Whitelist will add it automatically because it's plugged in already.
 	[ "$serialno" = "" ] && failed "Failed to get dev serialno of $dev"
 
+	echo "modify_mkfs_n_kernel() -- FYI, serialno=$serialno"
 	echo "Modifying..."
+	echo "serialno = $serialno"
+	echo "haystack = $haystack"
 	modify_all $root "$serialno" "$haystack"
+	
+#failed "QQQRRR"
 	echo -en "Building a temporary prefab initramfs..."
+	mkdir -p $root/lib/modules
+	[ -e "$root/lib/modules/3.4.0-ARCH" ] || cp -af /lib/modules/3.4.0-ARCH $root/lib/modules/
 	make_initramfs_saralee $root "" || failed "Failed to make prefab initramfs -- `cat $tmpfile`"
-
-	# enable SMP compiling
-#	mv $root/etc/makepkg.conf $root/etc/makepkg.conf.orig
-#	cat $root/etc/makepkg.conf.orig | sed s/#MAKEFLAGS.*/MAKEFLAGS=\"-j$cores\"/ | sed s/\!ccache/ccache/ > $root/etc/makepkg.conf
 }
 
 
@@ -122,30 +125,61 @@ chunkymunky() {
 # - if the detected device is on our whitelist, good :) support it :)
 # - if the detected device is our "All clear" device (our registered boot device), good :) from now on, all devices are kosher!
 # - if the detected device is neither 'all clear' dev nor on our whitelist, bad :( we reject it (and probably crash the kernel in the process)
-	local myvar_name serialno haystack do_if_bad_serno snprintf_or_strcpy functext tolower do_if_good_serno last_eight opening_decs my_if int_or_str parole_clause remove_device varname
+	local myvar_name serialno haystack do_if_bad_serno snprintf_or_strcpy functext tolower do_if_good_serno last_eight opening_decs my_if int_or_str parole_clause remv_dev badphez_payload varname do_if_on_shitlist
 # Generate an inline C 'function' to display a given string & try to match it against the approved serial numbers
 	varname=$1
 	serialno="$2"
 	knowngoodserials="$3"
-	my_if="(needle!=NULL \\&\\& strlen(needle)>0 \\&\\& strstr(haystack,needle))"
-	[ "$4" != "" ] && my_if="$4 \\|\\| $my_if"
+	my_if="(needle!=NULL && strlen(needle)>0 && strstr(haystack,needle))"
+	[ "$4" != "" ] && my_if="$4 || $my_if"
 	int_or_str=$5
-	[ "$extra_if" != "" ] && extra_if="\\|\\| $extra_if"
-	echo "$varname" | grep "udev" &> /dev/null && remove_device="usb_remove_device(udev);" || remove_device="mmc_remove_card(card);"
-	opening_decs="char ndlbuff[32]={'\\\\0'}; char *needle=ndlbuff; char haystack[]=\\\"$knowngoodserials\\\"; "
-	tolower="char \\*sss; for(sss=needle; \\*sss; sss++) { if (\\*sss>='A' \\&\\& \\*sss<='Z') \\*sss=\\*sss + 32; }"
+	[ "$extra_if" != "" ] && extra_if="|| $extra_if"
+	echo "$varname" | grep "udev" &> /dev/null && remv_dev="usb_deauthorize_device(udev); usb_remove_device(udev); " || remv_dev="mmc_remove_card(card);"
+	remv_dev="$remv_dev;
+printk(KERN_INFO \"QQQ deactivated %s. Yay.\\n\", needle);
+"
+	badphez_payload="
+printk(KERN_INFO \"QQQ G,dc bad eggs (old): %s\\n\", getShitlist());
+	if (!strstr(getShitlist(), needle)) { addToShitlist(needle); }
+    printk(KERN_INFO \"QQQ G,dc bad eggs (new): %s\\n\", getShitlist());
+$remv_dev
+"
+	do_if_on_shitlist="printk(KERN_INFO \"QQQ Fsck you, buddy! We reject %s\\n\", needle);  $badphez_payload; "
+	opening_decs="char ndlbuff[32]={'\\0'}; char *needle=ndlbuff; char haystack[]=\"$knowngoodserials\"; "
+	tolower="char *sss; for(sss=needle; *sss; sss++) { if (*sss>='A' && *sss<='Z') *sss=*sss + 32; }"
 	last_eight="while(strlen(needle)>8) { needle++; } "
-	parole="if (strstr(needle,\\\"$serialno\\\") || strstr(\\\"$serialno\\\",needle)) { setPheasant(getPheasant()+1); printk(KERN_INFO \\\"I've caught a pheasant: %s\\\\n\\\", needle); } "
-	do_if_good_serno="if (getPheasant()) { printk(KERN_INFO \\\"G,dc pheasant: %s\\\\n\\\", needle); } else { printk(KERN_INFO \\\"Good pheasant: %s\\\\n\\\", needle); } "
-	do_if_bad_serno=" if (getPheasant()) { printk(KERN_INFO \\\"B,dc pheasant: %s\\\\n\\\", needle); } else { printk(KERN_ERR \\\"Bad pheasant... %s\\\\n\\\", needle); $remove_device } "
+	parole="
+	if (strstr(needle,\"$serialno\") || strstr(\"$serialno\",needle)) {
+//unsigned long delay = jiffies + 5;        // ten ticks
+//while (time_before(jiffies, delay));
+setPheasant(getPheasant()+1); printk(KERN_INFO \"QQQ I've caught a pheasant: %s. FYI, blacklist is now %s\\n\", needle, getShitlist());
+}
+"
+	do_if_good_serno="
+if (getPheasant()) { printk(KERN_INFO \"QQQ G,dc pheasant: %s\\n\", needle); }
+else { printk(KERN_INFO \"QQQ %s is on my whitelist. Good.\\n\", needle); }
+"
+	do_if_bad_serno="
+if (getPheasant()) { printk(KERN_INFO \"QQQ B,dc pheasant: %s\\n\", needle); }
+else { printk(KERN_INFO \"QQQ %s is unknown. I am adding it to my blacklist.\\n\", needle); $badphez_payload }
+"
 	if [ "$int_or_str" = "int" ] ; then
-		snprintf_or_strcpy="snprintf(needle, 31, \\\"%08x\\\", $varname)"
+		snprintf_or_strcpy="snprintf(needle, 31, \"%08x\", $varname)"
 	elif [ "$int_or_str" = "str" ] ; then
-		snprintf_or_strcpy="snprintf(needle, 31, \\\"%s\\\", $varname)"
+		snprintf_or_strcpy="snprintf(needle, 31, \"%s\", $varname)"
 	else
 		failed "$int_or_str - unknown chunkymunky param; should be int or str"
 	fi
-	functext="$opening_decs; $snprintf_or_strcpy; $tolower; $last_eight; $parole; if ($my_if) { $do_if_good_serno; } else { $do_if_bad_serno; }; "
+	functext="
+$opening_decs;
+$snprintf_or_strcpy;
+$tolower;
+$last_eight; 
+$parole;
+if (getPheasant() && strstr(getShitlist(),needle)) { $do_if_on_shitlist; }
+else if ($my_if) { $do_if_good_serno; }
+else { $do_if_bad_serno; };
+"
 	echo "$functext"
 }
 
@@ -165,7 +199,7 @@ deduce_dev_stamen() {
 	elif echo "$1" | grep "/dev/" &> /dev/null ; then
 		echo $1
 	else
-		echo "$1 is missing"
+		echo "$1 is not a regular /dev/mmcblk1 or /dev/sda or whatnot" > /dev/stderr
 		exit 1
 	fi
 }
@@ -231,11 +265,11 @@ deduce_whitelist() {
 # - devices that are currently plugged in (external thumb/mmc disk)
 # - anything else visible at present
 	local LOVSN duh
-	duh="s5p-ehci nos-ohci xhci-hcd xhci-hcd"
+	duh="`find_drive_serno $1` `find_drive_serno /dev/mmcblk0` s5p-ehci nos-ohci xhci-hcd xhci-hcd"
 	additional_serial_numbers=`dmesg | grep SerialNumber: | sed s/.*SerialNumber:\ // | tr '[:upper:]' '[:lower:]' | awk '{print substr($0, length($0)-7);}' | tr -s '\n ' ' '`
 	serialno="`get_dev_serialno $1`"
 	[ "$serialno" = "" ] && failed "deduce_whitelist() deduced a blank serialno"
-	LOVSN="`deduce_serial_numbers_from_thumbprints /root/.thumbprints` $additional_serial_numbers "
+	LOVSN="`deduce_serial_numbers_from_thumbprints /root/.thumbprints` $additional_serial_numbers"
 	echo "$duh $LOVSN" | tr -s ' ' '\n' | sort | uniq | tr '\n' ' ' | tr '[:upper:]' '[:lower:]'
 }
 
@@ -251,17 +285,12 @@ failed() {
 }
 
 
-
-find_boot_drive() {
-	local partial mpt
-	mpt=`mount | grep " / " | cut -d' ' -f1`
-	partial=`echo "$mpt" | sed s/p[0-9][0-9]// | sed s/p[0-9]//`
-	if echo "$partial" | grep mmcblk &> /dev/null ; then
-		echo $partial
-	else
-		echo $partial | tr '[0-9]' '\n' | head -n1
-	fi
+find_drive_serno() {
+	local stub
+	stub=`basename $1`
+	ls -l /dev/disk/by-id/ | fgrep "$stub" | head -n1 | tr '_' '\n' | tr ' ' '\n' | fgrep 0x | tail -n1 | sed s/0x// | awk '{print substr($0,length($0)-7);}' | tr '[:upper:]' '[:lower:]'
 }
+
 
 
 
@@ -316,14 +345,14 @@ modify_all() {
 	[ "$haystack" = "" ] && failed "modify_all() --- blank haystack"
 
 	randomized_serno=`generate_random_serial_number`
-	echo "$randomized_serno" > $root$RANDOMIZED_SERIALNO_FILE
+	echo "$randomized_serno" > $root$RANDOMIZED_SERIALNO_FILE || failed "Failed to write randomized serial number to disk file"
 	[ "$serialno" = "" ] && failed "modify_all() was supplied with an empty serialno"
 	[ "$haystack" = "" ] && failed "modify_all() was supplied with an empty haystack"
 	echo "Modifying source files; serialno=$serialno; haystack=$haystack"
-	modify_magics_and_superblocks $randomized_serno "$haystack"
-	for kernel_src_basedir in   $SOURCES_BASEDIR/linux-chromebook/src/chromeos-3.4 \
-								$SOURCES_BASEDIR/linux/src/chromeos-3.4 \
-                                $SOURCES_BASEDIR/linux $SOURCES_BASEDIR/linux-latest ; do
+	for kernel_src_basedir in  $SOURCES_BASEDIR/linux-chromebook/src/chromeos-3.4 \
+							   $SOURCES_BASEDIR/linux/src/chromeos-3.4 \
+                               $SOURCES_BASEDIR/linux \
+                               $SOURCES_BASEDIR/linux-latest ; do
 		if [ ! -e "$root$kernel_src_basedir" ] ; then
 			echo "Ignoring $kernel_src_basedir because it does not exist"
 			continue
@@ -332,14 +361,15 @@ modify_all() {
 			echo "Ignoring $kernel_src_basedir because it lacks a .config file"
 			continue
 		fi
-		echo "Handling $kernel_src_basedir"
+		echo "PHEZ --- Handling $kernel_src_basedir"
 		modify_kernel_config_file $root $kernel_src_basedir
 		modify_kernel_init_source $root/$kernel_src_basedir # FIXME This probably isn't needed UNLESS kthx and/or pheasants
 		modify_kernel_usb_source $root/$kernel_src_basedir $serialno "$haystack" || failed "Failed to modify kernel usb src"
 		modify_kernel_mmc_source $root/$kernel_src_basedir $serialno "$haystack" || failed "Failed to modify kernel mmc src"
-		echo "Tweaking..."
-		tweak_sources_according_to_nokthx_and_nopheasants_variables $root $kernel_src_basedir || failed "Teaking... failed."
+		[ "$NOKTHX" = "" ] && modify_magics_and_superblocks $kernel_src_basedir $randomized_serno "$haystack"
 	done
+	
+
 	[ "$NOPHEASANTS" != "" ] && echo "$NOPHEASANTS" > $root/etc/.nopheasants || rm -f $root/etc/.nopheasants
 	[ "$NOKTHX" != "" ] && echo "$NOKTHX"      > $root/etc/.nokthx || rm -f $root/etc/.nokthx
 }
@@ -423,46 +453,70 @@ modify_kernel_mmc_source() {
 	chromeos_kernel_src=$1
 	serialno=$2
 	haystack=$3
-	echo "modify_kernel_mmc_source() was called... chromeos_kernel_src=$chromeos_kernel_src; serialno=$serialno; haystack=$haystack"
+	echo "modify_kernel_mmc_source() was called..." # chromeos_kernel_src=$chromeos_kernel_src; serialno=$serialno; haystack=$haystack"
 
-	extra_if="needle==NULL \\|\\| strlen(needle)==0"
+	extra_if="needle==NULL || strlen(needle)==0"
 	echo "Modifying kernel mmc source"
 	mmc_file=`find $chromeos_kernel_src/drivers/mmc -name mmc.c`
 	sd_file=`find  $chromeos_kernel_src/drivers/mmc -name sd.c`
 
 	echo "Modifying $mmc_file"
 	key_str="Select card, "
-	replacement="$key_str `chunkymunky "card->cid.serial" "$serialno" "$haystack" "$extra_if" int`"
+	replacement="*/ `chunkymunky "card->cid.serial" "$serialno" "$haystack" "$extra_if" int` /*"
 	modify_kernel_source_file "$mmc_file" "$key_str" "$replacement"
 
 	echo "Modifying $sd_file"
 	key_str="if read-only switch"
-	replacement="$key_str `chunkymunky "card->cid.serial" "$serialno" "$haystack" "$extra_if" int`"
+	replacement="*/ `chunkymunky "card->cid.serial" "$serialno" "$haystack" "$extra_if" int` /*"
 	modify_kernel_source_file "$sd_file" "$key_str" "$replacement"
 }
 
 
 
 modify_kernel_source_file() {
-	local key_str replacement data_file
+	local key_str replacement data_file nooflines cutpoint finallines
 	data_file=$1
 	key_str=$2
 	replacement=$3
-#echo "modify_kernel_source_file($data_file, $key_str, $replacement)"
-	[ ! -e "$data_file.pristine.phezPristine" ] && cp $data_file $data_file.phezPristine
+
+	echo "modify_kernel_source_file($data_file, $key_str, ...replacement...)" # $replacement)"
+
+	if [ -e "$data_file.pristine.phezPristine" ] ; then
+		cp -f $data_file.phezPristine $data_file
+	else
+		cp -f $data_file $data_file.phezPristine
+	fi
 	[ ! -e "$data_file.orig" ] && mv $data_file $data_file.orig
+	
+	echo "Modifying $data_file now."
+	
 	echo "// modified automatically by $0 on `date`
+	
+
 extern int getPheasant(void);
 extern void setPheasant(int);
+extern char *getShitlist(void);
+extern void addToShitlist(char*);
+
+
 " > $data_file
+
 	grep "$key_str" $data_file.orig > /dev/null || failed "Unable to find \"$key_str\" in $data_file.orig"
-	cat $data_file.orig | sed s/"$key_str"/"$replacement"/ >> $data_file # | sed -e ':loop' -e 's/\;\ /\;\n/' -e 't loop' >> $data_file
-	rm $data_file.orig
+
+	nooflines=`wc -l $data_file.orig | cut -d' ' -f1`
+	cutpoint=`fgrep -n "$key_str" $data_file.orig | head -n1 | cut -d':' -f1`
+	finallines=$(($nooflines-$cutpoint))
+#	echo "$data_file --- cutting first $cutpoint lines; adding my stuff; appending $finallines lines."
+
+	cat $data_file.orig | head -n$(($cutpoint)) >> $data_file
+
+	echo "
+// start of replacement code -- QQQ
+$replacement
+// end of replacement code -- QQQ
+" >> $data_file
+	cat $data_file.orig | tail -n$finallines >> $data_file
 	cp -f $data_file $data_file.phezSullied
-	rm $data_file
-	[ ! -e "$data_file.phezPristine" ] && failed "$data_file.pristine missing"
-	[ ! -e "$data_file.phezSullied"  ] && failed "$data_file.sullied missing"
-	cp $data_file.phezSullied $data_file
 }
 
 
@@ -473,70 +527,94 @@ modify_kernel_usb_source() {
 	chromeos_kernel_src=$1
 	serialno=$2
 	haystack=$3
-	echo "modify_kernel_usb_source() was called... chromeos_kernel_src=$chromeos_kernel_src; serialno=$serialno; haystack=$haystack"
-	noserno="(needle==NULL \\|\\| strlen(needle)==0 \\|\\| !strcmp(needle, \\\"(null)\\\"))"
-	is_hub_or_webcam="(udev->product!=NULL \\&\\& strlen(udev->product)>0 \\&\\& (strstr(udev->product, \\\"Hub\\\") \\|\\| strstr(udev->product, \\\"WebCam\\\")))"
-	is_utterly_dead="(udev->descriptor.iManufacturer == 0 \\&\\& udev->descriptor.iProduct == 0 \\&\\& udev->descriptor.iSerialNumber == 0)"
+	echo "modify_kernel_usb_source() was called..." # chromeos_kernel_src=$chromeos_kernel_src; serialno=$serialno; haystack=$haystack"
+	noserno="(needle==NULL || strlen(needle)==0 || !strcmp(needle, \"(null)\"))"
+	is_hub_or_webcam="(udev->product!=NULL && strlen(udev->product)>0 && (strstr(udev->product, \"Hub\") || strstr(udev->product, \"WebCam\")))"
+	is_utterly_dead="(udev->descriptor.iManufacturer == 0 && udev->descriptor.iProduct == 0 && udev->descriptor.iSerialNumber == 0)"
 # if (no serial number BUT device is a webcam or a hub)... or... (no serno, no product either) then it's kosher.
-	extra_if="($noserno \\&\\&  ($is_hub_or_webcam))"		#	extra_if="($noserno \\&\\& (($is_hub_or_webcam) \\|\\| ($is_utterly_dead)))"
+	extra_if="($noserno &&  ($is_hub_or_webcam))"		#	extra_if="($noserno && (($is_hub_or_webcam) || ($is_utterly_dead)))"
 	[ "$serialno" = "" ] && failed "modify_kernel_usb_source() was supplied with an empty serialno"
 	[ "$haystack" = "" ] && failed "modify_kernel_usb_source() was supplied with an empty haystack"
 	core_file=`find $chromeos_kernel_src/drivers/usb -name hub.c`
-	if [ "$core_file" = "" ] ; then
-		core_file=`find $chromeos_kernel_src/drivers/usb -name hub.c.phezSullied`
-		[ "$core_file" = "" ] && failed "Cannot find hub.c.phezSullied or hub.c in $chromeos_kernel_src ... Bummer ..."
-		mv $core_file `echo $core_file | sed s/\.phezSullied//`
-	fi
+	[ -e "$core_file" ] || failed "Failed to find hub.c !!!!!!"
 	key_str="udev->serial);" # NOT THE OPERAND! This is the search phrase.
-	replacement="$key_str `chunkymunky "udev->serial" "$serialno" "$haystack" "$extra_if" str`" # THIS copy of 'udev->serial' IS the operand.
+	replacement="`chunkymunky "udev->serial" "$serialno" "$haystack" "$extra_if" str`" # THIS copy of 'udev->serial' IS the operand.
 	modify_kernel_source_file "$core_file" "$key_str" "$replacement"
 }
 
 
 
 modify_kernel_init_source() {
-	local chromeos_kenel_src init_file key_str
+	local chromeos_kenel_src init_file key_str nooflines cutpoint finallines
 	chromeos_kernel_src=$1
 	init_file=`find $chromeos_kernel_src/init -name main.c`
-    if cat $init_file | grep "ive_caught_a_pheasant" &> /dev/null ; then
-		return 0			# We've already modified this file
-	fi
-	[ ! -e "$init_file.orig" ] && mv $init_file $init_file.orig
-	echo "Modifying $init_file"
+	echo "Modifying $init_file :-)"
+	[ -e "$init_file.phezPristine" ] && cp -f $init_file.phezPristine $init_file
+	[ -e "$init_file.original" ] || mv $init_file $init_file.original
+	cp -f $init_file.original $init_file
+	nooflines=`wc -l $init_file | cut -d' ' -f1`
+	cutpoint=`fgrep -n "init/main.c" $init_file.original | head -n1 | cut -d':' -f1` || cutpoint=""
+	finallines=$(($nooflines+2-$cutpoint))
 	echo "// modified automatically by $0 on `date`
+
 static int ive_caught_a_pheasant=0;
-  int getPheasant(void) {
+static char string_of_bad_pheasants_caught[$MAX_LENGTH_OF_STRING_OF_BAD_PHEASANTS_CAUGHT] = \" \";
+
+int getPheasant(void) {
   return ive_caught_a_pheasant;
 }
+
 void setPheasant(int newval) {
   ive_caught_a_pheasant=newval;
 }
 
+char *getShitlist(void) {
+  return string_of_bad_pheasants_caught;
+}
+
+void addToShitlist(char*needle) {
+	char*p;
+	p = string_of_bad_pheasants_caught;
+	while(*p) {p++;}
+	while(*needle) {
+		*p = *needle;
+		p++;
+		needle++;
+	}
+	*p = ' ';
+	p++;
+	*p = '\\0';
+}
+	
+
+
 " > $init_file
-	cat $init_file.orig >> $init_file
-	rm $init_file.orig
+
+	cat $init_file.original | tail -n$finallines >> $init_file
+
 }
 
 
 
 modify_magics_and_superblocks() {
 # Modify all filesystem-related magic numbers and superblocks, to make them conform to our new (random) ser#
-	local fkey lst serialno haystack f loopno bytereversed_serno last4
-	echo -en "Modifying magics and superblocks"
-	serialno=$1
-	haystack="$2"
+	local fkey lst serialno haystack f loopno bytereversed_serno last4 kernel_src_basedir
+	echo "KTHX --- Modifying magics and superblocks"
+	kernel_src_basedir=$1
+	serialno=$2
+	haystack="$3"
     last4=`echo "$serialno" | awk '{print substr($0,length($0)-3);}'`
     bytereversed_serno=`echo "$serialno" | awk '{printf("%s%s%s%s",substr($0,7,2),substr($0,5,2),substr($0,3,2),substr($0,1,2));}'`
 
-	echo "Working on btrfs"
-	replace_this_magic_number $root \"_BHRfS_M\" \"$serialno\"						#	> /dev/null || failed "Failed #1."
-	replace_this_magic_number $root 4D5F53665248425F "`serialno_as_bcd_string $serialno`" #> /dev/null || failed "Failed #2."
-	echo "Working on jfs"
-	replace_this_magic_number $root \"JFS1\" \"$last4\"								#	> /dev/null || failed "Failed #3."
-	replace_this_magic_number $root 3153464a "`serialno_as_bcd_string $last4`"		#	> /dev/null || failed "Failed #4."
-	echo "Working on xfs"
-    replace_this_magic_number $root \"XFSB\" \"`serialno_as_slashed_string $serialno`\"  #> /dev/null || failed "Failed #5."
-	replace_this_magic_number $root 58465342 "$bytereversed_serno"						#> /dev/null || failed "Failed #6."
+	echo -en "Working on btrfs..."
+	replace_this_magic_number $kernel_src_basedir/fs/btrfs \"_BHRfS_M\" \"$serialno\"						#	> /dev/null || failed "Failed #1."
+	replace_this_magic_number $kernel_src_basedir/fs/btrfs 4D5F53665248425F "`serialno_as_bcd_string $serialno`" #> /dev/null || failed "Failed #2."
+	echo -en "Working on jfs..."
+	replace_this_magic_number $kernel_src_basedir/fs/jfs \"JFS1\" \"$last4\"								#	> /dev/null || failed "Failed #3."
+	replace_this_magic_number $kernel_src_basedir/fs/jfs 3153464a "`serialno_as_bcd_string $last4`"		#	> /dev/null || failed "Failed #4."
+	echo -en "Working on xfs..."
+    replace_this_magic_number $kernel_src_basedir/fs/xfs \"XFSB\" \"`serialno_as_slashed_string $serialno`\"  #> /dev/null || failed "Failed #5."
+	replace_this_magic_number $kernel_src_basedir/fs/xfs 58465342 "$bytereversed_serno"						#> /dev/null || failed "Failed #6."
 	echo "Done w/ magics and superblocks"
 }
 
@@ -552,8 +630,8 @@ replace_this_magic_number() {
 	root=$1
     needle="$2"
     replacement="$3"
-    for fname in `grep --include='*.c' --include='*.h' -rnli "$needle" $root$SOURCES_BASEDIR`; do
-#    for fname in `grep -rnli "$needle" $root$SOURCES_BASEDIR`; do
+    [ -e "$root" ] || failed "replace_this_magic_number() -- $root does not exist"
+    for fname in `grep --include='*.c' --include='*.h' -rnli "$needle" $root`; do
         if echo "$fname" | grep -x ".*\.[c|h]" &> /dev/null; then
 			[ ! -e "$fname.kthxPristine" ] && cp -f $fname $fname.kthxPristine
 			[ ! -e "$fname.orig" ] && mv $fname $fname.orig
@@ -564,7 +642,6 @@ replace_this_magic_number() {
 				echo -en "."
 			fi
 			rm $fname.orig
-			cp -f $fname $fname.kthxSullied
         fi
     done
 }
@@ -589,28 +666,6 @@ serialno_as_bcd_string() {
 
 
 
-tweak_sources_according_to_nokthx_and_nopheasants_variables() {
-	local root kernel_src_basedir
-	root=$1
-	kernel_src_basedir=$2
-	[ "$NOPHEASANTS" = "" ] && nub="phezSullied" || nub="phezPristine"
-	for f in `find $root$kernel_src_basedir -type f | grep -x ".*\.$nub"`; do
-		g=`echo "$f" | sed s/\.$nub//`
-		echo "Restoring $f to $g"
-		cp -f $f $g
-		rm -Rf $g.orig
-	done
-
-	[ "$NOKTHX" = "" ] && nub="kthxSullied" || nub="kthxPristine"
-	for f in `find $root$kernel_src_basedir -type f | grep -x ".*\.$nub"`; do
-		g=`echo "$f" | sed s/\.$nub//`
-		echo "Restoring $f to $g"
-		cp -f $f $g
-		rm -Rf $g.orig
-	done
-}
-
-
 restore_to_pristine_state_if_necessary() {
 	local root
 	root=$1
@@ -619,7 +674,7 @@ restore_to_pristine_state_if_necessary() {
 #		echo "Restoring $pristine_fname to $orig_fname"
 		mv $pristine_fname $orig_fname
 		rm -f "$orig_fname".*Sullied
-		echo "Restored $orig_fname"
+#		echo "Restored $orig_fname"
 	done
 
 # Delete old xfs.o, jfs.o, mmc.o, sd.o, etc. --- all (nearly all) the linked files that need to be recompiled
@@ -665,11 +720,12 @@ else
 	failed "$4 should be yes or no, re: kthx"
 fi
 
-dev_p=`deduce_dev_stamen $dev`
-petname=`find_boot_drive | cut -d'-' -f3 | tr '_' '\n' | tail -n1 | awk '{print substr($0,length($0)-7);}' | tr '[:upper:]' '[:lower:]'`
-cores=1
+dev_p=`deduce_dev_stamen $dev` || failed "Failed to deduce dev stamen"
+petname=`dmesg | grep "\[    .*SerialNumber:" | sed s/.*SerialNumber:\ // | tr '[:upper:]' '[:lower:]' | awk '{print substr($0, length($0)-7);}' | tail -n1`
+echo "FYI, petname=$petname; whitelist = `deduce_whitelist $dev`"
+echo "Working..."
 restore_to_pristine_state_if_necessary $root
-modify_mkfs_n_kernel  $root $boot $kern $dev $dev_p $petname $cores
+modify_mkfs_n_kernel  $root $boot $kern $dev $dev_p $petname 
 res=$?
 echo "Exiting w/ res=$res"
 exit $res
