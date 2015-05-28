@@ -33,7 +33,7 @@ libnotify talkfilters chromium xorg-server-utils java-runtime libxmu libxfixes a
     def install_final_push_of_packages( self ):  # See https://twiki.grid.iu.edu/bin/view/Documentation/Release3/YumRpmBasics
         logme( 'Fedora - install_final_push_of_packages() - starting' )
 #        self.build_and_install_software_from_archlinux_source( 'wmsystemtray' )
-        self.status_lst.append( ['Installing %s' % ( self.final_push_packages.replace( '  ', ' ' ).replace( ' ', ', ' ) )] )
+        self.update_status_with_newline( 'Installing %s' % ( self.final_push_packages.replace( '  ', ' ' ).replace( ' ', ', ' ) ) )
         res = 999
         attempts = 5
         while res != 0 and attempts > 0:
@@ -42,13 +42,13 @@ libnotify talkfilters chromium xorg-server-utils java-runtime libxmu libxfixes a
             if res != 0:
                 system_or_die( 'rm -f %s/var/lib/pacman/db.lck; sync; sync; sync; sleep 3' % ( self.mountpoint ) )
         assert( attempts > 0 )
-#        self.status_lst[-1] += '...Done.'
+#        self.update_status_with_newline( '...Done.')
 
     def configure_distrospecific_tweaks( self ):
-        self.status_lst.append( ['configure_distrospecific_tweaks() --- to be written'] )
+        self.update_status_with_newline( 'configure_distrospecific_tweaks() --- to be written' )
 
     def download_mkfs_sources( self ):
-        self.status_lst.append( ['download_mkfs_sources() --- to be written'] )
+        self.update_status_with_newline( 'download_mkfs_sources() --- to be written' )
 
     def build_package( self, source_pathname ):
         failed( "build_package(%s) --- please define in subclass" % ( source_pathname ) )

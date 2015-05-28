@@ -133,7 +133,7 @@ mate-desktop-environment-extras'  # FYI, freenet is handled by install_final_pus
             chroot_this( '/', r'yes "Y" 2>/dev/null | pacman -Sy fakeroot', "Failed to install fakeroot", attempts = 1, title_str = self.title_str, status_lst = self.status_lst )
         if os.system( 'which debootstrap &> /dev/null' ) != 0:
             self.build_and_install_package_into_alarpy_from_source( 'debootstrap', quiet = True )
-        self.status_lst.append( ['Running debootstrap, to generate filesystem => %s' % ( self.title_str )] )
+        self.update_status_with_newline( 'Running debootstrap, to generate filesystem => %s' % ( self.title_str ) )
         my_proxy_call = '' if g_proxy is None else 'http_proxy=http://%s ftp_proxy=http://%s' % ( g_proxy, g_proxy )
         chroot_this( '/', "%s debootstrap --no-check-gpg --verbose --arch=%s --variant=buildd --include=aptitude,netbase,ifupdown,net-tools,linux-base %s %s %s"
                         % ( my_proxy_call, self.architecture, self.branch, self.mountpoint, self.packages_folder_url ),
@@ -171,7 +171,7 @@ mate-desktop-environment-extras'  # FYI, freenet is handled by install_final_pus
             chroot_this( self.mountpoint, "cd %s/src/chromeos-3.4 && make install && make modules_install" % ( self.kernel_src_basedir ),
                                                             title_str = self.title_str, status_lst = self.status_lst,
                                                             on_fail = "Failed to install the tweaked kernel and/or modules" )
-        self.status_lst[-1] += '...kernel installed.'
+        self.update_status_with_newline( '...kernel installed.' )
         logme( 'DebianDistro - install_kernel_and_mkfs() - leaving' )
 
     def install_package_manager_tweaks( self, yes_add_ffmpeg_repo = False ):
@@ -222,9 +222,9 @@ Acquire::https::Proxy "https://%s/";
             pkg = ''.join( [r + ' ' for r in lst] )  # technically, 'pkg' is a string of three or more packages ;)
             att = 0
             while att < 3 and 0 != chroot_this( self.mountpoint,
-                                                    'yes 2>/dev/null | apt-get install %s' % ( pkg ),
-                                                    title_str = None if self.name == 'ubuntu' else self.title_str,
-                                                    status_lst = None if self.name == 'ubuntu' else self.status_lst ):
+                                                    'yes 2>/dev/null | apt-get install %s' % ( pkg ) ):  # ,
+#                                                    title_str = None if self.name == 'ubuntu' else self.title_str,
+#                                                    status_lst = None if self.name == 'ubuntu' else self.status_lst ):
                 system_or_die( 'rm -f %s/var/lib/dpkg/lock; sync; sync; sync; sleep 3' % ( self.mountpoint ) )
                 att += 1
             if att < 3:
@@ -234,18 +234,18 @@ Acquire::https::Proxy "https://%s/";
                 logme( 'Failed to install some or all of %s; let us try them individually...' % ( pkg ) )
                 for pkg in lst:
                     if 0 != chroot_this( self.mountpoint,
-                                                    'yes 2>/dev/null | apt-get install %s' % ( pkg ),
-                                                    title_str = None if self.name == 'ubuntu' else self.title_str,
-                                                    status_lst = None if self.name == 'ubuntu' else self.status_lst ):
+                                                    'yes 2>/dev/null | apt-get install %s' % ( pkg ) ):  # ,
+#                                                    title_str = None if self.name == 'ubuntu' else self.title_str,
+#                                                    status_lst = None if self.name == 'ubuntu' else self.status_lst ):
                         packages_that_we_failed_to_install.append( pkg )
                     else:
                         packages_installed_succesfully.append( pkg )
-            self.status_lst[-1] += '.'
+            self.update_status( '.' )
         if packages_that_we_failed_to_install in ( None, [] ):
-            self.status_lst[-1] += "All OK."
+            self.update_status_with_newline( "All OK." )
         else:
-            self.status_lst.append( ['Installed %d packages successfully' % ( len( packages_installed_succesfully ) )] )
-            self.status_lst[-1] += '...but we failed to install%s. Retrying...' % ( ''.join( [' ' + r for r in packages_that_we_failed_to_install] ) )
+            self.update_status_with_newline( 'Installed %d packages successfully' % ( len( packages_installed_succesfully ) ) )
+            self.update_status( '...but we failed to install%s. Retrying...' % ( ''.join( [' ' + r for r in packages_that_we_failed_to_install] ) ) )
             chroot_this( self.mountpoint, 'yes "Yes" 2>/dev/null | aptitude install%s' % ( ''.join( [' ' + r for r in packages_that_we_failed_to_install] ) ),
                          status_lst = self.status_lst, title_str = self.title_str,
                          on_fail = 'Failed to install formerly failed packages' )
@@ -290,23 +290,23 @@ Acquire::https::Proxy "https://%s/";
 
     def configure_distrospecific_tweaks( self ):
         logme( 'DebianDistro - configure_distrospecific_tweaks() - starting' )
-        self.status_lst.append( ['Installing distro-specific tweaks'] )
+        self.update_status_with_newline( 'Installing distro-specific tweaks' )
         if 0 != patch_org_freedesktop_networkmanager_conf_file( '%s/etc/dbus-1/system.d/org.freedesktop.NetworkManager.conf' % ( self.mountpoint ),
                                                         '%s/usr/local/bin/Chrubix/blobs/settings/nmgr-cfg-diff.txt.gz' % ( self.mountpoint ) ):
-            self.status_lst[-1] += ' ...(FYI, I failed to patch org.freedesktop.NetworkManager.conf)'
+            self.update_status( ' ...(FYI, I failed to patch org.freedesktop.NetworkManager.conf)' )
         do_debian_specific_mbr_related_hacks( self.mountpoint )
         if os.path.exists( '%s/etc/apt/apt.conf' % ( self.mountpoint ) ):
             for to_remove in ( 'ftp', 'http' ):
                 do_a_sed( '%s/etc/apt/apt.conf' % ( self.mountpoint ), 'Acquire::%s::Proxy.*' % ( to_remove ), '' )
         for pkg_name in self.list_of_mkfs_packages:
             chroot_this( self.mountpoint, 'sudo apt-mark hold %s' % ( pkg_name ) )
-        self.status_lst[-1] += '...installed.'
+        self.update_status_with_newline( '...installed.' )
 #        svcfile = '%s/lib/systemd/system/getty@.service' % ( self.mountpoint )
         chroot_this( self.mountpoint, 'systemctl enable lxdm.service' )
         try:
             do_a_sed( '%s/etc/default/pulseaudio' % ( self.mountpoint ), 'PULSEAUDIO_SYSTEM_START=0', 'PULSEAUDIO_SYSTEM_START=1' )
         except:
-            self.status_lst[-1] += ' *** Unable to modify /etc/default/pulseaudio --- is it missing? *** '
+            self.update_status( ' *** Unable to modify /etc/default/pulseaudio --- is it missing? *** ' )
 # #        chroot_this( self.mountpoint, 'wget http://www.deb-multimedia.org/pool/main/d/deb-multimedia-keyring/deb-multimedia-keyring_2014.2_all.deb -O - > /tmp/debmult.deb', attempts = 1, title_str = self.title_str, status_lst = self.status_lst )
 # #        chroot_this( self.mountpoint, 'dpkg -i /tmp/debmult.deb', attempts = 1, title_str = self.title_str, status_lst = self.status_lst )
 #        print( 'looking for %s' % ( svcfile ) )
@@ -403,12 +403,12 @@ fi
 #            install_lxdm_from_source( self.mountpoint )
             self.install_expatriate_software_into_a_debianish_OS( package_name = 'lxdm', method = 'ubuntu' )
         self.install_i2p()
-        self.status_lst.append( ['Installing remaining packages'] )
+        self.update_status_with_newline( 'Installing remaining packages' )
 #        self.status_lst.append( ['Installing %s' % ( self.final_push_packages.replace( '  ', ' ' ).replace( ' ', ', ' ) )] )
         chroot_this( self.mountpoint, 'yes "Yes" | aptitude install %s' % ( self.final_push_packages ),
-                     title_str = self.title_str, status_lst = self.status_lst,
+#                     title_str = self.title_str, status_lst = self.status_lst,
                      on_fail = 'Failed to install final push of packages' )
-        self.status_lst[-1] += '...there.'
+        self.update_status_with_newline( '...there.' )
         logme( 'DebianDistro - install_final_push_of_packages() - leaving' )
 
     def install_win_xp_theme( self ):
@@ -419,7 +419,7 @@ fi
 #        wget( url = 'http://ppa.launchpad.net/noobslab/themes/ubuntu/pool/main/w/win-xp-theme/win-xp-theme_1.3.1~saucy~Noobslab.com_all.deb',
 #             save_as_file = '%s/tmp/win-xp-themes.deb' % ( self.mountpoint ), status_lst = self.status_lst, title_str = self.title_str )
         if 0 != chroot_this( self.mountpoint, 'yes 2>/dev/null | dpkg -i /tmp/win-xp-themes.deb', title_str = self.title_str, status_lst = self.status_lst, attempts = 1 ):
-#            self.status_lst[-1] += '...installing win-xp-theme from source'
+#            self.update_status('...installing win-xp-theme from source'
             self.build_and_install_software_from_archlinux_source( 'win-xp-theme', only_download = True, quiet = True, nodeps = True )
             chroot_this( self.mountpoint, \
                          'cd %s/win-xp-theme/src && install -d /usr/share/themes/Win-XP-theme && cp -r * /usr/share/themes/' % \
@@ -446,7 +446,7 @@ fi
         if method is None:
             for method in ( 'ubuntu', 'debian', 'src', 'git' ):
                 if self.status_lst is not None:
-                    self.status_lst[-1] += '...Trying %s' % ( method )
+                    self.update_status( '...Trying %s' % ( method ) )
                 try:
                     self.install_expatriate_software_into_a_debianish_OS( package_name = package_name, \
                                                                      method = method )
@@ -454,7 +454,7 @@ fi
                     return 0
                 except ( SyntaxError, SystemError, RuntimeError, AssertionError, IOError ):
                     if self.status_lst is not None:
-                        self.status_lst[-1] += '...%s method failed' % ( method )
+                        self.update_status( '...%s method failed' % ( method ) )
                     continue
             raise RuntimeError( 'Unable to build %s --- nothing worked' % ( package_name ) )
         else:
@@ -464,7 +464,7 @@ fi
                 raise SyntaxError( 'You specified %s but this is an unknown method' % ( str( method ) ) )
             if self.status_lst is not None:
                 if package_name == 'chromium':
-                    self.status_lst[-1] += ' (which takes a while)'
+                    self.update_status( ' (which takes a while)' )
             myfunc( package_name = package_name )
         logme( 'DebianDistro - install_expatriate_software_into_a_debianish_OS() - leaving' )
 
@@ -484,13 +484,13 @@ fi
         logme( 'DebianDistro - build_and_install_package_from_deb_or_ubu_source() - starting' )
         chroot_this( self.mountpoint, '''yes 2> /dev/null | apt-get remove %s 2> /dev/null''' % ( package_name ), title_str = self.title_str, status_lst = self.status_lst )
         if self.status_lst is not None:
-            self.status_lst.append( ["Repackaging %s" % ( package_name )] )
+            self.update_status_with_newline( "Repackaging %s" % ( package_name ) )
         assert( package_name != 'linux-chromebook' )
         chroot_this( self.mountpoint, 'yes "" 2>/dev/null | apt-get build-dep %s' % ( package_name ),
                      title_str = self.title_str, status_lst = self.status_lst )
 #        if package_name == 'lxdm' and
         if os.path.exists( '%s%s/core/%s' % ( self.mountpoint, self.sources_basedir, package_name ) ):
-            self.status_lst[-1] += ' (FYI, reusing old %s sources)' % ( package_name )
+            self.update_status( ' (FYI, reusing old %s sources)' % ( package_name ) )
         else:
             system_or_die( 'rm -Rf   %s%s/%s' % ( self.mountpoint, self.sources_basedir, package_name ) )
             system_or_die( 'mkdir -p %s%s/%s' % ( self.mountpoint, self.sources_basedir, package_name ) )
@@ -505,18 +505,18 @@ fi
 #            if files_i_want in ( None, [], '' ):
 #                raise IOError( '%s is absent from the online repositories' % ( package_name ) )
             self.download_pkgfiles_from_website( package_name, files_i_want )
-        if self.status_lst is not None:                      self.status_lst[-1] += '...Extracting'
+        if self.status_lst is not None:                      self.update_status( '...Extracting' )
         self.extract_pkgfiles_accordingly( package_name, files_i_want )
-        if self.status_lst is not None:                      self.status_lst[-1] += '...Tweaking'
+        if self.status_lst is not None:                      self.update_status( '...Tweaking' )
         self.tweak_pkgfiles_accordingly( package_name, neutralize_dependency_vernos )
-        if self.status_lst is not None:                      self.status_lst[-1] += '...Building'
+        if self.status_lst is not None:                      self.update_status( '...Building' )
         self.build_package_from_fileset( package_name )
-        if self.status_lst is not None:                      self.status_lst[-1] += '...Installing'
+        if self.status_lst is not None:                      self.update_status( '...Installing' )
 #        chroot_this( self.mountpoint, 'dpkg -i %s/%s/%s_*.deb' % ( self.sources_basedir, package_name, package_name ),
         chroot_this( self.mountpoint, 'dpkg -i %s/%s/*.deb' % ( self.sources_basedir, package_name ),
                                                                         attempts = 1,
                                                                         on_fail = 'Failed to install %s' % ( package_name ) )
-        if self.status_lst is not None:                      self.status_lst[-1] += '...Yay.'
+        if self.status_lst is not None:                      self.update_status_with_newline( '...Yay.' )
         system_or_die( 'rm -f %s%s/*.deb' % ( self.mountpoint, self.sources_basedir ) )
         logme( 'DebianDistro - build_and_install_package_from_deb_or_ubu_source() - leaving' )
         return 0

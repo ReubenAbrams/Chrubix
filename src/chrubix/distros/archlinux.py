@@ -57,7 +57,7 @@ hunspell-en chromium thunderbird windowmaker \
             chroot_this( self.mountpoint, 'cd %s/linux-latest && make install && make modules_install' % ( self.sources_basedir ),
                          title_str = self.title_str, status_lst = self.status_lst,
                          on_fail = "Failed to install the standard ChromeOS kernel and/or modules" )
-        self.status_lst[-1] += '...kernel installed.'
+        self.update_status_with_newline( '...kernel installed.' )
 
 
     def install_package_manager_tweaks( self ):
@@ -84,7 +84,7 @@ hunspell-en chromium thunderbird windowmaker \
             chroot_this( self.mountpoint, 'yes "" 2>/dev/null | pacman -Syu --needed ' + s, title_str = self.title_str, status_lst = self.status_lst,
                          on_fail = 'Failed to install %s' % ( ''.join( [' ' + r for r in lst] ) ) )
             logme( 'Installed%s OK' % ( ''.join( [' ' + r for r in lst] ) ) )
-            self.status_lst[-1] += '.'
+            self.update_status( '.' )
 #                self.update_and_upgrade_all()
 #        fix_perl_cpan( self.mountpoint )
 #        abort_if_make_is_segfaulting( self.mountpoint )
@@ -92,9 +92,9 @@ hunspell-en chromium thunderbird windowmaker \
                          on_fail = 'Failed to install fakeroot' )
         for pkg in ( 'shiboken', 'python-pyside' ):
             abort_if_make_is_segfaulting( self.mountpoint )
-            self.status_lst[-1] += '.'
+            self.update_status( '.' )
             self.build_and_install_software_from_archlinux_source( pkg, quiet = False )
-        self.status_lst[-1] += 'installed.'
+        self.update_status_with_newline( 'installed.' )
         chroot_this( self.mountpoint, 'yes "" 2>/dev/null | pacman -Syu --needed --force cgpt', title_str = self.title_str, status_lst = self.status_lst,
                          on_fail = 'Failed to install cgpt' )
 
@@ -111,11 +111,11 @@ hunspell-en chromium thunderbird windowmaker \
 
     def download_package_source( self, package_name, filenames_lst = None ):
         logme( 'ArchlinuxDistro - download_package_source() - starting' )
-#        self.status_lst.append( [ "Downloading %s package into %s OS" % ( package_name, self.name ) ] )
+#        self.update_status(( [ "Downloading %s package into %s OS" % ( package_name, self.name ) ] )
         system_or_die( 'mkdir -p %s/%s/%s' % ( self.mountpoint, self.sources_basedir, package_name ) )
         os.chdir( '%s/%s/%s' % ( self.mountpoint, self.sources_basedir, package_name ) )
         if os.path.isfile( '%s/%s/%s/PKGBUILD' % ( self.mountpoint, self.sources_basedir, package_name ) ):
-            self.status_lst[-1] += ''  # += "."  # ..Still working"  # No need to download anything. We have PKGBUILD already.
+            self.update_status( '' )  # += "."  # ..Still working"  # No need to download anything. We have PKGBUILD already.
         elif filenames_lst in ( None, [] ):
             url = 'aur.archlinux.org/packages/%s/%s/%s.tar.gz' % ( package_name[:2], package_name, package_name )
             wget( url = url, extract_to_path = '%s/%s' % ( self.mountpoint, self.sources_basedir ), quiet = True , title_str = self.title_str, status_lst = self.status_lst )
@@ -143,23 +143,23 @@ hunspell-en chromium thunderbird windowmaker \
         package_name = os.path.basename( source_pathname )
         package_path = os.path.dirname( source_pathname )
         str_to_add = "Kernel & rootfs" if package_name == 'linux-chromebook' else "%s" % ( package_name )
-        self.status_lst[-1] += '...' + str_to_add
+        self.update_status( '...' + str_to_add )
         chroot_this( self.mountpoint, 'chown -R guest %s/%s' % ( self.sources_basedir, package_name ) )
         chroot_this( self.mountpoint, 'cd %s && makepkg --skipchecksums --noextract -f ' % ( source_pathname ), \
                                 "Failed to chroot make %s within %s" % ( package_name, package_path ),
                                 title_str = self.title_str, status_lst = self.status_lst ,
                                 user = 'guest' )
         chroot_this( self.mountpoint, 'chown -R root %s/%s' % ( self.sources_basedir, package_name ) )
-        self.status_lst[-1] += '...Built.'
+        self.update_status_with_newline( '...Built.' )
 
     def configure_distrospecific_tweaks( self ):
         logme( 'ArchlinuxDistro - configure_distrospecific_tweaks() - starting' )
-        self.status_lst.append( ['Installing distro-specific tweaks'] )
+        self.update_status_with_newline( 'Installing distro-specific tweaks' )
         friendly_list_of_packages_to_exclude = ''.join( r + ' ' for r in self.list_of_mkfs_packages ) + os.path.basename( self.kernel_src_basedir )
         do_a_sed( '%s/etc/pacman.conf' % ( self.mountpoint ), '#.*IgnorePkg.*', 'IgnorePkg = %s' % ( friendly_list_of_packages_to_exclude ) )
         chroot_this( self.mountpoint, 'systemctl enable lxdm.service' )
 #        logme( 'FYI, ArchLinux has no distro-specific post-install tweaks at present' )
-        self.status_lst[-1] += '...tweaked.'
+        self.update_status_with_newline( '...tweaked.' )
 
 #     def downgrade_systemd_if_necessary( self, bad_verno ):
 #         if bad_verno == None or 0 == chroot_this( self.mountpoint, 'pacman -Q systemd | fgrep "systemd %s"' % ( bad_verno ) ):
@@ -170,11 +170,11 @@ hunspell-en chromium thunderbird windowmaker \
 #             chroot_this( self.mountpoint, 'yes "" | pacman -U /tmp/systemd-212-3-armv7h.pkg.tar.xz',
 #                             status_lst = self.status_lst, title_str = self.title_str,
 #                             on_fail = 'Failed to downgrade systemd' )
-#             self.status_lst[-1] += ' (downgraded SystemD)'
+#             self.update_status(' (downgraded SystemD)'
 #
 #     def install_final_push_of_packages( self ):
 #         logme( 'ArchlinuxDistro - install_final_push_of_packages() - starting' )
-#         self.status_lst.append( 'Installed' )
+#         self.update_status(( 'Installed' )
 #         for my_fname in ( 'ssss-0.5-3-armv7h.pkg.tar.xz', 'florence-0.6.2-1-armv7h.pkg.tar.xz' ):
 #             try:
 #                 system_or_die( 'cp /usr/local/bin/Chrubix/blobs/apps/%s /%s/tmp/' % ( my_fname, self.mountpoint ) )
@@ -184,7 +184,7 @@ hunspell-en chromium thunderbird windowmaker \
 #                 status_lst = self.status_lst,
 #                 title_str = self.title_str )
 #             if 0 == chroot_this( self.mountpoint, 'yes "" | pacman -U /tmp/%s' % ( my_fname ) ):
-#                 self.status_lst[-1] += ' ' + my_fname.split( '-' )[0]
+#                 self.update_status(' ' + my_fname.split( '-' )[0]
 #             else:
 #                 failed( 'Failed to install ' + my_fname.split( '-' )[0] )
 # #        perl-cpan-meta-check perl-class-load-xs perl-eval-closure perl-mro-compat perl-package-depreciationmanager perl-sub-name perl-task-weaken \
@@ -201,19 +201,19 @@ hunspell-en chromium thunderbird windowmaker \
 #                     continue
 #                 try:
 #                     self.build_and_install_software_from_archlinux_source( pkg_name, quiet = True )
-#                     self.status_lst[-1] += ' %s' % ( pkg_name )
+#                     self.update_status(' %s' % ( pkg_name ))
 #                 except RuntimeError:
 #                     failed_pkgs += ' %s' % ( pkg_name )
-#         self.status_lst[-1] += '...OK.'
+#         self.update_status('...OK.')
 #         if failed_pkgs != '':
-#             self.status_lst.append( ['Warning - failed to install%s' % ( failed_pkgs )] )
-#         self.status_lst[-1] += ' etc. '
-# #        self.status_lst.append( ['Installing %s' % ( self.final_push_packages.replace( '  ', ' ' ).replace( ' ', ', ' ) )] )
+#             self.update_status(( ['Warning - failed to install%s' % ( failed_pkgs )] )
+#         self.update_status(' etc. ')
+# #        self.update_status(( ['Installing %s' % ( self.final_push_packages.replace( '  ', ' ' ).replace( ' ', ', ' ) )] )
 #         chroot_this( self.mountpoint, 'yes "" 2>/dev/null | pacman -S --needed %s' % ( self.final_push_packages ), title_str = self.title_str, status_lst = self.status_lst,
 #                      on_fail = 'Failed to install final push of packages', attempts = 20 )
 #         self.update_and_upgrade_all()
 #         self.downgrade_systemd_if_necessary( None )  # '213-5' )
-#         self.status_lst[-1] += '...complete.'
+#         self.update_status_with_newline('...complete.')
 
 
 

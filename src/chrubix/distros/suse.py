@@ -35,7 +35,7 @@ xorg-xinit xf86-video-fbdev wmsystemtray lxdm network-manager-gnome'
     def install_final_push_of_packages( self ):
         logme( 'Fedora - install_final_push_of_packages() - starting' )
 #        self.build_and_install_software_from_archlinux_source( 'wmsystemtray' )
-        self.status_lst.append( ['Installing %s' % ( self.final_push_packages.replace( '  ', ' ' ).replace( ' ', ', ' ) )] )
+        self.update_status_with_newline( 'Installing %s' % ( self.final_push_packages.replace( '  ', ' ' ).replace( ' ', ', ' ) ) )
         res = 999
         attempts = 5
         while res != 0 and attempts > 0:
@@ -44,5 +44,5 @@ xorg-xinit xf86-video-fbdev wmsystemtray lxdm network-manager-gnome'
             if res != 0:
                 system_or_die( 'rm -f %s/var/lib/pacman/db.lck; sync; sync; sync; sleep 3' % ( self.mountpoint ) )
         assert( attempts > 0 )
-#        self.status_lst[-1] += '...Done.'
+#        self.update_status_with_newline('...Done.')
 
