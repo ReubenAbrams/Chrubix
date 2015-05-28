@@ -9,7 +9,7 @@ import sys
 import os
 from chrubix import generate_distro_record_from_name
 from chrubix.utils import fix_broken_hyperlinks, system_or_die, call_makepkg_or_die, remaining_megabytes_free_on_device, \
-                          chroot_this, patch_org_freedesktop_networkmanager_conf_file, failed
+                          chroot_this, patch_org_freedesktop_networkmanager_conf_file, failed, write_oneliner_file
 from chrubix.distros.debian import generate_mickeymouse_lxdm_patch
 from chrubix.utils.postinst import remove_junk, ask_the_user__guest_mode_or_user_mode__and_create_one_if_necessary
 
@@ -112,13 +112,21 @@ elif argv[2] == 'clone-guest':
     distro = generate_distro_record_from_name( argv[3] )
     system_or_die( 'cd /tmp/.guest; tar -cJ %s > %s' % ( files_to_save, outfile ) )
     print( 'Saved /tmp/.guest/.* goodies to %s' % ( outfile ) )
-elif argv[2] == 'stage-three':
+elif argv[2] == 'do-kernel':
     distro = generate_distro_record_from_name( argv[3] )
-    distro.mountpoint = '/tmp/_root'
+    distro.mountpoint = '/tmp/_root' if os.system( 'mount | grep /dev/mapper &> /dev/null' ) != 0 else '/'
     distro.device = '/dev/mmcblk1'
     distro.root_dev = '/dev/mmcblk1p3'
+    distro.download_modify_build_and_install_kernel_and_mkfs()
+elif argv[2] == 'modify-kernel-sources':
+    distro = generate_distro_record_from_name( argv[3] )
+    distro.mountpoint = '/tmp/_root' if os.system( 'mount | grep /dev/mapper &> /dev/null' ) != 0 else '/'
+    distro.device = '/dev/mmcblk1'
+    distro.root_dev = '/dev/mmcblk1p3'
+    distro.call_bash_script_that_modifies_kernel_n_mkfs_sources()
+    assert( 0 == os.system( 'cat %s%s/config | grep UNION_FS' % ( distro.mountpoint, distro.kernel_src_basedir ) ) )
 #    distro.download_kernel_and_mkfs_sources()
-    distro.modify_build_and_install_mkfs_and_kernel_for_OS()
+#    distro.modify_build_and_install_mkfs_and_kernel_for_OS()
 elif argv[2] == 'sign-and-write':
     distro = generate_distro_record_from_name( argv[3] )
     distro.mountpoint = '/tmp/_root'
@@ -182,9 +190,9 @@ elif argv[2] == 'install-bitmask':
     distro.spare_dev = '/dev/mmcblk1p2'
     distro.install_leap_bitmask()
 elif argv[2] == 'mbr-etc':
-    print( 'Assuming archlinux' )
-    distro = generate_distro_record_from_name( 'archlinux' )
-    distro.mountpoint = '/tmp/_root'
+    print( 'Assuming wheezy' )
+    distro = generate_distro_record_from_name( 'debianwheezy' )
+    distro.mountpoint = '/' if os.system( 'cat /proc/cmdline 2>/dev/null | fgrep root=/dev/dm-0 > /dev/null' ) != 0 else '/tmp/_root'
     distro.device = '/dev/mmcblk1'
     distro.root_dev = '/dev/mmcblk1p3'
     distro.spare_dev = '/dev/mmcblk1p2'
