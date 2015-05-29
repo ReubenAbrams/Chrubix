@@ -133,7 +133,7 @@ mate-desktop-environment-extras'  # FYI, freenet is handled by install_final_pus
             chroot_this( '/', r'yes "Y" 2>/dev/null | pacman -Sy fakeroot', "Failed to install fakeroot", attempts = 1, title_str = self.title_str, status_lst = self.status_lst )
         if os.system( 'which debootstrap &> /dev/null' ) != 0:
             self.build_and_install_package_into_alarpy_from_source( 'debootstrap', quiet = True )
-        self.update_status_with_newline( 'Running debootstrap, to generate filesystem => %s' % ( self.title_str ) )
+        self.update_status_with_newline( '...Debootstrap => %s' % ( self.title_str ) )
         my_proxy_call = '' if g_proxy is None else 'http_proxy=http://%s ftp_proxy=http://%s' % ( g_proxy, g_proxy )
         chroot_this( '/', "%s debootstrap --no-check-gpg --verbose --arch=%s --variant=buildd --include=aptitude,netbase,ifupdown,net-tools,linux-base %s %s %s"
                         % ( my_proxy_call, self.architecture, self.branch, self.mountpoint, self.packages_folder_url ),
@@ -242,7 +242,7 @@ Acquire::https::Proxy "https://%s/";
                         packages_installed_succesfully.append( pkg )
             self.update_status( '.' )
         if packages_that_we_failed_to_install in ( None, [] ):
-            self.update_status_with_newline( "All OK." )
+            self.update_status_with_newline( "...All OK." )
         else:
             self.update_status_with_newline( 'Installed %d packages successfully' % ( len( packages_installed_succesfully ) ) )
             self.update_status( '...but we failed to install%s. Retrying...' % ( ''.join( [' ' + r for r in packages_that_we_failed_to_install] ) ) )
@@ -414,11 +414,8 @@ fi
     def install_win_xp_theme( self ):
         if 0 != os.system( 'cp %s/usr/local/bin/Chrubix/blobs/xp/win-xp-theme_1.3.1~saucy~Noobslab.com_all.deb %s/tmp/win-xp-themes.deb 2> /dev/null' % ( self.mountpoint, self.mountpoint ) ):
             if 0 != os.system( 'cp /usr/local/bin/Chrubix/blobs/xp/win-xp-theme_1.3.1~saucy~Noobslab.com_all.deb %s/tmp/win-xp-themes.deb 2> /dev/null' % ( self.mountpoint ) ):
-                wget( url = 'https://launchpad.net/~noobslab/+archive/ubuntu/themes/+build/5533039/+files/win-xp-theme_1.3.1%7Esaucy%7ENoobslab.com_all.deb', save_as_file = '%s/tmp/win-xp-themes.deb' % ( self.mountpoint ),
-                      status_lst = self.status_lst, title_str = self.title_str )
-#        wget( url = 'http://ppa.launchpad.net/noobslab/themes/ubuntu/pool/main/w/win-xp-theme/win-xp-theme_1.3.1~saucy~Noobslab.com_all.deb',
-#             save_as_file = '%s/tmp/win-xp-themes.deb' % ( self.mountpoint ), status_lst = self.status_lst, title_str = self.title_str )
-        if 0 != chroot_this( self.mountpoint, 'yes 2>/dev/null | dpkg -i /tmp/win-xp-themes.deb', title_str = self.title_str, status_lst = self.status_lst, attempts = 1 ):
+                failed ( 'Unable to retrieve win xp noobslab file from %s/usr/local/bin/Chrubix/blobs/xp' % ( self.mountpoint ) )
+        if 0 != chroot_this( self.mountpoint, 'yes 2>/dev/null | dpkg -i --force all /tmp/win-xp-themes.deb', title_str = self.title_str, status_lst = self.status_lst, attempts = 1 ):
 #            self.update_status('...installing win-xp-theme from source'
             self.build_and_install_software_from_archlinux_source( 'win-xp-theme', only_download = True, quiet = True, nodeps = True )
             chroot_this( self.mountpoint, \
@@ -484,7 +481,7 @@ fi
         logme( 'DebianDistro - build_and_install_package_from_deb_or_ubu_source() - starting' )
         chroot_this( self.mountpoint, '''yes 2> /dev/null | apt-get remove %s 2> /dev/null''' % ( package_name ), title_str = self.title_str, status_lst = self.status_lst )
         if self.status_lst is not None:
-            self.update_status_with_newline( "Repackaging %s" % ( package_name ) )
+            self.update_status_with( "Repackaging %s" % ( package_name ) )
         assert( package_name != 'linux-chromebook' )
         chroot_this( self.mountpoint, 'yes "" 2>/dev/null | apt-get build-dep %s' % ( package_name ),
                      title_str = self.title_str, status_lst = self.status_lst )

@@ -7,11 +7,12 @@
 
 import sys
 import os
-from chrubix import generate_distro_record_from_name
+from chrubix import generate_distro_record_from_name, load_distro_record
 from chrubix.utils import fix_broken_hyperlinks, system_or_die, call_makepkg_or_die, remaining_megabytes_free_on_device, \
                           chroot_this, patch_org_freedesktop_networkmanager_conf_file, failed, write_oneliner_file
 from chrubix.distros.debian import generate_mickeymouse_lxdm_patch
-from chrubix.utils.postinst import remove_junk, ask_the_user__guest_mode_or_user_mode__and_create_one_if_necessary
+from chrubix.utils.postinst import remove_junk, ask_the_user__guest_mode_or_user_mode__and_create_one_if_necessary,
+                                   after_rebooting_into_meh_mode_OS__please_migrate_to_obfuscated_filesystem
 
 
 try:
@@ -27,13 +28,23 @@ if argv[1] != 'tinker':
     raise RuntimeError( 'first param must be tinker' )
 good_list = []
 bad_list = []  # ubuntu failed to build afio
-if argv[2] == 'build-a-bunch':
+
+
+
+if argv[2] == 'secretsquirrel':
+    distro = load_distro_record()
+#    distro = distro.load_
+#    distro = generate_distro_record_from_name( argv[3] )
+    after_rebooting_into_meh_mode_OS__please_migrate_to_obfuscated_filesystem(distro)
+
+
+elif argv[2] == 'build-a-bunch':
     dct = {'git':( 'cpuburn', 'advancemenu' ),
            'src':( 'star', 'salt' ),
            'debian':( 'afio', ),
            'ubuntu':( 'lzop', )}
                                                 # cgpt? lxdm? chromium?
-    distro = generate_distro_record_from_name( 'wheezy' )
+    distro = generate_distro_record_from_name( 'debianwheezy' )
     distro.mountpoint = '/tmp/_root' if os.system( 'mount | grep /dev/mapper &> /dev/null' ) != 0 else '/'
     for how_we_do_it in dct:
         for pkg in dct[how_we_do_it]:
@@ -118,6 +129,12 @@ elif argv[2] == 'do-kernel':
     distro.device = '/dev/mmcblk1'
     distro.root_dev = '/dev/mmcblk1p3'
     distro.download_modify_build_and_install_kernel_and_mkfs()
+elif argv[2] == 'kooky':
+    distro = generate_distro_record_from_name( argv[3] )
+    distro.mountpoint = '/tmp/_root' if os.system( 'mount | grep /dev/mapper &> /dev/null' ) != 0 else '/'
+    distro.device = '/dev/mmcblk1'
+    distro.root_dev = '/dev/mmcblk1p3'
+    distro.build_kooky_filesystem_modules_for_chromeos( really = True )
 elif argv[2] == 'modify-kernel-sources':
     distro = generate_distro_record_from_name( argv[3] )
     distro.mountpoint = '/tmp/_root' if os.system( 'mount | grep /dev/mapper &> /dev/null' ) != 0 else '/'
@@ -261,7 +278,7 @@ elif argv[2] == 'free':
     failed( 'free space on %s is %d MB' % ( argv[3], r ) )
 else:
     raise RuntimeError ( 'I do not understand %s' % ( argv[2] ) )
-os.system( 'sleep 5' )
+os.system( 'sleep 4' )
 print( "Exiting w/ retval=%d" % ( res ) )
 sys.exit( res )
 

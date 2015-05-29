@@ -28,7 +28,7 @@ class Distro():
     '''
     '''
     # Class-level consts
-    hewwo = '2015/05/27 @ 18:11'
+    hewwo = '2015/05/28 @ 15:40'
     crypto_rootdev = "/dev/mapper/cryptroot"
     crypto_homedev = "/dev/mapper/crypthome"
     boot_prompt_string = "boot: "
@@ -237,13 +237,12 @@ simple-scan macchanger brasero pm-utils mousepad keepassx claws-mail bluez-utils
         raise AttributeError( 'Do not try to set the boom password hash to %s. Set the boom password instead.' % ( value ) )
 
     def update_status( self, s, newline = False ):
+        if self.status_lst in( None, [] ):
+            self.status_lst = ['']
         logme( s )
+        self.status_lst[-1] += s
         if newline:
-            self.status_lst.append( [s] )
-        elif len( self.status_lst ) == 0:
-            self.update_status( s, True )
-        else:
-            self.status_lst[-1] += s
+            self.status_lst.append( [''] )
 
     def update_status_with_newline( self, s ):
         self.update_status( s, newline = True )
@@ -308,13 +307,6 @@ make' % ( self.sources_basedir ), title_str = self.title_str, status_lst = self.
             g = '%s%s/src/chromeos-3.4/fs/btrfs/ctree.h' % ( chroot_here, self.kernel_src_basedir )
             assert( os.path.exists( f ) )
             assert( os.path.exists( g ) )
-            if os.path.exists( '%s.phezSullied' % f ):
-                assert( os.path.exists( '%s.kthxSullied' % g ) )
-                assert( 0 == os.system( 'diff %s.phez%s %s' % ( f, 'Sullied' if self.pheasants else 'Pristine', f ) ) )
-                assert( 0 == os.system( 'diff %s.kthx%s %s' % ( g, 'Sullied' if self.kthx else 'Pristine', g ) ) )
-            else:
-                assert( not os.path.exists( '%s.kthxSullied' % g ) )
-                self.update_status( 'Warning - source code was never modified. I hope that is not a bad sign.' )
             self.kernel_rebuild_required = False
         else:
             logme( 'qqq No need to rebuild kernel. Merely signing existing kernel' )
@@ -416,11 +408,12 @@ make' % ( self.sources_basedir ), title_str = self.title_str, status_lst = self.
             patch_kernel( self.mountpoint, self.kernel_src_basedir + '/src/chromeos-3.4', 'http://download.filesystems.org/unionfs/unionfs-2.x/unionfs-2.5.13_for_3.4.84.diff.gz' )
         self.update_status( '...patched' )
         self.call_bash_script_that_modifies_kernel_n_mkfs_sources()
-        self.update_status( '...customized' )
+        self.update_status( '...customized. ' )
+#        assert( self.kthx is False  and self.pheasants is False )
         assert( 0 == os.system( 'cat %s%s/config | grep UNION_FS' % ( self.mountpoint, self.kernel_src_basedir ) ) )
 
     def call_bash_script_that_modifies_kernel_n_mkfs_sources( self ):
-        self.update_status_with_newline( 'Modifying kernel and mkfs sources' )
+        self.update_status( 'Modifying kernel and mkfs sources' )
         system_or_die( 'bash /usr/local/bin/modify_sources.sh %s %s %s %s' % ( 
                                                                 self.device,
                                                                 self.mountpoint,
@@ -428,13 +421,13 @@ make' % ( self.sources_basedir ), title_str = self.title_str, status_lst = self.
                                                                 'yes' if self.kthx else 'no',
                                                                 ), "Failed to modify kernel/mkfs sources", title_str = self.title_str, status_lst = self.status_lst )
         self.randomized_serial_number = read_oneliner_file( '%s/etc/.randomized_serno' % ( self.mountpoint ) )
+#        self.update_status( '*** FIXME change modify_sources.sh to modify PKGBUILDs/linux-3.8.11/fs/*fs kernel modules too! FIXME ***' )
 
     def download_modify_build_and_install_kernel_and_mkfs( self ):
         logme( 'modify_build_and_install_mkfs_and_kernel_for_OS() --- starting' )
         diy = True
         mounted = False
         tarball_fname = '/tmp/posterity/%s/%s_PKGBUILDs.tgz' % ( self.name + ( '' if self.branch is None else self.branch ), self.name + ( '' if self.branch is None else self.branch ) )
-        sqfs_fname = '/tmp/posterity/%s/%s_PKGBUILDs.sqfs' % ( self.name + ( '' if self.branch is None else self.branch ), self.name + ( '' if self.branch is None else self.branch ) )
         os.system( 'mkdir -p %s%s' % ( self.mountpoint, os.path.dirname( tarball_fname ) ) )
         system_or_die( 'mkdir -p /tmp/posterity' )
         if os.system( 'mount /dev/sda1 /tmp/posterity &> /dev/null' ) == 0 \
@@ -456,29 +449,17 @@ make' % ( self.sources_basedir ), title_str = self.title_str, status_lst = self.
         g = '%s%s/src/chromeos-3.4/fs/btrfs/ctree.h' % ( self.mountpoint, self.kernel_src_basedir )
         assert( os.path.exists( f ) )
         assert( os.path.exists( g ) )
-        if os.path.exists( '%s.phezSullied' % f ) and os.path.exists( '%s.kthxSullied' % g ):
-            assert( 0 == os.system( 'diff %s.phez%s %s' % ( f, 'Sullied' if self.pheasants else 'Pristine', f ) ) )
-            assert( 0 == os.system( 'diff %s.kthx%s %s' % ( g, 'Sullied' if self.kthx else 'Pristine', g ) ) )
-        else:
-            if diy:
-                failed( 'OK, that is messed up! I downloaded AND modified AND built the sources, but they appear not to have been modified.' )
-            else:
-                failed( 'OK, that is messed up! My PKGBUILDs.tgz tarball includes unmodified sources, but that tarball was allegedly created AFTER I had modified the sources. WTF?' )
         if mounted and diy:
             chroot_this( '/', 'cd %s%s && tar -cz PKGBUILDs > %s' % ( self.mountpoint, self.ryo_tempdir, tarball_fname ),
                                                     status_lst = self.status_lst, title_str = self.title_str )
-# FIXME indent these four lines one more, please :) kthxbai
-        self.update_status( 'Generating squashfs of PKGBUILDs.tgz' )
-        chroot_this( self.mountpoint, 'mksquashfs %s /PKGBUILDs.sqfs %s' % \
-                                                     ( self.ryo_tempdir, '-b 1048576 -comp xz -Xdict-size 100%' if chrubix.utils.MAXIMUM_COMPRESSION else '' ),
-                                                     status_lst = self.status_lst, title_str = self.title_str,
-                                                     attempts = 1, on_fail = 'Failed to generate squashfs' )
-        system_or_die( 'mv %s/PKGBUILDs.sqfs %s' % ( self.mountpoint, sqfs_fname ) )
-        chroot_this( '/', 'sync;sync;sync;umount /tmp/posterity' , status_lst = self.status_lst, title_str = self.title_str )
+            chroot_this( '/', 'sync;sync;sync;umount /tmp/posterity' , status_lst = self.status_lst, title_str = self.title_str )
         self.install_kernel_and_mkfs()
 
     def download_kernel_and_mkfs_sources( self ):
         logme( 'download_kernel_and_mkfs_sources() --- starting' )
+        kernel_version = call_binary( ['uname', '-r'] )[1].decode( 'utf-8' ).split( '\n' )
+#        if kernel_version != '3.8.11':
+#            failed( 'Rebuild PKGBUILDs to allow for new kernel, please. Oh, and edit 3.8.11 in distros/__init__.py, please.' )
         raw_pkgbuilds_fname = '/tmp/posterity/%s/%s_raw_PKGBUILDs.tgz' % ( self.name + ( '' if self.branch is None else self.branch ), self.name + ( '' if self.branch is None else self.branch ) )
         if os.path.exists( raw_pkgbuilds_fname ):
             self.update_status_with_newline( "Restoring source from raw tarball..." )
@@ -492,6 +473,7 @@ make' % ( self.sources_basedir ), title_str = self.title_str, status_lst = self.
             system_or_die( "mkdir -p %s" % ( self.mountpoint + self.ryo_tempdir ) )
             self.update_status( '...Downloading kernel' )
             self.download_kernel_source()  # Must be done before mkfs. Otherwise, 'git' complains & quits.
+#            self.download_current_ChromeOS_kernel_source()  # ...to enable me to build the btrfs, xfs, jfs modules & run them within ChromeOS
             if self.use_latest_kernel:
                 self.download_latest_kernel_src()
                 system_or_die( 'cp -f %s%s/config %s%s/linux-latest/.config' % ( self.mountpoint, self.kernel_src_basedir, self.mountpoint, self.sources_basedir ) )
@@ -518,8 +500,6 @@ make' % ( self.sources_basedir ), title_str = self.title_str, status_lst = self.
 #        print( "Installing timezone" )
         utc_hour_str = call_binary( ['date', '-u', '+%H'] )[1].decode( 'utf-8' )
         loc_hour_str = call_binary( ['date', '+%H'] )[1].decode( 'utf-8' )
-#        print( 'utc_hour_str =', utc_hour_str )
-#        print( 'loc_hour_str =', loc_hour_str )
         if utc_hour_str[0] == '0':
             utc_hour_str = utc_hour_str[1:]
         if loc_hour_str[0] == '0':
@@ -647,7 +627,7 @@ Choose the 'boom' password : """ ).strip( '\r\n\r\n\r' )
 #            os.unlink( old_A_file )
         system_or_die( 'cd %s && tar -c %s | xz %s | dd bs=256k > %s/temp.data' % ( self.mountpoint, dirs_to_backup, compression_parameters, os.path.dirname( output_file ) ), title_str = self.title_str, status_lst = self.status_lst )
         system_or_die( 'mv %s/temp.data %s' % ( os.path.dirname( output_file ), output_file ) )
-        self.update_status( '...created.' )
+        self.update_status_with_newline( '...created.' )
         return 0
 
     def write_my_rootfs_from_tarball( self, fname ):
@@ -825,7 +805,7 @@ exit 0
     def migrate_or_squash_OS( self ):
         self.update_status( 'Migrating/squashing OS' )
 #        self.reinstall_chrubix_if_missing()
-        self.reinstall_chrubix_if_missing()  # FIXME remove after 6/1/2015
+        self.reinstall_chrubix_if_missing()  # FIXME remove after 7/1/2015
         if not os.path.exists( '%s%s/src/chromeos-3.4/arch/arm/boot/vmlinux.uimg' % ( self.mountpoint, self.kernel_src_basedir ) ):
             system_or_die( 'cp -f /tmp/.vmlinuz.uimg %s%s/src/chromeos-3.4/arch/arm/boot/vmlinux.uimg' % ( self.mountpoint, self.kernel_src_basedir ) )
         for f in ( '/etc/lxdm/lxdm.conf', self.kernel_src_basedir + '/src/chromeos-3.4/arch/arm/boot/vmlinux.uimg',
@@ -858,6 +838,10 @@ exit 0
     def squash_OS( self ):
         self.lxdm_settings['use greeter gui'] = True
         chrubix.save_distro_record( distro_rec = self, mountpoint = self.mountpoint )
+        if self.kthx or self.pheasants:
+            self.kthx = False
+            self.pheasants = False
+            self.update_status( "For some ungodly reason, my kernel was built with kthx and/or pheasants. I hope this won't fsck things up." )
         self.redo_mbr_for_plain_root( self.mountpoint )  # '/tmp/squashfs_dir' )
         self.generate_squashfs_of_my_OS()
         system_or_die( 'rm -Rf %s/bin %s/boot %s/etc %s/home %s/lib %s/mnt %s/opt %s/root %s/run %s/sbin %s/srv %s/usr %s/var' %
@@ -1466,7 +1450,7 @@ WantedBy=multi-user.target
                 elif url_or_fname.find( '_A' ) >= 0:      checkpoint_number = len( first_stage )
                 else:                                     failed( 'Incomprehensible posterity restore - %s' % ( url_or_fname ) )
             else:
-                self.update_status( 'Cool -- resuming from checkpoint#%d' % ( checkpoint_number ) )
+                self.update_status_with_newline( 'Cool -- resuming from checkpoint#%d' % ( checkpoint_number ) )
         else:
             checkpoint_number = 0
         logme( 'Starting at checkpoint#%d' % ( checkpoint_number ) )
@@ -1482,3 +1466,4 @@ WantedBy=multi-user.target
             myfunc()
             checkpoint_number += 1
             write_oneliner_file( '%s/.checkpoint.txt' % ( self.mountpoint ), str( checkpoint_number ) )
+

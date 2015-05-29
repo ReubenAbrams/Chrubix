@@ -77,8 +77,8 @@ def save_distro_record( distro_rec = None, mountpoint = '/' ):
 
 
 def process_command_line( argv ):
-    do_pheasants = True
-    do_kthx = True
+    do_pheasants = False
+    do_kthx = False
     do_distro = None
     do_device = None
     do_root_dev = None

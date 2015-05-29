@@ -517,8 +517,8 @@ rebuild_and_install_kernel___oh_crap_this_might_take_a_while() {
 	chmod +x $our_master_folder/usr/local/bin/*.sh
 	chroot_this $our_master_folder "/usr/local/bin/modify_sources.sh $dev /tmp/_root yes no" || failed "Failed to modify_sources. :-("	# There's no point in screwing with the magic numbers of filesystems IF we're using a read-only filesystem.
 	chroot_this $our_master_folder "/usr/local/bin/redo_mbr.sh $dev /tmp/_root $dev_p"3	# also signs and writes kernel
-failed "Nefarious tortoises"
-	cd /
+#failed "Nefarious tortoises"
+#	cd /
 	unmount_shenanigans $our_master_folder	
 	losetup -d /dev/loop2
 	rmdir $our_master_folder
@@ -570,19 +570,19 @@ oh_well_start_from_beginning() {
 }
 
 
-#ask_if_secret_squirrel() {
-#	local $line
-#	line="bonzer"
-#	while [ "$line" != "Y" ] && [ "$line" != "y" ] && [ "$line" != "n" ] && [ "$line" != "N" ] ; do
-#		echo -en "Shall I forbid the kernel to boot on any Chromebook but yours? "
-#		read line
-#	done
-#	if [ "$line" = "Y" ] || [ "$line" = "y" ] ; then
-#		SECRET_SQUIRREL_KERNEL=on
-#	else
-#		SECRET_SQUIRREL_KERNEL=off
-#	fi
-#}
+ask_if_secret_squirrel() {
+	local $line
+	line="bonzer"
+	while [ "$line" != "Y" ] && [ "$line" != "y" ] && [ "$line" != "n" ] && [ "$line" != "N" ] ; do
+		echo -en "Are you afraid of the evil maid? "
+		read line
+	done
+	if [ "$line" = "Y" ] || [ "$line" = "y" ] ; then
+		SECRET_SQUIRREL_KERNEL=on
+	else
+		SECRET_SQUIRREL_KERNEL=off
+	fi
+}
 
 
 
@@ -647,13 +647,12 @@ main() {
 	else
 		get_distro_type_the_user_wants
 		ask_if_user_wants_temporary_or_permanent
-		SECRET_SQUIRREL_KERNEL=on				# ask_if_secret_squirrel
+		ask_if_secret_squirrel
 		echo "$temp_or_perm" > /tmp/temp_or_perm
 		echo "$SECRET_SQUIRREL_KERNEL" > /tmp/secret.squirrel
 	fi
 	
-	echo -en "Hmm. "
-
+	echo -en "OK. "
 	if mount | grep "$dev" | grep "$root" &> /dev/null ; then
 		umount "$dev"* &> /dev/null || echo "Already partitioned and mounted. Reboot and try again..."
 	fi
@@ -759,8 +758,6 @@ main() {
 #chroot_this $our_master_folder "/usr/local/bin/modify_sources.sh $dev /tmp/_root yes no" || failed "Failed to modify_sources.sh"	# There's no point in screwing with the magic numbers of filesystems IF we're using a read-only filesystem.
 #chroot_this $our_master_folder "/usr/local/bin/redo_mbr.sh $dev /tmp/_root $dev_p"3	# also signs and writes kernel
 #failed "Nefarious tortoises"
-
-
 
 if [ "$1" != "" ] && [ "$1" != "REBUILD-ALL" ] ; then
 	failed "I do not understand '$1'"

@@ -717,8 +717,6 @@ is encrypted. Although you will initially be logged in as a guest whose home dir
 you have the option of creating a permanent user, logging in as that user, and saving files to disk.
 In addition, you will be prompted for a 'logging in under duress' password. Pick a short one.
 
-MEH: No encryption. No duress password. Changes are permanent. Guest Mode still exists, though.
-
 ''' )
         res = 999
         while res != 'T' and res != 'P' and res != 'M':
@@ -823,4 +821,11 @@ def tidy_up_alarpy():
         logme( 'Removing %s' % ( path_to_delete ) )
         system_or_die( 'rm -Rf %s' % ( path_to_delete ) )
         os.system( 'mv /usr/share/locale.alias /usr/share/locale/ 2> /dev/null' )
+
+
+
+def after_rebooting_into_meh_mode_OS__please_migrate_to_obfuscated_filesystem( distro ):
+    print( 'hello' )
+    print( 'I am secret squirrel' )
+    system_or_die( 'echo -en "Press ENTER to continue."; read line' )
 
