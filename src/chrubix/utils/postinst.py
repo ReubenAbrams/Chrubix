@@ -9,8 +9,7 @@ Created on May 9, 2014
 
 
 import os
-from chrubix.utils import write_oneliner_file, failed, system_or_die, logme, do_a_sed, chroot_this, \
-                        read_oneliner_file
+from chrubix.utils import write_oneliner_file, failed, system_or_die, logme, do_a_sed, chroot_this, read_oneliner_file
 
 
 def append_startx_addendum( outfile ):
@@ -824,8 +823,7 @@ def tidy_up_alarpy():
 
 
 
-def after_rebooting_into_meh_mode_OS__please_migrate_to_obfuscated_filesystem( distro ):
-    print( 'hello' )
-    print( 'I am secret squirrel' )
-    system_or_die( 'echo -en "Press ENTER to continue."; read line' )
+
+
+
 

@@ -5,8 +5,7 @@
 # FIXME - see http://marcin.juszkiewicz.com.pl/2013/02/14/how-to-install-ubuntu-13-04-on-chromebook/
 
 
-from chrubix.utils import wget, system_or_die, unmount_sys_tmp_proc_n_dev, \
-                          mount_sys_tmp_proc_n_dev, logme, chroot_this, g_proxy, failed, \
+from chrubix.utils import logme, chroot_this, g_proxy, failed, \
                           write_oneliner_file, do_a_sed
 from chrubix.distros.debian import JessieDebianDistro
 
@@ -29,6 +28,7 @@ class UbuntuDistro( JessieDebianDistro ):  # FIXME try DebianDistro instead...?
 #            print('%s ==> %s' % (stub, relevant_line))
 
     def install_debianspecific_package_manager_tweaks( self, yes_add_ffmpeg_repo = False ):
+        assert( not yes_add_ffmpeg_repo )
         logme( 'UbuntuDistro - install_package_manager_tweaks() - starting' )
 #        f = open('%s/etc/apt/sources.list' % ( self.mountpoint ), 'a')
 #        f.write(''' ''')
