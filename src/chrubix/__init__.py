@@ -19,6 +19,7 @@ from chrubix.distros.kali import KaliDistro
 from chrubix.distros.fedora import NineteenFedoraDistro
 from chrubix.distros.ubuntu import VividUbuntuDistro
 from chrubix.distros.suse import SuseDistro
+from _sqlite3 import InternalError
 
 
 def list_command_line_options():
@@ -26,8 +27,6 @@ def list_command_line_options():
     chrubix [options]
 
     -h            get help
-    -K<on/off>    kthx on/off
-    -P<on/off>    pheasants on/off
     -D<distro>    install <distro>
     -d<dev>       destination storage device
     -r<dev>       root/bootstrap device; you may not reformat, but you may install an OS here
@@ -70,6 +69,11 @@ def load_distro_record( mountpoint = '/' ):
 
 def save_distro_record( distro_rec = None, mountpoint = '/' ):
     assert( distro_rec is not None )
+    original_status_lst = distro_rec.status_lst
+    try:
+        distro_rec.status_lst = original_status_lst[-5:]
+    except ( IndexError, SyntaxError ):
+        logme( 'Unable to truncate status_lst. Bummer, man...' )
     dct_to_save = {'name':distro_rec.name, 'branch':distro_rec.branch, 'dct':distro_rec.__dict__}
     pickle.dump( dct_to_save, open( '%s/etc/.distro.rec' % ( mountpoint ), "wb" ) )
     if os.path.exists( '%s/etc/lxdm/lxdm.conf' % ( mountpoint ) ):
@@ -94,20 +98,6 @@ def process_command_line( argv ):
         if opt == '-h':
             list_command_line_options()
             sys.exit( 1 )
-        elif opt == '-P':
-            if param == 'off':
-                do_pheasants = False
-            elif param == 'on':
-                do_pheasants = True
-            else:
-                raise getopt.GetoptError( "-P takes either on or off; you specified " + str( param ) )
-        elif opt == '-K':
-            if param == 'off':
-                do_kthx = False
-            elif param == 'on':
-                do_kthx = True
-            else:
-                raise getopt.GetoptError( "-K takes either on or off; you specified " + str( param ) )
         elif opt == '-D':
             do_distro = param
 #            print( 'Distro = %s' % ( do_distro ) )

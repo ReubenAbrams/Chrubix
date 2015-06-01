@@ -28,6 +28,6 @@ elif [ "$1" = "ersatz_lxdm" ] ; then
 elif [ "$1" = "secretsquirrel" ] ; then
 	python3 tinker.py secretsquirrel $distroname $@		# the distro name variable will be replaced, thanks to sed, with the ACTUAL distro name.
 else
-	python3 main.py -Kkkk -Pppp -d$dev -r$rootdev -s$sparedev -k$kerndev -D$distroname
+	python3 main.py -d$dev -r$rootdev -s$sparedev -k$kerndev -D$distroname
 fi
 exit $?

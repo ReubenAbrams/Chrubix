@@ -91,7 +91,6 @@ modify_mkfs_n_kernel() {
 	echo "haystack = $haystack"
 	modify_all $root "$serialno" "$haystack"
 	
-#failed "QQQRRR"
 	echo -en "Building a temporary prefab initramfs..."
 	mkdir -p $root/lib/modules
 	[ -e "$root/lib/modules/3.4.0-ARCH" ] || cp -af /lib/modules/3.4.0-ARCH $root/lib/modules/
@@ -337,7 +336,7 @@ sizeof() {
 
 modify_all() {
 # Modify all source files - kernel, mkbtrfs, mkxfs, etc. - in preparation for their recompiling
-	local serialno haystack randomized_serno root
+	local serialno haystack randomized_serno root mydir
 	root=$1
 	serialno=$2
 	haystack=$3
@@ -348,28 +347,44 @@ modify_all() {
 	echo "$randomized_serno" > $root$RANDOMIZED_SERIALNO_FILE || failed "Failed to write randomized serial number to disk file"
 	[ "$serialno" = "" ] && failed "modify_all() was supplied with an empty serialno"
 	[ "$haystack" = "" ] && failed "modify_all() was supplied with an empty haystack"
-	echo "Modifying source files; serialno=$serialno; haystack=$haystack"
+	echo "Modifying source files; serialno=$serialno; haystack=$haystack; our special magic# is $randomized_serno"
 	for kernel_src_basedir in  $SOURCES_BASEDIR/linux-chromebook/src/chromeos-3.4 \
 							   $SOURCES_BASEDIR/linux/src/chromeos-3.4 \
                                $SOURCES_BASEDIR/linux \
                                $SOURCES_BASEDIR/linux-latest ; do
-		if [ ! -e "$root$kernel_src_basedir" ] ; then
-			echo "Ignoring $kernel_src_basedir because it does not exist"
-			continue
+#		if [ ! -e "$root$kernel_src_basedir" ] ; then
+#			echo "Ignoring $root$kernel_src_basedir because it does not exist"
+#			continue
+#		fi
+#		echo "PHEZ --- Handling $kernel_src_basedir"
+		if [ -e "$root$kernel_src_basedir/.config" ] ; then
+			if [ "$NOPHEASANTS" = "" ] ; then
+				echo "Found kernel at $root$kernel_src_basedir; modifying the source..."
+				modify_kernel_config_file $root $kernel_src_basedir
+				modify_kernel_init_source $root/$kernel_src_basedir # FIXME This probably isn't needed UNLESS kthx and/or pheasants
+				modify_kernel_usb_source $root/$kernel_src_basedir $serialno "$haystack" || failed "Failed to modify kernel usb src"
+				modify_kernel_mmc_source $root/$kernel_src_basedir $serialno "$haystack" || failed "Failed to modify kernel mmc src"
+			else
+				echo "No pheasants. Therefore, not modifying kernel."
+			fi
 		fi
-		if [ ! -e "$root$kernel_src_basedir/.config" ] ; then
-			echo "Ignoring $kernel_src_basedir because it lacks a .config file"
-			continue
+		if [ "$NOKTHX" = "" ] ; then
+			echo "Modifying fs stuff at $root/$kernel_src_basedir"
+			[ -d "$root/$kernel_src_basedir" ] && modify_magics_and_superblocks $root/$kernel_src_basedir $randomized_serno "$haystack"
+		else
+			echo "Nokthx. Therefore, not modifying fs stuff."
 		fi
-		echo "PHEZ --- Handling $kernel_src_basedir"
-		modify_kernel_config_file $root $kernel_src_basedir
-		modify_kernel_init_source $root/$kernel_src_basedir # FIXME This probably isn't needed UNLESS kthx and/or pheasants
-		modify_kernel_usb_source $root/$kernel_src_basedir $serialno "$haystack" || failed "Failed to modify kernel usb src"
-		modify_kernel_mmc_source $root/$kernel_src_basedir $serialno "$haystack" || failed "Failed to modify kernel mmc src"
-		[ "$NOKTHX" = "" ] && modify_magics_and_superblocks $kernel_src_basedir $randomized_serno "$haystack"
 	done
-	
 
+	if [ "$NOKTHX" = "" ] ; then
+		echo "NOW... Let's look for mk*fs, shall we?"
+		for mydir in `find $root$SOURCES_BASEDIR -mindepth 2 -maxdepth 2 -type d | grep fs`; do
+			echo "Checking out $mydir"
+			modify_magics_and_superblocks $mydir $randomized_serno "$haystack"
+		done
+	fi
+	
+	cd /
 	[ "$NOPHEASANTS" != "" ] && echo "$NOPHEASANTS" > $root/etc/.nopheasants || rm -f $root/etc/.nopheasants
 	[ "$NOKTHX" != "" ] && echo "$NOKTHX"      > $root/etc/.nokthx || rm -f $root/etc/.nokthx
 }
@@ -386,7 +401,9 @@ modify_kernel_config_file() {
 	fname=.config
 	[ ! -e "$fname.orig" ] && mv $fname $fname.orig
 	touch $fname
-	cat $fname.orig | sed s/XFS_FS=m/XFS_FS=y/ \
+	cat $fname.orig \
+| sed s/XFS_FS=m/XFS_FS=y/ \
+| sed s/JFS_FS=m/JFS_FS=y/ \
 | sed s/JFFS2_FS=m/JFFS2_FS=y/ \
 | sed s/CONFIG_SQUASHFS=.*/CONFIG_SQUASHFS=y/ \
 | sed s/.*CONFIG_SQUASHFS_XZ.*/CONFIG_SQUASHFS_XZ=y/ \
@@ -453,7 +470,7 @@ modify_kernel_mmc_source() {
 	chromeos_kernel_src=$1
 	serialno=$2
 	haystack=$3
-	echo "modify_kernel_mmc_source() was called..." # chromeos_kernel_src=$chromeos_kernel_src; serialno=$serialno; haystack=$haystack"
+#	echo "modify_kernel_mmc_source() was called..." # chromeos_kernel_src=$chromeos_kernel_src; serialno=$serialno; haystack=$haystack"
 
 	extra_if="needle==NULL || strlen(needle)==0"
 	echo "Modifying kernel mmc source"
@@ -479,7 +496,7 @@ modify_kernel_source_file() {
 	key_str=$2
 	replacement=$3
 
-	echo "modify_kernel_source_file($data_file, $key_str, ...replacement...)" # $replacement)"
+#	echo "modify_kernel_source_file($data_file, $key_str, ...replacement...)" # $replacement)"
 
 	if [ -e "$data_file.pristine.phezPristine" ] ; then
 		cp -f $data_file.phezPristine $data_file
@@ -527,7 +544,7 @@ modify_kernel_usb_source() {
 	chromeos_kernel_src=$1
 	serialno=$2
 	haystack=$3
-	echo "modify_kernel_usb_source() was called..." # chromeos_kernel_src=$chromeos_kernel_src; serialno=$serialno; haystack=$haystack"
+#	echo "modify_kernel_usb_source() was called..." # chromeos_kernel_src=$chromeos_kernel_src; serialno=$serialno; haystack=$haystack"
 	noserno="(needle==NULL || strlen(needle)==0 || !strcmp(needle, \"(null)\"))"
 	is_hub_or_webcam="(udev->product!=NULL && strlen(udev->product)>0 && (strstr(udev->product, \"Hub\") || strstr(udev->product, \"WebCam\")))"
 	is_utterly_dead="(udev->descriptor.iManufacturer == 0 && udev->descriptor.iProduct == 0 && udev->descriptor.iSerialNumber == 0)"
@@ -598,24 +615,25 @@ void addToShitlist(char*needle) {
 
 modify_magics_and_superblocks() {
 # Modify all filesystem-related magic numbers and superblocks, to make them conform to our new (random) ser#
-	local fkey lst serialno haystack f loopno bytereversed_serno last4 kernel_src_basedir
-	echo "KTHX --- Modifying magics and superblocks"
+	local fkey lst serialno haystack f loopno bytereversed_serno last4 kernel_src_basedir mydir
+#	echo "KTHX --- Modifying magics and superblocks"
 	kernel_src_basedir=$1
 	serialno=$2
 	haystack="$3"
+#	echo "kernel_src_basedir=$kernel_src_basedir"
+	[ -d "$kernel_src_basedir" ] || failed "Kernel src basedir does not exist"
     last4=`echo "$serialno" | awk '{print substr($0,length($0)-3);}'`
     bytereversed_serno=`echo "$serialno" | awk '{printf("%s%s%s%s",substr($0,7,2),substr($0,5,2),substr($0,3,2),substr($0,1,2));}'`
 
-	echo -en "Working on btrfs..."
-	replace_this_magic_number $kernel_src_basedir/fs/btrfs \"_BHRfS_M\" \"$serialno\"						#	> /dev/null || failed "Failed #1."
-	replace_this_magic_number $kernel_src_basedir/fs/btrfs 4D5F53665248425F "`serialno_as_bcd_string $serialno`" #> /dev/null || failed "Failed #2."
-	echo -en "Working on jfs..."
-	replace_this_magic_number $kernel_src_basedir/fs/jfs \"JFS1\" \"$last4\"								#	> /dev/null || failed "Failed #3."
-	replace_this_magic_number $kernel_src_basedir/fs/jfs 3153464a "`serialno_as_bcd_string $last4`"		#	> /dev/null || failed "Failed #4."
-	echo -en "Working on xfs..."
-    replace_this_magic_number $kernel_src_basedir/fs/xfs \"XFSB\" \"`serialno_as_slashed_string $serialno`\"  #> /dev/null || failed "Failed #5."
-	replace_this_magic_number $kernel_src_basedir/fs/xfs 58465342 "$bytereversed_serno"						#> /dev/null || failed "Failed #6."
-	echo "Done w/ magics and superblocks"
+	mydir=$kernel_src_basedir/fs
+	[ -e "$mydir" ] || mydir=$kernel_src_basedir
+	replace_this_magic_number $mydir \"_BHRfS_M\" \"$serialno\"						#	> /dev/null || failed "Failed #1."
+	replace_this_magic_number $mydir 4D5F53665248425F "`serialno_as_bcd_string $serialno`" #> /dev/null || failed "Failed #2."
+	replace_this_magic_number $mydir \"JFS1\" \"$last4\"								#	> /dev/null || failed "Failed #3."
+	replace_this_magic_number $mydir 3153464a "`serialno_as_bcd_string $last4`"		#	> /dev/null || failed "Failed #4."
+    replace_this_magic_number $mydir \"XFSB\" \"`serialno_as_slashed_string $serialno`\"  #> /dev/null || failed "Failed #5."
+	replace_this_magic_number $mydir 58465342 "$bytereversed_serno"						#> /dev/null || failed "Failed #6."
+#	echo "Done w/ magics and superblocks"
 }
 
 
@@ -636,12 +654,10 @@ replace_this_magic_number() {
 			[ ! -e "$fname.kthxPristine" ] && cp -f $fname $fname.kthxPristine
 			[ ! -e "$fname.orig" ] && mv $fname $fname.orig
 			cat $fname.orig | sed s/"$needle"/"$replacement"/ > $fname
-			if cat $fname | fgrep "$needle" &> /dev/null ; then
-				echo "$needle is still present in $fname; is this an uppercase/lowercase problem-type-thingy?"
-			else
-				echo -en "."
-			fi
-			rm $fname.orig
+#			cat $fname | fgrep "$needle" &> /dev/null && "$needle is still present in $fname; is this an uppercase/lowercase problem-type-thingy?"
+#			cat $fname | fgrep "$replacement" &> /dev/null || "$replacement is not present in $fname; why not?!"
+#			rm -f $fname.orig
+	    	echo "Processed $fname OK"
         fi
     done
 }

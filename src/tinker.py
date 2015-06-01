@@ -9,10 +9,11 @@ import sys
 import os
 from chrubix import generate_distro_record_from_name, load_distro_record
 from chrubix.utils import fix_broken_hyperlinks, system_or_die, call_makepkg_or_die, remaining_megabytes_free_on_device, \
-                          chroot_this, patch_org_freedesktop_networkmanager_conf_file, failed, write_oneliner_file
+                          chroot_this, patch_org_freedesktop_networkmanager_conf_file, failed
 from chrubix.distros.debian import generate_mickeymouse_lxdm_patch
-from chrubix.utils.postinst import remove_junk, ask_the_user__guest_mode_or_user_mode__and_create_one_if_necessary,
-                                   after_rebooting_into_meh_mode_OS__please_migrate_to_obfuscated_filesystem
+from chrubix.utils.postinst import remove_junk, ask_the_user__guest_mode_or_user_mode__and_create_one_if_necessary
+
+
 
 
 try:
@@ -29,15 +30,9 @@ if argv[1] != 'tinker':
 good_list = []
 bad_list = []  # ubuntu failed to build afio
 
-
-
 if argv[2] == 'secretsquirrel':
     distro = load_distro_record()
-#    distro = distro.load_
-#    distro = generate_distro_record_from_name( argv[3] )
-    after_rebooting_into_meh_mode_OS__please_migrate_to_obfuscated_filesystem(distro)
-
-
+    distro.after_rebooting_into_temp_mode_OS__please_migrate_to_obfuscated_filesystem()
 elif argv[2] == 'build-a-bunch':
     dct = {'git':( 'cpuburn', 'advancemenu' ),
            'src':( 'star', 'salt' ),

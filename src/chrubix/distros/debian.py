@@ -305,7 +305,7 @@ Acquire::https::Proxy "https://%s/";
         chroot_this( self.mountpoint, 'systemctl enable lxdm.service' )
         try:
             do_a_sed( '%s/etc/default/pulseaudio' % ( self.mountpoint ), 'PULSEAUDIO_SYSTEM_START=0', 'PULSEAUDIO_SYSTEM_START=1' )
-        except:
+        except  ( SyntaxError, SystemError, RuntimeError, AssertionError, IOError ):
             self.update_status( ' *** Unable to modify /etc/default/pulseaudio --- is it missing? *** ' )
 # #        chroot_this( self.mountpoint, 'wget http://www.deb-multimedia.org/pool/main/d/deb-multimedia-keyring/deb-multimedia-keyring_2014.2_all.deb -O - > /tmp/debmult.deb', attempts = 1, title_str = self.title_str, status_lst = self.status_lst )
 # #        chroot_this( self.mountpoint, 'dpkg -i /tmp/debmult.deb', attempts = 1, title_str = self.title_str, status_lst = self.status_lst )
@@ -408,6 +408,7 @@ fi
         chroot_this( self.mountpoint, 'yes "Yes" | aptitude install %s' % ( self.final_push_packages ),
 #                     title_str = self.title_str, status_lst = self.status_lst,
                      on_fail = 'Failed to install final push of packages' )
+        os.system( 'clear' )
         self.update_status_with_newline( '...there.' )
         logme( 'DebianDistro - install_final_push_of_packages() - leaving' )
 
@@ -481,7 +482,7 @@ fi
         logme( 'DebianDistro - build_and_install_package_from_deb_or_ubu_source() - starting' )
         chroot_this( self.mountpoint, '''yes 2> /dev/null | apt-get remove %s 2> /dev/null''' % ( package_name ), title_str = self.title_str, status_lst = self.status_lst )
         if self.status_lst is not None:
-            self.update_status_with( "Repackaging %s" % ( package_name ) )
+            self.update_status( "Repackaging %s" % ( package_name ) )
         assert( package_name != 'linux-chromebook' )
         chroot_this( self.mountpoint, 'yes "" 2>/dev/null | apt-get build-dep %s' % ( package_name ),
                      title_str = self.title_str, status_lst = self.status_lst )

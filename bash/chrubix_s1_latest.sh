@@ -37,6 +37,8 @@ OVERLAY_URL=https://dl.dropboxusercontent.com/u/59916027/chrubix/_chrubix.tar.xz
 RYO_TEMPDIR=/root/.rmo
 SOURCES_BASEDIR=$RYO_TEMPDIR/PKGBUILDs/core
 LOGLEVEL=2
+BIG_LOOPFS_FILE=/home/chronos/user/Downloads/.big.loopfs.file.dat
+
     
 
 
@@ -196,6 +198,7 @@ format_partitions() {
 
 
 
+
 install_chrubix() {
 	local root dev rootdev sparedev kerndev distro proxy_string
 	root=$1
@@ -220,8 +223,6 @@ install_chrubix() {
 | sed s/\$sparedev/\\\/dev\\\/`basename $sparedev`/ \
 | sed s/\$kerndev/\\\/dev\\\/`basename $kerndev`/ \
 | sed s/\$distroname/$distroname/ \
-| sed s/kkk/$SECRET_SQUIRREL_KERNEL/ \
-| sed s/ppp/$SECRET_SQUIRREL_KERNEL/ \
 > chrubix.sh
 	cd /
 }
@@ -321,8 +322,8 @@ restore_from_squash_fs_backup_if_possible() {
 	fnB=/tmp/b/$distroname/$distroname.sqfs
 	for fname in $fnA $fnB ; do
 		if [ -e "$fname" ] ; then
-			if [ "$temp_or_perm" = "temp" ] ; then	
-				echo -en "\rInstalling squashfs file\n"
+			if [ "$temp_or_perm" = "temp" ] ; then
+				echo -en "\rCopying squashfs file to / directory of main partition of destination device\n"
 				find /tmp/[a,b]/$distroname/$distroname.kernel &> /dev/null || failed "Squashfs file is present but kernel file is not. Boo..."
 				pv $fname > $root/.squashfs.sqfs || failed "Failed to copy the squashfs file across."
 				cp /tmp/[a,b]/$distroname/$distroname.kernel /tmp/.kernel.dat # FIXME Move into grab_sqfs_kernel_and_install_it()
@@ -434,49 +435,44 @@ make_folder_read_writable() {
 	tar -cz $srcpath 2> /dev/null > $zipname || failed "Failed to tar $srcpath"
 	mount tmpfs $srcpath -t tmpfs
 	tar -zxf $zipname -C /
+	rm -f $zipname
 }	
 
 
 
 prep_loopback_file_for_rebuilding_kernel() {
-	local big_loopfs_file
-	big_loopfs_file=$1
-
-	if ! losetup /dev/loop2 2>/dev/null | fgrep $big_loopfs_file &> /dev/null; then	
-		echo -en "Creating loopback file for rebuilding the kernel..."
-		> $big_loopfs_file
-		for i in "25%" "50%" "75%" "100%" ; do
-			dd if=/dev/zero bs=1024k count=550 2> /dev/null >> $big_loopfs_file
-			echo -en "$i..."
-		done 
-		echo -en "Done. Mounting it..."
-		losetup /dev/loop2 $big_loopfs_file
+	if ! losetup /dev/loop2 2>/dev/null | fgrep $BIG_LOOPFS_FILE &> /dev/null; then	
+		echo "Creating loopback file for rebuilding the kernel..."
+		dd if=/dev/zero bs=1024k count=2200 > $BIG_LOOPFS_FILE 2> /dev/null
+		losetup /dev/loop2 $BIG_LOOPFS_FILE
 		mke2fs /dev/loop2 &> /dev/null || failed "Failed to mkfs the temp loop partition"
 	fi
-	echo "Done."	
 }
 
 
 
 prep_shenanigans_folder() {
-	local masterfolder squashfs_file
+	local masterfolder squashfs_file folders
 	masterfolder=$1
 	squashfs_file=$2
-	echo -en "Mounting shenanigans folder $masterfolder and squashfs file $squashfs_file..."
+	echo -en "Preparing $masterfolder"
 	mkdir -p $masterfolder
 # Shenanigans folder => mount squashfs; then mount tmp, dev, etc.
 	mount -t squashfs -o loop $squashfs_file $masterfolder
 	mount devtmpfs  $masterfolder/dev -t devtmpfs
 	mount sysfs     $masterfolder/sys -t sysfs		
 	mount proc      $masterfolder/proc -t proc		
-	mount tmpfs     $masterfolder/tmp -t tmpfs		
-
-	echo -en "Done.\nPrepping read-writable folders in $masterfolder..."
-	for f in /lib/modules /lib/firmware /etc /usr/local/bin /root ; do
+	mount tmpfs     $masterfolder/tmp -t tmpfs	
+	
+	if echo "$masterfolder" | fgrep "/tmp/_root" > /dev/null ; then
+		folders="/lib /etc /usr/local /root /usr/local/share/man /sbin /usr/sbin"
+	else
+		folders="/root /etc /usr/local/bin"
+	fi
+	for f in $folders ; do
 		make_folder_read_writable $masterfolder $f
 	done
-	mkdir $masterfolder$RYO_TEMPDIR
-	mount /dev/loop2 $masterfolder$RYO_TEMPDIR
+
 	echo "Done."
 }
 
@@ -499,29 +495,96 @@ unmount_shenanigans() {
 }
 
 
+
+make_sure_mkfs_code_was_successfully_modified() {
+	cd $1/btrfs*/btrfs*/
+	fgrep 65248425 *.h && failed "BTRFS magic# still present in sources!" || echo -en ""
+	cd $1/xfs*/xfs*/
+	fgrep 58465342 */*.h && failed "XFSB magic# still present in sources!" || echo -en ""
+	cd $1/jfs*/jfs*/
+	fgrep JFS1 */*.h && failed "JFS magic# still present in sources!" || echo -en ""
+	cd /
+	echo "FYI, make_sure_mkfs_code_was_successfully_modified() says the code WAS modified OK."
+}
+
+
+
 rebuild_and_install_kernel___oh_crap_this_might_take_a_while() {
-	local distroname sqfs_file dev_p url squrl buildloc our_master_folder big_loopfs_file dev f i
+	local distroname sqfs_file dev_p url squrl buildloc our_master_folder dev f i g  fspath subpath
 	distroname=$1
 	sqfs_file=$2
 	dev_p=$3
 	dev=`echo "$dev_p" | sed s/p//`
 	our_master_folder=/tmp/_chrubix_shenanigans
-	big_loopfs_file=/home/chronos/user/Downloads/.big.loopfs.file.dat
-	
+
+# Prep the build folder
 	unmount_shenanigans $our_master_folder
-	prep_loopback_file_for_rebuilding_kernel $big_loopfs_file
+	while ps $bkgd_proc > /dev/null ; do
+		echo "Waiting for dd to finish"
+		sleep 1
+	done
+
 	prep_shenanigans_folder $our_master_folder $sqfs_file 
 	prep_shenanigans_folder $our_master_folder/tmp/_root $sqfs_file
+
+	mkdir -p $our_master_folder/tmp/_root/$RYO_TEMPDIR
+	mount /dev/loop2 $our_master_folder/tmp/_root/$RYO_TEMPDIR || failed "Failed to mount big loop device"	
 	download_kernelrebuilding_skeleton $distroname $our_master_folder/tmp/_root/$RYO_TEMPDIR
+	
 	wget $OVERLAY_URL -O - | tar -Jx -C $our_master_folder/usr/local/bin/Chrubix || failed "Failed to install latest Chrubix sources. Shuggz."
 	chmod +x $our_master_folder/usr/local/bin/*.sh
-	chroot_this $our_master_folder "/usr/local/bin/modify_sources.sh $dev /tmp/_root yes no" || failed "Failed to modify_sources. :-("	# There's no point in screwing with the magic numbers of filesystems IF we're using a read-only filesystem.
-	chroot_this $our_master_folder "/usr/local/bin/redo_mbr.sh $dev /tmp/_root $dev_p"3	# also signs and writes kernel
-#failed "Nefarious tortoises"
-#	cd /
+
+# Unzip the mk*fs sources
+	for fspath in `ls -d $our_master_folder/tmp/_root$SOURCES_BASEDIR/*fs*` ; do
+		archive_here=`find $fspath -type f | grep "tar.[x,g]z" | tr ' ' '\n' | head -n1`
+		echo "Extracting tarball for `basename $fspath` <== `basename $archive_here`"
+		cd $fspath
+		echo "$archive_here" | fgrep tar.xz >/dev/null && tar -Jxf $archive_here || tar -zxf $archive_here
+	done
+# Modify the mk*fs sources
+	chroot_this $our_master_folder "/usr/local/bin/modify_sources.sh $dev /tmp/_root yes yes" || failed "Failed to modify_sources.sh"	# There's no point in screwing with the magic numbers of filesystems IF we're using a read-only filesystem.
+	make_sure_mkfs_code_was_successfully_modified $our_master_folder/tmp/_root$SOURCES_BASEDIR
+
+# Copy the ser# across
+	f=`basename $dev`												#	echo "f=$f"
+	g="`mount | fgrep "$f " | head -n1 | cut -d' ' -f3`"			# echo "g=$g"
+	f=$our_master_folder/tmp/_root/etc/.randomized_serno			#	echo "Copying $f to $g"
+	cp -f $f $g/ || failed "Unable to salvage RSN"
+# Make and install the mk*fs binaries
+    for fspath in `ls -d $our_master_folder/tmp/_root$SOURCES_BASEDIR/*fs*` ; do
+    	echo -en "Test-making `basename $fspath` ... "
+        for subpath in `ls -d $fspath/*fs*`; do
+        	if [ -e "$subpath/Makefile" ] ; then
+        		pppp=$SOURCES_BASEDIR/`basename $fspath`/`basename $subpath`
+	        	chroot_this $our_master_folder/tmp/_root "cd $pppp; make" &> /tmp/_oh_crud.txt || failed "`cat /tmp/_oh_crud.txt` --- Failed to make and install new mk*fs binaries."
+	        elif [ -d "$subpath" ] ; then
+	        	echo "Warning - no makefile at $subpath"
+	        else
+	        	echo "Ignoring $subpath"
+	        fi
+        done
+        echo "Done."
+	done
+
+	echo -en "Rebuilding kernel and writing it to $dev ..."
+	make_sure_mkfs_code_was_successfully_modified $our_master_folder/tmp/_root$SOURCES_BASEDIR 
+	chroot_this $our_master_folder "/usr/local/bin/redo_mbr.sh $dev /tmp/_root $dev_p"3	&> /tmp/_oh_croo.txt || failed "`cat /tmp/_oh_croo.txt` --- Failed to make and install new kernel + boot loader."
+	make_sure_mkfs_code_was_successfully_modified $our_master_folder/tmp/_root$SOURCES_BASEDIR 
+# Save PKGBUILDs, in case the user wants to permanize the OS later
+	cd $our_master_folder/tmp/_root$RYO_TEMPDIR
+	echo "Saving customized PKGBUILDs, just in case you need it later."
+	tar -cz PKGBUILDs | pv > $g/.PKGBUILDs.tgz
+	tar -cz /usr/bin/vbutil* /usr/bin/futility > $g/.vbtools.tgz 2>/dev/null || failed "Failed to save vbutil*"
+	tar -cz /usr/share/vboot > $g/.vbkeys.tgz 2> /dev/null || failed "Failed to save your keys" #### MAKE SURE CHRUBIX HAS ACCESS TO Y-O-U-R KEYS and YOUR vbutil* binaries ####
+	tar -cz /lib/firmware > $g/.firmware.tgz 2>/dev/null || fialed "Failed to save firmware"
+# Done... :)
+	echo "Done. Groovy."
+	make_sure_mkfs_code_was_successfully_modified $our_master_folder/tmp/_root$SOURCES_BASEDIR 
+	cd /
 	unmount_shenanigans $our_master_folder	
 	losetup -d /dev/loop2
 	rmdir $our_master_folder
+	rm -f $BIG_LOOPFS_FILE
 }
 
 
@@ -605,193 +668,154 @@ call_chrubix() {
 	ln -sf ../../bin/python3 $btstrap/usr/local/bin/python3
 	echo "************ Calling CHRUBIX, the Python powerhouse of pulchritudinous perfection ************"
 	echo "yep, use latest" > $root/tmp/.USE_LATEST_CHRUBIX_TARBALL
-	chroot_this     $btstrap "/usr/local/bin/chrubix.sh" && res=0 || res=$?
-	[ "$res" -ne "0" ] && failed "Because chrubix reported an error, I'm aborting... and I'm leaving everything mounted."
+	chroot_this $btstrap "/usr/local/bin/chrubix.sh" || failed "Because chrubix reported an error, I'm aborting... and I'm leaving everything mounted."
 }
 
-
-
-main() {
-	for btstrap in /tmp/_root.mmcblk1/.bootstrap /home/chronos/user/Downloads/.bootstrap ; do	
-		umount $btstrap/tmp/_root/{dev,tmp,proc,sys} 2> /dev/null || echo -en ""
-		umount $btstrap/tmp/posterity 2> /dev/null || echo -en ""
-		umount $btstrap/tmp/_root/{dev,tmp,proc,sys} 2> /dev/null || echo -en ""
-		umount $btstrap/tmp/posterity 2> /dev/null || echo -en ""
-		umount $btstrap/tmp/_root 2> /dev/null || echo -en ""
-		umount $btstrap/{dev,tmp,proc,sys} 2> /dev/null || echo -en ""
-		umount /tmp/_root*/.ro /tmp/_root.*/.* 2> /dev/null || echo -en ""
-	done
-
-	btstrap=/home/chronos/user/Downloads/.bootstrap
-
-	mount | grep /dev/mapper/encstateful &> /dev/null || failed "Run me from within ChromeOS, please."
-	sudo stop powerd || echo -en ""
-
-	mydevbyid=`deduce_my_dev`
-	[ "$mydevbyid" = "" ] && failed "I am unable to figure out which device you want me to prep. Sorry..."
-	[ -e "$mydevbyid" ] || failed "Please insert a thumb drive or SD card and try again. Please DO NOT INSERT your keychain thumb drive."
-	dev=`deduce_dev_name $mydevbyid`
-	dev_p=`deduce_dev_stamen $dev`
-	fstab_opts="defaults,noatime,nodiratime" #commit=100
-	mount_opts="-o $fstab_opts"
-
-	root=/tmp/_root.`basename $dev`		# Don't monkey with this...
-	boot=/tmp/_boot.`basename $dev`		# ...or this...
-	kern=/tmp/_kern.`basename $dev`		# ...or this!
-		
-	lockfile=/tmp/.chrubix.distro.`basename $dev`
-	if [ -e "$lockfile" ] && [ -e "/tmp/temp_or_perm" ] ; then
-		distroname=`cat $lockfile`
-		temp_or_perm=`cat /tmp/temp_or_perm`
-		SECRET_SQUIRREL_KERNEL=`cat /tmp/secret.squirrel`
-	else
-		get_distro_type_the_user_wants
-		ask_if_user_wants_temporary_or_permanent
-		ask_if_secret_squirrel
-		echo "$temp_or_perm" > /tmp/temp_or_perm
-		echo "$SECRET_SQUIRREL_KERNEL" > /tmp/secret.squirrel
-	fi
-	
-	echo -en "OK. "
-	if mount | grep "$dev" | grep "$root" &> /dev/null ; then
-		umount "$dev"* &> /dev/null || echo "Already partitioned and mounted. Reboot and try again..."
-	fi
-
-    if [ ! -e "$btstrap/bin/parted" ] ; then
-		umount $btstrap 2> /dev/null || echo -en ""
-		mkdir -p $btstrap
-		losetup -d /dev/loop1 2> /dev/null || echo -en ""
-    	dd if=/dev/zero of=/tmp/_alarpy.dat bs=1024k count=500 2> /dev/null
-    	losetup /dev/loop1 /tmp/_alarpy.dat
-    	mke2fs /dev/loop1 &> /dev/null || failed "Failed to mkfs the temp loop partition"
-    	mount /dev/loop1 $btstrap
-    	if [ ! -f "/home/chronos/user/Downloads/.bt.tar.xz" ] ; then
-			wget $PARTED_URL -O - > /home/chronos/user/Downloads/.bt.tar.xz || failed "Failed to download/install parted and friends"
-		fi
-	fi
-	tar -Jxf /home/chronos/user/Downloads/.bt.tar.xz -C $btstrap
-	
-	echo -en "Still thinking..."
-	mount devtmpfs  $btstrap/dev -t devtmpfs	|| echo -en ""
-	mount sysfs     $btstrap/sys -t sysfs		|| echo -en ""
-	mount proc      $btstrap/proc -t proc		|| echo -en ""
-	mount tmpfs     $btstrap/tmp -t tmpfs		|| echo -en ""
-	
-	echo -en "Partitioning..."
-	umount /dev/mmcblk1* &> /dev/null || echo -en ""
-	if ! partition_device $dev $dev_p $btstrap &> /tmp/partitioning_stuff.txt ; then
-		cat /tmp/partitioning_stuff.txt
-		failed "Failed to partition $dev"
-	fi
-	format_partitions $dev $dev_p $btstrap || failed "Failed to format $dev"
-	echo "Done."
-
-	old_btstrap=$btstrap
-	btstrap=$root/.bootstrap
-	
-	mkdir -p $root
-	mount $mount_opts "$dev_p"3  $root
-	mkdir -p $btstrap
-	mkdir -p /tmp/a
-
-	mkdir -p $btstrap/{dev,proc,tmp,sys}
-	mkdir -p $root/{dev,proc,tmp,sys}
-
-	mount devtmpfs  $btstrap/dev -t devtmpfs	|| echo -en ""
-	mount sysfs     $btstrap/sys -t sysfs		|| echo -en ""
-	mount proc      $btstrap/proc -t proc		|| echo -en ""
-	mount tmpfs     $btstrap/tmp -t tmpfs		|| echo -en ""
-	
-	mkdir -p $btstrap/tmp/_root
-	mount -o noatime "$dev_p"3 $btstrap/tmp/_root		|| echo -en ""
-
-	mount devtmpfs $btstrap/tmp/_root/dev -t devtmpfs	|| echo -en ""
-	mount tmpfs $btstrap/tmp/_root/tmp -t tmpfs			|| echo -en ""
-	mount proc $btstrap/tmp/_root/proc -t proc			|| echo -en ""
-	mount sys $btstrap/tmp/_root/sys -t sysfs			|| echo -en ""
-	
-	sudo crossystem dev_boot_usb=1 dev_boot_signed_only=0 || echo "WARNING - failed to configure USB and MMC to be bootable"	# dev_boot_signed_only=0
-	
-	if [ "$temp_or_perm" = "temp" ] && restore_from_squash_fs_backup_if_possible ; then
-		echo "Restored from squashfs. Good."
-	else
-		echo "OK. For whatever reason, we aren't using squashfs. Fine."
-		if restore_from_stage_X_backup_if_possible ; then
-			echo "Restored from stage X. Good."
-		else
-			clear
-			echo "OK. Starting from beginning."
-			oh_well_start_from_beginning
-		fi
-		install_chrubix $btstrap $dev "$dev_p"3 "$dev_p"2 "$dev_p"1 $distroname
-		call_chrubix $btstrap 
-	fi
-	
-	echo ":-)"
-
-	sync; umount $old_btstrap/{dev,sys,proc,tmp} 2> /dev/null || echo -en ""
-	losetup -d /dev/loop1 2> /dev/null || echo -en ""
-	sync; umount $btstrap/tmp/_root/{tmp,proc,sys,dev} 2> /dev/null || echo -en ""
-	sync; umount $btstrap/tmp/_root/{tmp,proc,sys,dev} 2> /dev/null || echo -en ""
-	sync; umount $btstrap/{tmp,proc,sys,dev} 2> /dev/null || echo -en ""
-	sync; umount $btstrap/{tmp,proc,sys,dev} 2> /dev/null || echo -en ""
-	unmount_everything       $root $boot $kern $dev_p
-	
-	sudo start powerd || echo -en ""
-	echo -en "$distroname has been installed on $dev\nPress reboot and then press Ctrl-U to boot into Linux."
-	read line && reboot		# read -t 60 line || reboot; reboot
-	return $res
-}
 
 
 ##################################################################################################################################
 
 
+#bkgd_proc=9999
 #set +e
-###rebuild_and_install_kernel___oh_crap_this_might_take_a_while debianwheezy /tmp/_root.mmcblk1/.squashfs.sqfs /dev/mmcblk1p
-###failed "Nefarious walruses"
+#dev=/dev/mmcblk1
+#lockfile=/tmp/.chrubix.distro.`basename $dev`
+#distroname=`cat $lockfile`
 #dev=/dev/mmcblk1
 #dev_p="$dev"p
-#our_master_folder=/tmp/_chrubix_shenanigans
-#wget $OVERLAY_URL -O - | tar -Jx -C $our_master_folder/usr/local/bin/Chrubix || failed "Failed to install latest Chrubix sources. Shuggz."
-#chmod +x $our_master_folder/usr/local/bin/*.sh
-#chroot_this $our_master_folder "/usr/local/bin/modify_sources.sh $dev /tmp/_root yes no" || failed "Failed to modify_sources.sh"	# There's no point in screwing with the magic numbers of filesystems IF we're using a read-only filesystem.
-#chroot_this $our_master_folder "/usr/local/bin/redo_mbr.sh $dev /tmp/_root $dev_p"3	# also signs and writes kernel
-#failed "Nefarious tortoises"
+#rebuild_and_install_kernel___oh_crap_this_might_take_a_while debianwheezy /tmp/_root.mmcblk1/.squashfs.sqfs /dev/mmcblk1p
+#failed "Nefarious walruses"
 
-if [ "$1" != "" ] && [ "$1" != "REBUILD-ALL" ] ; then
-	failed "I do not understand '$1'"
-elif [ "$2" != "" ] && [ "$2" != "FROM-SCRATCH" ] ; then
-	failed "I do not understand '$2'"
+
+
+
+
+set -e
+mount | grep /dev/mapper/encstateful &> /dev/null || failed "Run me from within ChromeOS, please."
+btstrap=/home/chronos/user/Downloads/.bootstrap
+mydevbyid=`deduce_my_dev`
+[ "$mydevbyid" = "" ] && failed "I am unable to figure out which device you want me to prep. Sorry..."
+[ -e "$mydevbyid" ] || failed "Please insert a thumb drive or SD card and try again. Please DO NOT INSERT your keychain thumb drive."
+dev=`deduce_dev_name $mydevbyid`
+dev_p=`deduce_dev_stamen $dev`
+fstab_opts="defaults,noatime,nodiratime" #commit=100
+mount_opts="-o $fstab_opts"
+root=/tmp/_root.`basename $dev`		# Don't monkey with this...
+boot=/tmp/_boot.`basename $dev`		# ...or this...
+kern=/tmp/_kern.`basename $dev`		# ...or this!
+lockfile=/tmp/.chrubix.distro.`basename $dev`
+temp_or_perm=temp
+SECRET_SQUIRREL_KERNEL="on" 						#	ask_if_secret_squirrel
+
+get_distro_type_the_user_wants
+prep_loopback_file_for_rebuilding_kernel $BIG_LOOPFS_FILE &
+bkgd_proc=$!
+
+echo -en "OK. "
+echo "$temp_or_perm" > /tmp/temp_or_perm
+echo "$SECRET_SQUIRREL_KERNEL" > /tmp/secret.squirrel
+sudo stop powerd || echo -en ""
+for btstrap in /tmp/_root.mmcblk1/.bootstrap /home/chronos/user/Downloads/.bootstrap ; do	
+	umount $btstrap/tmp/_root/{dev,tmp,proc,sys} 2> /dev/null || echo -en ""
+	umount $btstrap/tmp/posterity 2> /dev/null || echo -en ""
+	umount $btstrap/tmp/_root/{dev,tmp,proc,sys} 2> /dev/null || echo -en ""
+	umount $btstrap/tmp/posterity 2> /dev/null || echo -en ""
+	umount $btstrap/tmp/_root 2> /dev/null || echo -en ""
+	umount $btstrap/{dev,tmp,proc,sys} 2> /dev/null || echo -en ""
+	umount /tmp/_root*/.ro /tmp/_root.*/.* 2> /dev/null || echo -en ""
+done
+
+if mount | grep "$dev" | grep "$root" &> /dev/null ; then
+	umount "$dev"* &> /dev/null || failed "Already partitioned and mounted. Reboot and try again..."
 fi
-if [ "$1" != "REBUILD-ALL" ] ; then
-	set -e
-	main
-	exit $?
-else
-	set +e
-	mount /dev/sda1 /tmp/a &> /dev/null || echo -en ""
-	mount /dev/sdb1 /tmp/b &> /dev/null || echo -en ""
-	if [ "$2" = "FROM-SCRATCH" ] ; then
-		my_wildcards=".kernel .sqfs _A.xz _B.xz _C.xz _D.xz"
-	else
-		my_wildcards=".kernel .sqfs _D.xz"
+
+if [ ! -e "$btstrap/bin/parted" ] ; then
+	umount $btstrap 2> /dev/null || echo -en ""
+	mkdir -p $btstrap
+	losetup -d /dev/loop1 2> /dev/null || echo -en ""
+	dd if=/dev/zero of=/tmp/_alarpy.dat bs=1024k count=500 2> /dev/null
+	losetup /dev/loop1 /tmp/_alarpy.dat
+	mke2fs /dev/loop1 &> /dev/null || failed "Failed to mkfs the temp loop partition"
+	mount /dev/loop1 $btstrap
+	if [ ! -f "/home/chronos/user/Downloads/.bt.tar.xz" ] ; then
+		wget $PARTED_URL -O - > /home/chronos/user/Downloads/.bt.tar.xz || failed "Failed to download/install parted and friends"
 	fi
-	for wildcard in $my_wildcards ; do 
-		rm -f /media/removable/*/*/*"$wildcard"
-	done
-	for distroname in debianjessie debianwheezy debianstretch ubuntuvivid archlinux ; do	# FIXME add other distros
-		echo "$distroname" > /tmp/.chrubix.distro.mmcblk1
-		echo "temp" > /tmp/temp_or_perm
+fi
+tar -Jxf /home/chronos/user/Downloads/.bt.tar.xz -C $btstrap
+
+echo -en "Partitioning"
+mount devtmpfs  $btstrap/dev -t devtmpfs	|| echo -en ""
+mount sysfs     $btstrap/sys -t sysfs		|| echo -en ""
+mount proc      $btstrap/proc -t proc		|| echo -en ""
+mount tmpfs     $btstrap/tmp -t tmpfs		|| echo -en ""
+
+echo -en "..."
+umount /dev/mmcblk1* &> /dev/null || echo -en ""
+if ! partition_device $dev $dev_p $btstrap &> /tmp/partitioning_stuff.txt ; then
+	cat /tmp/partitioning_stuff.txt
+	failed "Failed to partition $dev"
+fi
+format_partitions $dev $dev_p $btstrap || failed "Failed to format $dev"
+echo "Done."
+
+old_btstrap=$btstrap
+btstrap=$root/.bootstrap
+
+mkdir -p $root
+mount $mount_opts "$dev_p"3  $root
+mkdir -p $btstrap
+mkdir -p /tmp/a
+
+mkdir -p $btstrap/{dev,proc,tmp,sys}
+mkdir -p $root/{dev,proc,tmp,sys}
+
+mount devtmpfs  $btstrap/dev -t devtmpfs	|| echo -en ""
+mount sysfs     $btstrap/sys -t sysfs		|| echo -en ""
+mount proc      $btstrap/proc -t proc		|| echo -en ""
+mount tmpfs     $btstrap/tmp -t tmpfs		|| echo -en ""
+
+mkdir -p $btstrap/tmp/_root
+mount -o noatime "$dev_p"3 $btstrap/tmp/_root		|| echo -en ""
+
+mount devtmpfs $btstrap/tmp/_root/dev -t devtmpfs	|| echo -en ""
+mount tmpfs $btstrap/tmp/_root/tmp -t tmpfs			|| echo -en ""
+mount proc $btstrap/tmp/_root/proc -t proc			|| echo -en ""
+mount sys $btstrap/tmp/_root/sys -t sysfs			|| echo -en ""
+
+sudo crossystem dev_boot_usb=1 dev_boot_signed_only=0 || echo "WARNING - failed to configure USB and MMC to be bootable"	# dev_boot_signed_only=0
+
+if [ "$temp_or_perm" = "temp" ] && restore_from_squash_fs_backup_if_possible ; then
+	echo "Restored from squashfs. Good."
+else
+	echo "OK. For whatever reason, we aren't using squashfs. Fine."
+	if restore_from_stage_X_backup_if_possible ; then
+		echo "Restored from stage X. Good."
+	else
 		clear
-		echo "About to build $distroname..."
-		main
-		echo "`date` Back from building $distroname"
-		echo "`date` Built $distroname" >> /tmp/log.txt
-		umount "$dev_p"* || echo -en "" 
-		umount "$dev_p"* || echo -en "" 
-		umount "$dev_p"* || echo -en ""
-	done
+		echo "OK. Starting from beginning."
+		oh_well_start_from_beginning
+	fi
+	install_chrubix $btstrap $dev "$dev_p"3 "$dev_p"2 "$dev_p"1 $distroname
+	call_chrubix $btstrap || failed "call_chrubix() returned an error. Failing."
 fi
 
+echo ":-)"
 
+echo -en "$distroname has been installed on $dev\nPress <Enter> to reboot. Then, press <Ctrl>U to boot into Linux."
+
+sync; umount $old_btstrap/{dev,sys,proc,tmp} 2> /dev/null || echo -en ""
+losetup -d /dev/loop1 2> /dev/null || echo -en ""
+sync; umount $btstrap/tmp/_root/{tmp,proc,sys,dev} 2> /dev/null || echo -en ""
+sync; umount $btstrap/tmp/_root/{tmp,proc,sys,dev} 2> /dev/null || echo -en ""
+sync; umount $btstrap/{tmp,proc,sys,dev} 2> /dev/null || echo -en ""
+sync; umount $btstrap/{tmp,proc,sys,dev} 2> /dev/null || echo -en ""
+unmount_everything       $root $boot $kern $dev_p
+
+# Wipe spare partition completely. That way, we can reformat it later & put super secret squirrel stuff on it if we want.
+dd if=/dev/zero of="$dev_p"2 bs=1024k count=1 2> /dev/null
+sync;sync;sync
+
+sudo start powerd || echo -en ""
+read line && reboot		# read -t 60 line || reboot; reboot
+
+exit 0

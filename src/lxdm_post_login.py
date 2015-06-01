@@ -6,7 +6,7 @@
 import sys
 import os
 import hashlib
-from chrubix.utils import logme
+from chrubix.utils import logme, write_oneliner_file
 from chrubix import generate_distro_record_from_name, save_distro_record, load_distro_record, read_oneliner_file
 import datetime
 
@@ -83,11 +83,10 @@ if __name__ == "__main__":
         elif 0 != os.system( 'ps wax | fgrep nm-applet | grep -v grep' ):
             logme( 'lxdm_post_login.py --- running nm-applet' )
             os.system( 'nm-applet --nocheck &' )
-
-    logme( 'lxdm_post_login.py --- urxvt => terminal in bkgd' )
-    if 'meh' == read_oneliner_file( '/.temp_or_perm.txt' ):
-        os.unlink( '/.temp_or_perm.txt' )
-        os.system( '''(urxvt -geometry 120x20+0+320 -name "Super Secret Squirrel Stuff" -e bash -c "/usr/local/bin/chrubix.sh secretsquirrel" & the_pid=$!; while ! ping -c1 -W5 8.8.8.8; do sleep 1 ; done; kill $the_pid ) & ''' )
+#    logme( 'lxdm_post_login.py --- urxvt => terminal in bkgd' )
+#    if not os.path.exists('/.temp_or_perm.txt' ):
+#        os.unlink( '/.temp_or_perm.txt' )
+#        os.system( '''(urxvt -geometry 120x20+0+320 -name "Super Secret Squirrel Stuff" -e bash -c "/usr/local/bin/chrubix.sh secretsquirrel" & the_pid=$!; while ! ping -c1 -W5 8.8.8.8; do sleep 1 ; done; kill $the_pid ) & ''' )
     wait_until_online()
     if 0 == os.system( 'sudo /usr/local/bin/start_privoxy_freenet_i2p_and_tor.sh' ):
         logme( 'ran /usr/local/bin/start_privoxy_freenet_i2p_and_tor.sh OK' )

@@ -337,7 +337,8 @@ class ReconfigureorexitDialog( QtGui.QDialog, Ui_dlgReconfigureorexit ):
 
     @pyqtSignature( "" )
     def closeEvent( self, event ):
-        if self.distro.rebuild_required:
+        if self.distro.kernel_rebuild_required:
+            self.distro.initrd_rebuild_required = True
             prompt = "I must rebuild the kernel and reboot the computer.\nAre you ready for me to do both those things?"
             reply = QtGui.QMessageBox.question( self, "", prompt, QtGui.QMessageBox.Yes, QtGui.QMessageBox.No )
             if 0 == os.system( 'mount | fgrep %s &>/dev/null' % ( self.crypto_rootdev ) ):

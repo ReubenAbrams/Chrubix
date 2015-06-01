@@ -20,6 +20,7 @@ import crypt
 import logging
 import chrubix
 
+
 g_proxy = None  # if ( 0 != os.system( 'ifconfig | grep inet | fgrep 192.168.0 &> /dev/null' ) or 0 != os.system( 'cat /proc/cmdline | grep dm_verity &> /dev/null' ) ) else '192.168.0.106:8080'
 g_default_window_manager = '/usr/bin/startlxde'  # wmaker, startxfce4, startlxde, ...
 
@@ -202,16 +203,21 @@ def call_binary( func_call ):
 
 def mount_device( device, mountpoint ):
     cmd = 'mount -o noatime ' + device + ' ' + mountpoint
-    if os.system( 'mount | grep " %s " &>/dev/null' % ( mountpoint ) ) != 0:
-        if ( os.system( cmd ) != 0 ):
+    logme( 'mount_device(%s,%s) ==> cmd=%s' % ( device, mountpoint, cmd ) )
+    if 0 != os.system( cmd ):
+        if 0 != os.system( cmd ):
             failed( 'Failed to ' + cmd )
+    logme( 'mount_device() --- success?' )
+    if os.system( 'mount | fgrep " %s " &>/dev/null' % ( mountpoint ) ) != 0:
+        failed( 'Nope. Failure.' )
+    logme( 'mount_device() --- success. Yay.' )
 
 
-def mount_sys_tmp_proc_n_dev( mountpoint ):  # Consider combining or using mount_device() ...?
+def mount_sys_tmp_proc_n_dev( mountpoint, force = False ):  # Consider combining or using mount_device() ...?
     for mydir, dtype in ( ( 'dev', 'devtmpfs' ), ( 'proc', 'proc' ), ( 'tmp', 'tmpfs' ), ( 'sys', 'sysfs' ) ):
         where_to_mount_it = '%s/%s' % ( mountpoint, mydir )
         os.system( 'mkdir -p %s' % ( where_to_mount_it ) )
-        if os.system( 'mount | grep " %s " &> /dev/null' % ( where_to_mount_it ) ) != 0:
+        if force or ( os.system( 'mount | grep " %s " &> /dev/null' % ( where_to_mount_it ) ) != 0 ):
             cmd = 'mount %s %s -t %s' % ( dtype, where_to_mount_it, dtype )
             if os.system( cmd ) != 0:
                 failed ( 'Failed to ' + cmd )
@@ -219,7 +225,7 @@ def mount_sys_tmp_proc_n_dev( mountpoint ):  # Consider combining or using mount
 
 def unmount_sys_tmp_proc_n_dev( mountpoint ):
     os.system( 'umount %s/{tmp,proc,sys,dev} 2> /dev/null' % ( mountpoint ) )
-    os.system( 'sync;sync;sync2> /dev/null' )
+    os.system( 'sync;sync;sync 2> /dev/null' )
     os.system( 'umount %s/{tmp,proc,sys,dev} 2> /dev/null' % ( mountpoint ) )
     os.system( 'sync;sync;sync 2> /dev/null' )
     os.system( 'umount %s/dev %s/proc %s/tmp %s/sys 2> /dev/null' % ( mountpoint, mountpoint, mountpoint, mountpoint ) )
@@ -487,3 +493,28 @@ def remaining_megabytes_free_on_device( dev ):  # FIXME broken
             return int( res )
         except ( TypeError, SyntaxError ):
             failed( 'Unable to return %s' % str( res ) )
+
+
+
+def reinstall_chrubix_if_missing( mountpoint ):
+        system_or_die( 'rm -Rf %s/usr/local/bin/Chrubix' % ( mountpoint ) )
+        system_or_die( 'cp -af /usr/local/bin/Chrubix %s/usr/local/bin/' % ( mountpoint ) )
+        system_or_die( 'tar -cz /usr/local/bin/Chrubix 2> /dev/null | tar -zx -C %s' % ( mountpoint ) )
+        system_or_die( 'mkdir -p %s/usr/local/bin/Chrubix/bash/' % ( mountpoint ) )
+        system_or_die( 'cp -f /usr/local/bin/Chrubix/bash/chrubix.sh %s/usr/local/bin/Chrubix/bash/' % ( mountpoint ) )
+        for f in ( 'chrubix.sh', 'CHRUBIX', 'greeter.sh', 'preboot_configurer.sh', 'modify_sources.sh', 'redo_mbr.sh' ):
+            system_or_die( 'ln -sf Chrubix/bash/%s %s/usr/local/bin/%s' % ( f, mountpoint, f ) )
+            system_or_die( 'chmod +x %s/usr/local/bin/Chrubix/bash/%s' % ( mountpoint, f ) )
+        chroot_this( mountpoint, 'ln -sf Chrubix/bash/chrubix.sh /usr/local/bin/chrubix.sh', on_fail = 'Failed to setup chrubix.sh' )
+        chroot_this( mountpoint, 'ln -sf Chrubix/bash/ersatz_lxdm.sh /usr/local/bin/ersatz_lxdm.sh', on_fail = 'Failed to setup ersatz_lxdm.sh' )
+        for f in ( 'chmod +x /usr/local/bin/*',
+                   'chmod -R 755 /usr/local/bin/Chrubix',
+                   'chown -R 0 /usr/local/bin/Chrubix',
+                   'mkdir /usr/local/bin/Chrubix/src.new',
+                   'mv /usr/local/bin/Chrubix/src/* /usr/local/bin/Chrubix/src.new',
+                   'mv /usr/local/bin/Chrubix/src /usr/local/bin/Chrubix/src.orig',
+                   'mv /usr/local/bin/Chrubix/src.new /usr/local/bin/Chrubix/src',
+                   'clear; sleep 1; sync;sync;sync; clear',
+                  ):
+            chroot_this( mountpoint, f )
+        install_mp3_files( mountpoint )

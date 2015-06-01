@@ -8,7 +8,8 @@ from chrubix.utils import rootcryptdevice, mount_device, mount_sys_tmp_proc_n_de
             chroot_this, wget, do_a_sed, system_or_die, write_oneliner_file, read_oneliner_file, call_binary, install_mp3_files, \
             generate_temporary_filename, backup_the_resolvconf_file, install_gpg_applet, patch_kernel, \
             fix_broken_hyperlinks, disable_root_password, install_windows_xp_theme_stuff, \
-            MAXIMUM_COMPRESSION, set_user_password, call_makepkg_or_die, remaining_megabytes_free_on_device
+            MAXIMUM_COMPRESSION, set_user_password, call_makepkg_or_die, remaining_megabytes_free_on_device, \
+            reinstall_chrubix_if_missing
 
 from chrubix.utils.postinst import write_lxdm_post_login_file, write_lxdm_pre_login_file, write_lxdm_post_logout_file, \
             append_lxdm_xresources_addendum, generate_wifi_manual_script, generate_wifi_auto_script, \
@@ -28,7 +29,7 @@ class Distro():
     '''
     '''
     # Class-level consts
-    hewwo = '2015/05/28 @ 15:40'
+    hewwo = '2015/05/31 @ 08:46'
     crypto_rootdev = "/dev/mapper/cryptroot"
     crypto_homedev = "/dev/mapper/crypthome"
     boot_prompt_string = "boot: "
@@ -60,7 +61,7 @@ simple-scan macchanger brasero pm-utils mousepad keepassx claws-mail bluez-utils
         self.__args = args
         self.__pheasants = False  # Starts FALSE so that the generic _D is... generic. Turns TRUE later on, in migrate_OS().
         self.__kthx = False  # Starts FALSE so that the generic _D is... generic. Turns TRUE later on, in migrate_OS().
-        self.__crypto_filesystem_format = 'ext4'
+        self.__crypto_filesystem_format = 'ext4'  # xfs, jfs, btrfs...?
         self.__device = '/dev/null'  # e.g. /dev/mmcblk1
         self.__kernel_dev = '/dev/null'  # e.g. /dev/mmcblk1p1
         self.__spare_dev = '/dev/null'  # e.g. /dev/mmcblk1p2
@@ -69,6 +70,7 @@ simple-scan macchanger brasero pm-utils mousepad keepassx claws-mail bluez-utils
         self.panic_button = 0  # >0 means panic button is active; 0 means inactive
         self.architecture = None
         self.kernel_rebuild_required = False
+        self.initrd_rebuild_required = False
         self.randomized_serial_number = None
         self.package_group_size = 10  # May be overridden by subclass
         self.status_lst = []
@@ -114,7 +116,7 @@ simple-scan macchanger brasero pm-utils mousepad keepassx claws-mail bluez-utils
         if value != self.__pheasants:
             self.__pheasants = value
             logme( 'qqq Because you changed the value of self.pheasants, a rebuild is required.' )
-            self.kernel_rebuild_required = True
+            self.initrd_rebuild_required = True
 
     @property
     def title_str( self ):
@@ -177,7 +179,7 @@ simple-scan macchanger brasero pm-utils mousepad keepassx claws-mail bluez-utils
         if value != self.__kthx:
             self.__kthx = value
             logme( 'qqq Because you changed the value of self.kthx, a rebuild is required.' )
-            self.kernel_rebuild_required = True
+            self.initrd_rebuild_required = True
 
     @property
     def device( self ):
@@ -221,7 +223,7 @@ simple-scan macchanger brasero pm-utils mousepad keepassx claws-mail bluez-utils
     @boom_password.setter
     def boom_password( self, value ):
         logme( 'qqq Because you changed the value of the boom password, a rebuild is required.' )
-        self.kernel_rebuild_required = True
+        self.initrd_rebuild_required = True
         hexdig = hashlib.sha512( value.encode( 'utf-8' ) ).hexdigest()
         outval = hexdig.encode( 'utf-8' )
         if type( outval ) is bytes:
@@ -248,7 +250,7 @@ simple-scan macchanger brasero pm-utils mousepad keepassx claws-mail bluez-utils
         self.update_status( s, newline = True )
 
     def build_mkfs( self ):
-        self.update_status_with_newline( 'Building mk*fs' )
+        self.update_status( 'Building mk*fs' )
         for pkg_name in self.list_of_mkfs_packages:
             try:
                 self.build_package( '%s/%s' % ( self.sources_basedir, pkg_name ) )
@@ -281,42 +283,42 @@ make' % ( self.sources_basedir ), title_str = self.title_str, status_lst = self.
 
     def redo_mbr( self, root_partition_device, chroot_here ):  # ,root_partition_dev             ... Also generates hybrid initramfs
         logme( 'redo_mbr() --- starting' )
-        self.reinstall_chrubix_if_missing()  # FIXME remove after 6/1/2015
         self.update_status_with_newline( '*** KTHX=%s PHEASANTS=%s' % ( ( 'yes' if self.kthx else 'no' ), ( 'yes' if self.pheasants else 'no' ) ) )
+        reinstall_chrubix_if_missing( chroot_here )  # FIXME remove after 6/1/2015
         res = 0
         for save_here in ( chroot_here, '/' ):
             system_or_die( 'tar -zxf /tmp/.vbkeys.tgz -C %s' % ( save_here ),
                                 status_lst = self.status_lst, title_str = self.title_str )
-        if not os.path.exists( '%s%s/core/chromeos-3.4/arch/arm/boot/vmlinux.uimg' % ( self.mountpoint, self.kernel_src_basedir ) ):
-            self.kernel_rebuild_required = True
-        if self.kernel_rebuild_required:
-            logme( 'qqq Rebuilding kernel' )
-            if not os.path.isdir( '%s%s' % ( chroot_here, self.kernel_src_basedir ) ):
-                failed( "The kernel's source folder is missing. Please install it." )
-            system_or_die( 'mkdir -p %s/%s' % ( chroot_here, self.initramfs_directory ) )
-            if self.boom_pw_hash is None:
-                logme( 'WARNING - no boom password hash' )
-            write_oneliner_file( chroot_here + self.boom_pw_hash_fname, '' if self.boom_pw_hash is None else self.boom_pw_hash )
-            system_or_die( 'tar -zxf /tmp/.vbkeys.tgz -C %s' % ( chroot_here ), title_str = self.title_str, status_lst = self.status_lst )
-            chroot_this( chroot_here, 'busybox', on_fail = 'You are using the bad busybox.' , title_str = self.title_str, status_lst = self.status_lst )
-            system_or_die( 'bash %s/usr/local/bin/redo_mbr.sh %s %s %s' % ( chroot_here,
-                                                        self.device, chroot_here, root_partition_device ),
-                                                        errtxt = 'Failed to redo kernel & mbr',
-                                                        title_str = self.title_str, status_lst = self.status_lst )
-            f = '%s%s/src/chromeos-3.4/drivers/mmc/core/mmc.c' % ( chroot_here, self.kernel_src_basedir )
-            g = '%s%s/src/chromeos-3.4/fs/btrfs/ctree.h' % ( chroot_here, self.kernel_src_basedir )
-            assert( os.path.exists( f ) )
-            assert( os.path.exists( g ) )
-            self.kernel_rebuild_required = False
-        else:
-            logme( 'qqq No need to rebuild kernel. Merely signing existing kernel' )
-            if root_partition_device.find( '/dev/mapper' ) >= 0:
-                param_A = 'cryptdevice=%s:%s' % ( self.spare_dev, os.path.basename( root_partition_device ) )
-            else:
-                param_A = self.root_dev
-            param_B = ''
-            assert( os.path.exists( '%s%s/core/chromeos-3.4/arch/arm/boot/vmlinux.uimg' % ( self.mountpoint, self.kernel_src_basedir ) ) )
-            res = self.sign_and_write_custom_kernel( root_partition_device, param_A, param_B )
+#        if not os.path.exists( '%s%s/core/chromeos-3.4/arch/arm/boot/vmlinux.uimg' % ( self.mountpoint, self.kernel_src_basedir ) ):  # FIXME should probably be chroot_here instead of self.mountpoint :)
+#            self.initrd_rebuild_required = True
+#        if self.initrd_rebuild_required:
+        logme( 'qqq Rebuilding kernel' )
+        if not os.path.isdir( '%s%s' % ( chroot_here, self.kernel_src_basedir ) ):
+            failed( "The kernel's source folder is missing. Please install it." )
+        system_or_die( 'mkdir -p %s/%s' % ( chroot_here, self.initramfs_directory ) )
+        if self.boom_pw_hash is None:
+            logme( 'WARNING - no boom password hash' )
+        write_oneliner_file( chroot_here + self.boom_pw_hash_fname, '' if self.boom_pw_hash is None else self.boom_pw_hash )
+        system_or_die( 'tar -zxf /tmp/.vbkeys.tgz -C %s' % ( chroot_here ), title_str = self.title_str, status_lst = self.status_lst )
+        chroot_this( chroot_here, 'busybox', on_fail = 'You are using the bad busybox.' , title_str = self.title_str, status_lst = self.status_lst )
+        system_or_die( 'bash %s/usr/local/bin/redo_mbr.sh %s %s %s' % ( chroot_here,
+                                                    self.device, chroot_here, root_partition_device ),
+                                                    errtxt = 'Failed to redo kernel & mbr',
+                                                    title_str = self.title_str, status_lst = self.status_lst )
+        f = '%s%s/src/chromeos-3.4/drivers/mmc/core/mmc.c' % ( chroot_here, self.kernel_src_basedir )
+        g = '%s%s/src/chromeos-3.4/fs/btrfs/ctree.h' % ( chroot_here, self.kernel_src_basedir )
+        assert( os.path.exists( f ) )
+        assert( os.path.exists( g ) )
+        self.initrd_rebuild_required = False
+#         else:
+#             logme( 'qqq No need to rebuild kernel. Merely signing existing kernel' )
+#             if root_partition_device.find( '/dev/mapper' ) >= 0:
+#                 param_A = 'cryptdevice=%s:%s' % ( self.spare_dev, os.path.basename( root_partition_device ) )
+#             else:
+#                 param_A = self.root_dev
+#             param_B = ''
+#             assert( os.path.exists( '%s%s/core/chromeos-3.4/arch/arm/boot/vmlinux.uimg' % ( self.mountpoint, self.kernel_src_basedir ) ) )
+#             res = self.sign_and_write_custom_kernel( root_partition_device, param_A, param_B )
         logme( 'redo_mbr() --- leaving w/ res=%d' % ( res ) )
         return res
 
@@ -377,7 +379,7 @@ make' % ( self.sources_basedir ), title_str = self.title_str, status_lst = self.
             res = 999
             cmd = 'passwd' if self.mountpoint in ( None, '/' ) else 'chroot %s passwd' % ( self.mountpoint, )
             while res != 0:
-                if os.system( 'ps -o pid -C X &>/dev/null' ) == 0 and read_oneliner_file( '/proc/cmdline' ).find( 'cros_secure' ) < 0:
+                if os.system( 'ps -o pid -C X >/dev/null 2>/dev/null' ) == 0 and read_oneliner_file( '/proc/cmdline' ).find( 'cros_secure' ) < 0:
                     print( 'Running X, opening a terminal, and calling passwd' )
                     os.system( "export DISPLAY=:0.0" )
                     res = os.system( 'urxvt -geometry 120x30+0+320 -name "Change Root Password" -e sh -c "%s"' % ( cmd, ) )
@@ -398,10 +400,10 @@ make' % ( self.sources_basedir ), title_str = self.title_str, status_lst = self.
             self.pheasants = False
         else:
             self.pheasants = True
-        self.kernel_rebuild_required = True
+        self.initrd_rebuild_required = True
         return 0
 
-    def modify_kernel_and_mkfs_sources( self, apply_kali_and_unionfs_patches = True ):
+    def patch_and_modify_kernel_and_mkfs_sources( self, apply_kali_and_unionfs_patches = True ):
         logme( 'modify_kernel_and_mkfs_sources() --- starting' )
         if apply_kali_and_unionfs_patches:
             patch_kernel( self.mountpoint, self.kernel_src_basedir + '/src/chromeos-3.4', 'http://patches.aircrack-ng.org/mac80211.compat08082009.wl_frag+ack_v1.patch' )
@@ -409,11 +411,10 @@ make' % ( self.sources_basedir ), title_str = self.title_str, status_lst = self.
         self.update_status( '...patched' )
         self.call_bash_script_that_modifies_kernel_n_mkfs_sources()
         self.update_status( '...customized. ' )
-#        assert( self.kthx is False  and self.pheasants is False )
         assert( 0 == os.system( 'cat %s%s/config | grep UNION_FS' % ( self.mountpoint, self.kernel_src_basedir ) ) )
 
     def call_bash_script_that_modifies_kernel_n_mkfs_sources( self ):
-        self.update_status( 'Modifying kernel and mkfs sources' )
+        self.update_status( 'Modifying kernel and mkfs sources (KTHX=%s PHEASANTS=%s)' % ( ( 'yes' if self.kthx else 'no' ), ( 'yes' if self.pheasants else 'no' ) ) )
         system_or_die( 'bash /usr/local/bin/modify_sources.sh %s %s %s %s' % ( 
                                                                 self.device,
                                                                 self.mountpoint,
@@ -438,7 +439,7 @@ make' % ( self.sources_basedir ), title_str = self.title_str, status_lst = self.
                 diy = False
         if diy:
             self.download_kernel_and_mkfs_sources()
-            self.modify_kernel_and_mkfs_sources( apply_kali_and_unionfs_patches = True )
+            self.patch_and_modify_kernel_and_mkfs_sources( apply_kali_and_unionfs_patches = True )
             self.build_kernel_and_mkfs()
         else:
             system_or_die( 'rm -Rf %s%s' % ( self.mountpoint, self.ryo_tempdir ) )
@@ -457,7 +458,7 @@ make' % ( self.sources_basedir ), title_str = self.title_str, status_lst = self.
 
     def download_kernel_and_mkfs_sources( self ):
         logme( 'download_kernel_and_mkfs_sources() --- starting' )
-        kernel_version = call_binary( ['uname', '-r'] )[1].decode( 'utf-8' ).split( '\n' )
+#        kernel_version = call_binary( ['uname', '-r'] )[1].decode( 'utf-8' ).split( '\n' )
 #        if kernel_version != '3.8.11':
 #            failed( 'Rebuild PKGBUILDs to allow for new kernel, please. Oh, and edit 3.8.11 in distros/__init__.py, please.' )
         raw_pkgbuilds_fname = '/tmp/posterity/%s/%s_raw_PKGBUILDs.tgz' % ( self.name + ( '' if self.branch is None else self.branch ), self.name + ( '' if self.branch is None else self.branch ) )
@@ -559,6 +560,8 @@ su -l i2psvc i2prouter start
 
     def migrate_all_data( self, new_mountpt ):
 #        self.update_status('Migrating all data to the encrypted partition'] )
+        system_or_die( 'cd /' )
+        os.system( 'mkdir -p %s' % ( new_mountpt ) )  # errtxt = 'Failed to create new mountpoint %s ' % ( new_mtpt ) )
         res = 999
         while res != 0:
             print( "" )
@@ -604,12 +607,14 @@ Choose the 'boom' password : """ ).strip( '\r\n\r\n\r' )
         system_or_die( 'yes 2> /dev/null | mkfs.%s %s %s' % ( self.crypto_filesystem_format, self.crypto_filesystem_formatting_options, self.crypto_rootdev ) , title_str = self.title_str, status_lst = self.status_lst )
         system_or_die( 'mv %s/etc/fstab %s/etc/fstab.orig' % ( self.mountpoint, self.mountpoint ) )
         system_or_die( 'cat %s/etc/fstab.orig | grep -v " /boot " | grep -v " / " > %s/etc/fstab' % ( self.mountpoint, self.mountpoint ) )
-        self.update_status( 'Migrating OS to encrypted volume' )
+        self.update_status( 'Migrating OS to encrypted volume...' )
         write_oneliner_file( self.boom_pw_hash_fname, '' if self.boom_pw_hash is None else self.boom_pw_hash )  # FIXME: This line might be unnecessary
         system_or_die( 'mkdir -p ' + new_mountpt )
         mount_device( self.crypto_rootdev, new_mountpt )
+#        failed( 'Aborting early. Infernal tortoises. Is everything mounted?' )
+        # FIXME save time by merely mkdir'ing /root instead of copying the whole bloody thing.
         for my_dir in ( 'bin', 'boot', 'etc', 'home', 'lib', 'mnt', 'opt', 'root', 'run', 'sbin', 'srv', 'usr', 'var' ):
-            self.update_status( '..%s' % ( my_dir ) )
+            self.update_status( '%s..' % ( my_dir ) )
             system_or_die( 'cp -af %s/%s %s' % ( self.mountpoint, my_dir, new_mountpt ), status_lst = self.status_lst, title_str = self.title_str )
         self.update_status( "..OK." )
 
@@ -779,31 +784,11 @@ exit 0
         tidy_up_alarpy()
         self.update_status_with_newline( '...removed.' )
 
-    def reinstall_chrubix_if_missing( self ):
-        system_or_die( 'rm -Rf %s/usr/local/bin/Chrubix' % ( self.mountpoint ) )
-        system_or_die( 'cp -af /usr/local/bin/Chrubix %s/usr/local/bin/' % ( self.mountpoint ) )
-        system_or_die( 'tar -cz /usr/local/bin/Chrubix 2> /dev/null | tar -zx -C %s' % ( self.mountpoint ) )
-        system_or_die( 'mkdir -p %s/usr/local/bin/Chrubix/bash/' % ( self.mountpoint ) )
-        system_or_die( 'cp -f /usr/local/bin/Chrubix/bash/chrubix.sh %s/usr/local/bin/Chrubix/bash/' % ( self.mountpoint ) )
-        for f in ( 'chrubix.sh', 'CHRUBIX', 'greeter.sh', 'preboot_configurer.sh', 'modify_sources.sh', 'redo_mbr.sh' ):
-            system_or_die( 'ln -sf Chrubix/bash/%s %s/usr/local/bin/%s' % ( f, self.mountpoint, f ) )
-            system_or_die( 'chmod +x %s/usr/local/bin/Chrubix/bash/%s' % ( self.mountpoint, f ) )
-        chroot_this( self.mountpoint, 'ln -sf Chrubix/bash/chrubix.sh /usr/local/bin/chrubix.sh', on_fail = 'Failed to setup chrubix.sh' )
-        chroot_this( self.mountpoint, 'ln -sf Chrubix/bash/ersatz_lxdm.sh /usr/local/bin/ersatz_lxdm.sh', on_fail = 'Failed to setup ersatz_lxdm.sh' )
-        for f in ( 'chmod +x /usr/local/bin/*',
-                   'chmod -R 755 /usr/local/bin/Chrubix',
-                   'chown -R 0 /usr/local/bin/Chrubix',
-                   'mkdir /usr/local/bin/Chrubix/src.new',
-                   'mv /usr/local/bin/Chrubix/src/* /usr/local/bin/Chrubix/src.new',
-                   'mv /usr/local/bin/Chrubix/src /usr/local/bin/Chrubix/src.orig',
-                   'mv /usr/local/bin/Chrubix/src.new /usr/local/bin/Chrubix/src',
-                   'clear; sleep 1; sync;sync;sync; clear',
-                  ):
-            chroot_this( self.mountpoint, f )
-        install_mp3_files( self.mountpoint )
 
-    def migrate_or_squash_OS( self ):
-        self.update_status( 'Migrating/squashing OS' )
+
+
+    def squash_OS( self ):
+        self.update_status( 'Squashing OS' )
 #        self.reinstall_chrubix_if_missing()
         self.reinstall_chrubix_if_missing()  # FIXME remove after 7/1/2015
         if not os.path.exists( '%s%s/src/chromeos-3.4/arch/arm/boot/vmlinux.uimg' % ( self.mountpoint, self.kernel_src_basedir ) ):
@@ -813,29 +798,8 @@ exit 0
             if not os.path.exists( self.mountpoint + f ):
                 failed( '%s%s does not exist' % ( self.mountpoint, f ) )
         system_or_die( 'rm -f %s/.squashfs.sqfs /.squashfs.sqfs' % ( self.mountpoint ) )
-        res = ask_the_user__temp_or_perm( self.mountpoint )
-        if res == 'T':
-            self.squash_OS()
-        if res == 'P' or res == 'M':
-            # Make sure there's no kernel. That'll FORCE us to rebuild it!
-            # Oh, and set rebuild flag to true.
-            system_or_die( 'rm -f %s%s/core/chromeos-3.4/arch/arm/boot/vmlinux.uimg' % ( self.mountpoint, self.kernel_src_basedir ) )
-            self.kernel_rebuild_required = True
-#            os.system( 'clear' )
-            self.set_root_password()
-            username = ask_the_user__guest_mode_or_user_mode__and_create_one_if_necessary( self.name, self.mountpoint )
-            self.update_status( 'Setting up guest user etc. ...' )
-            self.lxdm_settings['login as user'] = username
-            if username != 'guest':  # Login as specific user, other than guest
-                self.lxdm_settings['autologin'] = False
-            system_or_die( 'rm -f /.squashfs.sqfs %s/.squashfs.sqfs' % ( self.mountpoint ) )
-            if res == 'P':
-                self.migrate_OS()
-            else:
-                chrubix.save_distro_record( distro_rec = self, mountpoint = self.mountpoint )
-                self.redo_mbr_for_plain_root( self.mountpoint )
-
-    def squash_OS( self ):
+#        res = ask_the_user__temp_or_perm( self.mountpoint )
+#        if res == 'T':
         self.lxdm_settings['use greeter gui'] = True
         chrubix.save_distro_record( distro_rec = self, mountpoint = self.mountpoint )
         if self.kthx or self.pheasants:
@@ -844,6 +808,7 @@ exit 0
             self.update_status( "For some ungodly reason, my kernel was built with kthx and/or pheasants. I hope this won't fsck things up." )
         self.redo_mbr_for_plain_root( self.mountpoint )  # '/tmp/squashfs_dir' )
         self.generate_squashfs_of_my_OS()
+        os.system( 'rm -f %s/etc/.randomized_serno*' % ( self.mountpoint ) )
         system_or_die( 'rm -Rf %s/bin %s/boot %s/etc %s/home %s/lib %s/mnt %s/opt %s/root %s/run %s/sbin %s/srv %s/usr %s/var' %
                       ( self.mountpoint, self.mountpoint, self.mountpoint, self.mountpoint, self.mountpoint, self.mountpoint,
                        self.mountpoint, self.mountpoint, self.mountpoint, self.mountpoint, self.mountpoint, self.mountpoint,
@@ -853,38 +818,121 @@ exit 0
         chroot_this( self.mountpoint, 'chmod +x /etc/lxdm/L*' )
         chroot_this( self.mountpoint, 'chmod +x /etc/lxdm/P*' )
 
-    def migrate_OS( self ):
-        self.update_status( '...excellent.' )
-        self.kernel_rebuild_required = True  # ...because the initramfs needs our boom pw, which means we'll have to rebuild initramfs.... which means rebuilding kernel!
-        self.root_is_encrypted = True
-        self.pheasants = True
-        self.kthx = True
-        self.call_bash_script_that_modifies_kernel_n_mkfs_sources()
-#        if not os.path.exists( '%s%s' % ( self.mountpoint, self.kernel_src_basedir ) ):
-#            self.update_status( '...grabbing kernel source' )
-#            os.system( 'mount /dev/sda1 /tmp/posterity' )
-#            os.system( 'mount /dev/sdb1 /tmp/posterity' )
-#            fullname = self.name + ( '' if self.branch is None else self.branch )
-#            tarball_fname = '/tmp/posterity/%s/%s_PKGBUILDs.tgz' % ( fullname, fullname )
-#            if 0 != os.system( 'pv %s | tar -zx -C %s%s' % ( tarball_fname, self.mountpoint, self.ryo_tempdir ) ):
-#                if 0 != os.system( 'wget https://dl.dropboxusercontent.com/u/59916027/chrubix/finals/%s/%s_PKGBUILDs.tgz -O - | tar -zx -C %s%s' % ( fullname, fullname, self.mountpoint, self.ryo_tempdir ) ):
-#                    failed( 'Failed to grab PKGBUILDs tarball' )
-#            self.update_status( '...redoing entire kernel...' )
-        self.build_kernel_and_mkfs()  # Recompile mk*fs because our new kernel will probably use random magic#'s for xfs, jfs, and btrfs
-        self.install_kernel_and_mkfs()
-        system_or_die( 'cd /' )
+
+
+#---------------------------------------------------------------------------------------------------
+    def give_me_PKGBUILDs_folder_now( self ):
+        os.system( 'mkdir -p %s' % ( self.ryo_tempdir ) )
+        if 0 != os.system( 'mount | fgrep %s' % ( self.ryo_tempdir ) ):
+            system_or_die( 'mount %s %s' % ( self.root_dev, self.ryo_tempdir ) )
+
+        system_or_die( '''
+ALARPY_URL="https://dl.dropboxusercontent.com/u/59916027/chrubix/skeletons/alarpy.tar.xz"
+PARTED_URL="https://dl.dropboxusercontent.com/u/59916027/chrubix/skeletons/parted_and_friends.tar.xz"
+echo "$0" | fgrep latest_that &> /dev/null || FINALS_URL="https://dl.dropboxusercontent.com/u/59916027/chrubix/finals"
+CHRUBIX_URL="http://github.com/ReubenAbrams/Chrubix/archive/master.tar.gz"
+OVERLAY_URL=https://dl.dropboxusercontent.com/u/59916027/chrubix/_chrubix.tar.xz
+RYO_TEMPDIR=/root/.rmo
+SOURCES_BASEDIR=$RYO_TEMPDIR/PKGBUILDs/core
+LOGLEVEL=2
+
+download_kernelrebuilding_skeleton() {
+    local buildloc distroname fnA fnB my_command success
+    distroname=$1
+    buildloc=$2
+    if [ -e "$buildloc/PKGBUILDs/core/pacman/makepkg.conf" ] ; then
+#        echo "Already got the skeleton. Cool."
+        return 0
+    fi
+    echo "Downloading the kernel-rebuilding skeleton to $buildloc ..."
+#    rm -Rf $buildloc
+    mkdir -p $buildloc
+    fnA="/tmp/a/$distroname/"$distroname"_PKGBUILDs.tgz"
+    fnB="/tmp/b/$distroname/"$distroname"_PKGBUILDs.tgz"
+    success=""
+    mkdir -p /tmp/a
+    mount /dev/sda1 /tmp/a 2> /dev/null || aa=aa
+    mount /dev/sdb1 /tmp/a 2> /dev/null || aa=aa
+    if pv $fnA | tar -zx -C $buildloc ; then
+        echo "Restored skeleton from sda1"
+    elif pv $fnB | tar -zx -C $buildloc ; then
+        echo "Restored skeleton from sdb1"
+    else
+        wget $FINALS_URL/$distroname/"$distroname"_PKGBUILDs.tgz -O - | tar -zx -C $buildloc
+    fi
+    echo "Done."
+}
+
+
+download_kernelrebuilding_skeleton %s %s
+''' % ( self.name + ( '' if self.branch is None else self.branch ), self.ryo_tempdir ) )
+#---------------------------------------------------------------------------------------------------
+
+
+    def after_rebooting_into_temp_mode_OS__please_migrate_to_obfuscated_filesystem( self ):
+        os.system( 'clear' )
+        if self.status_lst not in ( None, [] ) and len( self.status_lst ) > 1:
+            self.status_lst = self.status_lst[-1:]
+        self.update_status_with_newline( 'Welcome back!' )
+        self.update_status_with_newline( '****************************************************************************************' )
+        self.update_status_with_newline( 'Migrating from a temporary system to an encrypted, permanent system...' )
+        system_or_die( 'rm -f %s%s/core/chromeos-3.4/arch/arm/boot/vmlinux.uimg' % ( self.mountpoint, self.kernel_src_basedir ) )
+        self.pheasants = True  # HOWEVER, we don't want to modify the sources! If we do that, we lose our existing magic#.
+        self.kthx = True  # HOWEVER....., we don't want to modify the sources! If we do that, we lose our existing magic#.
+        self.initrd_rebuild_required = True
+        self.set_root_password()
+        self.configure_guestmode_prior_to_migration()
+#        system_or_die( 'rm -f /.squashfs.sqfs %s/.squashfs.sqfs' % ( self.mountpoint ) )    # No!! What if we're RUNNING LIVE?!
+        self.lxdm_settings['use greeter gui'] = False
+        chrubix.save_distro_record( distro_rec = self, mountpoint = self.mountpoint )
         new_mtpt = '/tmp/_enc_root'
-        os.system( 'mkdir -p %s' % ( new_mtpt ) )  # errtxt = 'Failed to create new mountpoint %s ' % ( new_mtpt ) )
         self.migrate_all_data( new_mtpt )  # also mounts new_mtpt and rejigs kernel
-        mount_sys_tmp_proc_n_dev( new_mtpt )
+        mount_sys_tmp_proc_n_dev( new_mtpt, force = True )
+        self.update_status( 'Installing and rebuilding PKGBUILDs sources...' )
+        for cmd in ( 
+                    'mkdir -p %s' % ( self.sources_basedir ),
+                    'mkdir -p /tmp/whoopshoop',
+                    'mount %s /tmp/whoopshoop' % ( self.root_dev ),
+                    'tar -zxf /tmp/whoopshoop/.PKGBUILDs.tgz -C  %s/../..' % ( self.sources_basedir ),
+                    'cp -f /tmp/whoopshoop/.*gz /tmp/',
+                    'cp -f /tmp/whoopshoop/.*gz /',
+                    '''
+cd %s
+cd ../..
+for ddd in `find -maxdepth 0 *fs*`; do
+    echo ddd=$ddd
+    cd $ddd/*fs*
+    make
+    make install
+    cd ../..
+done
+                    ''' % ( self.sources_basedir )
+                    ):
+            chroot_this( new_mtpt, cmd, on_fail = 'Failed to run %s' % ( cmd ) )
+        self.mountpoint = new_mtpt
+        system_or_die( 'cp -f %s/tmp/whoopshoop/.*gz /tmp/' % ( new_mtpt ) )
+        failed( 'secret squabble' )
         self.redo_mbr_for_encrypted_root( new_mtpt )
         chrubix.save_distro_record( distro_rec = self, mountpoint = new_mtpt )  # save distro record to new disk (not old mountpoint)
+        failed( 'Nefarious porpoises.' )
+        os.unlink( '%s/.temp_or_perm.txt' % ( new_mtpt ) )
+        self.update_status_with_newline( '5. Reboot!' )
         try:
             unmount_sys_tmp_proc_n_dev( new_mtpt )
             os.system( 'umount %s/%s' % ( self.mountpoint, new_mtpt ) )
-            unmount_sys_tmp_proc_n_dev( self.mountpoint )
+            if self.mountpoint != '/':
+                unmount_sys_tmp_proc_n_dev( self.mountpoint )
         except ( SystemError, SyntaxError ):
             pass
+        os.system( 'cryptsetup luksClose %s' % ( os.path.basename( self.crypto_rootdev ) ) )
+        failed( 'Please reboot. Please reboot. Please reboot. Please reboot. Please reboot.' )
+        os.system( 'sync;sync;sync; reboot' )
+
+    def configure_guestmode_prior_to_migration( self ):
+        username = ask_the_user__guest_mode_or_user_mode__and_create_one_if_necessary( self.name, self.mountpoint )
+        self.lxdm_settings['login as user'] = username
+        if username != 'guest':  # Login as specific user, other than guest
+            self.lxdm_settings['autologin'] = False
 
     def unmount_and_clean_up( self ):
         self.update_status( '...Bonzer.' )
@@ -1078,6 +1126,19 @@ exit 0
             system_or_die( 'ln -sf ../../bin/python3 %s/usr/local/bin/python3' % ( self.mountpoint ) )
             if os.path.exists( '%s/usr/bin/python3' % ( self.mountpoint ) ) and not os.path.exists( '%s/usr/local/bin/python3' % ( self.mountpoint ) ):
                 failed( 'Well, that escalated rather quickly.' )
+
+        f = '%s/usr/local/bin/secretsquirrel' % ( self.mountpoint )
+        write_oneliner_file( f, '''#!/bin/sh
+if [ "$USER" != "root" ] && [ "$USER" != "" ] ; then
+    sudo $0
+else
+    https_proxy=
+    http_proxy=
+    chrubix.sh tinker secretsquirrel
+fi
+exit $?
+''' )
+        os.system( 'chmod +x %s' % ( f ) )
         self.update_status( '...installed.' )
 
     def check_sanity_of_distro( self ):
@@ -1363,17 +1424,20 @@ WantedBy=multi-user.target
         install_initcpio_wiperamonshutdown_files( self.mountpoint )
 
     def forcibly_rebuild_initramfs_and_vmlinux( self ):
-        self.update_status( 'Forcibly rebuilding kernel and vmlinux' )
-        self.kernel_rebuild_required = True
+        self.update_status( 'Forcibly rebuilding initramfs and vmlinux' )
+        self.initrd_rebuild_required = True
 #        self.build_kernel_and_mkfs()
         self.redo_mbr( root_partition_device = self.root_dev, chroot_here = self.mountpoint )
         self.update_status( '...rebuilt.' )
         assert( os.path.exists( '%s%s/src/chromeos-3.4/arch/arm/boot/vmlinux.uimg' % ( self.mountpoint, self.kernel_src_basedir ) ) )
-        assert( not self.kernel_rebuild_required )
+        assert( not self.initrd_rebuild_required )
         system_or_die( 'cp -f %s%s/src/chromeos-3.4/arch/arm/boot/vmlinux.uimg /tmp/.vmlinux.uimg' % ( self.mountpoint, self.kernel_src_basedir ) )
 
     def abort_here( self ):
-        failed( 'Aborting here for test porpoises' )
+        failed( 'Now... Save the squash fs file to a thumb drive and re-run the installation script. Ask the author for help if necessary.' )
+
+    def reinstall_chrubix_if_missing( self ):
+        reinstall_chrubix_if_missing( self.mountpoint )
 
     def install( self ):
         '''
@@ -1385,7 +1449,8 @@ WantedBy=multi-user.target
         logme( 'install() - starting' )
         self.mountpoint = '/tmp/_root'
         system_or_die( 'mkdir -p ' + self.mountpoint, 'Failed to create self.mountpoint ' + self.mountpoint )
-        mount_device( self.root_dev, self.mountpoint )
+        if 0 != os.system( 'mount %s %s 2> /dev/null' % ( self.root_dev, self.mountpoint ) ) :  #        mount_device( self.root_dev, self.mountpoint )
+            logme( 'Warning. Failed to mount %s %s' % ( self.root_dev, self.mountpoint ) )
         first_stage = ( 
                                 self.install_and_mount_barebones_OS,
                                 self.install_locale,
@@ -1433,8 +1498,9 @@ WantedBy=multi-user.target
                                 self.reinstall_chrubix_if_missing,
                                 self.save_for_posterity_if_possible_D )
         fifth_stage = ( # Chrubix ought to have been installed in /tmp/_root/{dest distro} already, by the stage 1 bash script.
+                                self.abort_here,
                                 self.install_vbutils_and_firmware_from_cbook,  # just in case the new user's tools differ from the original builder's tools
-                                self.migrate_or_squash_OS,
+                                self.squash_OS,
                                 self.unmount_and_clean_up
                                 )
         all_my_funcs = first_stage + second_stage + third_stage + fourth_stage + fifth_stage
@@ -1460,10 +1526,11 @@ WantedBy=multi-user.target
             logme( 'QQQ Running %s' % ( myfunc.__name__ ) )
             if not os.path.exists( '%s%s/src/chromeos-3.4/arch/arm/boot/vmlinux.uimg' % ( self.mountpoint, self.kernel_src_basedir ) ):
                 logme( 'QQQ FYI, vmlinux.uimg is missing' )
-            chroot_this( self.mountpoint, 'rm -Rf /usr/share/doc' )
-            if remaining_megabytes_free_on_device( self.root_dev ) < 200:
-                failed( '%s is nearly full --- you might want to tweak the partitioner in bit.do/that' % ( self.root_dev ) )
+            if remaining_megabytes_free_on_device( self.root_dev ) < 300:
+                chroot_this( self.mountpoint, 'rm -Rf /usr/share/doc' )
+                if remaining_megabytes_free_on_device( self.root_dev ) < 300:
+                    failed( '%s is nearly full --- you might want to tweak the partitioner in bit.do/that' % ( self.root_dev ) )
             myfunc()
             checkpoint_number += 1
             write_oneliner_file( '%s/.checkpoint.txt' % ( self.mountpoint ), str( checkpoint_number ) )
-
+        logme( 'install() - leaving' )
