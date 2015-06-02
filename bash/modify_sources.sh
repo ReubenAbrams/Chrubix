@@ -358,9 +358,9 @@ modify_all() {
 #		fi
 #		echo "PHEZ --- Handling $kernel_src_basedir"
 		if [ -e "$root$kernel_src_basedir/.config" ] ; then
+			modify_kernel_config_file $root $kernel_src_basedir
 			if [ "$NOPHEASANTS" = "" ] ; then
 				echo "Found kernel at $root$kernel_src_basedir; modifying the source..."
-				modify_kernel_config_file $root $kernel_src_basedir
 				modify_kernel_init_source $root/$kernel_src_basedir # FIXME This probably isn't needed UNLESS kthx and/or pheasants
 				modify_kernel_usb_source $root/$kernel_src_basedir $serialno "$haystack" || failed "Failed to modify kernel usb src"
 				modify_kernel_mmc_source $root/$kernel_src_basedir $serialno "$haystack" || failed "Failed to modify kernel mmc src"
@@ -505,7 +505,7 @@ modify_kernel_source_file() {
 	fi
 	[ ! -e "$data_file.orig" ] && mv $data_file $data_file.orig
 	
-	echo "Modifying $data_file now."
+	echo "PHEZ -- modifying $data_file now."
 	
 	echo "// modified automatically by $0 on `date`
 	
@@ -651,13 +651,13 @@ replace_this_magic_number() {
     [ -e "$root" ] || failed "replace_this_magic_number() -- $root does not exist"
     for fname in `grep --include='*.c' --include='*.h' -rnli "$needle" $root`; do
         if echo "$fname" | grep -x ".*\.[c|h]" &> /dev/null; then
-			[ ! -e "$fname.kthxPristine" ] && cp -f $fname $fname.kthxPristine
-			[ ! -e "$fname.orig" ] && mv $fname $fname.orig
-			cat $fname.orig | sed s/"$needle"/"$replacement"/ > $fname
-#			cat $fname | fgrep "$needle" &> /dev/null && "$needle is still present in $fname; is this an uppercase/lowercase problem-type-thingy?"
-#			cat $fname | fgrep "$replacement" &> /dev/null || "$replacement is not present in $fname; why not?!"
-#			rm -f $fname.orig
-	    	echo "Processed $fname OK"
+        	if cat "$fname" | fgrep "$needle" &> /dev/null ; then
+				[ ! -e "$fname.kthxPristine" ] && cp -f $fname $fname.kthxPristine
+				[ ! -e "$fname.orig" ] && mv $fname $fname.orig
+				cat $fname.orig | sed s/"$needle"/"$replacement"/ > $fname
+#				cat $fname | fgrep "$replacement" &> /dev/null || failed "$replacement is not present in $fname; why not?!"
+		    	echo "KTHX -- Modified $fname ($needle=>$replacement) OK"
+			fi
         fi
     done
 }
