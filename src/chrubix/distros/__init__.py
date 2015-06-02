@@ -29,7 +29,7 @@ class Distro():
     '''
     '''
     # Class-level consts
-    hewwo = '2015/05/31 @ 08:46'
+    hewwo = '2015/06/02 @ 07:16'
     crypto_rootdev = "/dev/mapper/cryptroot"
     crypto_homedev = "/dev/mapper/crypthome"
     boot_prompt_string = "boot: "
@@ -422,13 +422,12 @@ make' % ( self.sources_basedir ), title_str = self.title_str, status_lst = self.
                                                                 'yes' if self.kthx else 'no',
                                                                 ), "Failed to modify kernel/mkfs sources", title_str = self.title_str, status_lst = self.status_lst )
         self.randomized_serial_number = read_oneliner_file( '%s/etc/.randomized_serno' % ( self.mountpoint ) )
-#        self.update_status( '*** FIXME change modify_sources.sh to modify PKGBUILDs/linux-3.8.11/fs/*fs kernel modules too! FIXME ***' )
 
     def download_modify_build_and_install_kernel_and_mkfs( self ):
         logme( 'modify_build_and_install_mkfs_and_kernel_for_OS() --- starting' )
         diy = True
         mounted = False
-        tarball_fname = '/tmp/posterity/%s/%s_PKGBUILDs.tgz' % ( self.name + ( '' if self.branch is None else self.branch ), self.name + ( '' if self.branch is None else self.branch ) )
+        tarball_fname = '/tmp/posterity/%s/%s_PKGBUILDs.tar.xz' % ( self.name + ( '' if self.branch is None else self.branch ), self.name + ( '' if self.branch is None else self.branch ) )
         os.system( 'mkdir -p %s%s' % ( self.mountpoint, os.path.dirname( tarball_fname ) ) )
         system_or_die( 'mkdir -p /tmp/posterity' )
         if os.system( 'mount /dev/sda1 /tmp/posterity &> /dev/null' ) == 0 \
@@ -444,14 +443,14 @@ make' % ( self.sources_basedir ), title_str = self.title_str, status_lst = self.
         else:
             system_or_die( 'rm -Rf %s%s' % ( self.mountpoint, self.ryo_tempdir ) )
             system_or_die( 'mkdir -p %s%s' % ( self.mountpoint, self.ryo_tempdir ) )
-            system_or_die( 'tar -zxf %s -C %s%s' % ( tarball_fname, self.mountpoint, self.ryo_tempdir ), status_lst = self.status_lst, title_str = self.title_str )
+            system_or_die( 'tar -Jxf %s -C %s%s' % ( tarball_fname, self.mountpoint, self.ryo_tempdir ), status_lst = self.status_lst, title_str = self.title_str )
             system_or_die( 'mkdir -p %s%s/initramfs_dir' % ( self.mountpoint, self.ryo_tempdir ) )
         f = '%s%s/src/chromeos-3.4/drivers/mmc/core/mmc.c' % ( self.mountpoint, self.kernel_src_basedir )
         g = '%s%s/src/chromeos-3.4/fs/btrfs/ctree.h' % ( self.mountpoint, self.kernel_src_basedir )
         assert( os.path.exists( f ) )
         assert( os.path.exists( g ) )
         if mounted and diy:
-            chroot_this( '/', 'cd %s%s && tar -cz PKGBUILDs > %s' % ( self.mountpoint, self.ryo_tempdir, tarball_fname ),
+            chroot_this( '/', 'cd %s%s && tar -c PKGBUILDs | xz -9 > %s' % ( self.mountpoint, self.ryo_tempdir, tarball_fname ),
                                                     status_lst = self.status_lst, title_str = self.title_str )
             chroot_this( '/', 'sync;sync;sync;umount /tmp/posterity' , status_lst = self.status_lst, title_str = self.title_str )
         self.install_kernel_and_mkfs()
@@ -461,12 +460,12 @@ make' % ( self.sources_basedir ), title_str = self.title_str, status_lst = self.
 #        kernel_version = call_binary( ['uname', '-r'] )[1].decode( 'utf-8' ).split( '\n' )
 #        if kernel_version != '3.8.11':
 #            failed( 'Rebuild PKGBUILDs to allow for new kernel, please. Oh, and edit 3.8.11 in distros/__init__.py, please.' )
-        raw_pkgbuilds_fname = '/tmp/posterity/%s/%s_raw_PKGBUILDs.tgz' % ( self.name + ( '' if self.branch is None else self.branch ), self.name + ( '' if self.branch is None else self.branch ) )
+        raw_pkgbuilds_fname = '/tmp/posterity/%s/%s_raw_PKGBUILDs.tar.xz' % ( self.name + ( '' if self.branch is None else self.branch ), self.name + ( '' if self.branch is None else self.branch ) )
         if os.path.exists( raw_pkgbuilds_fname ):
             self.update_status_with_newline( "Restoring source from raw tarball..." )
             system_or_die( 'rm -Rf %s%s' % ( self.mountpoint, self.ryo_tempdir ) )
             system_or_die( 'mkdir -p %s%s' % ( self.mountpoint, self.ryo_tempdir ) )
-            system_or_die( 'tar -zxf %s -C %s%s' % ( raw_pkgbuilds_fname, self.mountpoint, self.ryo_tempdir ), status_lst = self.status_lst, title_str = self.title_str )
+            system_or_die( 'tar -Jxf %s -C %s%s' % ( raw_pkgbuilds_fname, self.mountpoint, self.ryo_tempdir ), status_lst = self.status_lst, title_str = self.title_str )
             self.update_status( 'awesome.' )
         else:
             self.update_status_with_newline( "Setting up build environment" )
@@ -481,7 +480,7 @@ make' % ( self.sources_basedir ), title_str = self.title_str, status_lst = self.
             self.update_status( '...Downloading mk*fs' )
             self.download_mkfs_sources()
             self.update_status( '...downloaded. Creating raw tarball...' )
-            chroot_this( '/', 'cd %s%s && tar -cz PKGBUILDs > %s' % ( self.mountpoint, self.ryo_tempdir, raw_pkgbuilds_fname ),
+            chroot_this( '/', 'cd %s%s && tar -c PKGBUILDs | xz -9 > %s' % ( self.mountpoint, self.ryo_tempdir, raw_pkgbuilds_fname ),
                                                     status_lst = self.status_lst, title_str = self.title_str )
             self.update_status( 'awesome.' )
 
@@ -847,8 +846,8 @@ download_kernelrebuilding_skeleton() {
     echo "Downloading the kernel-rebuilding skeleton to $buildloc ..."
 #    rm -Rf $buildloc
     mkdir -p $buildloc
-    fnA="/tmp/a/$distroname/"$distroname"_PKGBUILDs.tgz"
-    fnB="/tmp/b/$distroname/"$distroname"_PKGBUILDs.tgz"
+    fnA="/tmp/a/$distroname/"$distroname"_PKGBUILDs.tar.xz"
+    fnB="/tmp/b/$distroname/"$distroname"_PKGBUILDs.tar.xz"
     success=""
     mkdir -p /tmp/a
     mount /dev/sda1 /tmp/a 2> /dev/null || aa=aa
@@ -858,7 +857,7 @@ download_kernelrebuilding_skeleton() {
     elif pv $fnB | tar -zx -C $buildloc ; then
         echo "Restored skeleton from sdb1"
     else
-        wget $FINALS_URL/$distroname/"$distroname"_PKGBUILDs.tgz -O - | tar -zx -C $buildloc
+        wget $FINALS_URL/$distroname/"$distroname"_PKGBUILDs.tar.xz -O - | tar -Jx -C $buildloc
     fi
     echo "Done."
 }
@@ -893,7 +892,7 @@ download_kernelrebuilding_skeleton %s %s
                     'mkdir -p %s' % ( self.sources_basedir ),
                     'mkdir -p /tmp/whoopshoop',
                     'mount %s /tmp/whoopshoop' % ( self.root_dev ),
-                    'tar -zxf /tmp/whoopshoop/.PKGBUILDs.tgz -C  %s/../..' % ( self.sources_basedir ),
+                    'tar -Jxf /tmp/whoopshoop/.PKGBUILDs.tar.xz -C  %s/../..' % ( self.sources_basedir ),
                     'cp -f /tmp/whoopshoop/.*gz /tmp/',
                     'cp -f /tmp/whoopshoop/.*gz /',
                     '''
@@ -1093,14 +1092,12 @@ done
                      on_fail = 'Failed to run locale-gen to initialize the new locale' )
 
     def install_chrubix( self ):
-        if not os.path.exists( '%s%s' % ( self.mountpoint, self.kernel_src_basedir ) ):
-            failed( 'Where is the linux-chromebook folder in the bootstrap OS? I am scared. Hold me.' )
         self.update_status( 'Installing Chrubix in bootstrapped OS' )
-        # Save the old-but-grooby chrubix.sh; it was modified (its vars resolved) by chrubix_stage1.sh
+        # Save the old-but-groovy chrubix.sh; it was modified (its vars resolved) by chrubix_stage1.sh
         # Delete old copy of Chrubix from mountpoint.
         system_or_die( 'rm -Rf %s/usr/local/bin/Chrubix*' % ( self.mountpoint ) )
         system_or_die( 'cp -af /usr/local/bin/Chrubix %s/usr/local/bin/' % ( self.mountpoint ) )
-        system_or_die( 'tar -cz /usr/local/bin/Chrubix | tar -zx -C %s' % ( self.mountpoint ) )
+        system_or_die( 'tar -cJ /usr/local/bin/Chrubix | tar -Jx -C %s' % ( self.mountpoint ) )
         # YES, this next line IS necessary.
         system_or_die( 'cp /usr/local/bin/Chrubix/bash/chrubix.sh %s/usr/local/bin/Chrubix/bash/chrubix.sh' % ( self.mountpoint ) )
         # ^^^ Yes, it is necessary.
@@ -1186,6 +1183,12 @@ exit $?
             self.update_status( 'Generating squashfs of this OS' )
             system_or_die( 'mkdir -p %s/_to_add_to_squashfs/{dev,proc,sys,tmp,root}' % ( self.mountpoint ) )
             chroot_this( self.mountpoint, 'mv /etc/.randomized_serno /etc/.randomized_serno.DISABLED' )
+            chroot_this( self.mountpoint, 'mkdir -p /usr/share/doc' )
+            for to_remove in ( 'mkfs.xfs', 'mkxfsfs', 'mkfs.jfs', 'mkjfsfs', 'mkfs.btrfs', 'mkbtrfsfs', 'mkjfs', 'mkbtrfs', 'mkxfs' ):
+                try:
+                    chroot_this( self.mountpoint, 'rm -f `which %s`' % ( to_remove ) )
+                except:
+                    pass
             chroot_this( self.mountpoint, \
 'mksquashfs /bin /boot /etc /home /lib /mnt /opt /run /sbin /usr /srv /var /_to_add_to_squashfs/* /.squashfs.sqfs %s' % \
                                                          ( '-b 1048576 -comp xz -Xdict-size 100%' if chrubix.utils.MAXIMUM_COMPRESSION else '' ),
@@ -1465,7 +1468,6 @@ WantedBy=multi-user.target
                                 self.install_timezone,
                                 self.install_urwid_and_dropbox_uploader,
                                 self.install_mkinitcpio_ramwipe_hooks,
-                                self.download_modify_build_and_install_kernel_and_mkfs,
                                 self.install_chrubix,
                                 self.install_moose,
                                 self.install_freenet,
@@ -1474,6 +1476,7 @@ WantedBy=multi-user.target
                                 self.save_for_posterity_if_possible_B )
         third_stage = ( 
                                 self.reinstall_chrubix_if_missing,
+                                self.download_modify_build_and_install_kernel_and_mkfs,
                                 self.install_final_push_of_packages,  # Chrubix, wmsystemtray, boom scripts, GUI, networking, ...
                                 self.save_for_posterity_if_possible_C )
 # From this point on, assume Internet access is gone.
@@ -1498,7 +1501,7 @@ WantedBy=multi-user.target
                                 self.reinstall_chrubix_if_missing,
                                 self.save_for_posterity_if_possible_D )
         fifth_stage = ( # Chrubix ought to have been installed in /tmp/_root/{dest distro} already, by the stage 1 bash script.
-                                self.abort_here,
+#                                self.abort_here,
                                 self.install_vbutils_and_firmware_from_cbook,  # just in case the new user's tools differ from the original builder's tools
                                 self.squash_OS,
                                 self.unmount_and_clean_up
