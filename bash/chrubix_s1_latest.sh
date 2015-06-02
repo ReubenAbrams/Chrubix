@@ -37,7 +37,6 @@ OVERLAY_URL=https://dl.dropboxusercontent.com/u/59916027/chrubix/_chrubix.tar.xz
 RYO_TEMPDIR=/root/.rmo
 SOURCES_BASEDIR=$RYO_TEMPDIR/PKGBUILDs/core
 LOGLEVEL=2
-BIG_LOOPFS_FILE=/home/chronos/user/Downloads/.big.loopfs.file.dat
 
     
 
@@ -162,6 +161,8 @@ partition_device() {
 	sync;sync;sync; umount $root/{dev/pts,dev,proc,sys,tmp} &> /dev/null || echo -en "."
 	sync;sync;sync; umount "$dev_p"* &> /dev/null || echo -en "."
 	sync;sync;sync; umount "$dev"* &> /dev/null || echo -en "."
+	sync;sync;sync; umount /media/removable/* || echo -en "."
+	sync;sync;sync
 	chroot_this $btstrap "parted -s $dev mklabel gpt" || echo "Warning. Parted was removed from ChromeOS recently. You might have to partition your SD card on your PC or Mac."
 	chroot_this $btstrap "cgpt create -z $dev"
 	chroot_this $btstrap "cgpt create $dev"
@@ -187,7 +188,7 @@ format_partitions() {
 	yes | mkfs.ext2 "$dev_p"2 &> $temptxt || failed "Failed to format p2 - `cat $temptxt`"
 	echo -en "."
 	sleep 1; umount "$dev_p"* &> /dev/null || echo -en ""
-	yes | mkfs.ext4 -v "$dev_p"3 &> $temptxt || failed "Failed to format p3 - `cat $temptxt`"
+	yes | mkfs.ext2 -v "$dev_p"3 &> $temptxt || failed "Failed to format p3 - `cat $temptxt`"
 	echo -en "."
 	sleep 1; umount "$dev_p"* &> /dev/null || echo -en ""
 	mkfs.vfat -F 16 "$dev_p"12 &> $temptxt || failed "Failed to format p12 - `cat $temptxt`"
@@ -407,18 +408,18 @@ download_kernelrebuilding_skeleton() {
 	echo "Downloading the kernel-rebuilding skeleton to $buildloc ..."
 #	rm -Rf $buildloc
 	mkdir -p $buildloc
-	fnA="/tmp/a/$distroname/"$distroname"_PKGBUILDs.tgz"
-	fnB="/tmp/b/$distroname/"$distroname"_PKGBUILDs.tgz"
+	fnA="/tmp/a/$distroname/"$distroname"_PKGBUILDs.tar.xz"
+	fnB="/tmp/b/$distroname/"$distroname"_PKGBUILDs.tar.xz"
 	success=""
 	mkdir -p /tmp/a
 	mount /dev/sda1 /tmp/a 2> /dev/null || echo -en ""
 	mount /dev/sdb1 /tmp/a 2> /dev/null || echo -en ""
-	if pv $fnA | tar -zx -C $buildloc ; then
+	if pv $fnA | tar -Jx -C $buildloc ; then
 		echo "Restored skeleton from sda1"
-	elif pv $fnB | tar -zx -C $buildloc ; then
+	elif pv $fnB | tar -Jx -C $buildloc ; then
 		echo "Restored skeleton from sdb1"
 	else
-		wget $FINALS_URL/$distroname/"$distroname"_PKGBUILDs.tgz -O - | tar -zx -C $buildloc
+		wget $FINALS_URL/$distroname/"$distroname"_PKGBUILDs.tar.xz -O - | tar -Jx -C $buildloc
 	fi
 	echo "Done."
 }	
@@ -440,15 +441,6 @@ make_folder_read_writable() {
 
 
 
-prep_loopback_file_for_rebuilding_kernel() {
-	if ! losetup /dev/loop2 2>/dev/null | fgrep $BIG_LOOPFS_FILE &> /dev/null; then	
-		echo "Creating loopback file for rebuilding the kernel..."
-		dd if=/dev/zero bs=1024k count=2200 > $BIG_LOOPFS_FILE 2> /dev/null
-		losetup /dev/loop2 $BIG_LOOPFS_FILE
-		mke2fs /dev/loop2 &> /dev/null || failed "Failed to mkfs the temp loop partition"
-	fi
-}
-
 
 
 prep_shenanigans_folder() {
@@ -465,7 +457,7 @@ prep_shenanigans_folder() {
 	mount tmpfs     $masterfolder/tmp -t tmpfs	
 	
 	if echo "$masterfolder" | fgrep "/tmp/_root" > /dev/null ; then
-		folders="/lib /etc /usr/local /root /usr/local/share/man /sbin /usr/sbin"
+		folders="/lib /etc /usr/local /root /usr/local/share/man /usr/share/man /usr/share/doc /sbin /usr/sbin"
 	else
 		folders="/root /etc /usr/local/bin"
 	fi
@@ -519,16 +511,12 @@ rebuild_and_install_kernel___oh_crap_this_might_take_a_while() {
 
 # Prep the build folder
 	unmount_shenanigans $our_master_folder
-	while ps $bkgd_proc > /dev/null ; do
-		echo "Waiting for dd to finish"
-		sleep 1
-	done
 
 	prep_shenanigans_folder $our_master_folder $sqfs_file 
 	prep_shenanigans_folder $our_master_folder/tmp/_root $sqfs_file
 
 	mkdir -p $our_master_folder/tmp/_root/$RYO_TEMPDIR
-	mount /dev/loop2 $our_master_folder/tmp/_root/$RYO_TEMPDIR || failed "Failed to mount big loop device"	
+	mount "$dev_p"2 $our_master_folder/tmp/_root/$RYO_TEMPDIR || failed "Failed to mount big loop device"	
 	download_kernelrebuilding_skeleton $distroname $our_master_folder/tmp/_root/$RYO_TEMPDIR
 	
 	wget $OVERLAY_URL -O - | tar -Jx -C $our_master_folder/usr/local/bin/Chrubix || failed "Failed to install latest Chrubix sources. Shuggz."
@@ -556,24 +544,23 @@ rebuild_and_install_kernel___oh_crap_this_might_take_a_while() {
         for subpath in `ls -d $fspath/*fs*`; do
         	if [ -e "$subpath/Makefile" ] ; then
         		pppp=$SOURCES_BASEDIR/`basename $fspath`/`basename $subpath`
-	        	chroot_this $our_master_folder/tmp/_root "cd $pppp; make" &> /tmp/_oh_crud.txt || failed "`cat /tmp/_oh_crud.txt` --- Failed to make and install new mk*fs binaries."
-	        elif [ -d "$subpath" ] ; then
-	        	echo "Warning - no makefile at $subpath"
-	        else
-	        	echo "Ignoring $subpath"
+	        	chroot_this $our_master_folder/tmp/_root "cd $pppp && make" &> /tmp/_oh_crud.txt || failed "`cat /tmp/_oh_crud.txt` --- Failed to make and install new mk*fs binaries."  #  && make install
+#	        elif [ -d "$subpath" ] ; then
+#	        	echo "Warning - no makefile at $subpath"
+#	        else
+#	        	echo "Ignoring $subpath"
 	        fi
         done
         echo "Done."
 	done
 
+	make_sure_mkfs_code_was_successfully_modified $our_master_folder/tmp/_root$SOURCES_BASEDIR 
 	echo -en "Rebuilding kernel and writing it to $dev ..."
-	make_sure_mkfs_code_was_successfully_modified $our_master_folder/tmp/_root$SOURCES_BASEDIR 
 	chroot_this $our_master_folder "/usr/local/bin/redo_mbr.sh $dev /tmp/_root $dev_p"3	&> /tmp/_oh_croo.txt || failed "`cat /tmp/_oh_croo.txt` --- Failed to make and install new kernel + boot loader."
-	make_sure_mkfs_code_was_successfully_modified $our_master_folder/tmp/_root$SOURCES_BASEDIR 
 # Save PKGBUILDs, in case the user wants to permanize the OS later
 	cd $our_master_folder/tmp/_root$RYO_TEMPDIR
 	echo "Saving customized PKGBUILDs, just in case you need it later."
-	tar -cz PKGBUILDs | pv > $g/.PKGBUILDs.tgz
+	tar -cJ PKGBUILDs | pv > $g/.PKGBUILDs.tar.xz
 	tar -cz /usr/bin/vbutil* /usr/bin/futility > $g/.vbtools.tgz 2>/dev/null || failed "Failed to save vbutil*"
 	tar -cz /usr/share/vboot > $g/.vbkeys.tgz 2> /dev/null || failed "Failed to save your keys" #### MAKE SURE CHRUBIX HAS ACCESS TO Y-O-U-R KEYS and YOUR vbutil* binaries ####
 	tar -cz /lib/firmware > $g/.firmware.tgz 2>/dev/null || fialed "Failed to save firmware"
@@ -582,9 +569,8 @@ rebuild_and_install_kernel___oh_crap_this_might_take_a_while() {
 	make_sure_mkfs_code_was_successfully_modified $our_master_folder/tmp/_root$SOURCES_BASEDIR 
 	cd /
 	unmount_shenanigans $our_master_folder	
-	losetup -d /dev/loop2
+	umount "$dev_p"2 || echo -en ""
 	rmdir $our_master_folder
-	rm -f $BIG_LOOPFS_FILE
 }
 
 
@@ -676,14 +662,14 @@ call_chrubix() {
 ##################################################################################################################################
 
 
-#bkgd_proc=9999
 #set +e
 #dev=/dev/mmcblk1
 #lockfile=/tmp/.chrubix.distro.`basename $dev`
+#SECRET_SQUIRREL_KERNEL=on
 #distroname=`cat $lockfile`
 #dev=/dev/mmcblk1
 #dev_p="$dev"p
-#rebuild_and_install_kernel___oh_crap_this_might_take_a_while debianwheezy /tmp/_root.mmcblk1/.squashfs.sqfs /dev/mmcblk1p
+#rebuild_and_install_kernel___oh_crap_this_might_take_a_while debianwheezy /tmp/_root.mmcblk1/.squashfs.sqfs $dev_p
 #failed "Nefarious walruses"
 
 
@@ -705,11 +691,9 @@ boot=/tmp/_boot.`basename $dev`		# ...or this...
 kern=/tmp/_kern.`basename $dev`		# ...or this!
 lockfile=/tmp/.chrubix.distro.`basename $dev`
 temp_or_perm=temp
-SECRET_SQUIRREL_KERNEL="on" 						#	ask_if_secret_squirrel
 
 get_distro_type_the_user_wants
-prep_loopback_file_for_rebuilding_kernel $BIG_LOOPFS_FILE &
-bkgd_proc=$!
+ask_if_secret_squirrel	 # SECRET_SQUIRREL_KERNEL="on"
 
 echo -en "OK. "
 echo "$temp_or_perm" > /tmp/temp_or_perm
@@ -799,9 +783,13 @@ else
 	call_chrubix $btstrap || failed "call_chrubix() returned an error. Failing."
 fi
 
+sudo start powerd || echo -en ""
+dd if=/dev/zero of="$dev_p"2 bs=1024k count=1 2> /dev/null
+
 echo ":-)"
 
 echo -en "$distroname has been installed on $dev\nPress <Enter> to reboot. Then, press <Ctrl>U to boot into Linux."
+read line
 
 sync; umount $old_btstrap/{dev,sys,proc,tmp} 2> /dev/null || echo -en ""
 losetup -d /dev/loop1 2> /dev/null || echo -en ""
@@ -809,13 +797,14 @@ sync; umount $btstrap/tmp/_root/{tmp,proc,sys,dev} 2> /dev/null || echo -en ""
 sync; umount $btstrap/tmp/_root/{tmp,proc,sys,dev} 2> /dev/null || echo -en ""
 sync; umount $btstrap/{tmp,proc,sys,dev} 2> /dev/null || echo -en ""
 sync; umount $btstrap/{tmp,proc,sys,dev} 2> /dev/null || echo -en ""
-unmount_everything       $root $boot $kern $dev_p
+unmount_everything       $root $boot $kern $dev_p || echo -en ""
 
 # Wipe spare partition completely. That way, we can reformat it later & put super secret squirrel stuff on it if we want.
-dd if=/dev/zero of="$dev_p"2 bs=1024k count=1 2> /dev/null
+umount "$dev_p"* 2> /dev/null || echo -en ""
+dd if=/dev/zero of="$dev_p"2 bs=1024k count=1 2> /dev/null || echo -en ""
+
+echo "Done."
 sync;sync;sync
 
-sudo start powerd || echo -en ""
-read line && reboot		# read -t 60 line || reboot; reboot
-
+sudo reboot
 exit 0
