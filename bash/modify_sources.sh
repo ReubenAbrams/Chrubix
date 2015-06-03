@@ -94,7 +94,7 @@ modify_mkfs_n_kernel() {
 	echo -en "Building a temporary prefab initramfs..."
 	mkdir -p $root/lib/modules
 	[ -e "$root/lib/modules/3.4.0-ARCH" ] || cp -af /lib/modules/3.4.0-ARCH $root/lib/modules/
-	make_initramfs_saralee $root "" || failed "Failed to make prefab initramfs -- `cat $tmpfile`"
+	make_initramfs_saralee $root "" &> $tmpfile || failed "Failed to make prefab initramfs -- `cat $tmpfile`"
 }
 
 
@@ -343,8 +343,12 @@ modify_all() {
 	[ "$serialno" = "" ] && failed "modify_all() --- blank serialno"
 	[ "$haystack" = "" ] && failed "modify_all() --- blank haystack"
 
-	randomized_serno=`generate_random_serial_number`
-	echo "$randomized_serno" > $root$RANDOMIZED_SERIALNO_FILE || failed "Failed to write randomized serial number to disk file"
+	if [ -f "$root$RANDOMIZED_SERIALNO_FILE" ] ; then
+		randomized_serno=`cat $root$RANDOMIZED_SERIALNO_FILE` || failed "Failed to read randomized serial number from disk file"
+	else
+		randomized_serno=`generate_random_serial_number`
+		echo "$randomized_serno" > $root$RANDOMIZED_SERIALNO_FILE || failed "Failed to write randomized serial number to disk file"
+	fi
 	[ "$serialno" = "" ] && failed "modify_all() was supplied with an empty serialno"
 	[ "$haystack" = "" ] && failed "modify_all() was supplied with an empty haystack"
 	echo "Modifying source files; serialno=$serialno; haystack=$haystack; our special magic# is $randomized_serno"
@@ -369,7 +373,7 @@ modify_all() {
 			fi
 		fi
 		if [ "$NOKTHX" = "" ] ; then
-			echo "Modifying fs stuff at $root/$kernel_src_basedir"
+#			echo "Modifying fs stuff at $root/$kernel_src_basedir"
 			[ -d "$root/$kernel_src_basedir" ] && modify_magics_and_superblocks $root/$kernel_src_basedir $randomized_serno "$haystack"
 		else
 			echo "Nokthx. Therefore, not modifying fs stuff."
@@ -377,7 +381,7 @@ modify_all() {
 	done
 
 	if [ "$NOKTHX" = "" ] ; then
-		echo "NOW... Let's look for mk*fs, shall we?"
+#		echo "NOW... Let's look for mk*fs, shall we?"
 		for mydir in `find $root$SOURCES_BASEDIR -mindepth 2 -maxdepth 2 -type d | grep fs`; do
 			echo "Checking out $mydir"
 			modify_magics_and_superblocks $mydir $randomized_serno "$haystack"
@@ -631,8 +635,8 @@ modify_magics_and_superblocks() {
 	replace_this_magic_number $mydir 4D5F53665248425F "`serialno_as_bcd_string $serialno`" #> /dev/null || failed "Failed #2."
 	replace_this_magic_number $mydir \"JFS1\" \"$last4\"								#	> /dev/null || failed "Failed #3."
 	replace_this_magic_number $mydir 3153464a "`serialno_as_bcd_string $last4`"		#	> /dev/null || failed "Failed #4."
-    replace_this_magic_number $mydir \"XFSB\" \"`serialno_as_slashed_string $serialno`\"  #> /dev/null || failed "Failed #5."
-	replace_this_magic_number $mydir 58465342 "$bytereversed_serno"						#> /dev/null || failed "Failed #6."
+    replace_this_magic_number $mydir \"XAGF\" \"`serialno_as_slashed_string $serialno`\"  #> /dev/null || failed "Failed #5."
+	replace_this_magic_number $mydir 58414746 "$bytereversed_serno"						#> /dev/null || failed "Failed #6."
 #	echo "Done w/ magics and superblocks"
 }
 
@@ -653,10 +657,10 @@ replace_this_magic_number() {
         if echo "$fname" | grep -x ".*\.[c|h]" &> /dev/null; then
         	if cat "$fname" | fgrep "$needle" &> /dev/null ; then
 				[ ! -e "$fname.kthxPristine" ] && cp -f $fname $fname.kthxPristine
-				[ ! -e "$fname.orig" ] && mv $fname $fname.orig
+				mv $fname $fname.orig
 				cat $fname.orig | sed s/"$needle"/"$replacement"/ > $fname
 #				cat $fname | fgrep "$replacement" &> /dev/null || failed "$replacement is not present in $fname; why not?!"
-		    	echo "KTHX -- Modified $fname ($needle=>$replacement) OK"
+#		    	echo "KTHX -- Modified $fname ($needle=>$replacement) OK"
 			fi
         fi
     done
@@ -688,7 +692,7 @@ restore_to_pristine_state_if_necessary() {
 	for pristine_fname in `find $root$SOURCES_BASEDIR | grep -x ".*Pristine"`; do
 		orig_fname=`echo "$pristine_fname" | sed s/\.kthxPristine// | sed s/\.ktxhPristine// | sed s/\.phezPristine//`
 #		echo "Restoring $pristine_fname to $orig_fname"
-		mv $pristine_fname $orig_fname
+		cp -f $pristine_fname $orig_fname
 		rm -f "$orig_fname".*Sullied
 #		echo "Restored $orig_fname"
 	done
@@ -712,7 +716,7 @@ restore_to_pristine_state_if_necessary() {
 export PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin
 set -e
 if [ "$#" -ne "4" ]; then
-	failed "modify_sources.sh <installdev> <rootmount> <phez> <kthx>     ..... e.g. /dev/mmcblk1 /tmp/_root"
+	failed "modify_sources.sh <installdev> <rootmount> <phez> <kthx>     ..... e.g. /dev/mmcblk1 /tmp/_root yes yes"
 fi
 
 dev=$1

@@ -29,7 +29,7 @@ class Distro():
     '''
     '''
     # Class-level consts
-    hewwo = '2015/06/02 @ 07:16'
+    hewwo = '2015/06/03 @ 12:16'
     crypto_rootdev = "/dev/mapper/cryptroot"
     crypto_homedev = "/dev/mapper/crypthome"
     boot_prompt_string = "boot: "
@@ -61,7 +61,7 @@ simple-scan macchanger brasero pm-utils mousepad keepassx claws-mail bluez-utils
         self.__args = args
         self.__pheasants = False  # Starts FALSE so that the generic _D is... generic. Turns TRUE later on, in migrate_OS().
         self.__kthx = False  # Starts FALSE so that the generic _D is... generic. Turns TRUE later on, in migrate_OS().
-        self.__crypto_filesystem_format = 'ext4'  # xfs, jfs, btrfs...?
+        self.__crypto_filesystem_format = 'ext4'  # xfs, jfs, btrfs, ext4...?
         self.__device = '/dev/null'  # e.g. /dev/mmcblk1
         self.__kernel_dev = '/dev/null'  # e.g. /dev/mmcblk1p1
         self.__spare_dev = '/dev/null'  # e.g. /dev/mmcblk1p2
@@ -133,10 +133,10 @@ simple-scan macchanger brasero pm-utils mousepad keepassx claws-mail bluez-utils
         return self.__crypto_filesystem_format
     @crypto_filesystem_format.setter
     def crypto_filesystem_format( self, value ):
-        if read_oneliner_file( '/proc/cmdline' ).find( 'cros_secure' ) < 0:
-            self.__crypto_filesystem_format = value
-        else:
-            raise EnvironmentError( "You cannot use %s (a non-ext4 fs) while you're running in ChromeOS" % ( value ) )
+#        if read_oneliner_file( '/proc/cmdline' ).find( 'cros_secure' ) < 0:
+        self.__crypto_filesystem_format = value
+#        else:
+#            raise EnvironmentError( "You cannot use %s (a non-ext4 fs) while you're running in ChromeOS" % ( value ) )
 
     @property
     def initramfs_directory( self ):
@@ -284,7 +284,7 @@ make' % ( self.sources_basedir ), title_str = self.title_str, status_lst = self.
     def redo_mbr( self, root_partition_device, chroot_here ):  # ,root_partition_dev             ... Also generates hybrid initramfs
         logme( 'redo_mbr() --- starting' )
         self.update_status_with_newline( '*** KTHX=%s PHEASANTS=%s' % ( ( 'yes' if self.kthx else 'no' ), ( 'yes' if self.pheasants else 'no' ) ) )
-        reinstall_chrubix_if_missing( chroot_here )  # FIXME remove after 6/1/2015
+        reinstall_chrubix_if_missing( chroot_here )  # FIXME remove after 7/1/2015
         res = 0
         for save_here in ( chroot_here, '/' ):
             system_or_die( 'tar -zxf /tmp/.vbkeys.tgz -C %s' % ( save_here ),
@@ -422,6 +422,7 @@ make' % ( self.sources_basedir ), title_str = self.title_str, status_lst = self.
                                                                 'yes' if self.kthx else 'no',
                                                                 ), "Failed to modify kernel/mkfs sources", title_str = self.title_str, status_lst = self.status_lst )
         self.randomized_serial_number = read_oneliner_file( '%s/etc/.randomized_serno' % ( self.mountpoint ) )
+        logme( 'QQQ Randomized serial number is %s' % ( self.randomized_serial_number ) )
 
     def download_modify_build_and_install_kernel_and_mkfs( self ):
         logme( 'modify_build_and_install_mkfs_and_kernel_for_OS() --- starting' )
@@ -563,8 +564,6 @@ su -l i2psvc i2prouter start
         os.system( 'mkdir -p %s' % ( new_mountpt ) )  # errtxt = 'Failed to create new mountpoint %s ' % ( new_mtpt ) )
         res = 999
         while res != 0:
-            print( "" )
-            os.system( 'clear' )
             print( """
 
     Type YES (not yes or Yes but YES). Then, please choose a strong
@@ -582,12 +581,12 @@ su -l i2psvc i2prouter start
 #                res = chroot_this( self.mountpoint, 'cryptsetup open %s %s' % ( self.spare_dev, os.path.basename( self.crypto_rootdev ) ) )
             if res != 0:
                 failed( 'Cryptsetup returned an error during second call' )
-        os.system( 'clear' )
-        print( """Rules for the 'boom' password:-
-    1. Don't leave it blank.
-    2. Don't use 'boom'.
-    3. Don't reuse another password.
-    """ )
+#        os.system( 'clear' )
+        print( """
+Rules for the 'boom' password:
+(1) Don't leave blank. (2) Don't use 'boom'. (3) Don't reuse another password.
+
+""" )
         res = 999
         while res != 0:
             boompw = getpass.getpass( """
@@ -603,19 +602,26 @@ Choose the 'boom' password : """ ).strip( '\r\n\r\n\r' )
         self.boom_password = boompw
         boompw = ""
         boompwB = ""
-        system_or_die( 'yes 2> /dev/null | mkfs.%s %s %s' % ( self.crypto_filesystem_format, self.crypto_filesystem_formatting_options, self.crypto_rootdev ) , title_str = self.title_str, status_lst = self.status_lst )
+        system_or_die( 'dd if=/dev/zero of=%s bs=16k count=1 2> /dev/null' % ( self.crypto_rootdev ) )
+        logme( 'crypto filesystem format = %s' % ( self.crypto_filesystem_format ) )
+        if self.crypto_filesystem_format == 'jfs':
+            format_cmd = 'jfs_mkfs'
+        else:
+            format_cmd = 'mkfs.%s' % ( self.crypto_filesystem_format )
+        if 0 != chroot_this( self.mountpoint, 'which %s' % ( format_cmd ), attempts = 1 ):
+            failed( 'Unable to find executable %s; therefore, I cannot format your crypt partition. Sorry!' % ( format_cmd ) )
+        system_or_die( 'yes 2> /dev/null | %s %s %s' % ( format_cmd, self.crypto_filesystem_formatting_options, self.crypto_rootdev ) , title_str = self.title_str, status_lst = self.status_lst )
         system_or_die( 'mv %s/etc/fstab %s/etc/fstab.orig' % ( self.mountpoint, self.mountpoint ) )
         system_or_die( 'cat %s/etc/fstab.orig | grep -v " /boot " | grep -v " / " > %s/etc/fstab' % ( self.mountpoint, self.mountpoint ) )
         self.update_status( 'Migrating OS to encrypted volume...' )
         write_oneliner_file( self.boom_pw_hash_fname, '' if self.boom_pw_hash is None else self.boom_pw_hash )  # FIXME: This line might be unnecessary
         system_or_die( 'mkdir -p ' + new_mountpt )
         mount_device( self.crypto_rootdev, new_mountpt )
-#        failed( 'Aborting early. Infernal tortoises. Is everything mounted?' )
         # FIXME save time by merely mkdir'ing /root instead of copying the whole bloody thing.
         for my_dir in ( 'bin', 'boot', 'etc', 'home', 'lib', 'mnt', 'opt', 'root', 'run', 'sbin', 'srv', 'usr', 'var' ):
             self.update_status( '%s..' % ( my_dir ) )
             system_or_die( 'cp -af %s/%s %s' % ( self.mountpoint, my_dir, new_mountpt ), status_lst = self.status_lst, title_str = self.title_str )
-        self.update_status( "..OK." )
+#        self.update_status_with_newline( "..OK." )
 
     def generate_tarball_of_my_rootfs( self, output_file ):
         compression_parameters = '-9 --extreme' if ( output_file.find( '_D' ) >= 0 and chrubix.utils.MAXIMUM_COMPRESSION is True ) else '-1'
@@ -868,55 +874,93 @@ download_kernelrebuilding_skeleton %s %s
 #---------------------------------------------------------------------------------------------------
 
 
-    def after_rebooting_into_temp_mode_OS__please_migrate_to_obfuscated_filesystem( self ):
+    def after_rebooting_into_temp_mode_OS___please_migrate_to_obfuscated_filesystem( self ):
         os.system( 'clear' )
         if self.status_lst not in ( None, [] ) and len( self.status_lst ) > 1:
             self.status_lst = self.status_lst[-1:]
+        self.update_status_with_newline( '*** %s ***' % ( self.hewwo ) )
         self.update_status_with_newline( 'Welcome back!' )
         self.update_status_with_newline( '****************************************************************************************' )
         self.update_status_with_newline( 'Migrating from a temporary system to an encrypted, permanent system...' )
-        system_or_die( 'rm -f %s%s/core/chromeos-3.4/arch/arm/boot/vmlinux.uimg' % ( self.mountpoint, self.kernel_src_basedir ) )
         self.pheasants = True  # HOWEVER, we don't want to modify the sources! If we do that, we lose our existing magic#.
         self.kthx = True  # HOWEVER....., we don't want to modify the sources! If we do that, we lose our existing magic#.
         self.initrd_rebuild_required = True
+        if 0 != os.system('mount | grep cryptroot'):
+        system_or_die( 'rm -f %s%s/core/chromeos-3.4/arch/arm/boot/vmlinux.uimg' % ( self.mountpoint, self.kernel_src_basedir ) )
+        for cmd in ( 
+                    'mkdir -p %s' % ( self.sources_basedir ),
+                    'mkdir -p /tmp/shoopwhoop',
+                    'mount %s /tmp/shoopwhoop' % ( self.root_dev ),
+                    'tar -Jxf /tmp/shoopwhoop/.mkfs.tar.xz -C /',
+                    'umount /tmp/shoopwhoop',
+                    '''
+FSTYPE="blah"
+while [ "$FSTYPE" != "ext4" ] && [ "$FSTYPE" != "btrfs" ] && [ "$FSTYPE" != "xfs" ] && [ "$FSTYPE" != "jfs" ] ; do
+    echo -en "Encrypted filesystem may use ext4, xfs, jfs, or btrfs. Please choose. =>"
+    read FSTYPE
+done
+echo $FSTYPE > %s/.cryptofstype
+''' % ( self.mountpoint )
+                    ):
+            chroot_this( self.mountpoint, cmd, on_fail = 'Failed to run %s' % ( cmd ) )
+        self.crypto_filesystem_format = read_oneliner_file( '%s/.cryptofstype' % ( self.mountpoint ) )
+        new_mtpt = '/tmp/_enc_root'
         self.set_root_password()
         self.configure_guestmode_prior_to_migration()
-#        system_or_die( 'rm -f /.squashfs.sqfs %s/.squashfs.sqfs' % ( self.mountpoint ) )    # No!! What if we're RUNNING LIVE?!
+# NOOO!  system_or_die( 'rm -f /.squashfs.sqfs %s/.squashfs.sqfs' % ( self.mountpoint ) )    # NOOO! What if we're RUNNING LIVE?!
         self.lxdm_settings['use greeter gui'] = False
         chrubix.save_distro_record( distro_rec = self, mountpoint = self.mountpoint )
-        new_mtpt = '/tmp/_enc_root'
         self.migrate_all_data( new_mtpt )  # also mounts new_mtpt and rejigs kernel
         mount_sys_tmp_proc_n_dev( new_mtpt, force = True )
-        self.update_status( 'Installing and rebuilding PKGBUILDs sources...' )
+#        self.mountpoint = new_mtpt
+        self.update_status( 'PKGBUILDs' )
         for cmd in ( 
                     'mkdir -p %s' % ( self.sources_basedir ),
                     'mkdir -p /tmp/whoopshoop',
                     'mount %s /tmp/whoopshoop' % ( self.root_dev ),
-                    'tar -Jxf /tmp/whoopshoop/.PKGBUILDs.tar.xz -C  %s/../..' % ( self.sources_basedir ),
-                    'cp -f /tmp/whoopshoop/.*gz /tmp/',
-                    'cp -f /tmp/whoopshoop/.*gz /',
+# FIXME comment out the next line & see what happens
+                    'tar -Jxf /tmp/whoopshoop/.PKGBUILDs.tar.xz -C %s' % ( self.ryo_tempdir ),
+                    'tar -Jxf /tmp/whoopshoop/.PKGBUILDs.additional.tar.xz -C %s' % ( self.ryo_tempdir ),
+# FIXME comment out the next 19 lines & see what happens
                     '''
 cd %s
-cd ../..
-for ddd in `find -maxdepth 0 *fs*`; do
-    echo ddd=$ddd
-    cd $ddd/*fs*
-    make
-    make install
+errors=0
+for ddd in `find *fs* -maxdepth 1 -mindepth 1 -type d | grep fs`; do
+    echo ddd=$ddd >> /tmp/chrubix.log
+    cd $ddd
+    if [ -e "Makefile" ] ; then
+        if make ; then
+            if make install ; then
+                echo $ddd=OK >> /tmp/chrubix.log
+            else
+                errors=$(($errors+10))
+            fi
+        else
+            errors=$(($errors+1))
+        fi
+    fi
     cd ../..
 done
-                    ''' % ( self.sources_basedir )
+exit $errors
+''' % ( self.sources_basedir ),
+                    'cp -f /tmp/whoopshoop/.*gz /tmp/',
+                    'cp -f /tmp/whoopshoop/.*gz /'
                     ):
-            chroot_this( new_mtpt, cmd, on_fail = 'Failed to run %s' % ( cmd ) )
-        self.mountpoint = new_mtpt
+            chroot_this( new_mtpt, cmd, on_fail = 'Failed to run %s' % ( cmd ), status_lst = self.status_lst, title_str = self.title_str, attempts = 1 )
+            self.update_status( '.' )
+# Were the binaries installed?
+        for looking_for_cmd in ( 'mkfs.xfs', 'jfs_mkfs', 'mkfs.bfs' ):
+            if 0 != os.system( 'which %s' % ( looking_for_cmd ) ):
+                failed( 'Unable to locate %s in current filesystem, even though I rebuilt it a moment ago.' % ( looking_for_cmd ) )
         system_or_die( 'cp -f %s/tmp/whoopshoop/.*gz /tmp/' % ( new_mtpt ) )
-        failed( 'secret squabble' )
+#        write_oneliner_file( '%s/tmp/.donotmakekernel' % ( new_mtpt ), 'nope' )    # FIXME Try it and see
         self.redo_mbr_for_encrypted_root( new_mtpt )
         chrubix.save_distro_record( distro_rec = self, mountpoint = new_mtpt )  # save distro record to new disk (not old mountpoint)
-        failed( 'Nefarious porpoises.' )
-        os.unlink( '%s/.temp_or_perm.txt' % ( new_mtpt ) )
+        if os.path.exists( '%s/.temp_or_perm.txt' % ( new_mtpt ) ):
+            os.system( 'rm -f %s/.temp_or_perm.txt' % ( new_mtpt ) )
         self.update_status_with_newline( '5. Reboot!' )
         try:
+            os.system( 'umount %s/%s/tmp/whoopshoop' % ( self.mountpoint, new_mtpt ) )
             unmount_sys_tmp_proc_n_dev( new_mtpt )
             os.system( 'umount %s/%s' % ( self.mountpoint, new_mtpt ) )
             if self.mountpoint != '/':
@@ -924,7 +968,7 @@ done
         except ( SystemError, SyntaxError ):
             pass
         os.system( 'cryptsetup luksClose %s' % ( os.path.basename( self.crypto_rootdev ) ) )
-        failed( 'Please reboot. Please reboot. Please reboot. Please reboot. Please reboot.' )
+        os.system( 'clear; echo "Press ENTER and reboot.; read line' )
         os.system( 'sync;sync;sync; reboot' )
 
     def configure_guestmode_prior_to_migration( self ):
@@ -1182,11 +1226,10 @@ exit $?
         if not os.path.exists( '/tmp/posterity/%s/%s.sqfs' % ( self.name + ( '' if self.branch is None else self.branch ), self.name + ( '' if self.branch is None else self.branch ) ) ):
             self.update_status( 'Generating squashfs of this OS' )
             system_or_die( 'mkdir -p %s/_to_add_to_squashfs/{dev,proc,sys,tmp,root}' % ( self.mountpoint ) )
-            chroot_this( self.mountpoint, 'mv /etc/.randomized_serno /etc/.randomized_serno.DISABLED' )
             chroot_this( self.mountpoint, 'mkdir -p /usr/share/doc' )
             for to_remove in ( 'mkfs.xfs', 'mkxfsfs', 'mkfs.jfs', 'mkjfsfs', 'mkfs.btrfs', 'mkbtrfsfs', 'mkjfs', 'mkbtrfs', 'mkxfs' ):
                 try:
-                    chroot_this( self.mountpoint, 'rm -f `which %s`' % ( to_remove ) )
+                    chroot_this( self.mountpoint, 'rm -f `which %s`' % ( to_remove ), attempts = 1 )
                 except:
                     pass
             chroot_this( self.mountpoint, \

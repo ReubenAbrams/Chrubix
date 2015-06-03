@@ -31,8 +31,23 @@ good_list = []
 bad_list = []  # ubuntu failed to build afio
 
 if argv[2] == 'secretsquirrel':
+    if 0 == os.system( 'mount | fgrep "cryptroot on /"' ):
+        failed( 'No! You are already in Secret Squirrel Mode.' )
     distro = load_distro_record()
-    distro.after_rebooting_into_temp_mode_OS__please_migrate_to_obfuscated_filesystem()
+    distro.after_rebooting_into_temp_mode_OS___please_migrate_to_obfuscated_filesystem()
+elif argv[2] == 'crypto-mbr':
+    distro = load_distro_record()
+    for cmd in ( 
+                'mkdir -p /tmp/_enc_root',
+                'cryptsetup luksOpen /dev/mmcblk1p2 cryptroot',
+                'mount /dev/mapper/cryptroot /tmp/_enc_root',
+                'mount devtmpfs /tmp/_enc_root/dev -t devtmpfs',
+                'mount tmpfs /tmp/_enc_root/tmp -t tmpfs',
+                'mount proc /tmp/_enc_root/proc -t proc',
+                'mount sys /tmp/_enc_root/sys -t sys'
+                ):
+        system_or_die( cmd )
+    chroot_this( '/tmp/_enc_root', 'redo_mbr.sh /dev/mmcblk1 /tmp/_enc_root /dev/mapper/cryptroot' )
 elif argv[2] == 'build-a-bunch':
     dct = {'git':( 'cpuburn', 'advancemenu' ),
            'src':( 'star', 'salt' ),

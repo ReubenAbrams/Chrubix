@@ -398,9 +398,10 @@ grab_sqfs_kernel_and_install_it() {
 
 
 download_kernelrebuilding_skeleton() {
-	local buildloc distroname fnA fnB my_command success
+	local buildloc distroname fnA fnB my_command success savefile
 	distroname=$1
 	buildloc=$2
+	savefile=$3
 	if [ -e "$buildloc/PKGBUILDs/core/pacman/makepkg.conf" ] ; then
 		echo "Already got the skeleton. Cool."
 		return 0
@@ -414,12 +415,12 @@ download_kernelrebuilding_skeleton() {
 	mkdir -p /tmp/a
 	mount /dev/sda1 /tmp/a 2> /dev/null || echo -en ""
 	mount /dev/sdb1 /tmp/a 2> /dev/null || echo -en ""
-	if pv $fnA | tar -Jx -C $buildloc ; then
+	if pv $fnA | tee $savefile | tar -Jx -C $buildloc ; then
 		echo "Restored skeleton from sda1"
-	elif pv $fnB | tar -Jx -C $buildloc ; then
+	elif pv $fnB | tee $savefile | tar -Jx -C $buildloc ; then
 		echo "Restored skeleton from sdb1"
 	else
-		wget $FINALS_URL/$distroname/"$distroname"_PKGBUILDs.tar.xz -O - | tar -Jx -C $buildloc
+		wget $FINALS_URL/$distroname/"$distroname"_PKGBUILDs.tar.xz -O - | tee $savefile | tar -Jx -C $buildloc
 	fi
 	echo "Done."
 }	
@@ -433,7 +434,7 @@ make_folder_read_writable() {
  	srcpath=$our_master_folder$subfolder_name
  	zipname=/tmp/shenanigans.`echo "$srcpath" | tr '/' '_'`.tgz
 	echo -en "$subfolder_name..."
-	tar -cz $srcpath 2> /dev/null > $zipname || failed "Failed to tar $srcpath"
+	tar -c $srcpath 2> /dev/null | gzip -1 > $zipname || failed "Failed to tar $srcpath"
 	mount tmpfs $srcpath -t tmpfs
 	tar -zxf $zipname -C /
 	rm -f $zipname
@@ -457,7 +458,7 @@ prep_shenanigans_folder() {
 	mount tmpfs     $masterfolder/tmp -t tmpfs	
 	
 	if echo "$masterfolder" | fgrep "/tmp/_root" > /dev/null ; then
-		folders="/lib /etc /usr/local /root /usr/local/share/man /usr/share/man /usr/share/doc /sbin /usr/sbin"
+		folders="/lib /etc /usr/local /root /usr/local/share/man /usr/share/man /usr/share/doc" # /sbin /usr/sbin"
 	else
 		folders="/root /etc /usr/local/bin"
 	fi
@@ -489,12 +490,13 @@ unmount_shenanigans() {
 
 
 make_sure_mkfs_code_was_successfully_modified() {
-	cd $1/btrfs*/btrfs*/
-	fgrep 65248425 *.h && failed "BTRFS magic# still present in sources!" || echo -en ""
-	cd $1/xfs*/xfs*/
-	fgrep 58465342 */*.h && failed "XFSB magic# still present in sources!" || echo -en ""
-	cd $1/jfs*/jfs*/
-	fgrep JFS1 */*.h && failed "JFS magic# still present in sources!" || echo -en ""
+	local look_for_me dirname
+	for look_for_me in \"_BHRfS_M\" 4D5F53665248425F \"JFS1\" 3153464a \"XAGF\" 58414746 ; do
+		for dirname in $1/*fs*/*fs* ; do
+#			echo "Searching $dirname for $look_for_me"
+			fgrep --include='*.h' --include='*.c' -r "$look_for_me" $dirname && failed "Found $look_for_me still present in $1 sources." || echo -en ""
+		done
+	done		
 	cd /
 	echo "FYI, make_sure_mkfs_code_was_successfully_modified() says the code WAS modified OK."
 }
@@ -502,7 +504,7 @@ make_sure_mkfs_code_was_successfully_modified() {
 
 
 rebuild_and_install_kernel___oh_crap_this_might_take_a_while() {
-	local distroname sqfs_file dev_p url squrl buildloc our_master_folder dev f i g  fspath subpath
+	local distroname sqfs_file dev_p url squrl buildloc our_master_folder dev f i g  fspath subpath pristine_fname orig_fname
 	distroname=$1
 	sqfs_file=$2
 	dev_p=$3
@@ -517,10 +519,12 @@ rebuild_and_install_kernel___oh_crap_this_might_take_a_while() {
 
 	mkdir -p $our_master_folder/tmp/_root/$RYO_TEMPDIR
 	mount "$dev_p"2 $our_master_folder/tmp/_root/$RYO_TEMPDIR || failed "Failed to mount big loop device"	
-	download_kernelrebuilding_skeleton $distroname $our_master_folder/tmp/_root/$RYO_TEMPDIR
+	download_kernelrebuilding_skeleton $distroname $our_master_folder/tmp/_root/$RYO_TEMPDIR /tmp/.PKGBUILDs.tar.xz
 	
 	wget $OVERLAY_URL -O - | tar -Jx -C $our_master_folder/usr/local/bin/Chrubix || failed "Failed to install latest Chrubix sources. Shuggz."
 	chmod +x $our_master_folder/usr/local/bin/*.sh
+	
+	touch $our_master_folder/tmp/_root/$RYO_TEMPDIR/meee
 
 # Unzip the mk*fs sources
 	for fspath in `ls -d $our_master_folder/tmp/_root$SOURCES_BASEDIR/*fs*` ; do
@@ -536,6 +540,8 @@ rebuild_and_install_kernel___oh_crap_this_might_take_a_while() {
 # Copy the ser# across
 	f=`basename $dev`												#	echo "f=$f"
 	g="`mount | fgrep "$f " | head -n1 | cut -d' ' -f3`"			# echo "g=$g"
+	mv /tmp/.PKGBUILDs.tar.xz $g &
+	bkgd_proc=$!
 	f=$our_master_folder/tmp/_root/etc/.randomized_serno			#	echo "Copying $f to $g"
 	cp -f $f $g/ || failed "Unable to salvage RSN"
 # Make and install the mk*fs binaries
@@ -559,8 +565,26 @@ rebuild_and_install_kernel___oh_crap_this_might_take_a_while() {
 	chroot_this $our_master_folder "/usr/local/bin/redo_mbr.sh $dev /tmp/_root $dev_p"3	&> /tmp/_oh_croo.txt || failed "`cat /tmp/_oh_croo.txt` --- Failed to make and install new kernel + boot loader."
 # Save PKGBUILDs, in case the user wants to permanize the OS later
 	cd $our_master_folder/tmp/_root$RYO_TEMPDIR
-	echo "Saving customized PKGBUILDs, just in case you need it later."
-	tar -cJ PKGBUILDs | pv > $g/.PKGBUILDs.tar.xz
+	echo "Saving modified source code, just in case you need it later."
+	
+	cd $our_master_folder/tmp/_root$RYO_TEMPDIR
+	tar -c `find PKGBUILDs -cnewer meee -type f` | xz > $g/.PKGBUILDs.additional.tar.xz
+
+	mkdir -p /tmp/qqqqq/usr/sbin
+	cp -f `find . -name jfs_mkfs` /tmp/qqqqq/usr/sbin/
+	cp -f `find . -name mkfs.btrfs` /tmp/qqqqq/usr/sbin/
+	cp -f `find . -name mkfs.xfs` /tmp/qqqqq/usr/sbin/
+	cd /tmp/qqqqq
+	tar -cJ * > $g/.mkfs.tar.xz
+	
+	while ps $bkgd_proc &> /dev/null ; do
+		echo "Waiting for cp PKGBUILDs to finish."
+		sleep 1
+	done
+# our_master_folder/tmp/_root
+	[ -e "$g/.PKGBUILDs.tar.xz" ] || failed "Unable to find $our_master_folder/tmp/_root/.PKGBUILDs.tar.xz :-( The mower slipped."
+# our_master_folder/tmp/_root
+	[ -e "$g/.PKGBUILDs.additional.tar.xz" ] || failed "Unable to find $our_master_folder/tmp/_root/.PKGBUILDs.additional.tar.xz :-( I don't know how."
 	tar -cz /usr/bin/vbutil* /usr/bin/futility > $g/.vbtools.tgz 2>/dev/null || failed "Failed to save vbutil*"
 	tar -cz /usr/share/vboot > $g/.vbkeys.tgz 2> /dev/null || failed "Failed to save your keys" #### MAKE SURE CHRUBIX HAS ACCESS TO Y-O-U-R KEYS and YOUR vbutil* binaries ####
 	tar -cz /lib/firmware > $g/.firmware.tgz 2>/dev/null || fialed "Failed to save firmware"

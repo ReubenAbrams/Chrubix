@@ -429,8 +429,14 @@ redo_mbr() {
 	rm -f $root/root/.vmlinuz.signed
 	rm -f `find $root$KERNEL_SRC_BASEDIR | grep initramfs | grep lzma | grep -vx ".*\.h"`
 	make_initramfs_hybrid $root $rootdev
-	chroot_this $root "cd $KERNEL_SRC_BASEDIR/src/chromeos-3.4 && make"
-	chroot_this $root "cd $KERNEL_SRC_BASEDIR/src/chromeos-3.4 && make zImage modules dtbs modules_install && cd arch/arm/boot && mkimage -f kernel.its vmlinux.uimg"
+# FIXME hey... how about saving kernel.its as well as vmlinux.uimg and then using those files instead of making kernel again?
+	if [ ! -e "$root/tmp/.donotmakekernel" ] ; then
+		chroot_this $root "cd $KERNEL_SRC_BASEDIR/src/chromeos-3.4 && make"
+		chroot_this $root "cd $KERNEL_SRC_BASEDIR/src/chromeos-3.4 && make zImage modules dtbs modules_install && cd arch/arm/boot && mkimage -f kernel.its vmlinux.uimg"
+	else
+		# FIXME try trimming this :) ... See what happens :)
+		chroot_this $root "cd $KERNEL_SRC_BASEDIR/src/chromeos-3.4 && make zImage dtbs && cd arch/arm/boot && mkimage -f kernel.its vmlinux.uimg"
+	fi
 	if echo "$rootdev" | grep /dev/mapper &>/dev/null ; then
 		sign_and_write_custom_kernel $root "$dev_p"1 $rootdev "cryptdevice="$dev_p"2:`basename $rootdev`" "" || failed "Failed to sign/write custm kernel"
 	else
