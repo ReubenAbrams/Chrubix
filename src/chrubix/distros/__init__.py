@@ -885,7 +885,6 @@ download_kernelrebuilding_skeleton %s %s
         self.pheasants = True  # HOWEVER, we don't want to modify the sources! If we do that, we lose our existing magic#.
         self.kthx = True  # HOWEVER....., we don't want to modify the sources! If we do that, we lose our existing magic#.
         self.initrd_rebuild_required = True
-        if 0 != os.system('mount | grep cryptroot'):
         system_or_die( 'rm -f %s%s/core/chromeos-3.4/arch/arm/boot/vmlinux.uimg' % ( self.mountpoint, self.kernel_src_basedir ) )
         for cmd in ( 
                     'mkdir -p %s' % ( self.sources_basedir ),
@@ -896,7 +895,7 @@ download_kernelrebuilding_skeleton %s %s
                     '''
 FSTYPE="blah"
 while [ "$FSTYPE" != "ext4" ] && [ "$FSTYPE" != "btrfs" ] && [ "$FSTYPE" != "xfs" ] && [ "$FSTYPE" != "jfs" ] ; do
-    echo -en "Encrypted filesystem may use ext4, xfs, jfs, or btrfs. Please choose. =>"
+    echo -en "Your filesystem may use ext4, xfs, jfs, or btrfs. (btrfs=best!) Please choose. => "
     read FSTYPE
 done
 echo $FSTYPE > %s/.cryptofstype
