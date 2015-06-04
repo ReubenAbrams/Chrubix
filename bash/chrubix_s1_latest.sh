@@ -498,7 +498,7 @@ make_sure_mkfs_code_was_successfully_modified() {
 		done
 	done		
 	cd /
-	echo "FYI, make_sure_mkfs_code_was_successfully_modified() says the code WAS modified OK."
+#	echo "FYI, make_sure_mkfs_code_was_successfully_modified() says the code WAS modified OK."
 }
 
 
