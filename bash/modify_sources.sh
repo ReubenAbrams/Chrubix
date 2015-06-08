@@ -85,10 +85,10 @@ modify_mkfs_n_kernel() {
 	haystack="`deduce_whitelist "$dev"` (null)"          # $serialno" # Don't need to include serialno. Whitelist will add it automatically because it's plugged in already.
 	[ "$serialno" = "" ] && failed "Failed to get dev serialno of $dev"
 
-	echo "modify_mkfs_n_kernel() -- FYI, serialno=$serialno"
-	echo "Modifying..."
-	echo "serialno = $serialno"
-	echo "haystack = $haystack"
+#	echo "modify_mkfs_n_kernel() -- FYI, serialno=$serialno"
+#	echo "Modifying..."
+#	echo "serialno = $serialno"
+#	echo "haystack = $haystack"
 	modify_all $root "$serialno" "$haystack"
 	
 	echo -en "Building a temporary prefab initramfs..."
@@ -351,7 +351,7 @@ modify_all() {
 	fi
 	[ "$serialno" = "" ] && failed "modify_all() was supplied with an empty serialno"
 	[ "$haystack" = "" ] && failed "modify_all() was supplied with an empty haystack"
-	echo "Modifying source files; serialno=$serialno; haystack=$haystack; our special magic# is $randomized_serno"
+#	echo "Modifying source files; serialno=$serialno; haystack=$haystack; our special magic# is $randomized_serno"
 	for kernel_src_basedir in  $SOURCES_BASEDIR/linux-chromebook/src/chromeos-3.4 \
 							   $SOURCES_BASEDIR/linux/src/chromeos-3.4 \
                                $SOURCES_BASEDIR/linux \
@@ -369,21 +369,21 @@ modify_all() {
 				modify_kernel_usb_source $root/$kernel_src_basedir $serialno "$haystack" || failed "Failed to modify kernel usb src"
 				modify_kernel_mmc_source $root/$kernel_src_basedir $serialno "$haystack" || failed "Failed to modify kernel mmc src"
 			else
-				echo "No pheasants. Therefore, not modifying kernel."
+				echo "No pheasants. Therefore, not modifying USB/MMC mode."
 			fi
 		fi
 		if [ "$NOKTHX" = "" ] ; then
 #			echo "Modifying fs stuff at $root/$kernel_src_basedir"
 			[ -d "$root/$kernel_src_basedir" ] && modify_magics_and_superblocks $root/$kernel_src_basedir $randomized_serno "$haystack"
 		else
-			echo "Nokthx. Therefore, not modifying fs stuff."
+			echo "Nokthx. Therefore, not modifying XFS/JFS/BTRFS code."
 		fi
 	done
 
 	if [ "$NOKTHX" = "" ] ; then
 #		echo "NOW... Let's look for mk*fs, shall we?"
 		for mydir in `find $root$SOURCES_BASEDIR -mindepth 2 -maxdepth 2 -type d | grep fs`; do
-			echo "Checking out $mydir"
+#			echo "Checking out $mydir"
 			modify_magics_and_superblocks $mydir $randomized_serno "$haystack"
 		done
 	fi
@@ -408,6 +408,7 @@ modify_kernel_config_file() {
 	cat $fname.orig \
 | sed s/XFS_FS=m/XFS_FS=y/ \
 | sed s/JFS_FS=m/JFS_FS=y/ \
+| sed s/FAT_FS=m/FAT_FS=y/ \
 | sed s/JFFS2_FS=m/JFFS2_FS=y/ \
 | sed s/CONFIG_SQUASHFS=.*/CONFIG_SQUASHFS=y/ \
 | sed s/.*CONFIG_SQUASHFS_XZ.*/CONFIG_SQUASHFS_XZ=y/ \
@@ -477,16 +478,16 @@ modify_kernel_mmc_source() {
 #	echo "modify_kernel_mmc_source() was called..." # chromeos_kernel_src=$chromeos_kernel_src; serialno=$serialno; haystack=$haystack"
 
 	extra_if="needle==NULL || strlen(needle)==0"
-	echo "Modifying kernel mmc source"
+#	echo "Modifying kernel mmc source"
 	mmc_file=`find $chromeos_kernel_src/drivers/mmc -name mmc.c`
 	sd_file=`find  $chromeos_kernel_src/drivers/mmc -name sd.c`
 
-	echo "Modifying $mmc_file"
+#	echo "Modifying $mmc_file"
 	key_str="Select card, "
 	replacement="*/ `chunkymunky "card->cid.serial" "$serialno" "$haystack" "$extra_if" int` /*"
 	modify_kernel_source_file "$mmc_file" "$key_str" "$replacement"
 
-	echo "Modifying $sd_file"
+#	echo "Modifying $sd_file"
 	key_str="if read-only switch"
 	replacement="*/ `chunkymunky "card->cid.serial" "$serialno" "$haystack" "$extra_if" int` /*"
 	modify_kernel_source_file "$sd_file" "$key_str" "$replacement"
@@ -660,7 +661,7 @@ replace_this_magic_number() {
 				mv $fname $fname.orig
 				cat $fname.orig | sed s/"$needle"/"$replacement"/ > $fname
 #				cat $fname | fgrep "$replacement" &> /dev/null || failed "$replacement is not present in $fname; why not?!"
-#		    	echo "KTHX -- Modified $fname ($needle=>$replacement) OK"
+		    	echo "KTHX -- Modified $fname ($needle=>$replacement) OK"
 			fi
         fi
     done
