@@ -292,7 +292,7 @@ mount $rootdev /newroot
 if [ -e \"/newroot/$SQUASHFS_FNAME\" ]; then
   umount /newroot
   mkdir -p /deviceroot
-  mount $rootdev /deviceroot
+  mount -o ro $rootdev /deviceroot
   mkdir -p /ro /rw
   mount -o loop,squashfs /deviceroot/$SQUASHFS_FNAME /ro
   mount -t tmpfs -o size=1024m tmpfs /rw
@@ -474,8 +474,8 @@ sign_and_write_custom_kernel() {
 --vmlinuz $root$KERNEL_SRC_BASEDIR/src/chromeos-3.4/arch/arm/boot/vmlinux.uimg --arch arm --bootloader $root/root/.kernel.flags \
 && echo -en "..." || failed "Failed to sign kernel"
 	sync;sync;sync;sleep 1
-	dd if=$root/root/.vmlinuz.signed of=$writehere &> /dev/null && echo -en "..." || failed "Failed to write kernel to $writehere"
-	echo "OK."
+	dd if=$root/root/.vmlinuz.signed of=$writehere 2> /dev/null && echo -en "..." || failed "Failed to write kernel to $writehere"
+	echo -en "OK. Signed & written kernel. "
 }
 
 
