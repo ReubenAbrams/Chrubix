@@ -19,6 +19,12 @@ chmod +x /usr/local/bin/*
 export DISPLAY=:0.0
 cd /usr/local/bin/Chrubix/src
 
+if [ "$hiddendev" = "/dev/loop3" ] ; then
+	if ! losetup $rootdev &> /dev/null ; then
+		losetup -o $splitpoint --sizelimit $sizelimit $hiddendev $rootdev
+	fi
+fi
+
 if [ "$1" = "tinker" ] ; then
 	python3 tinker.py $@
 elif [ "$1" = "greeter" ] ; then
@@ -28,6 +34,6 @@ elif [ "$1" = "ersatz_lxdm" ] ; then
 elif [ "$1" = "secretsquirrel" ] ; then
 	python3 tinker.py secretsquirrel $distroname $@		# the distro name variable will be replaced, thanks to sed, with the ACTUAL distro name.
 else
-	python3 main.py -d$dev -r$rootdev -s$sparedev -k$kerndev -D$distroname
+	python3 main.py -d$dev -r$rootdev -s$hiddendev -k$kerndev -D$distroname
 fi
 exit $?
