@@ -19,16 +19,16 @@
 
 
 
+
+
 if [ "$USER" != "root" ] ; then
 	SCRIPTPATH=$( cd $(dirname $0) ; pwd -P )
 	fname=$SCRIPTPATH/`basename $0`
 	sudo bash $fname $@
 	exit $?
 fi
-
-
-
-
+set -e
+mount | grep /dev/mapper/encstateful &> /dev/null || failed "Run me from within ChromeOS, please."
 ALARPY_URL="https://dl.dropboxusercontent.com/u/59916027/chrubix/skeletons/alarpy.tar.xz"
 PARTED_URL="https://dl.dropboxusercontent.com/u/59916027/chrubix/skeletons/parted_and_friends.tar.xz"
 echo "$0" | fgrep latest_that &> /dev/null || FINALS_URL="https://dl.dropboxusercontent.com/u/59916027/chrubix/finals"
@@ -37,16 +37,22 @@ OVERLAY_URL=https://dl.dropboxusercontent.com/u/59916027/chrubix/_chrubix.tar.xz
 RYO_TEMPDIR=/root/.rmo
 SOURCES_BASEDIR=$RYO_TEMPDIR/PKGBUILDs/core
 LOGLEVEL=2
+SPLITPOINT=15000998
+HIDDENLOOP=/dev/loop3			# hiddendev uses this (if it is hidden) :)
 
-    
 
 
 
-#if ifconfig | grep inet | fgrep 192.168.0 &> /dev/null ; then
-#	WGET_PROXY="http://192.168.0.106:8080"
-#	export http_proxy=$WGET_PROXY
-#	export WGET_PROXY=$WGET_PROXY
-#fi
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -150,65 +156,52 @@ deduce_my_dev() {
 
 
 
-partition_device() {
-	local dev dev_p btstrap
+partition_the_device() {
+	local dev dev_p btstrap splitpoint
 	dev=$1
 	dev_p=$2
 	btstrap=$3
+	splitpoint=$4
 
-#	clear
-	echo -en "Partitioning "$dev"."
+#	echo "partition_the_device($dev, $dev_p, $btstrap, $splitpoint) --- starting"
 	sync;sync;sync; umount $root/{dev/pts,dev,proc,sys,tmp} &> /dev/null || echo -en "."
-	sync;sync;sync; umount "$dev_p"* &> /dev/null || echo -en "."
-	sync;sync;sync; umount "$dev"* &> /dev/null || echo -en "."
-	sync;sync;sync; umount /media/removable/* || echo -en "."
+	sync;sync;sync; umount "$dev_p"* &> /dev/null &> /dev/null  || echo -en "."
+	sync;sync;sync; umount "$dev"* &> /dev/null &> /dev/null  || echo -en "."
+	sync;sync;sync; umount /media/removable/* &> /dev/null  || echo -en "."
 	sync;sync;sync
 	chroot_this $btstrap "parted -s $dev mklabel gpt" || echo "Warning. Parted was removed from ChromeOS recently. You might have to partition your SD card on your PC or Mac."
-	chroot_this $btstrap "cgpt create -z $dev"
-	chroot_this $btstrap "cgpt create $dev"
-	chroot_this $btstrap "cgpt add -i  1 -t kernel -b  8192 -s 32768 -l U-Boot -S 1 -T 5 -P 10 $dev"
-	chroot_this $btstrap "cgpt add -i 12 -t data   -b 40960 -s 32768 -l Script $dev"
-	lastblock=`cgpt show $dev | tail -n3 | grep "Sec GPT table" | tr -s ' ' '\t' | cut -f2`
-	splitpoint=$(($lastblock/2-1200999))
+	chroot_this $btstrap "cgpt create -z $dev" || failed "Failed to create -z $dev"
+	chroot_this $btstrap "cgpt create $dev" || failed "Failed to create $dev"
+	chroot_this $btstrap "cgpt add -i  1 -t kernel -b  8192 -s 32768 -l U-Boot -S 1 -T 5 -P 10 $dev" || failed "Failed to create 1"
+	chroot_this $btstrap "cgpt add -i 12 -t data   -b 40960 -s 32768 -l Script $dev" || failed "Failed to create 12"
+	lastblock=`cgpt show $dev | tail -n3 | grep "Sec GPT table" | tr -s ' ' '\t' | cut -f2` || failed "Failed to calculate lastblock"
 
-	chroot_this $btstrap "cgpt add -i  2 -t data   -b 73728 -s `expr $splitpoint - 73728` -l Kernel $dev"
-	chroot_this $btstrap "cgpt add -i  3 -t data   -b $splitpoint -s `expr $lastblock - $splitpoint` -l Root $dev"
+	if [ "$splitpoint" = "" ] ; then
+		chroot_this $btstrap "cgpt add -i  3 -t data   -b 73728 -s `expr $lastblock - 73728` -l Root $dev" || failed "Failed to create 3"
+	else
+		chroot_this $btstrap "cgpt add -i  3 -t data   -b 73728 -s `expr $splitpoint - 73728` -l Root $dev" || failed "Failed to create 3"
+		chroot_this $btstrap "cgpt add -i  2 -t data   -b $splitpoint -s `expr $lastblock - $splitpoint` -l Kernel $dev" || failed "Failed to create 2"
+	fi
 	chroot_this $btstrap "partprobe $dev"
+	sync;sync;sync
 }
 
 
-
-format_partitions() {
-	local dev dev_p temptxt
-	dev=$1
-	dev_p=$2
-	temptxt=/tmp/$RANDOM$RANDOM$RANDOM
-	echo -en "Formatting partitions"
-	echo -en "."
-	yes | mkfs.ext2 "$dev_p"2 &> $temptxt || failed "Failed to format p2 - `cat $temptxt`"
-	echo -en "."
-	sleep 1; umount "$dev_p"* &> /dev/null || echo -en ""
-	yes | mkfs.ext2 -v "$dev_p"3 &> $temptxt || failed "Failed to format p3 - `cat $temptxt`"
-	echo -en "."
-	sleep 1; umount "$dev_p"* &> /dev/null || echo -en ""
-	mkfs.vfat -F 16 "$dev_p"12 &> $temptxt || failed "Failed to format p12 - `cat $temptxt`"
-	sleep 1; umount "$dev_p"* &> /dev/null || echo -en ""
-	sleep 1
-}
 
 
 
 
 
 install_chrubix() {
-	local root dev rootdev sparedev kerndev distro proxy_string
+	local root dev rootdev hiddendev kerndev distro proxy_string
 	root=$1
 	dev=$2
 	rootdev=$3
-	sparedev=$4
+	hiddendev=$4
 	kerndev=$5
 	distroname=$6
-
+	
+	[ "$SIZELIMIT" != "" ] || failed "Set SIZELIMIT before calling install_chrubix(), please."
 	[ "$WGET_PROXY" != "" ] && proxy_info="export http_proxy=$WGET_PROXY; export ftp_proxy=$WGET_PROXY" || proxy_info=""
 	rm -Rf $root/usr/local/bin/Chrubix $root/usr/local/bin/1hq8O7s
 	wget $CHRUBIX_URL -O - | tar -zx -C $root/usr/local/bin
@@ -221,10 +214,12 @@ install_chrubix() {
 	cat chrubix.sh.orig \
 | sed s/\$dev/\\\/dev\\\/`basename $dev`/ \
 | sed s/\$rootdev/\\\/dev\\\/`basename $rootdev`/ \
-| sed s/\$sparedev/\\\/dev\\\/`basename $sparedev`/ \
+| sed s/\$hiddendev/\\\/dev\\\/`basename $hiddendev`/ \
 | sed s/\$kerndev/\\\/dev\\\/`basename $kerndev`/ \
 | sed s/\$distroname/$distroname/ \
-> chrubix.sh
+| sed s/\$splitpoint/$(($SPLITPOINT*512))/ \
+| sed s/\$sizelimit/$SIZELIMIT/ \
+> chrubix.sh || failed "Failed to rejig chrubix.sh.orig"
 	cd /
 }
 
@@ -235,7 +230,6 @@ restore_stage_X_from_backup() {
 	distroname=$1
 	fname=$2
 	root=$3
-#	clear
 	echo "Using $distroname midpoint file $fname"
 	pv $fname | tar -Jx -C $root || failed "Failed to unzip $fname --- J err?"
 	echo "Restored ($distroname, stage X) from $fname"
@@ -364,14 +358,14 @@ sign_and_write_custom_kernel() {
 	dd if=/dev/zero of=$writehere bs=1k 2> /dev/null || echo -en "..."
 	echo "$extra_params_A $extra_params_B" | grep crypt &> /dev/null && readwrite=ro || readwrite=rw # TODO Shouldn't it be rw always?
 	echo "console=tty1  $extra_params_A root=$rootdev rootwait $readwrite quiet systemd.show_status=0 loglevel=$LOGLEVEL lsm.module_locking=0 init=/sbin/init $extra_params_B" > $old_btstrap/tmp/kernel.flags
-	tar -cJ /usr/share/vboot | tar -Jx -C $old_btstrap
+	tar -cJ /usr/share/vboot 2> /dev/null | tar -Jx -C $old_btstrap
 	cp -f $vmlinux_path $old_btstrap/tmp/vmlinux.file	
 	chroot_this $old_btstrap "vbutil_kernel --pack /tmp/vmlinuz.signed --keyblock /usr/share/vboot/devkeys/kernel.keyblock --version 1 \
 --signprivate /usr/share/vboot/devkeys/kernel_data_key.vbprivk --config /tmp/kernel.flags \
 --vmlinuz /tmp/vmlinux.file --arch arm &&" || failed "Failed to sign kernel"
 	sync;sync;sync;sleep 1
 	dd if=$old_btstrap/tmp/vmlinuz.signed of=$writehere &> /dev/null && echo -en "..." || failed "Failed to write kernel to $writehere"
-	echo "OK."
+	echo -en "OK. Signed & written kernel. "
 }
 
 
@@ -392,7 +386,8 @@ grab_sqfs_kernel_and_install_it() {
 		rebuild_and_install_kernel___oh_crap_this_might_take_a_while $distroname $root/.squashfs.sqfs $dev_p
 	else
 		[ -e "$kernelpath" ] || wget $FINALS_URL/$distroname/$distroname.kernel -O - > $kernelpath
-		sign_and_write_custom_kernel $root "$dev_p"1 "$dev_p"3 $kernelpath "" ""  || failed "Failed to sign/write custom kernel"
+			# hiddendev instead of rootdev?
+		sign_and_write_custom_kernel $root $ubootdev $rootdev $kernelpath "" ""  || failed "Failed to sign/write custom kernel"
 	fi
 }
 
@@ -470,6 +465,22 @@ prep_shenanigans_folder() {
 }
 
 
+unmount_bootstrap_stuff() {
+	for btstrap in $1 /tmp/_root.mmcblk1/.bootstrap /home/chronos/user/Downloads/.bootstrap ; do	
+		umount $btstrap/tmp/_root/{dev,tmp,proc,sys} 2> /dev/null || echo -en ""
+		umount $btstrap/tmp/posterity 2> /dev/null || echo -en ""
+		umount $btstrap/tmp/_root/{dev,tmp,proc,sys} 2> /dev/null || echo -en ""
+		umount $btstrap/tmp/posterity 2> /dev/null || echo -en ""
+		umount $btstrap/tmp/_root 2> /dev/null || echo -en ""
+		umount $btstrap/{dev,tmp,proc,sys} 2> /dev/null || echo -en ""
+		umount $btstrap/tmp/_root/{tmp,proc,sys,dev} 2> /dev/null || echo -en ""
+		umount /tmp/_root*/.ro /tmp/_root.*/.* 2> /dev/null || echo -en ""
+		umount $btstrap/{tmp,proc,sys,dev} 2> /dev/null || echo -en ""
+	done
+}
+
+
+
 unmount_shenanigans() {
 	local f q
 	for q in 1 2 3 ; do
@@ -504,7 +515,7 @@ make_sure_mkfs_code_was_successfully_modified() {
 
 
 rebuild_and_install_kernel___oh_crap_this_might_take_a_while() {
-	local distroname sqfs_file dev_p url squrl buildloc our_master_folder dev f i g  fspath subpath pristine_fname orig_fname
+	local distroname sqfs_file dev_p url squrl buildloc our_master_folder dev f i g fspath subpath pristine_fname orig_fname
 	distroname=$1
 	sqfs_file=$2
 	dev_p=$3
@@ -562,10 +573,11 @@ rebuild_and_install_kernel___oh_crap_this_might_take_a_while() {
 
 	make_sure_mkfs_code_was_successfully_modified $our_master_folder/tmp/_root$SOURCES_BASEDIR 
 	echo -en "Rebuilding kernel and writing it to $dev ..."
-	chroot_this $our_master_folder "/usr/local/bin/redo_mbr.sh $dev /tmp/_root $dev_p"3	&> /tmp/_oh_croo.txt || failed "`cat /tmp/_oh_croo.txt` --- Failed to make and install new kernel + boot loader."
+			# hiddendev instead of rootdev?
+	chroot_this $our_master_folder "/usr/local/bin/redo_mbr.sh $dev /tmp/_root $rootdev" &> /tmp/_oh_croo.txt || failed "`cat /tmp/_oh_croo.txt` --- Failed to make and install new kernel + boot loader."
 # Save PKGBUILDs, in case the user wants to permanize the OS later
 	cd $our_master_folder/tmp/_root$RYO_TEMPDIR
-	echo "Saving modified source code, just in case you need it later."
+	echo -en "Saving modified source code, just in case you need it later..."
 	
 	cd $our_master_folder/tmp/_root$RYO_TEMPDIR
 	tar -c `find PKGBUILDs -cnewer meee -type f` | xz > $g/.PKGBUILDs.additional.tar.xz
@@ -581,13 +593,15 @@ rebuild_and_install_kernel___oh_crap_this_might_take_a_while() {
 		echo "Waiting for cp PKGBUILDs to finish."
 		sleep 1
 	done
+	
 # our_master_folder/tmp/_root
 	[ -e "$g/.PKGBUILDs.tar.xz" ] || failed "Unable to find $our_master_folder/tmp/_root/.PKGBUILDs.tar.xz :-( The mower slipped."
 # our_master_folder/tmp/_root
 	[ -e "$g/.PKGBUILDs.additional.tar.xz" ] || failed "Unable to find $our_master_folder/tmp/_root/.PKGBUILDs.additional.tar.xz :-( I don't know how."
 	tar -cz /usr/bin/vbutil* /usr/bin/futility > $g/.vbtools.tgz 2>/dev/null || failed "Failed to save vbutil*"
 	tar -cz /usr/share/vboot > $g/.vbkeys.tgz 2> /dev/null || failed "Failed to save your keys" #### MAKE SURE CHRUBIX HAS ACCESS TO Y-O-U-R KEYS and YOUR vbutil* binaries ####
-	tar -cz /lib/firmware > $g/.firmware.tgz 2>/dev/null || fialed "Failed to save firmware"
+	tar -cz /lib/firmware > $g/.firmware.tgz 2>/dev/null || failed "Failed to save firmware"
+
 # Done... :)
 	echo "Done. Groovy."
 	make_sure_mkfs_code_was_successfully_modified $our_master_folder/tmp/_root$SOURCES_BASEDIR 
@@ -683,6 +697,254 @@ call_chrubix() {
 
 
 
+delete_p2_and_resize_p3() {
+	local dev btstrap cgpt_output
+	dev=$1
+	btstrap=$2
+	cgpt_output=/tmp/my_cgpt_output.txt
+
+	chroot_this $btstrap "cgpt show $dev" > $cgpt_output
+	end_of_real_p2=`cat   $cgpt_output | tr -s '\t' ' ' | grep Label | fgrep " 2 " | cut -d' ' -f3`
+	start_of_real_p2=`cat $cgpt_output | tr -s '\t' ' ' | grep Label | fgrep " 2 " | cut -d' ' -f2`
+	start_of_real_p3=`cat $cgpt_output | tr -s '\t' ' ' | grep Label | fgrep " 3 " | cut -d' ' -f2`
+	echo "p3 starts at $start_of_real_p3"
+	echo "p2 ends   at $end_of_real_p2"
+	chroot_this $btstrap "echo -en \"p\\nrm 2\\nresize 3 $start_of_real_p3 $end_of_real_p2\\nq\\n\"" # | parted /dev/mmcblk1"
+	return 0
+}
+
+
+
+save_current_partitions_layout() {
+	local dev outstub lastblock
+	dev=$1
+	outstub=$2
+
+	lastblock=`cgpt show $dev | tail -n3 | grep "Sec GPT table" | tr -s ' ' '\t' | cut -f2`
+	dd if=$dev bs=16 count=$((0x9d)) of="$outstub".A.dat 2> /dev/null
+	dd if=$dev skip=$lastblock of="$outstub".B.dat 2>/dev/null
+	cgpt show $dev > "$outstub".cgpt.show.txt
+}
+
+
+restore_partitions_layout() {
+	local dev outstub lastblock
+	dev=$1
+	outstub=$2
+	
+	lastblock=`cgpt show $dev | tail -n3 | grep "Sec GPT table" | tr -s ' ' '\t' | cut -f2`
+	dd if="$outstub".A.dat of=$dev 2> /dev/null
+	dd if="$outstub".B.dat | dd seek=$lastblock of=$dev 2> /dev/null
+	sync;sync;sync
+	chroot_this $btstrap "partprobe $dev"
+}
+
+
+
+save_lots_of_random_files() {
+	local my_partition_device mountpoint
+	my_partition_device=$1
+	mountpoint=/tmp/$RANDOM
+	mkdir -p $mountpoint
+	mount $my_partition_device $mountpoint || failed "Failed to mount $my_partition_device to save lots of random files"
+	echo "Hi there $my_partition_device" > $mountpoint/hithere.txt
+	umount $mountpoint
+	rmdir $mountpoint || failed "Failed to delete $mountpoint after saving random files to $my_partition_device"
+}
+	
+
+
+
+verify_lots_of_random_files() {
+	local my_partition_device mountpoint
+	my_partition_device=$1
+	mountpoint=/tmp/$RANDOM
+	mkdir -p $mountpoint
+	mount $my_partition_device $mountpoint || failed "Failed to mount $my_partition_device to save lots of random files"
+	[ -e $mountpoint/hithere.txt ] || failed "hithere.txt is missing from $my_partition_device" 
+	txt=`cat $mountpoint/hithere.txt`
+	[ "$txt" = "Hi there $my_partition_device" ] || failed "hithere.txt contains $txt and not 'Hi there $my_partition_device'"
+	umount $mountpoint
+	rmdir $mountpoint || failed "Failed to delete $mountpoint after saving random files to $my_partition_device"
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+unmount_absolutely_everything() {
+	echo -en "OK. "
+	echo "$temp_or_perm" > /tmp/temp_or_perm
+	echo "$SECRET_SQUIRREL_KERNEL" > /tmp/secret.squirrel
+	sudo stop powerd 2> /dev/null || echo -en ""
+	umount "$dev"* &> /dev/null || echo -en ""
+	umount /dev/loop1 &> /dev/null || echo -en ""
+	umount /dev/loop2 &> /dev/null || echo -en ""
+	losetup -d /dev/loop1 &> /dev/null || echo -en ""
+	losetup -d /dev/loop2 &> /dev/null || echo -en ""
+	losetup -d /dev/loop3 &> /dev/null || echo -en ""
+	unmount_bootstrap_stuff $btstrap
+	umount "$dev"* &> /dev/null || echo -en ""
+	if mount | grep "$dev" | grep "$root" &> /dev/null ; then
+		umount "$dev"* &> /dev/null || failed "Already partitioned and mounted. Reboot and try again..."
+	fi
+}
+
+
+prep_parted_if_necessary() {
+	if [ ! -e "$btstrap/bin/parted" ] ; then
+		echo -en "Thinking..."
+		umount $btstrap 2> /dev/null || echo -en ""
+		mkdir -p $btstrap
+		losetup -d /dev/loop1 &> /dev/null || echo -en ""
+		dd if=/dev/zero of=/tmp/_alarpy.dat bs=1024k count=500 2> /dev/null
+		losetup /dev/loop1 /tmp/_alarpy.dat
+		mke2fs /dev/loop1 &> /dev/null || failed "Failed to mkfs the temp loop partition"
+		mount /dev/loop1 $btstrap
+		if [ ! -f "/home/chronos/user/Downloads/.bt.tar.xz" ] ; then
+			wget $PARTED_URL -O - > /home/chronos/user/Downloads/.bt.tar.xz || failed "Failed to download/install parted and friends"
+		fi
+	fi
+	tar -Jxf /home/chronos/user/Downloads/.bt.tar.xz -C $btstrap
+}
+
+
+
+
+partition_absolutely_everything() {
+	dd if=/dev/zero of="$dev" bs=32k count=1 2>/dev/null || echo -en ""
+	echo -en "Partitioning"
+	mount devtmpfs  $btstrap/dev -t devtmpfs	|| echo -en ""
+	mount sysfs     $btstrap/sys -t sysfs		|| echo -en ""
+	mount proc      $btstrap/proc -t proc		|| echo -en ""
+	mount tmpfs     $btstrap/tmp -t tmpfs		|| echo -en ""
+	if [ "$hiddendev" = "$HIDDENLOOP" ] ; then
+### ---- SAFE VERSION ---- 
+		partition_the_device $dev $dev_p $btstrap $SPLITPOINT 2> /tmp/ptxt.txt || failed "Failed to partition myself. `cat /tmp/ptxt.txt` .. Ugh. ###3"
+		save_current_partitions_layout $dev /tmp/GPT_THREE
+		chroot_this $btstrap "echo -en \"rm 2\nq\n\" | parted $dev" &> /tmp/ptxt.txt || failed "Failed to delete partition #2 --- `cat /tmp/ptxt.txt`"
+		partition_the_device $dev $dev_p $btstrap ""          2> /tmp/ptxt.txt || failed "Failed to partition myself. `cat /tmp/ptxt.txt` .. Ugh. ###2"
+		save_current_partitions_layout $dev /tmp/GPT_TWO
+
+### ---- DANGEROUS VERSION ----
+#partition_the_device $dev $dev_p $btstrap $SPLITPOINT 2> /tmp/ptxt.txt || failed "Failed to partition myself. `cat /tmp/ptxt.txt` .. Ugh. ###3"
+#echo Y | mkfs -t ext2 "$dev_p"2 &> /dev/null && echo -en "." || failed "Failed to format p2"
+#echo Y | mkfs -t ext2 "$dev_p"3 &> /dev/null && echo -en "." || failed "Failed to format p2"
+#mkdir -p 		/tmp/hidden_p2
+#mount "$dev_p"2 /tmp/hidden_p2 || failed "Failed to mount hidden sausage A"
+#echo "hi $dev $dev_p there" > /tmp/hidden_p2/hi.txt
+#umount			/tmp/hidden_p2
+#rmdir		    /tmp/hidden_p2
+#partition_the_device $dev $dev_p $btstrap ""          2> /tmp/ptxt.txt || failed "Failed to partition myself. `cat /tmp/ptxt.txt` .. Ugh. ###2"
+	else
+		partition_the_device $dev $dev_p $btstrap $SPLITPOINT          2> /tmp/ptxt.txt || failed "Failed to partition myself. `cat /tmp/ptxt.txt` .. Ugh. ###2"
+	fi
+}
+
+
+format_and_mount_root_and_spare() {
+	local peedev cmd
+	echo -en "Formatting"
+	cmd=""
+	for peedev in "$dev_p"2 "$dev_p"3 ; do
+		if [ -e "$peedev" ] ; then
+				# mkfs.vfat -F 32	???
+			echo Y | mkfs -t ext2 $peedev &> /dev/null && echo -en "." || failed "Failed to format $peedev in format_and_mount_root_and_spare()"
+		fi
+	done
+	
+	mkdir -p $root
+	losetup -d $rootdev &>/dev/null || echo -en ""
+	lastblock=`cgpt show $dev | tail -n3 | grep "Sec GPT table" | tr -s ' ' '\t' | cut -f2` || failed "Failed to calculate lastblock"
+	maximum_length=$(($lastblock-$SPLITPOINT-8))
+	SIZELIMIT=$(($maximum_length*512))
+
+	if [ "$hiddendev" = "$HIDDENLOOP" ] ; then	
+		echo -en "\nFormatting hiddendev $hiddendev ..."
+		# We are creating a loopback device that ignores the first 4GB(ish) of /dev/mmcblk1p3.
+		# So, in effect, #HIDDENLOOP is an ersatz /dev/mcblk1p2 .... but it is hiding at the end of p3. :)
+
+		cmd="losetup -o $(($SPLITPOINT*512)) --sizelimit $SIZELIMIT $hiddendev $rootdev"
+		$cmd || failed "Failed to set up $HIDDENLOOP as partition #3's device. GRR. Sausage has not been hidden."
+		echo Y | mkfs -t ext2 $hiddendev &> /dev/null && echo -en "." || failed "Failed to format $hiddendev"
+		mkdir -p /tmp/torpor
+		mount $hiddendev /tmp/torpor		
+		echo "Created on `date`" > /tmp/torpor/.creationdate.txt
+		umount /tmp/torpor
+		echo -en "Done. "
+	fi
+	mount $mount_opts $rootdev $root || failed "Failed to mount hidden sausage B at $root"
+	
+	mkdir -p $btstrap,/tmp/a,$btstrap/{dev,proc,tmp,sys},$root/{dev,proc,tmp,sys}
+	mkdir -p $btstrap/dev $btstrap/sys $btstrap/proc $btstrap/tmp
+	mount devtmpfs  $btstrap/dev -t devtmpfs	|| echo -en ""
+	mount sysfs     $btstrap/sys -t sysfs		|| echo -en ""
+	mount proc      $btstrap/proc -t proc		|| echo -en ""
+	mount tmpfs     $btstrap/tmp -t tmpfs		|| echo -en ""
+
+	mkdir -p $btstrap/tmp/_root
+	mount $mount_opts $rootdev $btstrap/tmp/_root || failed "Failed to mount hidden sausage C at $btstrap/tmp/_root"
+	mkdir -p $btstrap/tmp/_root/{dev,proc,tmp,sys}
+	
+	mount devtmpfs $btstrap/tmp/_root/dev -t devtmpfs	|| echo -en ""
+	mount tmpfs $btstrap/tmp/_root/tmp -t tmpfs			|| echo -en ""
+	mount proc $btstrap/tmp/_root/proc -t proc			|| echo -en ""
+	mount sys $btstrap/tmp/_root/sys -t sysfs			|| echo -en ""
+	echo "$cmd" > $root/.losetup
+	chmod +x $root/.losetup || echo -en ""
+}
+
+
+actually_install_chrubix_yall() {
+	sudo crossystem dev_boot_usb=1 dev_boot_signed_only=0 || echo "WARNING - failed to configure USB and MMC to be bootable"	# dev_boot_signed_only=0
+	if [ "$temp_or_perm" = "temp" ] && restore_from_squash_fs_backup_if_possible ; then
+		echo "Restored from squashfs. Good."
+	else
+		echo "OK. For whatever reason, we aren't using squashfs. Fine."
+		if restore_from_stage_X_backup_if_possible ; then
+			echo "Restored from stage X. Good."
+		else
+			echo "OK. Starting from beginning..."
+			oh_well_start_from_beginning
+		fi
+		install_chrubix $btstrap $dev $rootdev $hiddendev $kerneldev $distroname		# might have to swap p2 and p3 ;) [hidden sausage]
+		call_chrubix $btstrap || failed "call_chrubix() returned an error. Failing."
+	fi
+}
+
+
+post_install_cleanup() {
+	sudo start powerd || echo -en ""
+	echo -en "$distroname has been installed on $dev\nPress <Enter> to reboot. Then, press <Ctrl>U to boot into Linux."
+	read line
+	
+	sync; umount $old_btstrap/{dev,sys,proc,tmp} 2> /dev/null || echo -en ""
+	losetup -d /dev/loop1 &> /dev/null || echo -en ""
+	unmount_bootstrap_stuff $btstrap
+	
+	
+	unmount_everything       $root $boot $kern $dev_p || echo -en ""
+	
+	umount "$dev_p"* 2> /dev/null || echo -en ""
+	
+	echo "Done."
+	sync;sync;sync
+	sudo reboot
+}
+
+
+
 ##################################################################################################################################
 
 
@@ -699,136 +961,33 @@ call_chrubix() {
 
 
 
-
-set -e
-mount | grep /dev/mapper/encstateful &> /dev/null || failed "Run me from within ChromeOS, please."
 btstrap=/home/chronos/user/Downloads/.bootstrap
-mydevbyid=`deduce_my_dev`
-[ "$mydevbyid" = "" ] && failed "I am unable to figure out which device you want me to prep. Sorry..."
-[ -e "$mydevbyid" ] || failed "Please insert a thumb drive or SD card and try again. Please DO NOT INSERT your keychain thumb drive."
-dev=`deduce_dev_name $mydevbyid`
-dev_p=`deduce_dev_stamen $dev`
 fstab_opts="defaults,noatime,nodiratime" #commit=100
 mount_opts="-o $fstab_opts"
+temp_or_perm=temp
+mydevbyid=`deduce_my_dev`
+dev=`deduce_dev_name $mydevbyid`
+dev_p=`deduce_dev_stamen $dev`
+lockfile=/tmp/.chrubix.distro.`basename $dev`
+ubootdev="$dev_p"1
+rootdev="$dev_p"3
+kerneldev="$dev_p"12
+hiddendev=$HIDDENLOOP		# "$dev_p"2 or $HIDDENLOOP
 root=/tmp/_root.`basename $dev`		# Don't monkey with this...
 boot=/tmp/_boot.`basename $dev`		# ...or this...
 kern=/tmp/_kern.`basename $dev`		# ...or this!
-lockfile=/tmp/.chrubix.distro.`basename $dev`
-temp_or_perm=temp
-
+[ "$mydevbyid" = "" ] && failed "I am unable to figure out which device you want me to prep. Sorry..."
+[ -e "$mydevbyid" ] || failed "Please insert a thumb drive or SD card and try again. Please DO NOT INSERT your keychain thumb drive."
 get_distro_type_the_user_wants
 ask_if_secret_squirrel	 # SECRET_SQUIRREL_KERNEL="on"
-
-echo -en "OK. "
-echo "$temp_or_perm" > /tmp/temp_or_perm
-echo "$SECRET_SQUIRREL_KERNEL" > /tmp/secret.squirrel
-sudo stop powerd || echo -en ""
-for btstrap in /tmp/_root.mmcblk1/.bootstrap /home/chronos/user/Downloads/.bootstrap ; do	
-	umount $btstrap/tmp/_root/{dev,tmp,proc,sys} 2> /dev/null || echo -en ""
-	umount $btstrap/tmp/posterity 2> /dev/null || echo -en ""
-	umount $btstrap/tmp/_root/{dev,tmp,proc,sys} 2> /dev/null || echo -en ""
-	umount $btstrap/tmp/posterity 2> /dev/null || echo -en ""
-	umount $btstrap/tmp/_root 2> /dev/null || echo -en ""
-	umount $btstrap/{dev,tmp,proc,sys} 2> /dev/null || echo -en ""
-	umount /tmp/_root*/.ro /tmp/_root.*/.* 2> /dev/null || echo -en ""
-done
-
-if mount | grep "$dev" | grep "$root" &> /dev/null ; then
-	umount "$dev"* &> /dev/null || failed "Already partitioned and mounted. Reboot and try again..."
-fi
-
-if [ ! -e "$btstrap/bin/parted" ] ; then
-	umount $btstrap 2> /dev/null || echo -en ""
-	mkdir -p $btstrap
-	losetup -d /dev/loop1 2> /dev/null || echo -en ""
-	dd if=/dev/zero of=/tmp/_alarpy.dat bs=1024k count=500 2> /dev/null
-	losetup /dev/loop1 /tmp/_alarpy.dat
-	mke2fs /dev/loop1 &> /dev/null || failed "Failed to mkfs the temp loop partition"
-	mount /dev/loop1 $btstrap
-	if [ ! -f "/home/chronos/user/Downloads/.bt.tar.xz" ] ; then
-		wget $PARTED_URL -O - > /home/chronos/user/Downloads/.bt.tar.xz || failed "Failed to download/install parted and friends"
-	fi
-fi
-tar -Jxf /home/chronos/user/Downloads/.bt.tar.xz -C $btstrap
-
-echo -en "Partitioning"
-mount devtmpfs  $btstrap/dev -t devtmpfs	|| echo -en ""
-mount sysfs     $btstrap/sys -t sysfs		|| echo -en ""
-mount proc      $btstrap/proc -t proc		|| echo -en ""
-mount tmpfs     $btstrap/tmp -t tmpfs		|| echo -en ""
-
-echo -en "..."
-umount /dev/mmcblk1* &> /dev/null || echo -en ""
-if ! partition_device $dev $dev_p $btstrap &> /tmp/partitioning_stuff.txt ; then
-	cat /tmp/partitioning_stuff.txt
-	failed "Failed to partition $dev"
-fi
-format_partitions $dev $dev_p $btstrap || failed "Failed to format $dev"
-echo "Done."
+unmount_absolutely_everything
+prep_parted_if_necessary
+partition_absolutely_everything
 
 old_btstrap=$btstrap
 btstrap=$root/.bootstrap
 
-mkdir -p $root
-mount $mount_opts "$dev_p"3  $root
-mkdir -p $btstrap
-mkdir -p /tmp/a
-
-mkdir -p $btstrap/{dev,proc,tmp,sys}
-mkdir -p $root/{dev,proc,tmp,sys}
-
-mount devtmpfs  $btstrap/dev -t devtmpfs	|| echo -en ""
-mount sysfs     $btstrap/sys -t sysfs		|| echo -en ""
-mount proc      $btstrap/proc -t proc		|| echo -en ""
-mount tmpfs     $btstrap/tmp -t tmpfs		|| echo -en ""
-
-mkdir -p $btstrap/tmp/_root
-mount -o noatime "$dev_p"3 $btstrap/tmp/_root		|| echo -en ""
-
-mount devtmpfs $btstrap/tmp/_root/dev -t devtmpfs	|| echo -en ""
-mount tmpfs $btstrap/tmp/_root/tmp -t tmpfs			|| echo -en ""
-mount proc $btstrap/tmp/_root/proc -t proc			|| echo -en ""
-mount sys $btstrap/tmp/_root/sys -t sysfs			|| echo -en ""
-
-sudo crossystem dev_boot_usb=1 dev_boot_signed_only=0 || echo "WARNING - failed to configure USB and MMC to be bootable"	# dev_boot_signed_only=0
-
-if [ "$temp_or_perm" = "temp" ] && restore_from_squash_fs_backup_if_possible ; then
-	echo "Restored from squashfs. Good."
-else
-	echo "OK. For whatever reason, we aren't using squashfs. Fine."
-	if restore_from_stage_X_backup_if_possible ; then
-		echo "Restored from stage X. Good."
-	else
-		clear
-		echo "OK. Starting from beginning."
-		oh_well_start_from_beginning
-	fi
-	install_chrubix $btstrap $dev "$dev_p"3 "$dev_p"2 "$dev_p"1 $distroname
-	call_chrubix $btstrap || failed "call_chrubix() returned an error. Failing."
-fi
-
-sudo start powerd || echo -en ""
-dd if=/dev/zero of="$dev_p"2 bs=1024k count=1 2> /dev/null
-
-echo ":-)"
-
-echo -en "$distroname has been installed on $dev\nPress <Enter> to reboot. Then, press <Ctrl>U to boot into Linux."
-read line
-
-sync; umount $old_btstrap/{dev,sys,proc,tmp} 2> /dev/null || echo -en ""
-losetup -d /dev/loop1 2> /dev/null || echo -en ""
-sync; umount $btstrap/tmp/_root/{tmp,proc,sys,dev} 2> /dev/null || echo -en ""
-sync; umount $btstrap/tmp/_root/{tmp,proc,sys,dev} 2> /dev/null || echo -en ""
-sync; umount $btstrap/{tmp,proc,sys,dev} 2> /dev/null || echo -en ""
-sync; umount $btstrap/{tmp,proc,sys,dev} 2> /dev/null || echo -en ""
-unmount_everything       $root $boot $kern $dev_p || echo -en ""
-
-# Wipe spare partition completely. That way, we can reformat it later & put super secret squirrel stuff on it if we want.
-umount "$dev_p"* 2> /dev/null || echo -en ""
-dd if=/dev/zero of="$dev_p"2 bs=1024k count=1 2> /dev/null || echo -en ""
-
-echo "Done."
-sync;sync;sync
-
-sudo reboot
+format_and_mount_root_and_spare
+actually_install_chrubix_yall
+post_install_cleanup
 exit 0
