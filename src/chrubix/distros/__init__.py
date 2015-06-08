@@ -300,7 +300,7 @@ make' % ( self.sources_basedir ), title_str = self.title_str, status_lst = self.
             logme( 'WARNING - no boom password hash' )
         write_oneliner_file( chroot_here + self.boom_pw_hash_fname, '' if self.boom_pw_hash is None else self.boom_pw_hash )
         system_or_die( 'tar -zxf /tmp/.vbkeys.tgz -C %s' % ( chroot_here ), title_str = self.title_str, status_lst = self.status_lst )
-        chroot_this( chroot_here, 'busybox', on_fail = 'You are using the bad busybox.' , title_str = self.title_str, status_lst = self.status_lst )
+        chroot_this( chroot_here, 'busybox 2> /dev/null', on_fail = 'You are using the bad busybox.' , title_str = self.title_str, status_lst = self.status_lst, attempts = 1 )
         system_or_die( 'bash %s/usr/local/bin/redo_mbr.sh %s %s %s' % ( chroot_here,
                                                     self.device, chroot_here, root_partition_device ),
                                                     errtxt = 'Failed to redo kernel & mbr',
@@ -408,7 +408,7 @@ make' % ( self.sources_basedir ), title_str = self.title_str, status_lst = self.
         if apply_kali_and_unionfs_patches:
             patch_kernel( self.mountpoint, self.kernel_src_basedir + '/src/chromeos-3.4', 'http://patches.aircrack-ng.org/mac80211.compat08082009.wl_frag+ack_v1.patch' )
             patch_kernel( self.mountpoint, self.kernel_src_basedir + '/src/chromeos-3.4', 'http://download.filesystems.org/unionfs/unionfs-2.x/unionfs-2.5.13_for_3.4.84.diff.gz' )
-        self.update_status( '...patched' )
+        self.update_status( '...patched. ' )
         self.call_bash_script_that_modifies_kernel_n_mkfs_sources()
         self.update_status( '...customized. ' )
         assert( 0 == os.system( 'cat %s%s/config | grep UNION_FS' % ( self.mountpoint, self.kernel_src_basedir ) ) )
@@ -463,7 +463,7 @@ make' % ( self.sources_basedir ), title_str = self.title_str, status_lst = self.
 #            failed( 'Rebuild PKGBUILDs to allow for new kernel, please. Oh, and edit 3.8.11 in distros/__init__.py, please.' )
         raw_pkgbuilds_fname = '/tmp/posterity/%s/%s_raw_PKGBUILDs.tar.xz' % ( self.name + ( '' if self.branch is None else self.branch ), self.name + ( '' if self.branch is None else self.branch ) )
         if os.path.exists( raw_pkgbuilds_fname ):
-            self.update_status_with_newline( "Restoring source from raw tarball..." )
+            self.update_status( "Restoring source from raw tarball..." )
             system_or_die( 'rm -Rf %s%s' % ( self.mountpoint, self.ryo_tempdir ) )
             system_or_die( 'mkdir -p %s%s' % ( self.mountpoint, self.ryo_tempdir ) )
             system_or_die( 'tar -Jxf %s -C %s%s' % ( raw_pkgbuilds_fname, self.mountpoint, self.ryo_tempdir ), status_lst = self.status_lst, title_str = self.title_str )
@@ -968,6 +968,7 @@ exit $errors
             pass
         os.system( 'cryptsetup luksClose %s' % ( os.path.basename( self.crypto_rootdev ) ) )
         os.system( 'clear; echo "Press ENTER and reboot.; read line' )
+        failed( 'Reboot now.' )
         os.system( 'sync;sync;sync; reboot' )
 
     def configure_guestmode_prior_to_migration( self ):
@@ -1495,7 +1496,10 @@ WantedBy=multi-user.target
         self.mountpoint = '/tmp/_root'
         system_or_die( 'mkdir -p ' + self.mountpoint, 'Failed to create self.mountpoint ' + self.mountpoint )
         if 0 != os.system( 'mount %s %s 2> /dev/null' % ( self.root_dev, self.mountpoint ) ) :  #        mount_device( self.root_dev, self.mountpoint )
-            logme( 'Warning. Failed to mount %s %s' % ( self.root_dev, self.mountpoint ) )
+            if 0 == os.system( 'mount | fgrep " %s " &> /dev/null' % ( self.mountpoint ) ):
+                logme( 'Cool. %s is already mounted. Yay.' % ( self.root_dev ) )
+            else:
+                logme( 'Warning. Failed to mount %s %s' % ( self.root_dev, self.mountpoint ) )
         first_stage = ( 
                                 self.install_and_mount_barebones_OS,
                                 self.install_locale,
@@ -1543,7 +1547,6 @@ WantedBy=multi-user.target
                                 self.reinstall_chrubix_if_missing,
                                 self.save_for_posterity_if_possible_D )
         fifth_stage = ( # Chrubix ought to have been installed in /tmp/_root/{dest distro} already, by the stage 1 bash script.
-#                                self.abort_here,
                                 self.install_vbutils_and_firmware_from_cbook,  # just in case the new user's tools differ from the original builder's tools
                                 self.squash_OS,
                                 self.unmount_and_clean_up
