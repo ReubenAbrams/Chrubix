@@ -27,7 +27,7 @@ RYO_TEMPDIR=/root/.rmo
 SOURCES_BASEDIR=$RYO_TEMPDIR/PKGBUILDs/core
 LOGLEVEL=2
 TEMP_OR_PERM=temp
-SPLITPOINT=3400998
+SPLITPOINT=3300998	# 1.7GB
 MYDISK_CHR_STUB=/.mydisk
 HIDDENLOOP=/dev/loop3			# hiddendev uses this (if it is hidden) :)
 LOOPFS_BTSTRAP=/tmp/_loopfs_bootstrap
@@ -59,6 +59,14 @@ mount | grep /dev/mapper/encstateful &> /dev/null || failed "Run me from within 
 failed() {
 	echo "$1" >> /dev/stderr
 	exit 1
+}
+
+
+pause_then_reboot() {
+	sudo start powerd || echo -en ""
+	echo -en "$distroname has been installed on $DEV\nPress <Enter> to reboot. Then, press <Ctrl>U to boot into Linux."
+	read line
+	sudo reboot
 }
 
 
@@ -296,13 +304,16 @@ Type 'sudo chroot $MINIDISTRO_CHROOT' and then 'chrubix.sh' to retry."
 
 
 partition_the_device() {
-	local dev dev_p btstrap splitpoint
+	local dev dev_p btstrap splitpoint only_two_partitions
 	dev=$1
 	dev_p=$2
 	btstrap=$3
 	splitpoint=$4
+	only_two_partitions=$5
 
-#	echo "partition_the_device($dev, $dev_p, $btstrap, $splitpoint) --- starting"
+	mount | fgrep "$DEV" && failed "partition_my_disk() --- stuff from $DEV is already mounted. Abort!" || echo -en ""
+	echo -en "Partitioning"
+
 	sync;sync;sync; umount $root/{dev/pts,dev,proc,sys,tmp} &> /dev/null || echo -en "."
 	sync;sync;sync; umount "$dev_p"* &> /dev/null &> /dev/null  || echo -en "."
 	sync;sync;sync; umount "$dev"* &> /dev/null &> /dev/null  || echo -en "."
@@ -318,6 +329,8 @@ partition_the_device() {
 
 	if [ "$splitpoint" = "" ] ; then
 		chroot_this $btstrap "cgpt add -i  2 -t data   -b 73728 -s `expr $lastblock - 73728` -l Root $dev" || failed "Failed to create 3"
+	elif [ "$only_two_partitions" = "yes" ] ; then
+		chroot_this $btstrap "cgpt add -i  2 -t data   -b 73728 -s `expr $splitpoint - 73728` -l Root $dev" || failed "Failed to create 3"
 	else
 		chroot_this $btstrap "cgpt add -i  2 -t data   -b 73728 -s `expr $splitpoint - 73728` -l Root $dev" || failed "Failed to create 3"
 		chroot_this $btstrap "cgpt add -i  3 -t data   -b $splitpoint -s `expr $lastblock - $splitpoint` -l Kernel $dev" || failed "Failed to create 2"
@@ -486,23 +499,17 @@ install_parted_chroot() {
 }
 
 
-partition_my_disk() {
-	mount | fgrep "$DEV" && failed "partition_my_disk() --- stuff from $DEV is already mounted. Abort!" || echo -en ""
-	echo -en "Partitioning"
-	partition_the_device $DEV $DEV_P $PARTED_CHROOT $SPLITPOINT 2> /tmp/ptxt.txt || failed "Failed to partition myself. `cat /tmp/ptxt.txt` .. Ugh. ###3"
-	save_current_partitions_layout $DEV /tmp/GPT_THREE
-}
-
 
 format_my_disk() {
 	local temptxt=/tmp/.temp.txt
 	echo -en "Formatting"
 	sleep 1; umount "$DEV_P"* &> /dev/null || echo -en ""
-	yes | mkfs.ext4 -v $VFATDEV &> $temptxt || failed "Failed to format p2 - `cat $temptxt`"
-#	mkfs.vfat -F 16 $VFATDEV &> $temptxt || failed "Failed to format p2 - `cat $temptxt`"
+	yes | mkfs.ext4 -v $VFATDEV &> $temptxt || failed "Failed to format p2 - `cat $temptxt`"		# FIXME someday, use vfat instead
 	echo -en "."
 	sleep 1; umount "$DEV_P"* &> /dev/null || echo -en ""
-	yes | mkfs.ext4 -v $ROOTDEV &> $temptxt || failed "Failed to format p3 - `cat $temptxt`"
+	if cgpt show $DEV | tr -s '\t' ' ' | fgrep " 3 Label" &> /dev/null ; then
+		yes | mkfs.ext4 -v $ROOTDEV &> $temptxt || failed "Failed to format p3 - `cat $temptxt`"
+	fi
 	echo -en "."
 	sleep 1; umount "$DEV_P"* &> /dev/null || echo -en ""
 	mkfs.vfat -F 16 $KERNELDEV &> $temptxt || failed "Failed to format p12 - `cat $temptxt`"
@@ -512,19 +519,10 @@ format_my_disk() {
 
 mount_my_disk() {
 	mkdir -p $TOP_BTSTRAP $VFAT_MOUNTPOINT
+	mount $VFATDEV $VFAT_MOUNTPOINT || failed "mount_my_disk() -- unable to mount p2"
 	if cgpt show $DEV | tr -s '\t' ' ' | fgrep " 3 Label" &> /dev/null ; then
-		if ! mount $VFATDEV $VFAT_MOUNTPOINT ; then
-			echo "Your MMC is misbehaving. I'll format again..."
-			partition_my_disk
-			format_my_disk
-			if ! mount $VFATDEV $VFAT_MOUNTPOINT ; then		
-				failed "I tried twice. Is something wrong with this MMC?"
-			fi
-		fi
-	else
-		echo "mount_my_disk() - p3 does not exist. Therefore, I'll not mount it."
+		mount $MOUNT_OPTS $ROOTDEV $TOP_BTSTRAP || failed "mount_my_disk() -- unable to mount p3"
 	fi
-	mount $MOUNT_OPTS $ROOTDEV $TOP_BTSTRAP || failed "mount_my_disk() -- failed to mount p2"
 }
 
 
@@ -624,35 +622,78 @@ sign_and_install_kernel() {
 }
 
 
-yes_save_IMG_file_for_posterity() {
-	local img_file last_sector_of_p2 lsop
-	img_file=$1
 
-	echo "yes_save_IMG_file_for_posterity() -- skipping this one for now, for test porpoises."
-	return 0
-	
-	echo "So...."
-	echo "Delete p3 if it exists"
+delete_p3_if_it_exists() {
+	sync;sync;sync
 	if cgpt show $DEV | tr -s '\t' ' ' | fgrep " 3 Label" &> /dev/null ; then
+		echo -en "Deleting p3..."
 		umount $ROOTDEV || echo -en ""
-		mount | fgrep " $ROOTDEV" && failed "yes_save_IMG_file_for_posterity() -- p3 is still mounted!"
+		mount | fgrep " $ROOTDEV" && failed "delete_p3_if_it_exists() -- p3 is still mounted!"
 		if [ ! -e "$PARTED_CHROOT/bin/parted" ] ; then
 			mount_scratch_space_loopback
 			install_parted_chroot
 		fi
-		[ -e "$PARTED_CHROOT/bin/parted" ] || failed "yes_save_IMG_file_for_posterity() -- failed to prep loopback parted thingy"
+		[ -e "$PARTED_CHROOT/bin/parted" ] || failed "delete_p3_if_it_exists() -- failed to prep loopback parted thingy"
 		chroot_this $PARTED_CHROOT "echo -en \"rm 3\\nq\\n\" | parted $DEV" || failed "Failed to delete p3"
+		sync;sync;sync
+		chroot_this $btstrap "partprobe $DEV"
 	fi
-	echo "Get p2's final block #"
-	lsop=`cgpt show $DEV | tr -s '\t' ' ' | fgrep " 2 Label" | cut -d' ' -f3`
-	echo "lsop=$lsop"
-	last_sector_of_p2=`expr $lsop + 73728`
-	echo "last_sector_of_p2=$last_sector_of_p2"
-	echo "Wiping old p3"
-	dd if=/dev/zero of=$DEV seek=$last_sector_of_p2 count=8k &> /dev/null || echo -en "yes_save_IMG_file_for_posterity() -- failed to wipe old p3"
-	echo "Saving image of $DEV ==> $img_file"
-	dd if=$DEV count=$last_sector_of_p2 | gzip -1 > $img_file || failed "yes_save_IMG_file_for_posterity() -- failed to save image $img_file"
+	sync;sync;sync
+}
+
+
+	
+wipe_spare_space_in_partition() {
+	local mtpt=/tmp/koalabear918
+	echo -en "Wiping spare space in $1 ..."
+	mkdir -p $mtpt
+	mount $1 $mtpt
+	dd if=/dev/zero of=$mtpt/zero 2> /dev/null || echo -en ""
+	rm -f $mtpt/zero
+	umount $mtpt
 	echo "Done."
+}
+
+
+yes_save_IMG_file_for_posterity() {
+	local output_imgfile last_sector_of_p2 lsop start length gohere cksumhere
+	output_imgfile=$1
+
+	echo -en "So...."
+	start=`cgpt show $DEV | tr -s '\t' ' ' | fgrep " 2 Label" | cut -d' ' -f2`
+	length=`cgpt show $DEV | tr -s '\t' ' ' | fgrep " 2 Label" | cut -d' ' -f3`
+	cksumhere=$(($start+$length))
+	if [ "$cksumhere" -lt "$SPLITPOINT" ] ; then
+		echo "WARNING --- I think the splitpoint *is* at $cksumhere but it *should be* at $SPLITPOINT"
+		echo "Therefore, I am bumping ckusmhere up and making it equal $SPLITPOINT"
+		cksumhere=$SPLITPOINT
+	fi
+	gohere=$(($cksumhere+1))
+
+	mount | grep "$DEV" && failed "yes_save_output_imgfile_for_posterity() -- please unmount $DEV etc. before proceeding #1"
+	delete_p3_if_it_exists
+	mount | grep "$DEV" && failed "yes_save_output_imgfile_for_posterity() -- please unmount $DEV etc. before proceeding #2"	
+	
+	wipe_spare_space_in_partition $VFATDEV
+	echo "cksumhere = $cksumhere"
+	
+	losetup -d /dev/loop6 &> /dev/null || echo -en ""
+#	dd if=/dev/zero  of=$DEV seek=$cksumhere count=100k &> /dev/null || echo "yes_save_output_imgfile_for_posterity() -- failed to wipe old p3"
+#	dd if=/dev/zero  of=$DEV seek=$cksumhere count=1 2>/dev/null || failed "yes_save_output_imgfile_for_posterity() -- dd 1 failed" 
+#	echo "none" | dd of=$DEV seek=$cksumhere count=1 2>/dev/null || failed "yes_save_output_imgfile_for_posterity() -- dd 2 failed"
+#	losetup /dev/loop6 -o $(($gohere*512)) $DEV
+#	mkdir /tmp/quacky
+#	yes | mkfs.ext4 -v /dev/loop6 &> /dev/null || failed "yes_save_output_imgfile_for_posterity() -- failed to format /dev/loop6"
+#	mount /dev/loop6 /tmp/quacky
+##cryptsetup luksOpen /dev/loop6 hiddensausage
+#	echo "`date` --- hi there from yes_save_output_imgfile_for_posterity()" > /tmp/quacky/.hi.txt
+#	umount /tmp/quacky
+	
+	echo "Saving image of $DEV ==> $output_imgfile"
+	pv $DEV | dd count=$gohere 2> /dev/null | gzip -1 > "$output_imgfile".TEMP || failed "yes_save_output_imgfile_for_posterity() -- failed to save image $output_imgfile"
+	echo -en "Done."
+	mv -f "$output_imgfile".TEMP $output_imgfile
+	echo ""
 }
 
 
@@ -662,25 +703,26 @@ yes_save_IMG_file_for_posterity() {
 #	chroot_this $PARTED_CHROOT "echo -en \"rm 3\nq\n\" | parted $DEV" &> /tmp/ptxt.txt || echo "Warning --- Failed to delete partition #3 --- `cat /tmp/ptxt.txt`"
 
 save_IMG_file_for_posterity_if_possible() {
-	local dirname_of_posterity_thumb_drive_path scratch_var img_file
-	scratch_var=`locate_prefab_file` || scratch_var=""
-	if [ "$scratch_var" != "" ] ; then
-		dirname_of_posterity_thumb_drive_path=`dirname $scratch_var`
-		img_file=$dirname_of_posterity_thumb_drive_path/$DISTRONAME.img.gz
-		yes_save_IMG_file_for_posterity $img_file
+	local dirname_of_posterity_thumb_drive_path img_file
+	dirname_of_posterity_thumb_drive_path=/tmp/pot_img_save_place/
+	mkdir -p $dirname_of_posterity_thumb_drive_path 						|| echo -en ""
+	mount /dev/sda1 $dirname_of_posterity_thumb_drive_path 2> /dev/null 	|| echo -en ""
+	if [ -e "$dirname_of_posterity_thumb_drive_path/$DISTRONAME" ] ; then
+		img_file=$dirname_of_posterity_thumb_drive_path/$DISTRONAME/$DISTRONAME.img.gz
+		yes_save_IMG_file_for_posterity $img_file							|| failed "save_IMG_file_for_posterity_if_possible() -- failed to yes_save_IMG_file_for_posterity. Darn." 
 	fi
+	umount $dirname_of_posterity_thumb_drive_path 2> /dev/null 				|| echo -en ""
 }
 
 
-install_from_the_beginning() {
+install_the_hard_way() {
 	mount_scratch_space_loopback
 	install_parted_chroot
-	partition_my_disk
+	partition_the_device $DEV $DEV_P $PARTED_CHROOT $SPLITPOINT 2> /tmp/ptxt.txt || failed "Failed to partition myself. `cat /tmp/ptxt.txt` .. Ugh. ###3"
 	format_my_disk
 	mount_my_disk
 	[ "$1" = "" ] && install_microdistro || restore_this_prefab $1
 	install_and_call_chrubix
-	save_IMG_file_for_posterity_if_possible
 	sign_and_install_kernel
 	unmount_my_disk &> /dev/null || echo -en ""
 }
@@ -694,16 +736,16 @@ install_from_prefab_img() {
 		wget $prefab_fname_or_url -O - | gunzip -dc > $DEV
 		wget $kernel_fname_or_url -O - > $kernel_fname
 	else
-		pv $prefab_fname_or_url | gunzip -dc > $DEV || failed "Failed to save $prefab_fname_or_url --- K err?"
+		pv $prefab_fname_or_url | gunzip -dc > $DEV  || failed "Failed to save $prefab_fname_or_url --- K err?"
 		pv $kernel_fname_or_url > $kernel_fname     || failed "Failed to save $kernel_fname_or_url --- L err?"
 	fi
 	
-	if [ ! -e "$PARTED_CHROOT/bin/parted" ] ; then
-		mount_scratch_space_loopback
-		install_parted_chroot
-	fi	
-	chroot_this $PARTED_CHROOT "partprobe $dev"
-	sync;sync;sync
+#	if [ ! -e "$PARTED_CHROOT/bin/parted" ] ; then
+#		mount_scratch_space_loopback
+#		install_parted_chroot
+#	fi	
+#	chroot_this $PARTED_CHROOT "partprobe $dev"
+#	sync;sync;sync
 	
 	if [ ! -e "$VFATDEV" ] ; then
 		mknod $VFATDEV b 179 66 || failed "install_from_prefab_img() -- failed to create p2 node."
@@ -714,6 +756,9 @@ install_from_prefab_img() {
 #	mount_my_disk
 #	sign_and_install_kernel || failed "install_from_prefab_img() -- failed to sign and install kernel"
 #	unmount_my_disk &> /dev/null || echo -en ""
+
+	unmount_absolutely_everything &> /dev/null || echo -en ""
+	pause_then_reboot
 }
 
 
@@ -722,7 +767,9 @@ install_from_prefab_sqfs() {
 	local kernel_fname_or_url=$2
 	mount_scratch_space_loopback
 	install_parted_chroot
-	partition_my_disk
+
+	mount | fgrep "$DEV" && failed "partition_my_disk() --- stuff from $DEV is already mounted. Abort!" || echo -en ""
+	partition_the_device $DEV $DEV_P $PARTED_CHROOT $SPLITPOINT yes 2> /tmp/ptxt.txt || failed "Failed to partition myself. `cat /tmp/ptxt.txt` .. Ugh. ###3"
 	format_my_disk
 	mount_my_disk
 	echo "Restoring from $prefab_fname_or_url and .../`basename $kernel_fname_or_url`"
@@ -733,7 +780,6 @@ install_from_prefab_sqfs() {
 		pv $prefab_fname_or_url  > $VFAT_MOUNTPOINT/.squashfs.sqfs || failed "install_from_prefab_sqfs() -- Failed to save $prefab_fname_or_url --- L err?"
 		cp -f $kernel_fname_or_url $VFAT_MOUNTPOINT/.kernel.dat || failed "install_from_prefab_sqfs() -- Failed to save $kernel_fname_or_url --- L err?"
 	fi
-	save_IMG_file_for_posterity_if_possible
 	sign_and_install_kernel
 	unmount_my_disk &> /dev/null || echo -en ""
 }
@@ -742,7 +788,15 @@ install_from_prefab_sqfs() {
 install_from_prefab_stageX() {
 	[ "$1" = "" ] && failed "install_from_prefab_stageX() --- which prefab file/url?!"
 	echo "Installing prefab stage X ($1)..."
-	install_from_the_beginning $1
+	install_the_hard_way $1
+}
+
+
+install_from_the_beginning() {
+	install_the_hard_way
+	unmount_absolutely_everything &> /dev/null || echo -en ""
+	save_IMG_file_for_posterity_if_possible
+	pause_then_reboot	
 }
 
 
@@ -809,18 +863,20 @@ BOOTMOUNT=/tmp/_boot.`basename $DEV`
 KERNMOUNT=/tmp/_kern.`basename $DEV`
 mkdir -p $ROOTMOUNT $BOOTMOUNT $KERNMOUNT
 
-##DISTRONAME=debianwheezy
-##if [ ! -e "$PARTED_CHROOT/bin/parted" ] ; then
-##	mount_scratch_space_loopback
-##	install_parted_chroot
-##fi
-##[ -e "$PARTED_CHROOT/bin/parted" ] || failed "yes_save_IMG_file_for_posterity() -- failed to prep loopback parted thingy"
-##mkdir -p /tmp/prefab_thumb_drive
-##mount /dev/sda1 /tmp/prefab_thumb_drive || echo -en ""
-##pv /tmp/prefab_thumb_drive/debianwheezy/debianwheezy.kernel > /tmp/.my.kernel.file
-##sign_and_write_custom_kernel $MYDISK_CHROOT $UBOOTDEV $VFATDEV /tmp/.my.kernel.file "" ""  || failed "sign_and_install_kernel() -- failed to sign/write custom kernel"
-##sync;sync;sync
-##exit 0
+
+
+
+
+#DISTRONAME=debianwheezy
+#echo "Unmounting absolutely everything, just in case."
+#unmount_absolutely_everything &> /dev/null || echo -en ""
+#echo "Saving IMG file for infernal test porpoises"
+#save_IMG_file_for_posterity_if_possible
+#exit 0
+
+
+
+
 
 # FYI...
 # $DEV 		is typically /dev/mmcblk1
@@ -836,9 +892,5 @@ unmount_absolutely_everything &> /dev/null || echo -en ""
 get_distro_type_the_user_wants		# sets $DISTRONAME
 prefab_fname=`locate_prefab_file` || prefab_fname=""		# img, sqfs, _D, _C, ...; check Dropbox and local thumb drive
 [ "$prefab_fname" = "" ] && install_from_the_beginning || install_from_prefab $prefab_fname
-sudo start powerd || echo -en ""
-echo -en "$distroname has been installed on $DEV\nPress <Enter> to reboot. Then, press <Ctrl>U to boot into Linux."
-read line
-sudo reboot
-echo "End of line. :-)"
-exit 0
+echo "YOU SHOULD NOT REACH THIS LINE"
+exit 1

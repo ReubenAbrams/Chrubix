@@ -29,7 +29,7 @@ class Distro():
     '''
     '''
     # Class-level consts
-    hewwo = '2015/06/10 @ 15:00'
+    hewwo = '2015/06/12 @ 16:30'
     crypto_rootdev = "/dev/mapper/cryptroot"
     crypto_homedev = "/dev/mapper/crypthome"
     boot_prompt_string = "boot: "
@@ -765,7 +765,11 @@ exit 0
 
     def squash_OS( self ):
         if not os.path.exists( '/usr/local/bin/Chrubix' ): failed( 'Someone deleted Chrubix folder. #15' )
-        self.update_status( 'Squashing OS' )
+        self.update_status( 'Squashing OS...' )
+        if 0 != chroot_this( self.mountpoint, 'which mkfs.xfs' ) \
+        or 0 != chroot_this( self.mountpoint, 'which mkfs.btrfs' ) \
+        or 0 != chroot_this( self.mountpoint, 'which jfs_mkfs' ):
+            failed( 'Some of your mk*fs binaries are missing. WTF? Cannot squash if incomplete!' )
         if not os.path.exists( '%s%s/src/chromeos-3.4/arch/arm/boot/vmlinux.uimg' % ( self.mountpoint, self.kernel_src_basedir ) ):
             system_or_die( 'cp -f /tmp/.vmlinuz.uimg %s%s/src/chromeos-3.4/arch/arm/boot/vmlinux.uimg' % ( self.mountpoint, self.kernel_src_basedir ) )
         for f in ( '/etc/lxdm/lxdm.conf', self.kernel_src_basedir + '/src/chromeos-3.4/arch/arm/boot/vmlinux.uimg',
@@ -1220,9 +1224,9 @@ exit $?
                 system_or_die( 'cp -f %s/.squashfs.sqfs /tmp/posterity/%s/%s.sqfs' % ( self.mountpoint, self.name + ( '' if self.branch is None else self.branch ), self.name + ( '' if self.branch is None else self.branch ) ) )
                 system_or_die( 'cp -f %s%s/src/chromeos-3.4/arch/arm/boot/vmlinux.uimg /tmp/posterity/%s/%s.kernel' % ( self.mountpoint, self.kernel_src_basedir, self.name + ( '' if self.branch is None else self.branch ), self.name + ( '' if self.branch is None else self.branch ) ) )
                 os.system( 'sync;sync;sync' )
-                self.update_status( '...backed up. Creating IMG file...' )
-#                create_IMG_file_for_posterity( self.device, self.spare_dev, self.mountpoint, '/tmp/posterity/%s.img.gz' % ( self.name + ( '' if self.branch is None else self.branch ) ) )
+                self.update_status( '...backed up.' )
                 system_or_die( 'umount /tmp/posterity &> /dev/null' )
+        system_or_die( 'cp -f %s%s/src/chromeos-3.4/arch/arm/boot/vmlinux.uimg %s/.kernel.dat' % ( self.mountpoint, self.kernel_src_basedir, self.mountpoint ) )
         assert( os.path.exists( '%s/.squashfs.sqfs' % ( self.mountpoint ) ) )
 
     def download_kernel_source( self ):  # This also downloads all the other PKGBUILDs (for btrfs-progs, jfsutils, etc.)
@@ -1517,10 +1521,11 @@ WantedBy=multi-user.target
                                 self.reinstall_chrubix_if_missing,
                                 self.save_for_posterity_if_possible_D )
         fifth_stage = ( # Chrubix ought to have been installed in MYDISK_MTPT/{dest distro} already, by the stage 1 bash script.
+                                self.reinstall_chrubix_if_missing,  # fixes permissions too, especially /usr/local/bin/Chrubix/src/*
                                 self.install_vbutils_and_firmware_from_cbook,  # just in case the new user's tools differ from the original builder's tools
-#                                self.call_bash_script_that_modifies_kernel_n_mkfs_sources,
-#                                self.build_kernel_and_mkfs,
-#                                self.install_kernel_and_mkfs,
+                                self.call_bash_script_that_modifies_kernel_n_mkfs_sources,
+                                self.build_kernel_and_mkfs,
+                                self.install_kernel_and_mkfs,
                                 self.squash_OS,
                                 self.unmount_and_clean_up
                                 )
