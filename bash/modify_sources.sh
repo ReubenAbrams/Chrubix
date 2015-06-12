@@ -93,13 +93,70 @@ modify_mkfs_n_kernel() {
 	
 	echo -en "Building a temporary prefab initramfs..."
 	mkdir -p $root/lib/modules
-	[ -e "$root/lib/modules/3.4.0-ARCH" ] || cp -af /lib/modules/3.4.0-ARCH $root/lib/modules/
+	[ -e "$root/lib/modules/3.4.0-ARCH" ] || cp -af /lib/modules/3.4.0-ARCH $root/lib/modules/	
 	make_initramfs_saralee $root "" &> $tmpfile || failed "Failed to make prefab initramfs -- `cat $tmpfile`"
 }
 
 
 
 
+	
+do_my_replacement_thang() {
+	local fname needle="$1" haystack="$2" replacement="$3"
+	for fname in $haystack ; do
+		echo "modify_cryptsetup() -- modifying $fname"
+		[ -e "$fname.orig" ] || mv $fname $fname.orig
+		if ! cat $fname.orig | sed s/$needle/$replacement/ > $fname ; then
+			rm -f $fname
+			failed "modify_cryptsetup() -- failed to sed s/$needle/$replacement/"
+		fi
+	done
+}	
+
+
+
+modify_cryptsetup() {
+	local root boot kern dev dev_p fstype petname serialno haystack tmpfile linepos relfname fname aaa bbb ccc ddd needle1 needle2 replacement1 replacement2 fname f2
+	root=$1
+	boot=$2
+	kern=$3
+	dev=$4
+	dev_p=$5
+	petname=$6
+
+	cd $root$SOURCES_BASEDIR/cryptsetup/cryptsetup-* # || failed "modify_cryptsetup() -- failed to change directory to $SOURCES_BASEDIR/cryptsetup/cryptsetup-*"
+	for fname in `find . | grep "\.orig"` ; do
+		f2=`echo "$fname" | sed s/\.orig//`
+		cp -f $fname $f2 && echo "Restored $fname to $f2" || echo "Unable to restore $fname"
+	done
+
+	tmpfile=/tmp/$RANDOM$RANDOM$RANDOM
+	serialno=$petname    # `get_dev_serialno $dev`
+	echo "modify_cryptsetup() ---- dev=$dev --- serialno=$serialno"
+	aaa=`echo "$tmpfile" | awk '{print substr($0, length($0)-5, 1)}'`
+	bbb=`echo "$tmpfile" | awk '{print substr($0, length($0)-4, 1)}'`
+	ccc=`echo "$tmpfile" | awk '{print substr($0, length($0)-3, 1)}'`
+	ddd=`echo "$tmpfile" | awk '{print substr($0, length($0)-2, 1)}'`
+
+	needle1="'L','U','K','S'"
+	replacement1="'$aaa','$bbb','$ccc','$ddd'"
+	haystack1=`fgrep -r "$needle1" * | grep "\.[c,h]:" | cut -d':' -f1` || failed "Failed to calculate haystack 1"
+
+	needle2="\"LUKS1\""
+	replacement2="\"$bbb$ddd$aaa$ccc\""
+	haystack2=`fgrep -r "$needle2" * | grep "\.[c,h]:" | cut -d':' -f1` || failed "Failed to calculate haystack 2"
+
+	echo "modify_cryptsetup() --- needle1=$needle1; replacement1=$replacement1; haystack1=$haystack1"
+	echo "modify_cryptsetup() --- needle2=$needle2; replacement2=$replacement2; haystack2=$haystack2"
+	echo "hiiii"
+	
+	do_my_replacement_thang "$needle1" "$haystack1" "$replacement1"
+	do_my_replacement_thang "$needle2" "$haystack2" "$replacement2"
+	
+	rm -f /lib/libcryptsetup* /lib/*/libcryptsetup* /lib/*/*/libcryptsetup* || echo -en ""
+	chroot_this $root "cd $SOURCES_BASEDIR/cryptsetup/cryptsetup-* && make && make install" || failed "modify_cryptsetup() -- failed to make & make install"
+	
+}
 
 
 
@@ -409,6 +466,7 @@ modify_kernel_config_file() {
 | sed s/XFS_FS=m/XFS_FS=y/ \
 | sed s/JFS_FS=m/JFS_FS=y/ \
 | sed s/FAT_FS=m/FAT_FS=y/ \
+| sed s/DOS_FS=m/DOS_FS=y/ \
 | sed s/JFFS2_FS=m/JFFS2_FS=y/ \
 | sed s/CONFIG_SQUASHFS=.*/CONFIG_SQUASHFS=y/ \
 | sed s/.*CONFIG_SQUASHFS_XZ.*/CONFIG_SQUASHFS_XZ=y/ \
@@ -710,6 +768,16 @@ restore_to_pristine_state_if_necessary() {
 
 }
 
+test_cryptsetup() {
+	losetup -d /dev/loop6 &> /dev/null || echo -en ""
+	dd if=/dev/zero of=/tmp/datdatdat bs=1024k count=30 2> /dev/null 		|| return 1
+	losetup /dev/loop6 /tmp/datdatdat 										|| return 2
+	chroot_this $root "cryptsetup -v luksFormat /dev/loop6 -c aes-xts-plain -y -s 512 -c aes -s 256 -h sha256"  || return 3
+	chroot_this $root "cryptsetup luksOpen /dev/loop6 crypttest" 								|| return 4
+	chroot_this $root "cryptsetup luksClose crypttest" 											|| return 5
+	losetup -d /dev/loop6 || echo -en ""
+	return 0
+}
 
 # ------------------------------------------------------------------
 
@@ -717,7 +785,7 @@ restore_to_pristine_state_if_necessary() {
 export PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin
 set -e
 if [ "$#" -ne "4" ]; then
-	failed "modify_sources.sh <installdev> <rootmount> <phez> <kthx>     ..... e.g. /dev/mmcblk1 /tmp/_root yes yes"
+	failed "modify_sources.sh <installdev> <rootmount> <phez> <kthx>     ..... e.g. /dev/mmcblk1 /tmp/_root no yes"
 fi
 
 dev=$1
@@ -746,7 +814,11 @@ petname=`dmesg | grep "\[    .*SerialNumber:" | sed s/.*SerialNumber:\ // | tr '
 echo "FYI, petname=$petname; whitelist = `deduce_whitelist $dev`"
 echo "Working..."
 restore_to_pristine_state_if_necessary $root
-modify_mkfs_n_kernel  $root $boot $kern $dev $dev_p $petname 
+modify_mkfs_n_kernel  $root $boot $kern $dev $dev_p $petname
+modify_cryptsetup     $root $boot $kern $dev $dev_p $petname
+#test_cryptsetup || failed "Test cryptsetup FAILED --- $?"
+
+
 res=$?
 echo "Exiting w/ res=$res"
 exit $res

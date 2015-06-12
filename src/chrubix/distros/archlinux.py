@@ -4,7 +4,7 @@
 
 
 from chrubix.distros import Distro
-from chrubix.utils import failed, system_or_die, chroot_this, wget, logme, do_a_sed, \
+from chrubix.utils import system_or_die, chroot_this, wget, logme, do_a_sed, \
                           call_makepkg_or_die, abort_if_make_is_segfaulting
 import os
 
@@ -14,7 +14,7 @@ class ArchlinuxDistro( Distro ):
         super( ArchlinuxDistro, self ).__init__( *args, **kwargs )
         self.name = 'archlinux'
         self.architecture = 'armv7h'
-        self.list_of_mkfs_packages = ( 'btrfs-progs', 'jfsutils', 'xfsprogs' )
+        self.list_of_mkfs_packages = ( 'btrfs-progs', 'jfsutils', 'xfsprogs', 'cryptsetup' )
         assert( self.important_packages not in ( '', None ) )
         self.important_packages += ' \
 jre8-openjdk jdk8-openjdk phonon-qt4-gstreamer xorg-font-util \
@@ -151,6 +151,9 @@ hunspell-en chromium thunderbird windowmaker \
                                 user = 'guest' )
         chroot_this( self.mountpoint, 'chown -R root %s/%s' % ( self.sources_basedir, package_name ) )
         self.update_status_with_newline( '...Built.' )
+
+    def install_i2p( self ):
+        logme( 'install_i2p() --- FYI, i2p was already installed as one of my packages in Phase A. Yay!' )
 
     def configure_distrospecific_tweaks( self ):
         logme( 'ArchlinuxDistro - configure_distrospecific_tweaks() - starting' )

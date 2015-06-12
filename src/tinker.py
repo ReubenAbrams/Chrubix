@@ -14,7 +14,7 @@ from chrubix.distros.debian import generate_mickeymouse_lxdm_patch
 from chrubix.utils.postinst import remove_junk, ask_the_user__guest_mode_or_user_mode__and_create_one_if_necessary
 
 
-
+MYDISK_MTPT = '/.mydisk'
 
 try:
     import urwid
@@ -55,7 +55,7 @@ elif argv[2] == 'build-a-bunch':
            'ubuntu':( 'lzop', )}
                                                 # cgpt? lxdm? chromium?
     distro = generate_distro_record_from_name( 'debianwheezy' )
-    distro.mountpoint = '/tmp/_root' if os.system( 'mount | grep /dev/mapper &> /dev/null' ) != 0 else '/'
+    distro.mountpoint = MYDISK_MTPT if os.system( 'mount | grep /dev/mapper &> /dev/null' ) != 0 else '/'
     for how_we_do_it in dct:
         for pkg in dct[how_we_do_it]:
             try:
@@ -69,50 +69,50 @@ elif argv[2] == 'build-a-bunch':
     print( "bad :", bad_list )
 elif argv[2] == 'build-from-debian':
     distro = generate_distro_record_from_name( argv[3] )
-    distro.mountpoint = '/tmp/_root'
+    distro.mountpoint = MYDISK_MTPT
     pkg = argv[4]
 #    sys.exit( 0 )
     print( "Building %s from Deb-ish => %s" % ( pkg, argv[3] ) )
     distro.build_and_install_package_from_debian_source( pkg, 'wheezy' if argv[3] == 'debianwheezy' else 'jessie' )
 elif argv[2] == 'build-from-ubuntu':
     distro = generate_distro_record_from_name( argv[3] )
-    distro.mountpoint = '/tmp/_root'
+    distro.mountpoint = MYDISK_MTPT
     pkg = argv[4]
 #    sys.exit( 0 )
     print( "Building %s from Ubu-ish => Wheezy" % ( pkg ) )
     distro.build_and_install_package_from_ubuntu_source( pkg )
 elif argv[2] == 'build-from-src':
     distro = generate_distro_record_from_name( argv[3] )
-    distro.mountpoint = '/tmp/_root'
+    distro.mountpoint = MYDISK_MTPT
     pkg = argv[4]
     distro.build_and_install_software_from_archlinux_source( pkg )
 elif argv[2] == 'fix-hyperlinks':
     fix_broken_hyperlinks( argv[3] )
 elif argv[2] == 'build-from-git':
     distro = generate_distro_record_from_name( argv[3] )
-    distro.mountpoint = '/tmp/_root'
+    distro.mountpoint = MYDISK_MTPT
     pkg = argv[4]
     sources_basedir = '/root/.rmo/PKGBUILDs/core'
-    mountpoint = '/tmp/_root'
+    mountpoint = MYDISK_MTPT
     distro.build_and_install_software_from_archlinux_git( pkg )
 elif argv[2] == 'fire-everything':
     distro = generate_distro_record_from_name( argv[3] )
-    distro.mountpoint = '/tmp/_root'
+    distro.mountpoint = MYDISK_MTPT
     pkg = argv[4]
     distro.install_expatriate_software_into_a_debianish_OS( package_name = pkg, method = None )
 elif argv[2] == 'remove-junk':
-    remove_junk( '/tmp/_root', '/root/.rmo/PKGBUILDs/core/linux-chromebook' )
+    remove_junk( MYDISK_MTPT, '/root/.rmo/PKGBUILDs/core/linux-chromebook' )
 elif argv[2] == 'postinst':
     distro = generate_distro_record_from_name( argv[3] )
     distro.mountpoint = '/'
     distro.install_tweaks_for_lxdm_chrome_iceweasel_and_distrospecific_stuff()
 elif argv[2] == 'initramfs':
     distro = generate_distro_record_from_name( argv[3] )
-    distro.mountpoint = '/tmp/_root'
+    distro.mountpoint = MYDISK_MTPT
     distro.redo_kernel( argv[4], distro.root_dev, distro.mountpoint )
 elif argv[2] == 'redo-kernel':
     distro = generate_distro_record_from_name( argv[3] )
-    distro.mountpoint = '/tmp/_root'
+    distro.mountpoint = MYDISK_MTPT
     distro.modify_build_and_install_mkfs_and_kernel_for_OS( apply_kali_patch = False )
 elif argv[2] == 'install-freenet':
     distro = generate_distro_record_from_name( argv[3] )
@@ -135,19 +135,19 @@ elif argv[2] == 'clone-guest':
     print( 'Saved /tmp/.guest/.* goodies to %s' % ( outfile ) )
 elif argv[2] == 'do-kernel':
     distro = generate_distro_record_from_name( argv[3] )
-    distro.mountpoint = '/tmp/_root' if os.system( 'mount | grep /dev/mapper &> /dev/null' ) != 0 else '/'
+    distro.mountpoint = MYDISK_MTPT if os.system( 'mount | grep /dev/mapper &> /dev/null' ) != 0 else '/'
     distro.device = '/dev/mmcblk1'
     distro.root_dev = '/dev/mmcblk1p3'
     distro.download_modify_build_and_install_kernel_and_mkfs()
 elif argv[2] == 'kooky':
     distro = generate_distro_record_from_name( argv[3] )
-    distro.mountpoint = '/tmp/_root' if os.system( 'mount | grep /dev/mapper &> /dev/null' ) != 0 else '/'
+    distro.mountpoint = MYDISK_MTPT if os.system( 'mount | grep /dev/mapper &> /dev/null' ) != 0 else '/'
     distro.device = '/dev/mmcblk1'
     distro.root_dev = '/dev/mmcblk1p3'
     distro.build_kooky_filesystem_modules_for_chromeos( really = True )
 elif argv[2] == 'modify-kernel-sources':
     distro = generate_distro_record_from_name( argv[3] )
-    distro.mountpoint = '/tmp/_root' if os.system( 'mount | grep /dev/mapper &> /dev/null' ) != 0 else '/'
+    distro.mountpoint = MYDISK_MTPT if os.system( 'mount | grep /dev/mapper &> /dev/null' ) != 0 else '/'
     distro.device = '/dev/mmcblk1'
     distro.root_dev = '/dev/mmcblk1p3'
     distro.call_bash_script_that_modifies_kernel_n_mkfs_sources()
@@ -156,7 +156,7 @@ elif argv[2] == 'modify-kernel-sources':
 #    distro.modify_build_and_install_mkfs_and_kernel_for_OS()
 elif argv[2] == 'sign-and-write':
     distro = generate_distro_record_from_name( argv[3] )
-    distro.mountpoint = '/tmp/_root'
+    distro.mountpoint = MYDISK_MTPT
     distro.device = '/dev/mmcblk1'
     distro.root_dev = '/dev/mmcblk1p3'
 #    if root_partition_device.find( '/dev/mapper' ) >= 0:
@@ -165,7 +165,7 @@ elif argv[2] == 'sign-and-write':
     res = distro.sign_and_write_custom_kernel( distro.device, distro.root_dev, '' )
 elif argv[2] == 'tarball-me':
     distro = generate_distro_record_from_name( argv[3] )
-    distro.mountpoint = '/tmp/_root'
+    distro.mountpoint = MYDISK_MTPT
     distro.device = '/dev/mmcblk1'
     distro.root_dev = '/dev/mmcblk1p3'
     distro.spare_dev = '/dev/mmcblk1p2'
@@ -173,7 +173,7 @@ elif argv[2] == 'tarball-me':
     os.system( 'rm -f /tmp/out.tgz' )
 elif argv[2] == 'posterity':
     distro = generate_distro_record_from_name( argv[3] )
-    distro.mountpoint = '/tmp/_root'
+    distro.mountpoint = MYDISK_MTPT
     distro.device = '/dev/mmcblk1'
     distro.root_dev = '/dev/mmcblk1p3'
     distro.spare_dev = '/dev/mmcblk1p2'
@@ -181,21 +181,21 @@ elif argv[2] == 'posterity':
         failed( 'Failed to create sample distro posterity file' )
 elif argv[2] == 'new-user':
     distro = generate_distro_record_from_name( argv[3] )
-    distro.mountpoint = '/tmp/_root'
+    distro.mountpoint = MYDISK_MTPT
     distro.device = '/dev/mmcblk1'
     distro.root_dev = '/dev/mmcblk1p3'
     distro.spare_dev = '/dev/mmcblk1p2'
     ask_the_user__guest_mode_or_user_mode__and_create_one_if_necessary( argv[3], distro.mountpoint )
 elif argv[2] == 'udev':
     distro = generate_distro_record_from_name( argv[3] )
-    distro.mountpoint = '/tmp/_root'
+    distro.mountpoint = MYDISK_MTPT
     distro.device = '/dev/mmcblk1'
     distro.root_dev = '/dev/mmcblk1p3'
     distro.spare_dev = '/dev/mmcblk1p2'
     os.system( 'python3 /usr/local/bin/Chrubix/src/poweroff_if_disk_removed.py' )
 elif argv[2] == 'tweak-lxdm-source':
     distro = generate_distro_record_from_name( argv[3] )
-    distro.mountpoint = '/tmp/_root'
+    distro.mountpoint = MYDISK_MTPT
     distro.device = '/dev/mmcblk1'
     distro.root_dev = '/dev/mmcblk1p3'
     distro.spare_dev = '/dev/mmcblk1p2'
@@ -203,7 +203,7 @@ elif argv[2] == 'tweak-lxdm-source':
     generate_mickeymouse_lxdm_patch( distro.mountpoint, p, '%s/debian/patches/99_mickeymouse.patch' % ( p ) )
 elif argv[2] == 'chromium':
     distro = generate_distro_record_from_name( argv[3] )
-    distro.mountpoint = '/tmp/_root'
+    distro.mountpoint = MYDISK_MTPT
     distro.device = '/dev/mmcblk1'
     distro.root_dev = '/dev/mmcblk1p3'
     distro.spare_dev = '/dev/mmcblk1p2'
@@ -211,7 +211,7 @@ elif argv[2] == 'chromium':
     distro.build_and_install_package_from_deb_or_ubu_source( 'chromium-browser', 'https://packages.debian.org/' + argv[3] )
 elif argv[2] == 'install-bitmask':
     distro = generate_distro_record_from_name( argv[3] )
-    distro.mountpoint = '/tmp/_root'
+    distro.mountpoint = MYDISK_MTPT
     distro.device = '/dev/mmcblk1'
     distro.root_dev = '/dev/mmcblk1p3'
     distro.spare_dev = '/dev/mmcblk1p2'
@@ -219,7 +219,7 @@ elif argv[2] == 'install-bitmask':
 elif argv[2] == 'mbr-etc':
     print( 'Assuming wheezy' )
     distro = generate_distro_record_from_name( 'debianwheezy' )
-    distro.mountpoint = '/' if os.system( 'cat /proc/cmdline 2>/dev/null | fgrep root=/dev/dm-0 > /dev/null' ) != 0 else '/tmp/_root'
+    distro.mountpoint = '/' if os.system( 'cat /proc/cmdline 2>/dev/null | fgrep root=/dev/dm-0 > /dev/null' ) != 0 else MYDISK_MTPT
     distro.device = '/dev/mmcblk1'
     distro.root_dev = '/dev/mmcblk1p3'
     distro.spare_dev = '/dev/mmcblk1p2'
@@ -233,7 +233,7 @@ elif argv[2] == 'mbr-etc':
     distro.redo_mbr( root_partition_device = distro.root_dev, chroot_here = distro.mountpoint )
 elif argv[2] == 'patch-nm':
     distro = generate_distro_record_from_name( 'debianwheezy' )
-    distro.mountpoint = '/tmp/_root'
+    distro.mountpoint = MYDISK_MTPT
     distro.device = '/dev/mmcblk1'
     distro.root_dev = '/dev/mmcblk1p3'
     distro.spare_dev = '/dev/mmcblk1p2'
@@ -242,7 +242,7 @@ elif argv[2] == 'patch-nm':
 elif argv[2] == 'makepkg':
     print( 'Assuming archlinux' )
     distro = generate_distro_record_from_name( 'archlinux' )
-    distro.mountpoint = '/tmp/_root'
+    distro.mountpoint = MYDISK_MTPT
     distro.device = '/dev/mmcblk1'
     distro.root_dev = '/dev/mmcblk1p3'
     distro.spare_dev = '/dev/mmcblk1p2'
@@ -262,7 +262,7 @@ elif argv[2] == 'makepkg':
 
 elif argv[2] == 'alarpy-build':
     distro = generate_distro_record_from_name( 'debianwheezy' )
-    distro.mountpoint = '/tmp/_root'
+    distro.mountpoint = MYDISK_MTPT
     distro.device = '/dev/mmcblk1'
     distro.root_dev = '/dev/mmcblk1p3'
     distro.spare_dev = '/dev/mmcblk1p2'
@@ -271,14 +271,14 @@ elif argv[2] == 'install-i2p':
     distro = generate_distro_record_from_name( argv[3] )
     assert( os.path.isdir( argv[4] ) is True )
     distro.mountpoint = argv[4]
-#    distro.mountpoint = '/tmp/_root'
+#    distro.mountpoint = MYDISK_MTPT
 #    distro.device = '/dev/mmcblk1'
 #    distro.root_dev = '/dev/mmcblk1p3'
 #    distro.spare_dev = '/dev/mmcblk1p2'
     distro.install_i2p()
 elif argv[2] == 'win-xp-theme':
     distro = generate_distro_record_from_name( argv[3] )
-    distro.mountpoint = '/tmp/_root'
+    distro.mountpoint = MYDISK_MTPT
     distro.device = '/dev/mmcblk1'
     distro.root_dev = '/dev/mmcblk1p3'
     distro.spare_dev = '/dev/mmcblk1p2'

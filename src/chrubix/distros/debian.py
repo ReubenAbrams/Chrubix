@@ -7,7 +7,7 @@ from chrubix.utils import generate_temporary_filename, g_proxy, failed, system_o
                           chroot_this, read_oneliner_file, do_a_sed, call_binary, patch_org_freedesktop_networkmanager_conf_file  # , install_lxdm_from_source
 import os
 from chrubix.distros import Distro
-from posix import lstat
+
 # from builtins import None
 
 
@@ -118,7 +118,7 @@ mate-desktop-environment-extras'  # FYI, freenet is handled by install_final_pus
         super( DebianDistro, self ).__init__( *args, **kwargs )
         self.name = 'debian'
         self.architecture = 'armhf'
-        self.list_of_mkfs_packages = ( 'jfsutils', 'xfsprogs', 'btrfs-tools' )
+        self.list_of_mkfs_packages = ( 'jfsutils', 'xfsprogs', 'btrfs-tools', 'crytsetup' )
         self.packages_folder_url = 'http://ftp.uk.debian.org/debian/'
 
 #    @property
@@ -307,6 +307,7 @@ Acquire::https::Proxy "https://%s/";
             do_a_sed( '%s/etc/default/pulseaudio' % ( self.mountpoint ), 'PULSEAUDIO_SYSTEM_START=0', 'PULSEAUDIO_SYSTEM_START=1' )
         except  ( SyntaxError, SystemError, RuntimeError, AssertionError, IOError ):
             self.update_status( ' *** Unable to modify /etc/default/pulseaudio --- is it missing? *** ' )
+
 # #        chroot_this( self.mountpoint, 'wget http://www.deb-multimedia.org/pool/main/d/deb-multimedia-keyring/deb-multimedia-keyring_2014.2_all.deb -O - > /tmp/debmult.deb', attempts = 1, title_str = self.title_str, status_lst = self.status_lst )
 # #        chroot_this( self.mountpoint, 'dpkg -i /tmp/debmult.deb', attempts = 1, title_str = self.title_str, status_lst = self.status_lst )
 #        print( 'looking for %s' % ( svcfile ) )
@@ -402,7 +403,6 @@ fi
         if self.final_push_packages.find( 'lxdm' ) < 0:
 #            install_lxdm_from_source( self.mountpoint )
             self.install_expatriate_software_into_a_debianish_OS( package_name = 'lxdm', method = 'ubuntu' )
-        self.install_i2p()
         self.update_status_with_newline( 'Installing remaining packages' )
 #        self.status_lst.append( ['Installing %s' % ( self.final_push_packages.replace( '  ', ' ' ).replace( ' ', ', ' ) )] )
         chroot_this( self.mountpoint, 'yes "Yes" | aptitude install %s' % ( self.final_push_packages ),
@@ -638,39 +638,28 @@ exit 0
 
 
 class WheezyDebianDistro( DebianDistro ):
-    important_packages = DebianDistro.important_packages.replace( 'openjdk-8-', 'openjdk-7-' ) + ' libetpan15'  # FIXME Shouldn't this be => important_packages += .... ?
     def __init__( self , *args, **kwargs ):
         super( WheezyDebianDistro, self ).__init__( *args, **kwargs )
         self.branch = 'wheezy'  # lowercase; yes, it matters :)
+        self.important_packages = self.important_packages.replace( 'openjdk-8-', 'openjdk-7-' ) + ' libetpan15'
 
     def install_important_packages( self ):
         chroot_this( self.mountpoint, '''yes "Yes, do as I say!" | apt-get install systemd systemd-sysv''' , title_str = self.title_str, status_lst = self.status_lst,
                     on_fail = 'Failed to install systemd-sysv' )
         super( WheezyDebianDistro, self ).install_important_packages()  # FIXME yes_add_ffmpeg_repo = True )
 
-#     def install_i2p( self ):
-#         assert( self.branch in ( 'wheezy', 'jessie', 'stretch' ) )
-#         our_branch = self.branch if self.branch in ( 'wheezy', 'jessie' ) else 'unstable'
-#         write_oneliner_file( '%s/etc/apt/sources.list.d/i2p.list' % ( self.mountpoint ), '''
-# deb http://deb.i2p2.no/ %s main
-# deb-src http://deb.i2p2.no/ %s main
-# ''' % ( our_branch, our_branch ) )
-#         for cmd in (
-#                         'yes 2>/dev/null | add-apt-repository "deb http://deb.i2p2.no/ %s main"' % ( self.branch ),
-#                         'yes "" 2>/dev/null | curl https://geti2p.net/_static/i2p-debian-repo.key.asc | apt-key add -',
-#                         'yes 2>/dev/null | apt-get update'
-#                    ):
-#             chroot_this( self.mountpoint, cmd, title_str = self.title_str, status_lst = self.status_lst,
-#                              on_fail = "Failed to run %s successfully" % ( cmd ) )
-#         chroot_this( self.mountpoint, 'yes | apt-get install i2p i2p-keyring', on_fail = 'Failed to install i2p' )
-#         logme( 'tweaking i2p ID...' )
-#         do_a_sed( '%s/etc/passwd' % ( self.mountpoint ), 'i2p:/bin/false', 'i2p:/bin/bash' )
+#    def configure_distrospecific_tweaks( self ):
+#        super( WheezyDebianDistro, self ).configure_distrospecific_tweaks()
+#        for cmd in ( 'echo -en "deb ftp://ftp.debian.org debian jessie main\ndeb-src ftp://ftp.debian.org debian jessie main\n" >> /etc/apt/sources.list',
+#                    'yes Y | apt-get update',
+#                    'yes Y | apt-get install cgpt' ):
+#            chroot_this( self.mountpoint, cmd, on_fail = 'Failed to run %s' % ( cmd ), attempts = 1 )
 
 class JessieDebianDistro( DebianDistro ):
     def __init__( self , *args, **kwargs ):
         super( JessieDebianDistro, self ).__init__( *args, **kwargs )
         self.branch = 'jessie'  # lowercase; yes, it matters
-        self.important_packages += ' libetpan-dev g++-4.8'  # FIXME Shouldn't this be => important_packages += .... ?
+        self.important_packages += ' libetpan-dev g++-4.8'
 
     def install_important_packages( self ):
         chroot_this( self.mountpoint, '''yes "Yes, do as I say!" | apt-get install systemd systemd-sysv''' , title_str = self.title_str, status_lst = self.status_lst,

@@ -32,6 +32,7 @@ def list_command_line_options():
     -r<dev>       root/bootstrap device; you may not reformat, but you may install an OS here
     -s<dev>       spare device; you may mount, reformat, etc. this partition
     -k<dev>       where the kernel is to be written (with dd)
+    -m<mountpt>   where is the root fs mounted
     """ )
 
 
@@ -92,7 +93,7 @@ def process_command_line( argv ):
     if len( sys.argv ) <= 1:
         list_command_line_options()
         raise getopt.GetoptError( "In command line, please specify name of distro" )
-    optlist, args = getopt.getopt( argv[1:], 'hK:P:D:d:r:s:k:' )
+    optlist, args = getopt.getopt( argv[1:], 'hK:P:D:d:r:s:k:m:' )
     args = args  # hide Eclipse warning
     for ( opt, param ) in optlist:
         if opt == '-h':
@@ -109,6 +110,8 @@ def process_command_line( argv ):
             do_spare_dev = param
         elif opt == '-k':
             do_kernel_dev = param
+        elif opt == '-m':
+            do_mountpoint = param
         else:
             raise getopt.GetoptError( str( opt ) + " is an unrecognized command-line parameter" )
     distro = generate_distro_record_from_name( do_distro )
@@ -118,6 +121,7 @@ def process_command_line( argv ):
     distro.root_dev = do_root_dev
     distro.kernel_dev = do_kernel_dev
     distro.spare_dev = do_spare_dev
+    distro.mountpoint = do_mountpoint
     return distro
 
 

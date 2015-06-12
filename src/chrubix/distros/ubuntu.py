@@ -2,7 +2,7 @@
 #
 # ubuntu.py
 #
-# FIXME - see http://marcin.juszkiewicz.com.pl/2013/02/14/how-to-install-ubuntu-13-04-on-chromebook/
+# FIXME - (1)try DebianDistro instead...? (2)see http://marcin.juszkiewicz.com.pl/2013/02/14/how-to-install-ubuntu-13-04-on-chromebook/
 
 
 from chrubix.utils import logme, chroot_this, g_proxy, failed, \
@@ -10,7 +10,7 @@ from chrubix.utils import logme, chroot_this, g_proxy, failed, \
 from chrubix.distros.debian import JessieDebianDistro
 
 
-class UbuntuDistro( JessieDebianDistro ):  # FIXME try DebianDistro instead...?
+class UbuntuDistro( JessieDebianDistro ):
     def __init__( self , *args, **kwargs ):
         super( UbuntuDistro, self ).__init__( *args, **kwargs )
         self.name = 'ubuntu'

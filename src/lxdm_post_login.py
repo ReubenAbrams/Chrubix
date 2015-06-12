@@ -92,9 +92,9 @@ if __name__ == "__main__":
         logme( 'ran /usr/local/bin/start_privoxy_freenet_i2p_and_tor.sh OK' )
     else:
         logme( '/usr/local/bin/start_privoxy_freenet_i2p_and_tor.sh returned error(s)' )
-    if 0 == os.system( 'which iceweasel &> /dev/null' ):
-        os.system( 'iceweasel &' )
-    else:
-        os.system( 'chromium &' )
+#    if 0 == os.system( 'which iceweasel &> /dev/null' ):
+#        os.system( 'iceweasel &' )
+#    else:
+#        os.system( 'chromium &' )
     logme( 'lxdm_post_login.py --- ending' )
     sys.exit( 0 )

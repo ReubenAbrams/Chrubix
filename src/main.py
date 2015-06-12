@@ -20,9 +20,10 @@ except ImportError:
 logme( '**************************** WELCOME TO CHRUBIX ****************************' )
 if os.system( 'cat /proc/cmdline 2>/dev/null | fgrep root=/dev/dm-0 > /dev/null' ) == 0:
     from chrubix import exec_cli
+    logme( 'Calling exec_cli()' )
     sys.exit( exec_cli( sys.argv ) )
 
-
+logme( 'Still here? Oh, good.' )
 if os.system( 'mount | grep /dev/mapper/encstateful &> /dev/null' ) == 0 \
 or os.system( 'mount | grep hfs &> /dev/null' ) == 0:
     # compile Qt Creator UI files into Python bindings

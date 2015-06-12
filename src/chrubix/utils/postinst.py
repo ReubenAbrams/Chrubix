@@ -9,7 +9,8 @@ Created on May 9, 2014
 
 
 import os
-from chrubix.utils import write_oneliner_file, failed, system_or_die, logme, do_a_sed, chroot_this, read_oneliner_file
+from chrubix.utils import write_oneliner_file, failed, system_or_die, logme, do_a_sed, \
+                          chroot_this, read_oneliner_file
 
 
 def append_startx_addendum( outfile ):
@@ -38,9 +39,11 @@ liu=/tmp/.logged_in_user
 echo "$USER" > $liu
 export DISPLAY=:0.0
 sleep 2
-while ! ps wax | grep " X " ; do
+echo waitingForX >> /tmp/chrubix.log
+while ! ps wax | grep "/X " ; do
     sleep 0.5
 done
+echo yayXisRunning >> /tmp/chrubix.log
 sleep 1
 python3 /usr/local/bin/Chrubix/src/lxdm_post_login.py
 ''' )
@@ -66,15 +69,15 @@ fi
     f.close()
 
 
-def write_lxdm_pre_login_file( outfile ):
+def write_lxdm_pre_login_file( mountpoint, outfile ):
     f = open( outfile, 'w' )
     f.write( '''#!/bin/bash
 #. /etc/bash.bashrc
 #. /etc/profile
-[ -e "/tmp/_root.old" ] && rm /tmp/_root.old
-[ -e "/tmp/_root" ] && mv /tmp/_root /tmp/_root.old
-ln -sf / /tmp/_root
-''' )
+[ -e "%s.old" ] && rm %s.old
+[ -e "%s" ] && mv %s %s.old
+ln -sf / %s
+''' % ( mountpoint, mountpoint, mountpoint, mountpoint, mountpoint, mountpoint ) )
     f.close()
 
 
@@ -258,7 +261,7 @@ def configure_lxdm_onetime_changes( mountpoint ):
 #    system_or_die( 'echo "ps wax | fgrep mate-session | fgrep -v grep && mpg123 /etc/.mp3/xpshutdown.mp3" >> %s/etc/lxdm/PreLogout' % ( mountpoint ) )
     append_startx_addendum( '%s/etc/lxdm/Xsession' % ( mountpoint ) )  # Append. Don't replace.
     append_startx_addendum( '%s/etc/X11/xinit/xinitrc' % ( mountpoint ) )  # Append. Don't replace.
-    write_lxdm_pre_login_file( '%s/etc/lxdm/PreLogin' % ( mountpoint ) )
+    write_lxdm_pre_login_file( mountpoint, '%s/etc/lxdm/PreLogin' % ( mountpoint ) )
     write_lxdm_post_logout_file( '%s/etc/lxdm/PostLogout' % ( mountpoint ) )
     write_lxdm_post_login_file( '%s/etc/lxdm/PostLogin' % ( mountpoint ) )
     write_login_ready_file( '%s/etc/lxdm/LoginReady' % ( mountpoint ) )

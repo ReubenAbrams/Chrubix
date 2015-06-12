@@ -37,12 +37,24 @@ def abort_if_make_is_segfaulting( mountpoint ):
         else:
             failed( 'make returned %d -- not cool, brah' % ( res ) )
 
+
 def logme( message = None ):
     datestr = call_binary( ['date'] )[1].strip()
     handle = open ( '/tmp/chrubix.log', 'a' )
     handle.write( '%s %s\n' % ( datestr, message ) )
     handle.close()
     os.system( 'chmod 777 /tmp/chrubix.log &> /dev/null' )
+
+
+def is_this_bindmounted( mountpoint ):
+    fname = '.flibbertyjibbet'
+    os.system( 'touch %s/%s' % ( mountpoint, fname ) )
+    found_it = os.path.exists( fname )
+    os.unlink( '%s/%s' % ( mountpoint, fname ) )
+    if found_it:
+        return True
+    else:
+        return False
 
 
 def call_binary_and_show_progress( binary_info, title_str, foot_str, status_lst, trim_output = False, pauses_len = 5 ):
@@ -497,11 +509,12 @@ def remaining_megabytes_free_on_device( dev ):  # FIXME broken
 
 
 def reinstall_chrubix_if_missing( mountpoint ):
-        system_or_die( 'rm -Rf %s/usr/local/bin/Chrubix' % ( mountpoint ) )
-        system_or_die( 'cp -af /usr/local/bin/Chrubix %s/usr/local/bin/' % ( mountpoint ) )
-        system_or_die( 'tar -cz /usr/local/bin/Chrubix 2> /dev/null | tar -zx -C %s' % ( mountpoint ) )
-        system_or_die( 'mkdir -p %s/usr/local/bin/Chrubix/bash/' % ( mountpoint ) )
-        system_or_die( 'cp -f /usr/local/bin/Chrubix/bash/chrubix.sh %s/usr/local/bin/Chrubix/bash/' % ( mountpoint ) )
+        if not os.path.exists( '%s/usr/local/bin/Chrubix' % ( mountpoint ) ):
+            system_or_die( 'rm -Rf %s/usr/local/bin/Chrubix' % ( mountpoint ) )
+            system_or_die( 'cp -af /usr/local/bin/Chrubix %s/usr/local/bin/' % ( mountpoint ) )
+            system_or_die( 'tar -cz /usr/local/bin/Chrubix 2> /dev/null | tar -zx -C %s' % ( mountpoint ) )
+            system_or_die( 'mkdir -p %s/usr/local/bin/Chrubix/bash/' % ( mountpoint ) )
+            system_or_die( 'cp -f /usr/local/bin/Chrubix/bash/chrubix.sh %s/usr/local/bin/Chrubix/bash/' % ( mountpoint ) )
         for f in ( 'chrubix.sh', 'CHRUBIX', 'greeter.sh', 'preboot_configurer.sh', 'modify_sources.sh', 'redo_mbr.sh' ):
             system_or_die( 'ln -sf Chrubix/bash/%s %s/usr/local/bin/%s' % ( f, mountpoint, f ) )
             system_or_die( 'chmod +x %s/usr/local/bin/Chrubix/bash/%s' % ( mountpoint, f ) )
@@ -518,3 +531,11 @@ def reinstall_chrubix_if_missing( mountpoint ):
                   ):
             chroot_this( mountpoint, f )
         install_mp3_files( mountpoint )
+
+# def create_IMG_file_for_posterity( device, spare_dev, mountpoint, save_file_here ):
+# #    failed( 'dev=%s; spare=%s; Create %s => %s here' % ( device, spare_dev, mountpoint, save_file_here ) )
+
+
+
+
+
