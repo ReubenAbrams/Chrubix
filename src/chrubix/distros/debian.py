@@ -118,7 +118,7 @@ mate-desktop-environment-extras'  # FYI, freenet is handled by install_final_pus
         super( DebianDistro, self ).__init__( *args, **kwargs )
         self.name = 'debian'
         self.architecture = 'armhf'
-        self.list_of_mkfs_packages = ( 'jfsutils', 'xfsprogs', 'btrfs-tools', 'crytsetup' )
+        self.list_of_mkfs_packages = ( 'jfsutils', 'xfsprogs', 'btrfs-tools', 'cryptsetup' )
         self.packages_folder_url = 'http://ftp.uk.debian.org/debian/'
 
 #    @property
@@ -260,6 +260,8 @@ Acquire::https::Proxy "https://%s/";
         system_or_die( 'mkdir -p %s' % ( self.sources_basedir ) )
         for pkg_name in self.list_of_mkfs_packages:
             self.download_package_source( destination_directory = '%s' % ( self.sources_basedir ), package_name = pkg_name )
+        if 0 != chroot_this( self.mountpoint, 'cd %s/cryptsetup/ && cd / || return 1' % ( self.sources_basedir ) ):
+            failed( 'WHERE IS cryptsetup SOURCE? It should have been downloaded. Wart de hurl?' )
         logme( 'DebianDistro - download_mkfs_sources() - leaving' )
 
     def download_package_source( self, destination_directory, package_name, filenames_lst = None ):
