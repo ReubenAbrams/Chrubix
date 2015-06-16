@@ -10,7 +10,7 @@
     <x>0</x>
     <y>0</y>
     <width>311</width>
-    <height>220</height>
+    <height>221</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -55,14 +55,20 @@
       <x>110</x>
       <y>90</y>
       <width>81</width>
-      <height>31</height>
+      <height>26</height>
      </rect>
+    </property>
+    <property name="font">
+     <font>
+      <weight>75</weight>
+      <bold>true</bold>
+     </font>
     </property>
     <property name="toolTip">
      <string/>
     </property>
     <property name="text">
-     <string>Options</string>
+     <string>^</string>
     </property>
    </widget>
    <widget class="QPushButton" name="btnContinue">
@@ -71,7 +77,7 @@
       <x>110</x>
       <y>110</y>
       <width>81</width>
-      <height>31</height>
+      <height>26</height>
      </rect>
     </property>
     <property name="toolTip">
@@ -111,7 +117,7 @@
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>330</y>
+     <y>290</y>
      <width>291</width>
      <height>61</height>
     </rect>
@@ -179,7 +185,7 @@ also raise suspicions or cause network connection problems.</string>
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>450</y>
+     <y>410</y>
      <width>291</width>
      <height>71</height>
     </rect>
@@ -240,7 +246,7 @@ pwd</string>
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>270</y>
+     <y>230</y>
      <width>291</width>
      <height>61</height>
     </rect>
@@ -308,7 +314,7 @@ may be ueful in public places in order to avoid attracting suspicion.</string>
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>390</y>
+     <y>350</y>
      <width>291</width>
      <height>61</height>
     </rect>

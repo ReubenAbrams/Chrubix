@@ -82,8 +82,6 @@ def save_distro_record( distro_rec = None, mountpoint = '/' ):
 
 
 def process_command_line( argv ):
-    do_pheasants = False
-    do_kthx = False
     do_distro = None
     do_device = None
     do_root_dev = None
@@ -115,8 +113,6 @@ def process_command_line( argv ):
         else:
             raise getopt.GetoptError( str( opt ) + " is an unrecognized command-line parameter" )
     distro = generate_distro_record_from_name( do_distro )
-    distro.kthx = do_kthx
-    distro.pheasants = do_pheasants
     distro.device = do_device
     distro.root_dev = do_root_dev
     distro.kernel_dev = do_kernel_dev

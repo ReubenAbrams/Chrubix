@@ -14,7 +14,7 @@ class ArchlinuxDistro( Distro ):
         super( ArchlinuxDistro, self ).__init__( *args, **kwargs )
         self.name = 'archlinux'
         self.architecture = 'armv7h'
-        self.list_of_mkfs_packages = ( 'btrfs-progs', 'jfsutils', 'xfsprogs', 'cryptsetup' )
+        self.list_of_mkfs_packages = ( 'cryptsetup', 'btrfs-progs', 'jfsutils', 'xfsprogs' )
         assert( self.important_packages not in ( '', None ) )
         self.important_packages += ' \
 jre8-openjdk jdk8-openjdk phonon-qt4-gstreamer xorg-font-util \
@@ -27,7 +27,7 @@ bcprov gtk-engine-unico gtk-engine-murrine gtk-engines xorg-fonts-encodings \
 libxfixes xorg-server xorg-xinit xf86-input-synaptics xf86-video-fbdev xlockmore phonon \
 mate-panel mate-netbook mate-extra mate-themes-extras mate-nettool gnome-mplayer mate-accountsdialog \
 gtk2-perl automoc4 xorg-server-utils xorg-xmessage librsvg icedtea-web gconf \
-hunspell-en chromium thunderbird windowmaker \
+hunspell-en chromium thunderbird windowmaker libdevmapper-dev \
 '  # mate cgpt
         self.install_from_AUR = 'paman mintmenu ttf-ms-fonts gtk-theme-adwaita-x win-xp-theme wmsystemtray python2-pysqlite python2-pyptlib hachoir-core hachoir-parser mat obfsproxy java-service-wrapper i2p'  # pulseaudio-ctl pasystray-git ssss florence
         self.final_push_packages = Distro.final_push_packages + ' lxdm network-manager-applet'

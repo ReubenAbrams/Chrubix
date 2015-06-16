@@ -696,41 +696,6 @@ Alias=display-manager.service
 
 
 
-def ask_the_user__temp_or_perm( mountpoint ):
-    if os.path.exists( '/.temp_or_perm.txt' ):
-#            logme( 'Found a temp_or_perm file that was created by sh file.' )
-        r = read_oneliner_file( '/.temp_or_perm.txt' )
-        if r == 'perm':
-            res = 'P'
-        elif r == 'temp':
-            res = 'T'
-        elif r == 'meh':
-            res = 'M'
-        else:
-            failed( 'I do not understand this temp-or-mount file contents - %s' % ( r ) )
-    else:
-        print( '''Would you prefer a temporary setup or a permanent one? Before you choose, consider your options.
-
-TEMPORARY: When you boot, you will see a little popup window that asks you about mimicking Windows XP,
-spoofing your MAC address, etc. Whatever you do while the OS is running, nothing will be saved to disk.
-
-PERMANENT: When you boot, you will be prompted for a password. No password? No access. The whole disk
-is encrypted. Although you will initially be logged in as a guest whose home directory is on a ramdisk,
-you have the option of creating a permanent user, logging in as that user, and saving files to disk.
-In addition, you will be prompted for a 'logging in under duress' password. Pick a short one.
-
-''' )
-        res = 999
-        while res != 'T' and res != 'P' and res != 'M':
-            res = input( "(T)emporary, (P)ermanent, or (M)eh ? " ).strip( '\r\n\r\n\r' ).replace( 't', 'T' ).replace( 'p', 'P' ).replace( 'm', 'M' )
-        if res == 'T':
-            write_oneliner_file( '%s/.temp_or_perm.txt' % ( mountpoint ), 'temp' )
-        elif res == 'P':
-            write_oneliner_file( '%s/.temp_or_perm.txt' % ( mountpoint ), 'perm' )
-        else:
-            write_oneliner_file( '%s/.temp_or_perm.txt' % ( mountpoint ), 'meh' )
-    return res
-
 
 def add_user_to_the_relevant_groups( username, distro_name, mountpoint ):
     for group_to_add_me_to in ( '%s' % ( 'debian-tor' if distro_name == 'debian' else 'tor' ), 'freenet', 'audio', 'pulse-access', 'pulse', 'users' ):

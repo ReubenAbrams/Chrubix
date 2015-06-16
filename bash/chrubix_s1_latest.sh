@@ -26,8 +26,7 @@ OVERLAY_URL=https://dl.dropboxusercontent.com/u/59916027/chrubix/_chrubix.tar.xz
 RYO_TEMPDIR=/root/.rmo
 SOURCES_BASEDIR=$RYO_TEMPDIR/PKGBUILDs/core
 LOGLEVEL=2
-TEMP_OR_PERM=temp
-SPLITPOINT=3300998	# 1.7GB
+SPLITPOINT=3600998	# 1.8GB			# If you change this, you shall change the line in redo_mbr.sh too!
 MYDISK_CHR_STUB=/.mydisk
 HIDDENLOOP=/dev/loop3			# hiddendev uses this (if it is hidden) :)
 LOOPFS_BTSTRAP=/tmp/_loopfs_bootstrap
@@ -225,7 +224,7 @@ install_chrubix() {
 	mount $ROOTDEV $MYDISK_CHROOT || failed "install_chrubix() -- unable to mount root device at $MYDISK_CHROOT"	
 	mount_dev_sys_proc_and_tmp $MYDISK_CHROOT
 	
-	cp -vf $MINIDISTRO_CHROOT/.[a-z]*.txt $MYDISK_CHROOT/
+	cp -vf $MINIDISTRO_CHROOT/.[a-z]*.txt $MYDISK_CHROOT/ || echo -en ""
 	
 	touch $TOP_BTSTRAP/.gloria.first-i-was-afraid
 	[ -e "$MYDISK_CHROOT/.gloria.first-i-was-afraid" ] || failed "For some reason, MYDISK_CHROOT and TOP_BTSTRAP don't share the '/' directory."
@@ -236,9 +235,7 @@ install_chrubix() {
 	rm -f $TOP_BTSTRAP/.gloria*
 	rm -f $MINIDISTRO_CHROOT/.gloria*
 	rm -f $MYDISK_CHROOT/.gloria*
-	
-#	[ -e "$MINIDISTRO_CHROOT/lib/modules" ] || failed "Why does the mini distro not have a /lib/modules folder"	
-	
+		
 	rm -Rf $root/usr/local/bin/Chrubix $root/usr/local/bin/1hq8O7s
 	lastblock=`cgpt show $DEV | tail -n3 | grep "Sec GPT table" | tr -s ' ' '\t' | cut -f2` || failed "Failed to calculate lastblock"
 	maximum_length=$(($lastblock-$SPLITPOINT-8))
@@ -276,7 +273,7 @@ install_chrubix() {
 
 
 call_chrubix() {
-	local btstrap
+	local btstrap fname
 	btstrap=$1
 
 	tar -cz /usr/lib/xorg/modules/drivers/armsoc_drv.so \
@@ -290,16 +287,18 @@ call_chrubix() {
 	tar -cz /usr/share/vboot > $btstrap/tmp/.vbkeys.tgz || failed "Failed to save your keys" #### MAKE SURE CHRUBIX HAS ACCESS TO Y-O-U-R KEYS and YOUR vbutil* binaries ####
 	tar -cz /lib/firmware > $btstrap/tmp/.firmware.tgz || failed "Failed to save your firmware"  # save firmware!
 	chroot_this $btstrap "chmod +x /usr/local/bin/*"
-	echo "$TEMP_OR_PERM" > $btstrap/.TEMP_OR_PERM.txt
 	ln -sf ../../bin/python3 $btstrap/usr/local/bin/python3
 	echo "************ Calling CHRUBIX, the Python powerhouse of pulchritudinous perfection ************"
 	echo "yep, use latest" > $root/tmp/.USE_LATEST_CHRUBIX_TARBALL
 	[ -e "$btstrap/usr/local/bin/Chrubix" ] || failed "Where is $btstrap/usr/local/bin/Chrubix? #1"	
 	[ -e "$MINIDISTRO_CHROOT/usr/local/bin/Chrubix" ] || failed "Where is $MINIDISTRO_CHROOT/usr/local/bin/Chrubix? #2"
 	
-#	failed "NEFARIOUS CORPUSCLES"
 	chroot_this $btstrap "/usr/local/bin/chrubix.sh" || failed "Because chrubix reported an error, I'm aborting... and I'm leaving everything mounted.
 Type 'sudo chroot $MINIDISTRO_CHROOT' and then 'chrubix.sh' to retry."
+
+	echo -en "Moving squashfs and kernel to memory card..."
+	mv $TOP_BTSTRAP/.squashfs.sqfs $TOP_BTSTRAP/.kernel.dat $VFAT_MOUNTPOINT || failed "call_chrubix() -- where are the sqfs and kernel?"
+	echo "Done."
 }
 
 
@@ -319,12 +318,12 @@ partition_the_device() {
 	sync;sync;sync; umount "$dev"* &> /dev/null &> /dev/null  || echo -en "."
 	sync;sync;sync; umount /media/removable/* &> /dev/null  || echo -en "."
 	sync;sync;sync
-#	cgpt repair $dev || echo -en ""
 	chroot_this $btstrap "parted -s $dev mklabel gpt" || failed "There is something vaguely wrong with your SD card, I suspect. Reboot and try again, please."
 	chroot_this $btstrap "cgpt create -z $dev" || failed "Failed to create -z $dev"
 	chroot_this $btstrap "cgpt create $dev" || failed "Failed to create $dev"
 	chroot_this $btstrap "cgpt add -i  1 -t kernel -b  8192 -s 32768 -l U-Boot -S 1 -T 5 -P 10 $dev" || failed "Failed to create 1"
 	chroot_this $btstrap "cgpt add -i 12 -t data   -b 40960 -s 32768 -l Script $dev" || failed "Failed to create 12"
+
 	lastblock=`cgpt show $dev | tail -n3 | grep "Sec GPT table" | tr -s ' ' '\t' | cut -f2` || failed "Failed to calculate lastblock"
 
 	if [ "$splitpoint" = "" ] ; then
@@ -335,9 +334,6 @@ partition_the_device() {
 		chroot_this $btstrap "cgpt add -i  2 -t data   -b 73728 -s `expr $splitpoint - 73728` -l Root $dev" || failed "Failed to create 3"
 		chroot_this $btstrap "cgpt add -i  3 -t data   -b $splitpoint -s `expr $lastblock - $splitpoint` -l Kernel $dev" || failed "Failed to create 2"
 	fi
-#	cgpt repair $dev || failed "Failed to update/clean/repair $dev's MBRs"
-	chroot_this $btstrap "partprobe $dev"
-#	cgpt repair $dev || failed "Failed to update/clean/repair $dev's MBRs"
 	chroot_this $btstrap "partprobe $dev"
 	sync;sync;sync
 }
@@ -413,7 +409,6 @@ locate_prefab_file() {
 	local mypath
 	mypath=/tmp/prefab_thumb_drive
 	mkdir -p $mypath
-#	echo "Trying to mount" > /dev/stderr
 	if ! mount | fgrep "$mypath" &> /dev/null ; then
 		if ! mount /dev/sda1 $mypath 2> /dev/null ; then
 			if ! mount /dev/sdb1 $mypath 2> /dev/null ; then
@@ -421,14 +416,11 @@ locate_prefab_file() {
 			fi
 		fi
 	fi
-#	echo "Trying to find" > /dev/stderr
+
 	if mount | fgrep "$mypath" &> /dev/null ; then
-#		echo "Checking thumb drive" > /dev/stderr	
 		locate_prefab_on_thumbdrive $mypath
 	else
-#		echo "Checking dropbox" > /dev/stderr
 		locate_prefab_on_dropbox
-		return $?
 	fi
 	return $?
 }
@@ -459,7 +451,6 @@ locate_prefab_on_thumbdrive() {
 	stageB_fname=$mypath/$DISTRONAME/$DISTRONAME"__B.xz"
 	stageA_fname=$mypath/$DISTRONAME/$DISTRONAME"__A.xz"
 	for fname in $img_fname $sqfs_fname $stageD_fname $stageC_fname $stageB_fname $stageA_fname ; do
-#		echo "Trying $fname" > /dev/stderr
 		if [ -f "$fname" ] ; then
 			echo "$fname"
 			return 0
@@ -513,7 +504,7 @@ format_my_disk() {
 	echo -en "."
 	sleep 1; umount "$DEV_P"* &> /dev/null || echo -en ""
 	mkfs.vfat -F 16 $KERNELDEV &> $temptxt || failed "Failed to format p12 - `cat $temptxt`"
-	echo -en ".Done."
+	echo -en ".Done. "
 }
 
 
@@ -560,8 +551,8 @@ install_and_call_chrubix() {
 	install_chrubix $MINIDISTRO_CHROOT $DEV $ROOTDEV $VFATDEV $KERNELDEV $DISTRONAME
 	call_chrubix $MINIDISTRO_CHROOT || failed "call_chrubix() returned an error. Failing."
 	cp -vf $MYDISK_CHROOT/.*.txt $VFAT_MOUNTPOINT/ || failed "install_and_call_chrubix() -- failed to copy cool stuff to vfat partition"
-	[ -f "$MYDISK_CHROOT/.kernel.dat" ] || failed "install_and_call_chrubix() -- no kernel!"
-	[ -f "$MYDISK_CHROOT/.squashfs.sqfs" ] || failed "install_and_call_chrubix() -- no sqfs!"
+	[ -f "$VFAT_MOUNTPOINT/.squashfs.sqfs" ] || failed "install_and_call_chrubix() -- no sqfs!"
+	[ -f "$VFAT_MOUNTPOINT/.kernel.dat" ] || failed "install_and_call_chrubix() -- no kernel!"
 }
 
 
@@ -656,51 +647,34 @@ wipe_spare_space_in_partition() {
 
 
 yes_save_IMG_file_for_posterity() {
-	local output_imgfile last_sector_of_p2 lsop start length gohere cksumhere
+	local output_imgfile last_sector_of_p2 lsop start length mount_sectornum cksum_sectornum
 	output_imgfile=$1
 
 	echo -en "So...."
 	start=`cgpt show $DEV | tr -s '\t' ' ' | fgrep " 2 Label" | cut -d' ' -f2`
 	length=`cgpt show $DEV | tr -s '\t' ' ' | fgrep " 2 Label" | cut -d' ' -f3`
-	cksumhere=$(($start+$length))
-	if [ "$cksumhere" -lt "$SPLITPOINT" ] ; then
-		echo "WARNING --- I think the splitpoint *is* at $cksumhere but it *should be* at $SPLITPOINT"
+	cksum_sectornum=$(($start+$length))
+	if [ "$cksum_sectornum" -lt "$SPLITPOINT" ] ; then
+		echo "WARNING --- I think the splitpoint *is* at $cksum_sectornum but it *should be* at $SPLITPOINT"
 		echo "Therefore, I am bumping ckusmhere up and making it equal $SPLITPOINT"
-		cksumhere=$SPLITPOINT
+		cksum_sectornum=$SPLITPOINT
 	fi
-	gohere=$(($cksumhere+1))
-
+	
 	mount | grep "$DEV" && failed "yes_save_output_imgfile_for_posterity() -- please unmount $DEV etc. before proceeding #1"
-	delete_p3_if_it_exists
+#	delete_p3_if_it_exists
 	mount | grep "$DEV" && failed "yes_save_output_imgfile_for_posterity() -- please unmount $DEV etc. before proceeding #2"	
-	
 	wipe_spare_space_in_partition $VFATDEV
-	echo "cksumhere = $cksumhere"
 	
-	losetup -d /dev/loop6 &> /dev/null || echo -en ""
-#	dd if=/dev/zero  of=$DEV seek=$cksumhere count=100k &> /dev/null || echo "yes_save_output_imgfile_for_posterity() -- failed to wipe old p3"
-#	dd if=/dev/zero  of=$DEV seek=$cksumhere count=1 2>/dev/null || failed "yes_save_output_imgfile_for_posterity() -- dd 1 failed" 
-#	echo "none" | dd of=$DEV seek=$cksumhere count=1 2>/dev/null || failed "yes_save_output_imgfile_for_posterity() -- dd 2 failed"
-#	losetup /dev/loop6 -o $(($gohere*512)) $DEV
-#	mkdir /tmp/quacky
-#	yes | mkfs.ext4 -v /dev/loop6 &> /dev/null || failed "yes_save_output_imgfile_for_posterity() -- failed to format /dev/loop6"
-#	mount /dev/loop6 /tmp/quacky
-##cryptsetup luksOpen /dev/loop6 hiddensausage
-#	echo "`date` --- hi there from yes_save_output_imgfile_for_posterity()" > /tmp/quacky/.hi.txt
-#	umount /tmp/quacky
+	mount_sectornum=$(($cksum_sectornum+1))
+	echo "cksum_sectornum = $cksum_sectornum; mount_sectornum=$mount_sectornum"
 	
 	echo "Saving image of $DEV ==> $output_imgfile"
-	pv $DEV | dd count=$gohere 2> /dev/null | gzip -1 > "$output_imgfile".TEMP || failed "yes_save_output_imgfile_for_posterity() -- failed to save image $output_imgfile"
+	pv $DEV | dd count=$mount_sectornum 2> /dev/null | gzip -1 > "$output_imgfile".TEMP || failed "yes_save_output_imgfile_for_posterity() -- failed to save image $output_imgfile"
 	echo -en "Done."
 	mv -f "$output_imgfile".TEMP $output_imgfile
 	echo ""
 }
 
-
-
-
-# Enable this to delete the now-unused p3 partition.
-#	chroot_this $PARTED_CHROOT "echo -en \"rm 3\nq\n\" | parted $DEV" &> /tmp/ptxt.txt || echo "Warning --- Failed to delete partition #3 --- `cat /tmp/ptxt.txt`"
 
 save_IMG_file_for_posterity_if_possible() {
 	local dirname_of_posterity_thumb_drive_path img_file
@@ -740,22 +714,11 @@ install_from_prefab_img() {
 		pv $kernel_fname_or_url > $kernel_fname     || failed "Failed to save $kernel_fname_or_url --- L err?"
 	fi
 	
-#	if [ ! -e "$PARTED_CHROOT/bin/parted" ] ; then
-#		mount_scratch_space_loopback
-#		install_parted_chroot
-#	fi	
-#	chroot_this $PARTED_CHROOT "partprobe $dev"
-#	sync;sync;sync
-	
 	if [ ! -e "$VFATDEV" ] ; then
 		mknod $VFATDEV b 179 66 || failed "install_from_prefab_img() -- failed to create p2 node."
 	fi
 
 	sign_and_write_custom_kernel $MYDISK_CHROOT $UBOOTDEV $VFATDEV $kernel_fname "" ""  || failed "install_from_prefab_img() -- failed to sign/write custom kernel"
-
-#	mount_my_disk
-#	sign_and_install_kernel || failed "install_from_prefab_img() -- failed to sign and install kernel"
-#	unmount_my_disk &> /dev/null || echo -en ""
 
 	unmount_absolutely_everything &> /dev/null || echo -en ""
 	pause_then_reboot
@@ -769,7 +732,9 @@ install_from_prefab_sqfs() {
 	install_parted_chroot
 
 	mount | fgrep "$DEV" && failed "partition_my_disk() --- stuff from $DEV is already mounted. Abort!" || echo -en ""
-	partition_the_device $DEV $DEV_P $PARTED_CHROOT $SPLITPOINT yes 2> /tmp/ptxt.txt || failed "Failed to partition myself. `cat /tmp/ptxt.txt` .. Ugh. ###3"
+
+#											it used to be .... v "yes" v .... but now, we leave p3 in place (junk, sausage)
+	partition_the_device $DEV $DEV_P $PARTED_CHROOT $SPLITPOINT "" 2> /tmp/ptxt.txt || failed "Failed to partition myself. `cat /tmp/ptxt.txt` .. Ugh. ###3"
 	format_my_disk
 	mount_my_disk
 	echo "Restoring from $prefab_fname_or_url and .../`basename $kernel_fname_or_url`"
@@ -782,6 +747,9 @@ install_from_prefab_sqfs() {
 	fi
 	sign_and_install_kernel
 	unmount_my_disk &> /dev/null || echo -en ""
+	unmount_absolutely_everything &> /dev/null || echo -en ""
+	save_IMG_file_for_posterity_if_possible
+	pause_then_reboot
 }
 
 
@@ -814,19 +782,12 @@ install_from_prefab() {
 
 unmount_absolutely_everything() {
 	echo -en "Unmounting absolutely everything"
-	umount $MYDISK_CHROOT/{tmp,dev,proc,sys} $MYDISK_CHROOT || echo -en "Unable to unmount mydisk chroot"
-	echo -en "."
-	umount $MINIDISTRO_CHROOT/tmp/_root/{tmp,dev,proc,sys} $MINIDISTRO_CHROOT/tmp/_root || echo -en "Unable to unmount alarpy chroot"
-	echo -en "."
-	umount $MINIDISTRO_CHROOT/{tmp,dev,proc,sys} $MINIDISTRO_CHROOT || echo -en "Unable to unmount alarpy chroot"
-	echo -en "."
-	umount $PARTED_CHROOT/{tmp,dev,proc,sys} $PARTED_CHROOT || echo -en "Unable to unmount parted chroot"
-	echo -en "."
+	umount $MYDISK_CHROOT/{tmp,dev,proc,sys} $MYDISK_CHROOT 							&& echo -en "." || echo -en "Unable to unmount mydisk chroot"
+	umount $MINIDISTRO_CHROOT/tmp/_root/{tmp,dev,proc,sys} $MINIDISTRO_CHROOT/tmp/_root	&& echo -en "." || echo -en "Unable to unmount alarpy chroot"
+	umount $MINIDISTRO_CHROOT/{tmp,dev,proc,sys} $MINIDISTRO_CHROOT						&& echo -en "." || echo -en "Unable to unmount alarpy chroot"
+	umount $PARTED_CHROOT/{tmp,dev,proc,sys} $PARTED_CHROOT								&& echo -en "." || echo -en "Unable to unmount parted chroot"
 	umount $LOOPFS_BTSTRAP/* $LOOPFS_BTSTRAP || echo -en "Unable to unmount main btstrap mtpt"
 	umount $TOP_BTSTRAP/{tmp,dev,proc,sys} $TOP_BTSTRAP || echo -en "Unable to unmount top btstrap"
-	echo -en "."
-	echo "$TEMP_OR_PERM" > /tmp/TEMP_OR_PERM
-	echo -en "."
 	sudo stop powerd 2> /dev/null || echo -en ""
 	umount /dev/loop1 &> /dev/null || echo -en ""
 	umount /dev/loop2 &> /dev/null || echo -en ""
@@ -866,13 +827,19 @@ mkdir -p $ROOTMOUNT $BOOTMOUNT $KERNMOUNT
 
 
 
-
-#DISTRONAME=debianwheezy
-#echo "Unmounting absolutely everything, just in case."
+## keep trying the newly modified redo>_mbr.sh until the sausage can be found reliably
+#DISTRONAME=debianstretch
 #unmount_absolutely_everything &> /dev/null || echo -en ""
-#echo "Saving IMG file for infernal test porpoises"
-#save_IMG_file_for_posterity_if_possible
+#mount_my_disk
+#mount_dev_sys_proc_and_tmp $MINIDISTRO_CHROOT
+#install_chrubix $MINIDISTRO_CHROOT $DEV $ROOTDEV $VFATDEV $KERNELDEV $DISTRONAME
+#chmod +x $MINIDISTRO_CHROOT/usr/local/bin/redo_mbr.sh || failed "Failed to mark redo_mbr.sh +x"
+#chroot_this $MINIDISTRO_CHROOT "/usr/local/bin/redo_mbr.sh $DEV $MYDISK_CHR_STUB $VFATDEV" || failed "Failed to redo_mbr.sh :-/"
+#unmount_my_disk &> /dev/null || echo -en ""
+#sudo reboot
 #exit 0
+
+
 
 
 
@@ -892,5 +859,7 @@ unmount_absolutely_everything &> /dev/null || echo -en ""
 get_distro_type_the_user_wants		# sets $DISTRONAME
 prefab_fname=`locate_prefab_file` || prefab_fname=""		# img, sqfs, _D, _C, ...; check Dropbox and local thumb drive
 [ "$prefab_fname" = "" ] && install_from_the_beginning || install_from_prefab $prefab_fname
-echo "YOU SHOULD NOT REACH THIS LINE"
-exit 1
+echo "End of line :-)"
+sudo reboot
+exit 0
+

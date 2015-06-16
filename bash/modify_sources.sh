@@ -108,7 +108,7 @@ do_my_replacement_thang() {
 		[ -e "$fname.orig" ] || mv $fname $fname.orig
 		if ! cat $fname.orig | sed s/$needle/$replacement/ > $fname ; then
 			rm -f $fname
-			failed "modify_cryptsetup() -- failed to sed s/$needle/$replacement/"
+			failed "do_my_replacement_thang() -- failed to sed s/$needle/$replacement/"
 		fi
 	done
 }	
@@ -152,9 +152,6 @@ modify_cryptsetup() {
 	
 	do_my_replacement_thang "$needle1" "$haystack1" "$replacement1"
 	do_my_replacement_thang "$needle2" "$haystack2" "$replacement2"
-	
-	rm -f /lib/libcryptsetup* /lib/*/libcryptsetup* /lib/*/*/libcryptsetup* || echo -en ""
-	chroot_this $root "cd $SOURCES_BASEDIR/cryptsetup/cryptsetup-* && make && make install" || failed "modify_cryptsetup() -- failed to make & make install"
 	
 }
 
@@ -401,8 +398,10 @@ modify_all() {
 	[ "$haystack" = "" ] && failed "modify_all() --- blank haystack"
 
 	if [ -f "$root$RANDOMIZED_SERIALNO_FILE" ] ; then
+		echo "QQQ Using preexisting serial#"
 		randomized_serno=`cat $root$RANDOMIZED_SERIALNO_FILE` || failed "Failed to read randomized serial number from disk file"
 	else
+		echo "QQQ Generating new serial#"
 		randomized_serno=`generate_random_serial_number`
 		echo "$randomized_serno" > $root$RANDOMIZED_SERIALNO_FILE || failed "Failed to write randomized serial number to disk file"
 	fi
@@ -438,9 +437,8 @@ modify_all() {
 	done
 
 	if [ "$NOKTHX" = "" ] ; then
-#		echo "NOW... Let's look for mk*fs, shall we?"
+		modify_cryptsetup     $root $boot $kern $dev $dev_p $petname
 		for mydir in `find $root$SOURCES_BASEDIR -mindepth 2 -maxdepth 2 -type d | grep fs`; do
-#			echo "Checking out $mydir"
 			modify_magics_and_superblocks $mydir $randomized_serno "$haystack"
 		done
 	fi
@@ -815,10 +813,7 @@ echo "FYI, petname=$petname; whitelist = `deduce_whitelist $dev`"
 echo "Working..."
 restore_to_pristine_state_if_necessary $root
 modify_mkfs_n_kernel  $root $boot $kern $dev $dev_p $petname
-modify_cryptsetup     $root $boot $kern $dev $dev_p $petname
-#test_cryptsetup || failed "Test cryptsetup FAILED --- $?"
-
-
 res=$?
 echo "Exiting w/ res=$res"
 exit $res
+

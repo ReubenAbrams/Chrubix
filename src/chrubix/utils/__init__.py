@@ -532,6 +532,7 @@ def reinstall_chrubix_if_missing( mountpoint ):
             chroot_this( mountpoint, f )
         install_mp3_files( mountpoint )
 
+
 # def create_IMG_file_for_posterity( device, spare_dev, mountpoint, save_file_here ):
 # #    failed( 'dev=%s; spare=%s; Create %s => %s here' % ( device, spare_dev, mountpoint, save_file_here ) )
 
@@ -539,3 +540,23 @@ def reinstall_chrubix_if_missing( mountpoint ):
 
 
 
+def check_sanity_of_distro( mountpoint, kernel_src_basedir ):
+    flaws = 0
+    broken_pkgs = ''
+    if not os.path.exists( '/usr/local/bin/Chrubix' ):
+        failed( 'Someone deleted Chrubix folder. #15' )
+    system_or_die( 'chmod +x %s/usr/local/*' % ( mountpoint ) )  # Shouldn't be necessary... but it is. For some reason, greeter.sh and CHRUBIX aren't executable. Grr.
+    assert( os.path.exists( '%s%s/src/chromeos-3.4/arch/arm/boot/vmlinux.uimg' % ( mountpoint, kernel_src_basedir ) ) )
+    for executable_to_find in ( 
+                                'startlxde', 'lxdm', 'wifi_auto.sh', 'wifi_manual.sh', \
+                                'chrubix.sh', 'mkinitcpio', 'dtc', 'wmsystemtray', 'florence', \
+                                'pidgin', 'gpgApplet', 'macchanger', 'gpg', 'chrubix.sh', 'greeter.sh', \
+                                'dropbox_uploader.sh', 'power_button_pushed.sh', \
+                                'sayit.sh', 'vidalia', 'i2prouter', 'claws-mail', \
+                                'CHRUBIX', 'libreoffice', 'ssss-combine', 'ssss-split', 'dillo'
+                              ):
+        if chroot_this( mountpoint, 'which %s' % ( executable_to_find ), attempts = 1 ):
+            broken_pkgs += '%s ' % ( executable_to_find )
+            flaws += 1
+    logme( "This sanity-checker is incomplete. Please improve it." )
+    return broken_pkgs
