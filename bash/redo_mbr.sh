@@ -23,7 +23,6 @@ KERNEL_SRC_BASEDIR=$SOURCES_BASEDIR/linux-chromebook
 INITRAMFS_DIRECTORY=$RYO_TEMPDIR/initramfs_dir
 INITRAMFS_CPIO=$RYO_TEMPDIR/uInit.cpio.gz
 RAMFS_BOOMFILE=.sha512boom
-GUEST_HOMEDIR=/tmp/.guest
 STOP_JFS_HANGUPS="echo 0 > /proc/sys/kernel/hung_task_timeout_secs"
 SQUASHFS_FNAME=/.squashfs.sqfs
 CKSUM_DATALOC=$(($SPLITPOINT+1))
@@ -198,17 +197,12 @@ get_number_of_cores() {
 
 
 make_initramfs_homemade() {
-	local f myhooks rootdev login_shell_code booming smileyface dev_p
+	local f myhooks rootdev login_shell_code booming dev_p
 	root=$1
 	rootdev=$2
 	dev_p=$3
 	dev_p3="$dev_p"3
-	thumbsup="H4sIAEN+NFMAA5VUWxLEIAj79xRMhvtx/78VAcVWtm1mZ6uUhFeVqIJ0cILuW+XKBY6M2t1Jy5P7H3N/qo5QX8l69wLh3TXGrwuJyjCBrzLml7AZllIXUR24nQ8ym9DVIHnb5vKBdTdktPLN/6rcAsBESJ+w7TeM7EKFzPBqRIXM+HK6AOqiH3VsWm3m800IFCOOo6BS4gaP8jaZeyvSyOBOr5TMDY6ms8OqlqN/JbC+++1wjqbb6jR+TKYFuhxszsdWtUIjpXcM62kLPUCJuN0mSFxvsWDTEz5EDCZLVDw2HEyxzM/XHYKqZEyeF1tckZM2Yq62lu6Ltk3j0V/BXwmJURdwyWuUS9R+VV7y0EIGAAA="
-	barnie="H4sIAC9aQFMAA41Xz2vjOBS+96/QKEIqHlliYWmxiPNuiwk1hNanoE0e3lyGOXh6yUnjv32lOE4kO8n0QamR9H16v/VCyJdk35VL7mVVHrv9/ulLGNCspIISQindBfg76+1XoIqDFukSUsqY/DNY6itU53RnVeDLy942f0THWKKtewF0hLjl8jMnEuAxXOlEZ7QAh19+ARmA1E7+sOohgcwA0hWk5w9KBcFWWMsY549pZHMQD7Y9KTdYCUL5qyRqHki1V5fvyrlk6wZZZisZOBn7MK9uQuYAribVTl6VzHPu7C3doCXBXKO1GMiU7PL82Fm5WYvqQlG5tysIBa1OuFRkjhDukJwPXHIDecjD0pSCODci8K2QMQ4r5HLC5cB8886QG35iwhYi7Qs9GglQJUivZdYqKWh02jDDvQH/nu3Dltnu4tlMWzVSeWREVaiQUtY8u7NbNHsJkXa2Gb2OaLd2vAnt64CXTQc8prLP1uQq/zB5X+ZUCLk5LddrEYXPZ282OghCzhFysG659xvdfjzDeW0N5N8XZmWVk1wMNjdJGnimUSkM3wen8e/32pnesPI4mIvs57J+5/U/jAFfD/lbJfqMTOry3Wrmq+H4LQe+BGM2wyVId/kuh7b8OJfB4J9915c942xVhisBrIxYD/6PMVFshMlhZWhpu67TpefvgQ2qy3f9pDSDfidoEKTWcr4ks7Sj2LON+c8QffRXyYUxsFxyI5oQtgPzWW3SMqK07DSfldYQlI5vBQq1WDji6sqGDPSKPpWGVby0MQhpC23KooZ4FC+Zyo/KgEZblowD49ngWdwxSEkyntkoVc+Z4TOgz/tzV3G+0leXyIQsi7VutB2SJchh0s7OBE0UV6uvcHWKPNrVAL7TxZImzvHSBnTcqyDpW7FADHeuOH+tbRMdqu6hJ/hLg3ROR6vu7u1eioTAufr0f7MWyeoDAqySsmgbeULE+j8m8LsJQ6ODEye9Huf9NJY6LU0elKgnlxbTJprupgynJjxlwHldRDJ9bRAyWUwtf2jHYfr4+Q7z7KrJpY8ooJ29xf5JnCuO9p4l68zNOQKg01PMPXf4Mi302+2hoDAzVYobDy8J7zRWxb3RIoMZau6Wc8NxehqZK8bNHHGt4IFjHKHQVfdYDlZ/btsuIaojClleikm6ZsKidO+HFSghDGtIy4pFGTMWvupKERXk2k4skpkWp1516XB4Oe7HwM73fpq1aQFItklI/KB2xz5y6vIDI7g6WdcJx/puoUsG15ZUR8dgQhHvudU5Omov+4LFLmiuxw6iTtOkwCsFVj/MOzecv3A/+UeH/Ou5Ho/hjvpJJSVxsaFYbq2hlEylck2yiLziq+Nkhh06IlHBlKOEW3NmYvVZP7N1s9HauSrMDluAY7/CQ1HdcLdvO5MbgBFciGn6+hJ17q/vhFaeUzFNbgi2Wz6Syc5y9/vFEa6ngxCxwPyDHqaUjNJ7434Yatowqzlb+JoEo+ZE4VdVIMDHvxkI9sA/OwNGyF+LGzRfF7rrl2al6dP/22OCtXcOAAA="
-	garfield="H4sIAJ5cQFMAA5WWW47DIAxF/7OKIP8hDdlQpOx/F1O/bR4pdTWdEu4xBhvCeb4boB2L5wDSqBVKmQq5Czu5oc1ByX2AvSCtV6l0g7a+aFGA3it+SFtANX9/I8ZC+hAoFrjrGakgZC0bGHVdT4dBFJb4W7iPXdd1njdyt1FljXmb1uO5hVgiPrePVV7E+x6ZAq4GWSdmKlHP89w3uCQa5UCjb60RRNiFoyHVNCOsBf19BqxpNg9JLz6zTLLYmgFTkrlPNPQIgjQGSOslmEQqYNGnkIKl0mWTbgJtOZ0jlIXEtWyAJC8pgqBxdqIGA4d/HqosTNaBfXkoMseawTimz8nD0B+lHzFNUCThUeCsaqiIWm9acv3DlH/oFWVtXd2wveiLdEdMuS+DoCBSp5T/FPETSsroCDW4pgAMSKde2MkziI6m/uBaAjKpHwGK6viRiMu1j3TMl4l0ydxDiu7FXwi0lMlNBhfbsX3KN9Mm6GVSU7q+kVJ3DGsF7sFIagaKb5WRnr2mwHdjCXDYmSOTad5HYTetcKeMtnGTLXDl9N8w8PvoGYfFwOkwS50DXufwNr7i9/B18HKEv/IDbR5Ad0q4CcV7jEUQfMdbHNagBIEecs6mk7BbTHVfcjYQL7fD6CDef0o46ocJmY8iV66+Bs1leFf0XeKjgLsxFyE2WHqQONQJ5HTE6aWXVnQgdwG1cCV+cZFjGF83ekBM75STIFYOBocdbo43+T6i4x9WhIAHTg0AAA=="
 
-#	smileydecoder=""
-	smileydecoder="echo \"$thumbsup\" | base64 -d | gunzip"           # LEAVE IT! Yes, \"$whatever\"; no, the $ shouldn't be backslashed
 	booming=""
 	[ "$rootdev" != "" ] || failed "Please specify rootdev when calling make_initramfs_homemade(). Thanks."
 	rm -Rf $root$INITRAMFS_DIRECTORY
@@ -306,9 +300,9 @@ if [ -e \"/newroot/$SQUASHFS_FNAME\" ]; then
   mount -o ro $rootdev /deviceroot
   mkdir -p /ro /rw
   mount -o loop,squashfs /deviceroot/$SQUASHFS_FNAME /ro
-  losetup /dev/loop6 -o 16384 $dev_p3
 
-  while ! mount | grep \"/rw \" ; do
+  losetup /dev/loop6 -o 16384 $dev_p3
+  while ! mount | grep \"/rw \" > /dev/null ; do
     echo -en \"BOOT: \"
 	read -t 10 line
 	if [ \"\$line\" = \"x\" ] ; then
@@ -316,21 +310,16 @@ if [ -e \"/newroot/$SQUASHFS_FNAME\" ]; then
     elif [ \"\$line\" = \"\" ] ; then
       echo ContinuingAsVanilla  
       mount -t tmpfs -o size=1024m tmpfs /rw
-    elif echo \"\$line\" | cryptsetup luksOpen /dev/loop6 hiddensausage ; then
+    elif echo \"\$line\" | cryptsetup luksOpen /dev/loop6 hSg 2> /dev/null ; then
 	  echo SausageFound    
-      mount /dev/mapper/hiddensausage /rw
+      mount -o defaults,noatime,nodiratime /dev/mapper/hSg /rw
+      rm -f /usr/share/applications/make_me_permanent.desktop
     else
       echo SausageNotFoundTryAgain
     fi
   done
-  mount -t unionfs -o dirs=/rw:/ro=ro none /newroot        # mount -t unionfs -o dirs=/home/rw.fs=rw:/newroot=ro unionfs user1
-
-#  mount tmpfs /newroot/tmp -t tmpfs
-#  for mydir in etc var root ; do
-#    cp -af /newroot/\$mydir /newroot/tmp/.squashfs.rw.ahoy/
-#    mount  /newroot/\$mydir /newroot/tmp/.squashfs.rw.ahoy/\$mydir
-#  done
-#  [ -e \"/preboot_configurer.sh\" ] && /preboot_configurer.sh	# We use GREETER (Python 3) now. Yay. :-)
+  mount -t unionfs -o dirs=/rw:/ro=ro,defaults,noatime,nodiratime none /newroot
+  mount | grep /dev/mapper/ > /dev/null && rm -f /newroot/usr/share/applications/gksu2.desktop || echo -en \"\"		# Delete the 'make me permanent' file, if we are now permanent :)
 fi
 "
 	fi
@@ -349,11 +338,8 @@ mdev -s
 mkdir -p /newroot
 /log_me_in.sh
 if [ \"\$?\" -eq \"0\" ] ; then
-#	$smileydecoder
     echo -en \"$BOOT_PROMPT_STRING\"
-#	echo \"'A man is not idle because he is absorbed in thought. There is visible labor and there is invisible labor.' - Victor Hugo\"
-#	umount /sys /proc	#Unmount all other mounts so that the ram used by the initramfs can be cleared after switch_root
-#   echo \"Normally, I would call exec switch_root /newroot /sbin/init now; instead, I shall shell out\"
+#	umount /sys /proc
 	read -t 2 line
 	if [ \"\$line\" = \"x\" ] ; then
         sh

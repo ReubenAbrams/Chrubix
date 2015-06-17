@@ -9,27 +9,11 @@
 import sys
 import os
 from chrubix.utils import logme, write_oneliner_file
-from chrubix.utils.postinst import configure_lxdm_behavior, install_iceweasel_mozilla_settings
+from chrubix.utils.postinst import configure_lxdm_behavior, install_iceweasel_mozilla_settings, \
+                                    set_up_guest_homedir
 from chrubix import load_distro_record
 
 
-GUEST_HOMEDIR = '/tmp/.guest'
-LXDM_CONF = '/etc/lxdm/lxdm.conf'
-
-
-def set_up_guest_homedir():
-    logme( 'ersatz_lxdm.py --- set_up_guest_homedir() --- entering' )
-    for cmd in ( 
-                'mkdir -p %s' % ( GUEST_HOMEDIR ),
-                'chmod 700 %s' % ( GUEST_HOMEDIR ),
-                'tar -Jxf /usr/local/bin/Chrubix/blobs/settings/default_guest_files.tar.xz -C %s' % ( GUEST_HOMEDIR ),
-                'chown -R guest.guest %s' % ( GUEST_HOMEDIR ),
-                'chmod 755 %s' % ( LXDM_CONF ),
-                ):
-        if 0 != os.system( cmd ):
-            logme( '%s ==> failed' % ( cmd ) )
-    install_iceweasel_mozilla_settings( '/', GUEST_HOMEDIR )
-    logme( 'ersatz_lxdm.py --- set_up_guest_homedir() --- leaving' )
 
 
 def do_audio_and_network_stuff():
@@ -47,10 +31,16 @@ def do_audio_and_network_stuff():
     logme( 'ersatz_lxdm.py --- do_audio_and_network_stuff() --- leaving' )
 
 
+
+# ------------------------------------------------------------------------------------------------------------------
+
+
+
 if __name__ == "__main__":
     logme( 'ersatz_lxdm.py --- starting w/ params %s' % ( str( sys.argv ) ) )
     logme( 'ersatz_lxdm.py --- loaded distro record (yay)' )
-    set_up_guest_homedir()
+#    set_up_guest_homedir()
+#    set_up_guest_homedir( homedir = '/tmp/.guest' )
     logme( 'ersatz_lxdm.py --- guest homedir set up OK' )
     os.system( 'rm -f /tmp/.yes_greeter_is_running' )
     if load_distro_record().lxdm_settings['use greeter gui']:
@@ -69,9 +59,9 @@ if __name__ == "__main__":
         if res != 0:
             logme( 'ersatz_lxdm.py --- ending sorta prematurely; res=%d' % ( res ) )
             sys.exit( res )
-    if os.path.exists( '/etc/.first_time_ever' ):
+    if not os.path.exists( '/tmp/.already.initialized.network.stuff' ):
         do_audio_and_network_stuff()
-        os.unlink( '/etc/.first_time_ever' )
+        os.system( 'touch /tmp/.already.initialized.network.stuff' )
     logme( 'ersatz_lxdm.py --- MAIN LOOP' )
 #    while 'english' != 'british':
     logme( 'ersatz_lxdm.py --- configuring lxdm behavior' )

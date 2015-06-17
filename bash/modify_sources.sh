@@ -24,7 +24,6 @@ INITRAMFS_DIRECTORY=$RYO_TEMPDIR/initramfs_dir
 INITRAMFS_CPIO=$RYO_TEMPDIR/uInit.cpio.gz
 RANDOMIZED_SERIALNO_FILE=/etc/.randomized_serno
 RAMFS_BOOMFILE=.sha512boom
-GUEST_HOMEDIR=/tmp/.guest
 DISTRO=ArchLinux
 STOP_JFS_HANGUPS="echo 0 > /proc/sys/kernel/hung_task_timeout_secs"
 MAX_LENGTH_OF_STRING_OF_BAD_PHEASANTS_CAUGHT=512

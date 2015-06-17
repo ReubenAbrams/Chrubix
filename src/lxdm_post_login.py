@@ -41,7 +41,7 @@ def configure_X_and_start_some_apps():
                 'ip2router start',
                 'su freenet -c “/opt/freenet/run.sh start"',  # /opt/freenet start',
                )
-    logme( 'lxdm_post_login.py --- fixing /tmp/.guest and /home/* permissions' )
+    logme( 'lxdm_post_login.py --- fixing various permissions' )
     execute_this_list( main_list )
     logme( 'lxdm_post_login.py --- proceeding' )
 

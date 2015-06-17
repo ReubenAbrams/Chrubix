@@ -12,6 +12,8 @@ import os
 from chrubix.utils import write_oneliner_file, failed, system_or_die, logme, do_a_sed, \
                           chroot_this, read_oneliner_file
 
+GUEST_HOMEDIR = '/home/guest'
+LXDM_CONF = '/etc/lxdm/lxdm.conf'
 
 def append_startx_addendum( outfile ):
     f = open( outfile, 'a' )
@@ -407,6 +409,11 @@ if ! cat prefs.js | grep 8118 ; then
 fi
 #exit 0
 
+if [ "$USER" = "root" ] || [ "$UID" = "0" ] ; then
+    echo "Someone is trying to launch this web browser as root. I refuse!"
+    exit 1
+fi
+
 if ps -o pid -C privoxy &>/dev/null && ps -o pid -C tor &>/dev/null ; then
   http_proxy=http://127.0.0.1:8118 iceweasel.forreals $@
 else
@@ -580,10 +587,12 @@ def tweak_xwindow_for_cbook( mountpoint ):
     do_a_sed( f, 'gb', 'us' )
     system_or_die( 'mkdir -p %s/etc/tmpfiles.d' % ( mountpoint, ) )
     write_oneliner_file( mountpoint + '/etc/tmpfiles.d/touchpad.conf', "f /sys/devices/s3c2440-i2c.1/i2c-1/1-0067/power/wakeup - - - - disabled" )
-    write_oneliner_file( mountpoint + '/usr/share/festival/festival.scm', '''
+    f = open( mountpoint + '/usr/share/festival/festival.scm', 'a' )
+    f.write( '''
 (Parameter.set 'Audio_Method 'Audio_Command)
 (Parameter.set 'Audio_Command "aplay -q -c 1 -t raw -f s16 -r $SR $FILE")
 ''' )
+    f.close()
 #    chroot_this( mountpoint, 'systemctl enable i_run_every_minute.timer' )
     f = open( '%s/etc/X11/xorg.conf' % ( mountpoint ), 'a' )
     system_or_die( 'cp -f %s/usr/local/bin/Chrubix/blobs/apps/mtrack_drv.so %s/usr/lib/mtrack.so' % ( mountpoint, mountpoint ) )
@@ -711,9 +720,14 @@ def install_iceweasel_mozilla_settings( mountpoint, path ):
     basename = os.path.basename( path )
     username = os.path.basename( path )
     if username[0] == '.':
-        username = username[1:]  # in case path is '.guest'
+        username = username[1:]  # just in case the path is '.guest' => user is 'guest'
     assert( path.count( '/' ) == 2 )
+
+    assert( os.path.exists( '%s/home/guest' % ( mountpoint ) ) )
     system_or_die( 'tar -zxf /usr/local/bin/Chrubix/blobs/settings/iceweasel-moz.tgz -C %s%s' % ( mountpoint, path ) )
+#    for stub in ( '.gtkrc-2.0', '.config/chromium/Default/Preferences', '.config/chromium/Local State' ):
+#        do_a_sed( '%s/home/%s/%s' % ( mountpoint, user_name, stub ), GUEST_HOMEDIR, '/home/%s' % ( user_name ) )
+
     f = '%s%s/.mozilla/firefox/ygkwzm8s.default/secmod.db' % ( mountpoint, path )
     logme( 'f = %s' % ( f ) )
     assert( os.path.exists( f ) )
@@ -727,38 +741,6 @@ def install_iceweasel_mozilla_settings( mountpoint, path ):
     chroot_this( mountpoint, 'chown -R %s %s' % ( username, path ) )
     assert( os.path.exists( f ) )
     logme( 'install_iceweasel_mozilla_settings() --- leaving' )
-
-
-def ask_the_user__guest_mode_or_user_mode__and_create_one_if_necessary( distro_name, mountpoint ):
-    success = False
-    while not success:
-        user_name = input( "Short, one-word name of your default user (or press Enter for guest): " ).strip()
-        if user_name == '' or user_name == 'guest':
-            return 'guest'
-        try:
-#            print( 'Calling useradd %s => mountpoint=%s' % ( user_name, mountpoint ) )
-            chroot_this( mountpoint, 'useradd %s' % ( user_name ) )
-            success = True
-        except ( IOError, RuntimeError ):
-            print( 'Failed to create user %s' % ( user_name ) )
-            continue
-    success = False
-    while not success:
-        try:
-            chroot_this( mountpoint, 'passwd %s' % ( user_name ) )
-            success = True
-        except ( IOError, RuntimeError ):
-            continue
-    system_or_die( 'mkdir -p %s/home/%s' % ( mountpoint, user_name ) )
-    add_user_to_the_relevant_groups( user_name, distro_name, mountpoint )
-    system_or_die( 'tar -Jxf /usr/local/bin/Chrubix/blobs/settings/default_guest_files.tar.xz -C %s/home/%s' % ( mountpoint, user_name ) )
-    install_iceweasel_mozilla_settings( mountpoint, '/home/%s' % ( user_name ) )
-    for stub in ( '.gtkrc-2.0', '.config/chromium/Default/Preferences', '.config/chromium/Local State' ):
-        do_a_sed( '%s/home/%s/%s' % ( mountpoint, user_name, stub ), '/tmp/.guest', '/home/%s' % ( user_name ) )
-#    assert( 0 != os.system( 'fgrep -rnl /tmp/.guest %s/home/%s/.[a-z]*' % ( mountpoint, user_name ) ) )
-    chroot_this( mountpoint, 'chown -R %s.users /home/%s' % ( user_name, user_name ) )
-    chroot_this( mountpoint, 'chmod -R 700 /home/%s' % ( user_name ) )
-    return user_name
 
 
 def tidy_up_alarpy():
@@ -788,6 +770,28 @@ def tidy_up_alarpy():
         logme( 'Removing %s' % ( path_to_delete ) )
         system_or_die( 'rm -Rf %s' % ( path_to_delete ) )
         os.system( 'mv /usr/share/locale.alias /usr/share/locale/ 2> /dev/null' )
+
+
+
+
+def set_up_guest_homedir( mountpoint = '/', homedir = GUEST_HOMEDIR ):
+    logme( 'ersatz_lxdm.py --- set_up_guest_homedir() --- entering' )
+    for cmd in ( 
+                'mkdir -p %s' % ( homedir ),
+                'chmod 700 %s' % ( homedir ),
+                'tar -Jxf /usr/local/bin/Chrubix/blobs/settings/default_guest_files.tar.xz -C %s' % ( homedir ),
+                'chown -R guest.guest %s' % ( homedir ),
+                'chmod 755 %s' % ( LXDM_CONF ),
+                ):
+        if 0 != chroot_this( mountpoint, cmd ):
+            logme( 'set_up_guest_homedir() --- %s ==> failed' % ( cmd ) )
+        else:
+            logme( 'set_up_guest_homedir() --- %s --> success' % ( cmd ) )
+    install_iceweasel_mozilla_settings( mountpoint, homedir )
+    chroot_this( mountpoint, 'chown -R guest.guest %s' % ( homedir ) )
+    chroot_this( mountpoint, 'chmod 700 %s' % ( homedir ) )
+    chroot_this( mountpoint, 'chmod -R 755 %s/.[A-Z,a-z]*' % ( homedir ) )
+    logme( 'ersatz_lxdm.py --- set_up_guest_homedir() --- leaving' )
 
 
 

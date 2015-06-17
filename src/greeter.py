@@ -11,7 +11,6 @@ from chrubix.utils import logme, write_oneliner_file, disable_root_password, set
 from chrubix import save_distro_record, load_distro_record
 
 
-GUEST_HOMEDIR = '/tmp/.guest'
 LXDM_CONF = '/etc/lxdm/lxdm.conf'
 
 

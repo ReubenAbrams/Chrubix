@@ -370,7 +370,7 @@ get_distro_type_the_user_wants() {
 	while [ "$distroname" = "" ] ; do
 		clear
 # NOT SUPPORTED: (F)edora, (S)uSE 12.3
-		echo -en "Welcome to the Chrubix installer. Which GNU/Linux distro shall I install on $dev?
+		echo -en "Welcome to the Chrubix installer. Which GNU/Linux distro shall I install on $DEV?
 
 Choose from...
 

@@ -36,12 +36,15 @@ def do_debian_specific_mbr_related_hacks( mountpoint ):
                           '/bin/makepkg',
                           '/usr/lib/modprobe.d/usb-load-ehci-first.conf'
                            ):
-        if os.path.exists( '%s%s' % ( mountpoint, missing_path ) ):
+        if 0 == chroot_this( mountpoint, 'ls %s &> /dev/null' % ( missing_path ) , attempts = 1 ):
             logme( '%s%s already exists. So, no reason to copy from /... to this location.' % ( mountpoint, missing_path ) )
         else:
             logme( '%s%s does not exist. Therefore, I am copying it across' % ( mountpoint, missing_path ) )
             system_or_die( 'mkdir -p %s%s' % ( mountpoint, os.path.dirname( missing_path ) ) )
-            system_or_die( 'cp -avf %s %s%s/' % ( missing_path, mountpoint, os.path.dirname( missing_path ) ) )
+            try:
+                system_or_die( 'cp -avf %s %s%s/' % ( missing_path, mountpoint, os.path.dirname( missing_path ) ) )
+            except RuntimeError:
+                logme( '** FYI, I was unable to kludge %s **' % ( missing_path ) )
     system_or_die( 'rm -f %s/usr/lib/initcpio/busybox' % ( mountpoint ) )
     for ( fname, wish_it_were_here, is_actually_here ) in ( 
                                                   ( 'busybox', '/usr/lib/initcpio', '/bin' ),
@@ -49,7 +52,10 @@ def do_debian_specific_mbr_related_hacks( mountpoint ):
         if not os.path.exists( '%s%s/%s' % ( mountpoint, wish_it_were_here, fname ) ):
             system_or_die( 'ln -sf %s/%s %s%s/' % ( is_actually_here, fname, mountpoint, wish_it_were_here ) )
     logme( 'Coping usb-load-ehci-first.conf across anyway.' )
-    system_or_die( 'cp -af /usr/lib/modprobe.d/usb-load-ehci-first.conf %s/lib/modprobe.d/' % ( mountpoint ) )
+    try:
+        system_or_die( 'cp -af /usr/lib/modprobe.d/usb-load-ehci-first.conf %s/lib/modprobe.d/' % ( mountpoint ) )
+    except RuntimeError:
+        logme( '** FYI, I was unable to kludge modprobe.d **' )
     assert( os.path.exists( '%s/usr/lib/modprobe.d/usb-load-ehci-first.conf' % ( mountpoint ) ) )
 
 
@@ -305,10 +311,6 @@ Acquire::https::Proxy "https://%s/";
         self.update_status_with_newline( '...installed.' )
 #        svcfile = '%s/lib/systemd/system/getty@.service' % ( self.mountpoint )
         chroot_this( self.mountpoint, 'systemctl enable lxdm.service' )
-        try:
-            do_a_sed( '%s/etc/default/pulseaudio' % ( self.mountpoint ), 'PULSEAUDIO_SYSTEM_START=0', 'PULSEAUDIO_SYSTEM_START=1' )
-        except  ( SyntaxError, SystemError, RuntimeError, AssertionError, IOError ):
-            self.update_status( ' *** Unable to modify /etc/default/pulseaudio --- is it missing? *** ' )
 
 # #        chroot_this( self.mountpoint, 'wget http://www.deb-multimedia.org/pool/main/d/deb-multimedia-keyring/deb-multimedia-keyring_2014.2_all.deb -O - > /tmp/debmult.deb', attempts = 1, title_str = self.title_str, status_lst = self.status_lst )
 # #        chroot_this( self.mountpoint, 'dpkg -i /tmp/debmult.deb', attempts = 1, title_str = self.title_str, status_lst = self.status_lst )
@@ -649,6 +651,17 @@ class WheezyDebianDistro( DebianDistro ):
         chroot_this( self.mountpoint, '''yes "Yes, do as I say!" | apt-get install systemd systemd-sysv''' , title_str = self.title_str, status_lst = self.status_lst,
                     on_fail = 'Failed to install systemd-sysv' )
         super( WheezyDebianDistro, self ).install_important_packages()  # FIXME yes_add_ffmpeg_repo = True )
+
+    def tweak_pulseaudio( self ):
+        if os.path.exists( '%s/etc/pulse/default.pa' % ( self.mountpoint ) ):
+            new_str = 'load-module module-alsa-source device=hw:0,0 #QQQ'
+            do_a_sed( '%s/etc/pulse/default.pa' % ( self.mountpoint ), '#load-module module-alsa-sink', new_str )
+        else:
+            logme( 'tweak_pulseaudio() -- unable to modify /etc/pulse/default.pa; it does not exist' )
+        if os.path.exists( '%s/etc/default/pulseaudio' % ( self.mountpoint ) ):
+            do_a_sed( '%s/etc/default/pulseaudio' % ( self.mountpoint ), 'PULSEAUDIO_SYSTEM_START=0', 'PULSEAUDIO_SYSTEM_START=1' )
+        else:
+            logme( 'tweak_pulseaudio() -- unable to modify /etc/default/pulseaudio; it does not exist' )
 
 #    def configure_distrospecific_tweaks( self ):
 #        super( WheezyDebianDistro, self ).configure_distrospecific_tweaks()

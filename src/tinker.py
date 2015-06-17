@@ -11,7 +11,9 @@ from chrubix import generate_distro_record_from_name, load_distro_record
 from chrubix.utils import fix_broken_hyperlinks, system_or_die, call_makepkg_or_die, remaining_megabytes_free_on_device, \
                           chroot_this, patch_org_freedesktop_networkmanager_conf_file, failed
 from chrubix.distros.debian import generate_mickeymouse_lxdm_patch
-from chrubix.utils.postinst import remove_junk, ask_the_user__guest_mode_or_user_mode__and_create_one_if_necessary
+from chrubix.utils.postinst import remove_junk, \
+                                    ask_the_user__guest_mode_or_user_mode__and_create_one_if_necessary, \
+                                    GUEST_HOMEDIR
 
 
 MYDISK_MTPT = '/.mydisk'
@@ -131,8 +133,8 @@ elif argv[2] == 'clone-guest':
 .gtkrc-2.0 \
 .config/chromium'
     distro = generate_distro_record_from_name( argv[3] )
-    system_or_die( 'cd /tmp/.guest; tar -cJ %s > %s' % ( files_to_save, outfile ) )
-    print( 'Saved /tmp/.guest/.* goodies to %s' % ( outfile ) )
+    system_or_die( 'cd %s; tar -cJ %s > %s' % ( GUEST_HOMEDIR, files_to_save, outfile ) )
+    print( 'Saved %s/.* goodies to %s' % ( GUEST_HOMEDIR, outfile ) )
 elif argv[2] == 'do-kernel':
     distro = generate_distro_record_from_name( argv[3] )
     distro.mountpoint = MYDISK_MTPT if os.system( 'mount | grep /dev/mapper &> /dev/null' ) != 0 else '/'

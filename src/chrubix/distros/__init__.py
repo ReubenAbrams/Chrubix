@@ -9,17 +9,17 @@ from chrubix.utils import rootcryptdevice, mount_device, mount_sys_tmp_proc_n_de
             generate_temporary_filename, backup_the_resolvconf_file, install_gpg_applet, patch_kernel, \
             fix_broken_hyperlinks, disable_root_password, install_windows_xp_theme_stuff, \
             MAXIMUM_COMPRESSION, set_user_password, call_makepkg_or_die, remaining_megabytes_free_on_device, \
-            reinstall_chrubix_if_missing, is_this_bindmounted, check_sanity_of_distro  # , create_IMG_file_for_posterity
+            is_this_bindmounted, check_sanity_of_distro  # , create_IMG_file_for_posterity
 
 from chrubix.utils.postinst import write_lxdm_post_login_file, write_lxdm_post_logout_file, \
             append_lxdm_xresources_addendum, generate_wifi_manual_script, generate_wifi_auto_script, \
-            configure_privoxy, add_speech_synthesis_script, ask_the_user__guest_mode_or_user_mode__and_create_one_if_necessary, \
+            configure_privoxy, add_speech_synthesis_script, \
             configure_lxdm_onetime_changes, configure_lxdm_behavior, configure_lxdm_service, \
             install_chrome_or_iceweasel_privoxy_wrapper, remove_junk, tweak_xwindow_for_cbook, install_panicbutton_scripting, \
             check_and_if_necessary_fix_password_file, install_insecure_browser, append_proxy_details_to_environment_file, \
             setup_onceaminute_timer, setup_onceeverythreeseconds_timer, write_lxdm_service_file, \
             add_user_to_the_relevant_groups, write_login_ready_file, setup_poweroffifunplugdisk_service, write_boom_script, \
-            tidy_up_alarpy
+            tidy_up_alarpy, GUEST_HOMEDIR, set_up_guest_homedir
 from chrubix.utils.mbr import install_initcpio_wiperamonshutdown_files
 from xml.dom import NotFoundErr
 from pipes import SOURCE
@@ -29,13 +29,9 @@ class Distro():
     '''
     '''
     # Class-level consts
-    hewwo = '2015/06/12 @ 16:30'
+    hewwo = '2015/06/17 @ 13:07'
     crypto_rootdev = "/dev/mapper/cryptroot"
     crypto_homedev = "/dev/mapper/crypthome"
-    boot_prompt_string = "boot: "
-    guest_homedir = "/tmp/.guest"
-    stop_jfs_hangsup = "echo 0 > /proc/sys/kernel/hung_task_timeout_secs"
-    boom_pw_hash_fname = "/etc/.sha512bm"
     boomfname = "/etc/.boom"
     ryo_tempdir = "/root/.rmo"
     kernel_cksum_fname = ".k.bl.ck"
@@ -67,6 +63,8 @@ libdevmapper-dev \
         self.__spare_dev = '/dev/null'  # e.g. /dev/mmcblk1p2
         self.__root_dev = '/dev/null'  # e.g. /dev/mmcblk1p3
         self.__boom_pw_hash = None
+        self.root_is_encrypted = False
+        self.boom_pw_hash_fname = '/etc/.boom.hash'
         self.panic_button = 0  # >0 means panic button is active; 0 means inactive
         self.architecture = None
         self.kernel_rebuild_required = False
@@ -76,14 +74,7 @@ libdevmapper-dev \
         self.status_lst = []
         self.mountpoint = None  # not mounted yet :)
         self.list_of_mkfs_packages = None  # This will be defined by subclass
-        self.use_dropbox = False  # for storing fragment of /home key
-        self.root_is_encrypted = False
-        self.home_is_encrypted = False
         self.use_latest_kernel = False
-        self.root_key_partly_on_TD = False
-        self.kernel_triple_signed = False
-        self.home_key_partly_on_TD = False
-        self.freenet_and_i2p_in_home = False
         self.lxdm_settings = {'window manager':chrubix.utils.g_default_window_manager,
                               'default wm':chrubix.utils.g_default_window_manager,
                               'enable user lists':True,
@@ -291,8 +282,11 @@ make' % ( self.sources_basedir ), title_str = self.title_str, status_lst = self.
     def redo_mbr_for_encrypted_root( self, chroot_here ):
         self.redo_mbr( root_partition_device = self.crypto_rootdev, chroot_here = chroot_here )
 
-    def redo_mbr_for_plain_root( self, chroot_here ):  # VFAT partition == spare dev == p2
+    def redo_mbr_for_squashfs_root( self, chroot_here ):  # VFAT partition == spare dev == p2
         self.redo_mbr( root_partition_device = self.spare_dev, chroot_here = chroot_here )
+
+    def redo_mbr_for_plaintext_root( self, chroot_here ):  # VFAT partition == spare dev == p2
+        self.redo_mbr( root_partition_device = self.root_dev, chroot_here = chroot_here )
 
     def redo_mbr( self, root_partition_device, chroot_here ):  # ,root_partition_dev             ... Also generates hybrid initramfs
         logme( 'redo_mbr() --- starting' )
@@ -322,9 +316,8 @@ make' % ( self.sources_basedir ), title_str = self.title_str, status_lst = self.
         return res
 
     def install_vbutils_and_firmware_from_cbook( self ):
-        system_or_die( 'tar -zxf /tmp/.hipxorg.tgz -C %s 2> /dev/null' % ( self.mountpoint ), status_lst = self.status_lst, title_str = self.title_str )
-        system_or_die( 'tar -zxf /tmp/.vbtools.tgz -C %s 2> /dev/null' % ( self.mountpoint ), status_lst = self.status_lst, title_str = self.title_str )
-        system_or_die( 'tar -zxf /tmp/.firmware.tgz -C %s 2> /dev/null' % ( self.mountpoint ), status_lst = self.status_lst, title_str = self.title_str )
+        for f in ( 'hipxorg', 'vbtools', 'firmware', 'usr_share_alsa_ucm' ):
+            system_or_die( 'tar -zxf /tmp/ -C /tmp/.%s.tgz -C %s 2> /dev/null' % ( f, self.mountpoint ), status_lst = self.status_lst, title_str = self.title_str )
         chroot_this( self.mountpoint, 'cd /lib/firmware/ && ln -sf s5p-mfc/s5p-mfc-v6.fw mfc_fw.bin 2> /dev/null' )
 
     def set_disk_password( self ):
@@ -344,30 +337,34 @@ make' % ( self.sources_basedir ), title_str = self.title_str, status_lst = self.
         else:
             failed( "I don't know how to change the disk password by chrooting into a mountpoint. Sorry..." )
 
-    def set_root_password( self ):
-        print( ' ' )
-        res = 999
-        while res != 'Y' and res != 'N':
-            res = input( "Would you like root to be disabled completely (Y/N) ? " ).strip( '\r\n\r\n\r' ).replace( 'y', 'Y' ).replace( 'n', 'N' )
-        if res == 'Y':
-            logme( 'You want there to be no root password. Fair enough.' )
-            res = 0
+    def set_root_password( self, password = None ):
+        if password is not None:
+            cmd = 'echo -en "%s\n%s\n" | passwd' % ( password, password )
+            res = chroot_this( self.mountpoint, cmd, on_fail = 'set_root_password() -- failed to set password' )
         else:
-            print( 'Please choose a password for your ROOT account.' )
-            user = call_binary( ['whoami'] )[1].strip()
-            if user not in ( b'root', 'root', '0' , 0 ):
-                raise SystemError( "You should be running me as root, but you are running me as %s" % ( user, ) )
+            print( ' ' )
             res = 999
-            cmd = 'passwd' if self.mountpoint in ( None, '/' ) else 'chroot %s passwd' % ( self.mountpoint, )
-            while res != 0:
-                if os.system( 'ps -o pid -C X >/dev/null 2>/dev/null' ) == 0 and read_oneliner_file( '/proc/cmdline' ).find( 'cros_secure' ) < 0:
-                    print( 'Running X, opening a terminal, and calling passwd' )
-                    os.system( "export DISPLAY=:0.0" )
-                    res = os.system( 'urxvt -geometry 120x30+0+320 -name "Change Root Password" -e sh -c "%s"' % ( cmd, ) )
-                else:
-                    print( 'Calling passwd' )
-                    res = os.system( cmd )
-                logme( 'cmd=%s ==> res=%s' % ( cmd, res ) )
+            while res != 'Y' and res != 'N':
+                res = input( "Would you like root to be disabled completely (Y/N) ? " ).strip( '\r\n\r\n\r' ).replace( 'y', 'Y' ).replace( 'n', 'N' )
+            if res == 'Y':
+                logme( 'You want there to be no root password. Fair enough.' )
+                res = 0
+            else:
+                print( 'Please choose a password for your ROOT account.' )
+                user = call_binary( ['whoami'] )[1].strip()
+                if user not in ( b'root', 'root', '0' , 0 ):
+                    raise SystemError( "You should be running me as root, but you are running me as %s" % ( user, ) )
+                res = 999
+                cmd = 'passwd' if self.mountpoint in ( None, '/' ) else 'chroot %s passwd' % ( self.mountpoint, )
+                while res != 0:
+                    if os.system( 'ps -o pid -C X >/dev/null 2>/dev/null' ) == 0 and read_oneliner_file( '/proc/cmdline' ).find( 'cros_secure' ) < 0:
+                        print( 'Running X, opening a terminal, and calling passwd' )
+                        os.system( "export DISPLAY=:0.0" )
+                        res = os.system( 'urxvt -geometry 120x30+0+320 -name "Change Root Password" -e sh -c "%s"' % ( cmd, ) )
+                    else:
+                        print( 'Calling passwd' )
+                        res = os.system( cmd )
+                    logme( 'cmd=%s ==> res=%s' % ( cmd, res ) )
         return res
 
     def whitelist_menu_text( self ):
@@ -623,11 +620,7 @@ Choose the 'boom' password : """ ).strip( '\r\n\r\n\r' )
                 dirs_to_backup += ' .alarpy/%s' % ( dir_name )
         system_or_die( 'mkdir -p %s%s' % ( self.mountpoint, os.path.dirname( output_file ) ) )
         system_or_die( 'rm -Rf %s/.*rash*' % ( os.path.dirname( output_file ) ) )
-#        if output_file.find( '_D' ) >= 0:
-#            old_A_file = output_file.replace( '_D.', '_A.' )
-#            logme( 'Deleting %s because we are creating %s' % ( old_A_file, output_file ) )
-#            os.unlink( old_A_file )
-        system_or_die( 'cd %s && tar -c %s | xz %s | dd bs=256k > %s/temp.data' % ( self.mountpoint, dirs_to_backup, compression_parameters, os.path.dirname( output_file ) ), title_str = self.title_str, status_lst = self.status_lst )
+        system_or_die( 'cd %s && tar -c %s | xz %s > %s/temp.data' % ( self.mountpoint, dirs_to_backup, compression_parameters, os.path.dirname( output_file ) ), title_str = self.title_str, status_lst = self.status_lst )
         system_or_die( 'mv %s/temp.data %s' % ( os.path.dirname( output_file ), output_file ) )
         self.update_status_with_newline( '...created.' )
         return 0
@@ -694,6 +687,23 @@ Choose the 'boom' password : """ ).strip( '\r\n\r\n\r' )
     def configure_xwindow_and_onceminute_timer( self ):
         tweak_xwindow_for_cbook( self.mountpoint )
         setup_onceaminute_timer( self.mountpoint )
+
+    def install_extra_menu_items_in_gui ( self ):
+        f = '%s/usr/share/applications/make_me_permanent.desktop' % ( self.mountpoint )
+        write_oneliner_file( f, '''[Desktop Entry]
+Name=***Make Me Permanent***
+Comment=Creates a permanent, encrypted storage locker on this disk
+Encoding=UTF-8
+Exec=gksu "/usr/bin/x-terminal-emulator -e bash /usr/local/bin/Chrubis/bash/make_me_permanent.sh"
+Icon=
+StartupNotify=True
+Terminal=false
+X-MultipleArgs=false
+Type=Application
+Categories=GTK;Utility;TerminalEmulator;
+''' )  # FIME should use /usr/local/bin/make_me_permanent.sh
+
+
 #        setup_onceeverythreeseconds_timer( self.mountpoint )
 
     def configure_lxdm_login_manager( self ):
@@ -722,11 +732,24 @@ Choose the 'boom' password : """ ).strip( '\r\n\r\n\r' )
         try:
             install_insecure_browser ( self.mountpoint )
         except:
-            self.status_lst.append( 'Warning - failed to install insecure browser' )
+            self.update_status( 'Warning - failed to install insecure browser' )
 
-    def configure_speech_synthesis_and_font_cache( self ):
+    def configure_sound_speech_and_font_cache( self ):
         add_speech_synthesis_script( self.mountpoint )
         chroot_this( self.mountpoint, 'fc-cache' )
+        self.tweak_pulseaudio()
+
+    def tweak_pulseaudio( self ):
+        if os.path.exists( '%s/etc/pulse/default.pa' % ( self.mountpoint ) ):
+            new_str = 'load-module module-alsa-sink device=sysdefault #QQQ'
+            do_a_sed( '%s/etc/pulse/default.pa' % ( self.mountpoint ), '#load-module module-alsa-sink', new_str )
+        else:
+            logme( 'tweak_pulseaudio() -- unable to modify /etc/pulse/default.pa; it does not exist' )
+        if os.path.exists( '%s/etc/default/pulseaudio' % ( self.mountpoint ) ):
+            do_a_sed( '%s/etc/default/pulseaudio' % ( self.mountpoint ), 'PULSEAUDIO_SYSTEM_START=0', 'PULSEAUDIO_SYSTEM_START=1' )
+        else:
+            logme( 'tweak_pulseaudio() -- unable to modify /etc/default/pulseaudio; it does not exist' )
+
 
     def add_reboot_user( self ):
         self.add_user_SUB( 'reboot' )
@@ -764,13 +787,21 @@ exit 0
         system_or_die( 'chmod +x %s/usr/local/bin/tweak_lxdm_and_%s' % ( self.mountpoint, username ) )
 
     def add_guest_user( self ):
-        chroot_this( self.mountpoint, 'mkdir -p %s' % ( self.guest_homedir ), on_fail = 'Failed to mkdir for guest' )
-        chroot_this( self.mountpoint, 'chmod 777 %s' % ( self.guest_homedir ), on_fail = 'Failed to chmod guest' )
-        chroot_this( self.mountpoint, 'useradd guest -d %s' % ( self.guest_homedir ) , on_fail = "Failed to add user guest" )
-        chroot_this( self.mountpoint, 'chmod 700 %s' % ( self.guest_homedir ), on_fail = 'Failed to chmod guest' )
+        if 0 == chroot_this( self.mountpoint, 'cat /etc/passwd | fgrep "guest:" > /dev/null' ):
+            chroot_this( self.mountpoint, 'userdel guest', on_fail = 'Failed to delete old guest ID' )
+        chroot_this( self.mountpoint, 'mkdir -p %s' % ( GUEST_HOMEDIR ), on_fail = 'Failed to mkdir for guest' )
+        chroot_this( self.mountpoint, 'chmod 777 %s' % ( GUEST_HOMEDIR ), on_fail = 'Failed to chmod guest' )
+        chroot_this( self.mountpoint, 'useradd guest -d %s' % ( GUEST_HOMEDIR ) , on_fail = "Failed to add user guest" )
+        chroot_this( self.mountpoint, 'chmod 700 %s' % ( GUEST_HOMEDIR ), on_fail = 'Failed to chmod guest' )
 #        do_a_sed( passwd_file, r'guest:x:', r'guest::' )
 #        do_a_sed( passwd_file, r'guest::', r'guest:x:' )
         set_user_password( login = 'guest', password = 'guest', mountpoint = self.mountpoint )
+        set_up_guest_homedir( mountpoint = self.mountpoint )
+#        set_up_guest_homedir( mountpoint = self.mountpoint, homedir = '/tmp/.guest' )
+        if 0 == chroot_this( self.mountpoint, 'ls -dl %s | grep root' % ( GUEST_HOMEDIR ) ):
+            failed( 'For some reason, the guest directory contents still belongs to root.' )
+        if 0 == chroot_this( self.mountpoint, 'ls -dl %s/.[a-z,A-Z]* | grep root' % ( GUEST_HOMEDIR ) ):
+            failed( 'For some reason, the guest directory still belongs to root.' )
 
     def remove_all_junk( self ):
         # Tidy up the actual OS
@@ -783,9 +814,58 @@ exit 0
         tidy_up_alarpy()
         self.update_status_with_newline( '...removed.' )
 
+    def migrate_OS( self, encrypt_root_please = False ):
+        self.status_lst.append( ['Migrating OS'] )
+#        self.reinstall_chrubix_if_missing()
+        if not os.path.exists( '%s%s/src/chromeos-3.4/arch/arm/boot/vmlinux.uimg' % ( self.mountpoint, self.kernel_src_basedir ) ):
+            system_or_die( 'cp -f /tmp/.vmlinuz.uimg %s%s/src/chromeos-3.4/arch/arm/boot/vmlinux.uimg' % ( self.mountpoint, self.kernel_src_basedir ) )
+        for f in ( '/etc/lxdm/lxdm.conf', self.kernel_src_basedir + '/src/chromeos-3.4/arch/arm/boot/vmlinux.uimg',
+                  '/lib/firmware/mrvl/sd8797_uapsta.bin', '/usr/local/bin/chrubix.sh', '/usr/local/bin/ersatz_lxdm.sh' ):
+            if not os.path.exists( self.mountpoint + f ):
+                failed( '%s%s does not exist' % ( self.mountpoint, f ) )
+        system_or_die( 'rm -f %s/.squashfs.sqfs /.squashfs.sqfs' % ( self.mountpoint ) )
+#            os.system( 'clear' )
+        self.set_root_password( 'hi' )
+        username = 'guest'  # ask_the_user__guest_mode_or_user_mode__and_create_one_if_necessary( self.name, self.mountpoint )
+        self.lxdm_settings['login as user'] = username
+        if username != 'guest':  # Login as specific user, other than guest
+            self.lxdm_settings['autologin'] = False
+        system_or_die( 'rm -f /.squashfs.sqfs %s/.squashfs.sqfs' % ( self.mountpoint ) )
+        if encrypt_root_please:
+            self.migrate_to_encrypted_OS()
+        else:
+            chrubix.save_distro_record( distro_rec = self, mountpoint = self.mountpoint )
+            self.redo_mbr_for_plaintext_root( self.mountpoint )
+
+    def migrate_to_encrypted_OS( self ):
+        self.status_lst[-1] += 'excellent.'
+        self.kernel_rebuild_required = True  # ...because the initramfs needs our boom pw, which means we'll have to rebuild initramfs.... which means rebuilding kernel!
+        self.root_is_encrypted = True
+        self.pheasants = True
+        self.kthx = True
+
+
+
+        self.call_bash_script_that_modifies_kernel_n_mkfs_sources()
+        self.build_kernel_and_mkfs()  # Recompile mk*fs because our new kernel will probably use random magic#'s for xfs, jfs, and btrfs
+        self.install_kernel_and_mkfs()
+#        self.forcibly_rebuild_initramfs_and_vmlinux()
+        system_or_die( 'cd /' )
+        new_mtpt = '/tmp/_enc_root'
+        os.system( 'mkdir -p %s' % ( new_mtpt ) )  # errtxt = 'Failed to create new mountpoint %s ' % ( new_mtpt ) )
+        self.migrate_all_data( new_mtpt )  # also mounts new_mtpt and rejigs kernel
+        mount_sys_tmp_proc_n_dev( new_mtpt )
+        self.redo_mbr_for_encrypted_root( new_mtpt )
+        chrubix.save_distro_record( distro_rec = self, mountpoint = new_mtpt )  # save distro record to new disk (not old mountpoint)
+        try:
+            unmount_sys_tmp_proc_n_dev( new_mtpt )
+            os.system( 'umount %s/%s' % ( self.mountpoint, new_mtpt ) )
+            unmount_sys_tmp_proc_n_dev( self.mountpoint )
+        except ( SystemError, SyntaxError ):
+            pass
 
     def squash_OS( self ):
-        self.update_status( 'Checking sanity of distro' )
+        self.update_status( 'Checking sanity of distro...' )
         broken_pkgs = check_sanity_of_distro( self.mountpoint, self.kernel_src_basedir )
         if broken_pkgs in ( None, '' ):
             self.update_status_with_newline( 'distro is not insane. (How nice)' )
@@ -802,7 +882,7 @@ exit 0
         system_or_die( 'rm -f %s/.squashfs.sqfs /.squashfs.sqfs' % ( self.mountpoint ) )
         self.lxdm_settings['use greeter gui'] = True
         chrubix.save_distro_record( distro_rec = self, mountpoint = self.mountpoint )
-        self.redo_mbr_for_plain_root( self.mountpoint )  # '/tmp/squashfs_dir' )
+        self.redo_mbr_for_squashfs_root( self.mountpoint )  # '/tmp/squashfs_dir' )
         self.generate_squashfs_of_my_OS()
         os.system( 'rm -f %s/etc/.randomized_serno*' % ( self.mountpoint ) )
 #---------------------------------------------------------------------------------------------------
@@ -950,10 +1030,8 @@ exit $errors
         os.system( 'sync;sync;sync; reboot' )
 
     def configure_guestmode_prior_to_migration( self ):
-        username = ask_the_user__guest_mode_or_user_mode__and_create_one_if_necessary( self.name, self.mountpoint )
-        self.lxdm_settings['login as user'] = username
-        if username != 'guest':  # Login as specific user, other than guest
-            self.lxdm_settings['autologin'] = False
+        self.lxdm_settings['login as user'] = 'guest'
+        self.lxdm_settings['autologin'] = False
 
     def unmount_and_clean_up( self ):
         self.update_status( '...Bonzer.' )
@@ -1127,7 +1205,7 @@ exit $errors
         system_or_die( 'ln -sf Chrubix/bash/chrubix.sh %s/usr/local/bin/chrubix.sh' % ( self.mountpoint ) )
         assert( os.path.islink( '%s/usr/local/bin/chrubix.sh' % ( self.mountpoint ) ) )
         system_or_die( 'chmod +x %s/usr/local/bin/Chrubix/bash/*' % ( self.mountpoint ) )
-        for f in ( 'chrubix.sh', 'CHRUBIX', 'greeter.sh', 'preboot_configurer.sh', 'modify_sources.sh', 'redo_mbr.sh' ):
+        for f in ( 'chrubix.sh', 'CHRUBIX', 'greeter.sh', 'preboot_configurer.sh', 'modify_sources.sh', 'redo_mbr.sh', 'make_me_permanent.sh' ):
             system_or_die( 'ln -sf Chrubix/bash/%s %s/usr/local/bin/%s' % ( f, self.mountpoint, f ) )
             system_or_die( 'chmod +x %s/usr/local/bin/Chrubix/bash/%s' % ( self.mountpoint, f ) )
         mytitle = ( self.fullname ).title()
@@ -1146,19 +1224,6 @@ exit $errors
             system_or_die( 'ln -sf ../../bin/python3 %s/usr/local/bin/python3' % ( self.mountpoint ) )
             if os.path.exists( '%s/usr/bin/python3' % ( self.mountpoint ) ) and not os.path.exists( '%s/usr/local/bin/python3' % ( self.mountpoint ) ):
                 failed( 'Well, that escalated rather quickly.' )
-
-        f = '%s/usr/local/bin/secretsquirrel' % ( self.mountpoint )
-        write_oneliner_file( f, '''#!/bin/sh
-if [ "$USER" != "root" ] && [ "$USER" != "" ] ; then
-    sudo $0
-else
-    https_proxy=
-    http_proxy=
-    chrubix.sh tinker secretsquirrel
-fi
-exit $?
-''' )
-        os.system( 'chmod +x %s' % ( f ) )
         self.update_status( '...installed.' )
 
     def generate_squashfs_of_my_OS( self ):
@@ -1197,7 +1262,7 @@ exit $?
             if 0 == os.system( 'mount /dev/sda1 /tmp/posterity &> /dev/null' ) \
             or 0 == os.system( 'mount /dev/sdb1 /tmp/posterity &> /dev/null' ) \
             or 0 == os.system( 'mount | grep /tmp/posterity &> /dev/null' ):
-                self.status_lst.append( 'Backing up the squashed fs' )
+                self.update_status( 'Backing up the squashed fs' )
                 logme( 'qqq backing up squashs' )
                 os.system( 'sync;sync;sync' )
                 assert( os.path.exists( '%s/.squashfs.sqfs' % ( self.mountpoint ) ) )
@@ -1427,19 +1492,13 @@ WantedBy=multi-user.target
         self.initrd_rebuild_required = True
 #        self.build_kernel_and_mkfs()
         self.redo_mbr( root_partition_device = self.root_dev, chroot_here = self.mountpoint )
-        self.update_status( '...rebuilt.' )
+        self.update_status( '...rebuilt. ' )
         assert( os.path.exists( '%s%s/src/chromeos-3.4/arch/arm/boot/vmlinux.uimg' % ( self.mountpoint, self.kernel_src_basedir ) ) )
         assert( not self.initrd_rebuild_required )
         system_or_die( 'cp -f %s%s/src/chromeos-3.4/arch/arm/boot/vmlinux.uimg /tmp/.vmlinux.uimg' % ( self.mountpoint, self.kernel_src_basedir ) )
 
     def abort_here( self ):
         failed( 'Now... Save the squash fs file to a thumb drive and re-run the installation script. Ask the author for help if necessary.' )
-
-    def reinstall_chrubix_if_missing( self ):
-        if not self.kthx:
-            self.update_status_with_newline( 'FYI, kthx was False. I am setting it to True.' )
-            self.kthx = True
-        reinstall_chrubix_if_missing( self.mountpoint )
 
     def install( self ):
         '''
@@ -1477,16 +1536,22 @@ WantedBy=multi-user.target
                                 self.install_moose,
                                 self.install_gpg_applet,
                                 self.install_leap_bitmask,
-                                self.save_for_posterity_if_possible_B )
-        third_stage = ( 
-                                self.reinstall_chrubix_if_missing,
                                 self.download_modify_build_and_install_kernel_and_mkfs,
                                 self.install_final_push_of_packages,  # Chrubix, wmsystemtray, boom scripts, GUI, networking, ...
+                                self.save_for_posterity_if_possible_B )
+        third_stage = ( 
+                                self.forcibly_rebuild_initramfs_and_vmlinux,
                                 self.save_for_posterity_if_possible_C )
 # From this point on, assume Internet access is gone.
         fourth_stage = ( 
-                                self.reinstall_chrubix_if_missing,
-                                self.forcibly_rebuild_initramfs_and_vmlinux,  # Is this necessary? Remove it & see what happens. :)
+                                self.call_bash_script_that_modifies_kernel_n_mkfs_sources,  # Why are these three lines here?
+                                self.build_kernel_and_mkfs,  # If they work, let's leave them
+                                self.install_kernel_and_mkfs,  # alone... but are they needed?
+                                self.forcibly_rebuild_initramfs_and_vmlinux,  # I think this is for testing modifications to /init, /log_me_in.sh, etc.
+                                self.remove_all_junk,
+                                self.save_for_posterity_if_possible_D )
+        fifth_stage = ( # Chrubix ought to have been installed in MYDISK_MTPT/{dest distro} already, by the stage 1 bash script.
+                                self.add_guest_user,
                                 self.install_panic_button,
                                 self.install_vbutils_and_firmware_from_cbook,
                                 self.configure_dbus_sudo_and_groups,
@@ -1494,21 +1559,12 @@ WantedBy=multi-user.target
                                 self.configure_privacy_tools,
                                 self.configure_chrome_or_iceweasel,
                                 self.configure_networking,
-                                self.configure_speech_synthesis_and_font_cache,
+                                self.configure_sound_speech_and_font_cache,
                                 self.configure_winxp_camo_and_guest_default_files,
                                 self.configure_xwindow_and_onceminute_timer,
+                                self.install_extra_menu_items_in_gui,
                                 self.configure_distrospecific_tweaks,
-                                self.remove_all_junk,
-                                self.forcibly_rebuild_initramfs_and_vmlinux,  # I can't remember why we need this.
-                                self.save_for_posterity_if_possible_D )
-        fifth_stage = ( # Chrubix ought to have been installed in MYDISK_MTPT/{dest distro} already, by the stage 1 bash script.
-                                self.reinstall_chrubix_if_missing,  # fixes permissions too, especially /usr/local/bin/Chrubix/src/*
                                 self.install_vbutils_and_firmware_from_cbook,  # just in case the new user's tools differ from the original builder's tools
-# FIXME re-enable by 7/1/2015
-#                                self.call_bash_script_that_modifies_kernel_n_mkfs_sources,
-#                                self.build_kernel_and_mkfs,
-#                                self.install_kernel_and_mkfs,
-                                self.forcibly_rebuild_initramfs_and_vmlinux,  # I can't remember why we need this.
                                 self.squash_OS,
                                 self.unmount_and_clean_up
                                 )

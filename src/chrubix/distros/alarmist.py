@@ -5,7 +5,7 @@
 
 
 from chrubix.distros.debian import WheezyDebianDistro
-from chrubix.utils import disable_root_password, failed
+from chrubix.utils import failed
 
 
 class AlarmistDistro( WheezyDebianDistro ):
@@ -14,9 +14,4 @@ class AlarmistDistro( WheezyDebianDistro ):
         self.name = 'alarmist'
         failed( 'WE NO LONGER USE ALARMIST DISTRO' )
         # self.name remains 'wheezy' because... well, it's all so much simpler that way
-
-    def migrate_or_squash_OS( self ):
-        disable_root_password( self.mountpoint )
-        self.squash_OS()
-
 

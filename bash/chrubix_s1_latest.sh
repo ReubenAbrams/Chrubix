@@ -61,13 +61,6 @@ failed() {
 }
 
 
-pause_then_reboot() {
-	sudo start powerd || echo -en ""
-	echo -en "$distroname has been installed on $DEV\nPress <Enter> to reboot. Then, press <Ctrl>U to boot into Linux."
-	read line
-	sudo reboot
-}
-
 
 chroot_this() {
 	[ -d "$1" ] || failed "chroot_this() --- first parameter is not a directory; weird; '$1'"
@@ -209,7 +202,7 @@ restore_partitions_layout() {
 ##################################################################################################################################
 
 install_chrubix() {
-	local root dev rootdev hiddendev kerndev distro proxy_string mydiskmtpt rr
+	local root dev rootdev hiddendev kerndev distro proxy_string mydiskmtpt rr sss
 	root=$1
 	dev=$2
 	rootdev=$3
@@ -243,20 +236,20 @@ install_chrubix() {
 	
 	[ "$SIZELIMIT" != "" ] || failed "Set SIZELIMIT before calling install_chrubix(), please."
 	[ "$WGET_PROXY" != "" ] && proxy_info="export http_proxy=$WGET_PROXY; export ftp_proxy=$WGET_PROXY" || proxy_info=""
+
 	wget $CHRUBIX_URL -O - | tar -xz -C $root/usr/local/bin 2> /dev/null
 	mv $root/usr/local/bin/Chrubix* $root/usr/local/bin/Chrubix	# rename Chrubix-master (or whatever) to Chrubix
 	wget $OVERLAY_URL -O - | tar -Jx -C $root/usr/local/bin/Chrubix 2> /dev/null || echo "Sorry. Dropbox is down. We'll have to rely on GitHub..."
-	
+
 	for rr in $root$MYDISK_CHR_STUB $root; do
 		[ -d "$rr" ] || failed "install_chrubix() -- $rr does not exist. BummeR."
-		for f in chrubix.sh greeter.sh ersatz_lxdm.sh CHRUBIX redo_mbr.sh modify_sources.sh ; do
+		for f in chrubix.sh greeter.sh ersatz_lxdm.sh CHRUBIX redo_mbr.sh modify_sources.sh make_me_permanent.sh ; do
 			ln -sf Chrubix/bash/$f $rr/usr/local/bin/$f || echo "Cannot do $f softlink"
 		done
-	done
-	cd $root/usr/local/bin/Chrubix/bash
-	[ -e "chrubix.sh.orig" ] || failed "Where is chrubix.sh.orig?!"
-
-	cat chrubix.sh.orig \
+		cd $rr/usr/local/bin/Chrubix/bash
+		[ -e "chrubix.sh.orig" ] || failed "Where is chrubix.sh.orig?!"
+	
+		cat chrubix.sh.orig \
 | sed s/\$dev/\\\/dev\\\/`basename $dev`/ \
 | sed s/\$rootdev/\\\/dev\\\/`basename $rootdev`/ \
 | sed s/\$hiddendev/\\\/dev\\\/`basename $hiddendev`/ \
@@ -267,8 +260,22 @@ install_chrubix() {
 | sed s/\$mydiskmtpt/\\\/`basename $mydiskmtpt`/ \
 > chrubix.sh || failed "Failed to rejig chrubix.sh.orig"
 
+# Is this necessary? Does it even work?
+		cd $rr/usr/local/bin/Chrubix
+		chmod -R 755 .
+        chown -R 0 .
+        mkdir src.meow
+        mv src/* src.meow
+        mv src src.woof
+        mv src.meow src
+        rm -Rf src.woof
+	done
+
 	cd /
 	[ -e "$root/usr/local/bin/Chrubix" ] || failed "Where is $root/usr/local/bin/Chrubix?"
+	cp -af $root/usr/local/bin/Chrubix $root$MYDISK_CHR_STUB/usr/local/bin/ || failed "Failed to copy chrubix folder from mydisk to minidistro #1"
+	cp -af $root/usr/local/bin/Chrubix $TOP_BTSTRAP/usr/local/bin/ || failed "Failed to copy chrubix folder from mydisk to root #1"
+
 }
 
 
@@ -284,6 +291,7 @@ call_chrubix() {
 		/usr/lib/libEGL.so* \
 		/usr/lib/libGLESv2.so* > $btstrap/tmp/.hipxorg.tgz 2>/dev/null || failed "Failed to save old drivers"
 	tar -cz /usr/bin/vbutil* /usr/bin/futility > $btstrap/tmp/.vbtools.tgz
+	tar -cz /usr/share/alsa/ucm/ > $btstrap/tmp/.usr_share_alsa_ucm.tgz
 	tar -cz /usr/share/vboot > $btstrap/tmp/.vbkeys.tgz || failed "Failed to save your keys" #### MAKE SURE CHRUBIX HAS ACCESS TO Y-O-U-R KEYS and YOUR vbutil* binaries ####
 	tar -cz /lib/firmware > $btstrap/tmp/.firmware.tgz || failed "Failed to save your firmware"  # save firmware!
 	chroot_this $btstrap "chmod +x /usr/local/bin/*"
@@ -295,12 +303,14 @@ call_chrubix() {
 	
 	chroot_this $btstrap "/usr/local/bin/chrubix.sh" || failed "Because chrubix reported an error, I'm aborting... and I'm leaving everything mounted.
 Type 'sudo chroot $MINIDISTRO_CHROOT' and then 'chrubix.sh' to retry."
-
-	echo -en "Moving squashfs and kernel to memory card..."
-	mv $TOP_BTSTRAP/.squashfs.sqfs $TOP_BTSTRAP/.kernel.dat $VFAT_MOUNTPOINT || failed "call_chrubix() -- where are the sqfs and kernel?"
-	echo "Done."
+	if [ -e "$TOP_BTSTRAP/.squashfs.sqfs" ] ; then
+		echo -en "Moving squashfs and kernel to memory card..."
+		mv $TOP_BTSTRAP/.squashfs.sqfs $TOP_BTSTRAP/.kernel.dat $VFAT_MOUNTPOINT || failed "call_chrubix() -- where are the sqfs and kernel?"
+		echo "Done."
+	else
+		touch /tmp/.do.not.install.new.mbr
+	fi
 }
-
 
 partition_the_device() {
 	local dev dev_p btstrap splitpoint only_two_partitions
@@ -347,6 +357,10 @@ sign_and_write_custom_kernel() {
 	vmlinux_path=$4
 	extra_params_A=$5
 	extra_params_B=$6
+	if [ -e "/tmp/.do.not.install.new.mbr" ] ; then
+		echo "sign_and_write_custom_kernel() -- skipping this part; the python chrubix code handled it already"
+		return 0
+	fi
 # echo "sign_and_write_custom_kernel() -- writehere=$writehere rootdev=$rootdev "
 	echo -en "Writing kernel to boot device (replacing nv_u-boot)..."
 	[ -e "$vmlinux_path" ] || failed "Cannot find original kernel path '$vmlinux_path'"
@@ -370,7 +384,7 @@ get_distro_type_the_user_wants() {
 	while [ "$distroname" = "" ] ; do
 		clear
 # NOT SUPPORTED: (F)edora, (S)uSE 12.3
-		echo -en "Welcome to the Chrubix installer. Which GNU/Linux distro shall I install on $dev?
+		echo -en "Welcome to the Chrubix installer. Which GNU/Linux distro shall I install on $DEV?
 
 Choose from...
 
@@ -504,7 +518,7 @@ format_my_disk() {
 	echo -en "."
 	sleep 1; umount "$DEV_P"* &> /dev/null || echo -en ""
 	mkfs.vfat -F 16 $KERNELDEV &> $temptxt || failed "Failed to format p12 - `cat $temptxt`"
-	echo -en ".Done. "
+	echo ".Done."
 }
 
 
@@ -550,9 +564,9 @@ install_and_call_chrubix() {
 	sudo crossystem dev_boot_usb=1 dev_boot_signed_only=0 || echo "WARNING - failed to configure USB and MMC to be bootable"	# dev_boot_signed_only=0
 	install_chrubix $MINIDISTRO_CHROOT $DEV $ROOTDEV $VFATDEV $KERNELDEV $DISTRONAME
 	call_chrubix $MINIDISTRO_CHROOT || failed "call_chrubix() returned an error. Failing."
+# FIXME is this necessary? v
 	cp -vf $MYDISK_CHROOT/.*.txt $VFAT_MOUNTPOINT/ || failed "install_and_call_chrubix() -- failed to copy cool stuff to vfat partition"
-	[ -f "$VFAT_MOUNTPOINT/.squashfs.sqfs" ] || failed "install_and_call_chrubix() -- no sqfs!"
-	[ -f "$VFAT_MOUNTPOINT/.kernel.dat" ] || failed "install_and_call_chrubix() -- no kernel!"
+# FIXME is this necessary? ^
 }
 
 
@@ -597,6 +611,10 @@ restore_this_prefab() {
 sign_and_install_kernel() {
 	local sqfs_fname=$VFAT_MOUNTPOINT/.squashfs.sqfs
 	local kernel_fname=$VFAT_MOUNTPOINT/.kernel.dat
+	if [ -e "/tmp/.do.not.install.new.mbr" ] ; then
+		echo "Python code signed the kernel. No need to do it again."
+		return 0
+	fi
 	[ -d "$VFAT_MOUNTPOINT" ] || failed "sign_and_install_kernel() -- where is vfat mountpoint?"
 	mount | fgrep " $VFAT_MOUNTPOINT " &> /dev/null || failed "sign_and_install_kernel() -- why is vfat mountpoint not mounted?"
 	[ -f "$sqfs_fname" ] || failed "sign_and_install_kernel() -- where is the sqfs file?"
@@ -664,10 +682,10 @@ yes_save_IMG_file_for_posterity() {
 #	delete_p3_if_it_exists
 	mount | grep "$DEV" && failed "yes_save_output_imgfile_for_posterity() -- please unmount $DEV etc. before proceeding #2"	
 	wipe_spare_space_in_partition $VFATDEV
+	dd if=/dev/urandom bs=1k count=128 > $ROOTDEV			#	yes Y | mkfs -t ext4 $ROOTDEV
+	mkfs.exfat $ROOTDEV
 	
-	mount_sectornum=$(($cksum_sectornum+1))
-	echo "cksum_sectornum = $cksum_sectornum; mount_sectornum=$mount_sectornum"
-	
+	mount_sectornum=$(($cksum_sectornum+1))					#	echo "cksum_sectornum = $cksum_sectornum; mount_sectornum=$mount_sectornum"
 	echo "Saving image of $DEV ==> $output_imgfile"
 	pv $DEV | dd count=$mount_sectornum 2> /dev/null | gzip -1 > "$output_imgfile".TEMP || failed "yes_save_output_imgfile_for_posterity() -- failed to save image $output_imgfile"
 	echo -en "Done."
@@ -696,6 +714,8 @@ install_the_hard_way() {
 	format_my_disk
 	mount_my_disk
 	[ "$1" = "" ] && install_microdistro || restore_this_prefab $1
+echo -en "*** PAUSING FOR HUGO TO FUTZ WITH THE SOURCE CODE. PRESS ENTER TO CONTINUE. ***"
+read line
 	install_and_call_chrubix
 	sign_and_install_kernel
 	unmount_my_disk &> /dev/null || echo -en ""
@@ -721,7 +741,6 @@ install_from_prefab_img() {
 	sign_and_write_custom_kernel $MYDISK_CHROOT $UBOOTDEV $VFATDEV $kernel_fname "" ""  || failed "install_from_prefab_img() -- failed to sign/write custom kernel"
 
 	unmount_absolutely_everything &> /dev/null || echo -en ""
-	pause_then_reboot
 }
 
 
@@ -749,7 +768,6 @@ install_from_prefab_sqfs() {
 	unmount_my_disk &> /dev/null || echo -en ""
 	unmount_absolutely_everything &> /dev/null || echo -en ""
 	save_IMG_file_for_posterity_if_possible
-	pause_then_reboot
 }
 
 
@@ -764,7 +782,6 @@ install_from_the_beginning() {
 	install_the_hard_way
 	unmount_absolutely_everything &> /dev/null || echo -en ""
 	save_IMG_file_for_posterity_if_possible
-	pause_then_reboot	
 }
 
 
@@ -828,7 +845,7 @@ mkdir -p $ROOTMOUNT $BOOTMOUNT $KERNMOUNT
 
 
 ## keep trying the newly modified redo>_mbr.sh until the sausage can be found reliably
-#DISTRONAME=debianstretch
+#DISTRONAME=debianwheezy
 #unmount_absolutely_everything &> /dev/null || echo -en ""
 #mount_my_disk
 #mount_dev_sys_proc_and_tmp $MINIDISTRO_CHROOT
@@ -859,7 +876,8 @@ unmount_absolutely_everything &> /dev/null || echo -en ""
 get_distro_type_the_user_wants		# sets $DISTRONAME
 prefab_fname=`locate_prefab_file` || prefab_fname=""		# img, sqfs, _D, _C, ...; check Dropbox and local thumb drive
 [ "$prefab_fname" = "" ] && install_from_the_beginning || install_from_prefab $prefab_fname
+echo -en "$distroname has been installed on $DEV\nPress <Enter> to reboot. Then, press <Ctrl>U to boot into Linux."
+read line
 echo "End of line :-)"
 sudo reboot
 exit 0
-
