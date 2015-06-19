@@ -42,7 +42,7 @@ def do_debian_specific_mbr_related_hacks( mountpoint ):
             logme( '%s%s does not exist. Therefore, I am copying it across' % ( mountpoint, missing_path ) )
             system_or_die( 'mkdir -p %s%s' % ( mountpoint, os.path.dirname( missing_path ) ) )
             try:
-                system_or_die( 'cp -avf %s %s%s/' % ( missing_path, mountpoint, os.path.dirname( missing_path ) ) )
+                system_or_die( 'cp -avf %s %s%s/ 2> /dev/null' % ( missing_path, mountpoint, os.path.dirname( missing_path ) ) )
             except RuntimeError:
                 logme( '** FYI, I was unable to kludge %s **' % ( missing_path ) )
     system_or_die( 'rm -f %s/usr/lib/initcpio/busybox' % ( mountpoint ) )
@@ -407,7 +407,7 @@ fi
         if self.final_push_packages.find( 'lxdm' ) < 0:
 #            install_lxdm_from_source( self.mountpoint )
             self.install_expatriate_software_into_a_debianish_OS( package_name = 'lxdm', method = 'ubuntu' )
-        self.update_status_with_newline( 'Installing remaining packages' )
+        self.update_status( 'Installing remaining packages' )
 #        self.status_lst.append( ['Installing %s' % ( self.final_push_packages.replace( '  ', ' ' ).replace( ' ', ', ' ) )] )
         chroot_this( self.mountpoint, 'yes "Yes" | aptitude install %s' % ( self.final_push_packages ),
 #                     title_str = self.title_str, status_lst = self.status_lst,

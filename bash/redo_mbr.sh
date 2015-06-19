@@ -9,7 +9,6 @@
 
 
 SPLITPOINT=3600998	# 1.8GB			# If you change this, you shall change the line in redo_mbr.sh too!
-
 LOGLEVEL="2"		# .... or "6 debug verbose" .... or "2 debug verbose" or "2 quiet"
 BOOMFNAME=/etc/.boom
 BOOT_PROMPT_STRING="boot: "
@@ -25,10 +24,10 @@ INITRAMFS_CPIO=$RYO_TEMPDIR/uInit.cpio.gz
 RAMFS_BOOMFILE=.sha512boom
 STOP_JFS_HANGUPS="echo 0 > /proc/sys/kernel/hung_task_timeout_secs"
 SQUASHFS_FNAME=/.squashfs.sqfs
-CKSUM_DATALOC=$(($SPLITPOINT+1))
-PARTN_DATALOC=$(($SPLITPOINT+2))
-CKSUM_DATALOC_STAR512=$(($CKSUM_DATALOC*512))
-PARTN_DATALOC_STAR512=$(($PARTN_DATALOC*512))
+START_OF_HIDDEN_DATA=$(($(($SPLITPOINT+128))*512))			# Try reducing 64 a little (32? 16?)
+
+
+
 
 # FIXME --- for ERROR: file not found: `/lib/udev/rules.d/10-dm.rules' -type errors, be aware
 # ...that /lib/udev/rules.d/55-dm.rules might exist. Should we softlink to it...?
@@ -193,54 +192,21 @@ get_number_of_cores() {
 
 
 
+generate_logmein_script() {
+	local rootdev=$1 dev
+	dev=`echo "$rootdev" | sed s/p[0-9]//`
+
+# vvv If you change these, change the make_me_permanent.sh stuff too! vvv
+	lastblock=`cgpt show $dev | tail -n3 | grep "Sec GPT table" | tr -s ' ' '\t' | cut -f2`
+	END_OF_DEVICE_IN_MB=$(($lastblock/2048))			# redo_mbr.sh uses this
+	END_OF_HIDDEN_DATA=$(($END_OF_DEVICE_IN_MB*1024))
+	LENGTH_OF_HIDDEN_DATA=$(($END_OF_HIDDEN_DATA-$START_OF_HIDDEN_DATA))
+	GROOVY_CRYPT_PARAMS="-c aes-xts-plain -s 512 -c aes -s 256 -h sha256" 		# --hash ripemd160
+# ^^^ If you change these, change the make_me_permanent.sh stuff too! ^^^
 
 
-
-make_initramfs_homemade() {
-	local f myhooks rootdev login_shell_code booming dev_p
-	root=$1
-	rootdev=$2
-	dev_p=$3
-	dev_p3="$dev_p"3
-
-	booming=""
-	[ "$rootdev" != "" ] || failed "Please specify rootdev when calling make_initramfs_homemade(). Thanks."
-	rm -Rf $root$INITRAMFS_DIRECTORY
-	mkdir -p $root$INITRAMFS_DIRECTORY
-	cd $root$INITRAMFS_DIRECTORY
-
-	mkdir -p dev etc etc/init.d bin proc mnt tmp var var/shm bin sbin sys run
-	chmod 755 . dev etc etc/init.d bin proc mnt tmp var var/shm
-
-	cp $root$BOOM_PW_FILE $root$INITRAMFS_DIRECTORY/$RAMFS_BOOMFILE || echo "Warning - no boom pw file" > /dev/stderr
-	cd $root$INITRAMFS_DIRECTORY/dev
-	mknod tty c 5 0
-	mknod console c 5 1
-	chmod 666 tty console
-	for i in 0 1 2 3 4 5 ; do
-		mknod tty$i c 4 $i
-	done
-	chmod 666 tty0
-	mknod ram0 b 1 0
-	chmod 600 ram0
-	mknod null c 1 3
-	chmod 666 null
-	
-	dev_p2=`deduce_dev_stamen $rootdev`2
-
-# Write fstab
-	echo "
-proc  /proc      proc    defaults	0	0
-tmpfs /run	 tmpfs	 defaults	0	0
-devtmpfs /dev    devtmpfs defaults	0	0
-sysfs	/sys	sysfs	defaults	0	0
-proc	/proc	proc	defaults	0	0
-" > $root$INITRAMFS_DIRECTORY/etc/fstab
-	chmod 644 $root$INITRAMFS_DIRECTORY/etc/fstab
-
-# Write log_me_in.sh
 	if echo "$rootdev" | grep /dev/mapper &>/dev/null ; then
-			login_shell_code="#!/bin/sh
+			echo "#!/bin/sh
 sha512boom=\"\`cat /$RAMFS_BOOMFILE\`\"
 res=999
 clear
@@ -291,7 +257,7 @@ exit 0
 	else
 #############
 	
-		login_shell_code="#!/bin/sh
+		echo "#!/bin/sh
 # looking for sausage...?
 mount $rootdev /newroot
 if [ -e \"/newroot/$SQUASHFS_FNAME\" ]; then
@@ -300,32 +266,82 @@ if [ -e \"/newroot/$SQUASHFS_FNAME\" ]; then
   mount -o ro $rootdev /deviceroot
   mkdir -p /ro /rw
   mount -o loop,squashfs /deviceroot/$SQUASHFS_FNAME /ro
-
-  losetup /dev/loop6 -o 16384 $dev_p3
+  losetup /dev/loop6 $dev -o $START_OF_HIDDEN_DATA 			# --sizelimit $LENGTH_OF_HIDDEN_DATA
   while ! mount | grep \"/rw \" > /dev/null ; do
     echo -en \"BOOT: \"
 	read -t 10 line
 	if [ \"\$line\" = \"x\" ] ; then
         sh
     elif [ \"\$line\" = \"\" ] ; then
-      echo ContinuingAsVanilla  
+      echo ContinuingAsVanilla
       mount -t tmpfs -o size=1024m tmpfs /rw
-    elif echo \"\$line\" | cryptsetup luksOpen /dev/loop6 hSg 2> /dev/null ; then
-	  echo SausageFound    
-      mount -o defaults,noatime,nodiratime /dev/mapper/hSg /rw
-      rm -f /usr/share/applications/make_me_permanent.desktop
+    elif echo \"\$line\" | cryptsetup plainOpen /dev/loop6 hSg $GROOVY_CRYPT_PARAMS ; then
+	  echo SausageFound
+      mount /dev/mapper/hSg /rw
     else
       echo SausageNotFoundTryAgain
     fi
   done
-  mount -t unionfs -o dirs=/rw:/ro=ro,defaults,noatime,nodiratime none /newroot
-  mount | grep /dev/mapper/ > /dev/null && rm -f /newroot/usr/share/applications/gksu2.desktop || echo -en \"\"		# Delete the 'make me permanent' file, if we are now permanent :)
+  mount -t unionfs -o dirs=/rw:/ro=ro none /newroot
+  if mount | grep /dev/mapper/ > /dev/null ; then
+    rm -f /newroot/usr/share/applications/make_me_permanent.desktop /newroot/usr/local/bin/make_me_permanent.sh /newroot/usr/local/bin/secretsquirrel.sh
+  fi
 fi
 "
 	fi
+}
+
+
+
+make_initramfs_homemade() {
+	local f myhooks rootdev login_shell_code booming dev_p
+	root=$1
+	rootdev=$2
+	dev_p=$3
+	dev_p3="$dev_p"3
+
+	booming=""
+	[ "$rootdev" != "" ] || failed "Please specify rootdev when calling make_initramfs_homemade(). Thanks."
+	rm -Rf $root$INITRAMFS_DIRECTORY
+	mkdir -p $root$INITRAMFS_DIRECTORY
+	cd $root$INITRAMFS_DIRECTORY
+
+	mkdir -p dev etc etc/init.d bin proc mnt tmp var var/shm bin sbin sys run
+	chmod 755 . dev etc etc/init.d bin proc mnt tmp var var/shm
+
+	cp $root$BOOM_PW_FILE $root$INITRAMFS_DIRECTORY/$RAMFS_BOOMFILE || echo "Warning - no boom pw file" > /dev/stderr
+	cd $root$INITRAMFS_DIRECTORY/dev
+	mknod tty c 5 0
+	mknod console c 5 1
+	chmod 666 tty console
+	for i in 0 1 2 3 4 5 ; do
+		mknod tty$i c 4 $i
+	done
+	chmod 666 tty0
+	mknod ram0 b 1 0
+	chmod 600 ram0
+	mknod null c 1 3
+	chmod 666 null
+	
+	dev_p2=`deduce_dev_stamen $rootdev`2
+
+# Write fstab
+	echo "
+proc  /proc      proc    defaults	0	0
+tmpfs /run	 tmpfs	 defaults	0	0
+devtmpfs /dev    devtmpfs defaults	0	0
+sysfs	/sys	sysfs	defaults	0	0
+proc	/proc	proc	defaults	0	0
+" > $root$INITRAMFS_DIRECTORY/etc/fstab
+	chmod 644 $root$INITRAMFS_DIRECTORY/etc/fstab
+
+# Write log_me_in.sh
+	generate_logmein_script $rootdev > $root$INITRAMFS_DIRECTORY/log_me_in.sh
+	
+	
+
 
 # Save log_me_in.sh :)
-	echo "$login_shell_code" > $root$INITRAMFS_DIRECTORY/log_me_in.sh
 	chmod +x $root$INITRAMFS_DIRECTORY/log_me_in.sh
 
 # Now, create /init :-)
@@ -336,6 +352,16 @@ mount -t sysfs sysfs /sys
 $STOP_JFS_HANGUPS
 mdev -s
 mkdir -p /newroot
+mkdir -p /.sda2
+mknod /dev/sda2 b 8 2
+if mount /dev/sda2 /.sda2 ; then
+  umount /.sda2
+  if [ -e \"/.sda2/log_me_in.sh\" ] ; then
+    cp -f /.sda2/log_me_in.sh /
+    chmod +x    /log_me_in.sh
+  fi
+  rmdir /.sda2
+fi
 /log_me_in.sh
 if [ \"\$?\" -eq \"0\" ] ; then
     echo -en \"$BOOT_PROMPT_STRING\"
@@ -501,21 +527,25 @@ sign_and_write_custom_kernel() {
 
 export PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin # Just in case phase 3 forgets to pass $PATH to the xterm call to me
 set -e
-if [ "$#" -ne "3" ] ; then
-	failed "redo_mbr.sh <dev> <mountpoint> <root device or crypto root dev> ----- e.g. redo_mbr.sh /dev/mmcblk1 /tmp/_root /dev/mapper/cryptroot"
+
+if [ "$#" -eq "3" ] ; then
+	dev=$1					# disk, e.g. /dev/mmcblk1
+	root=$2					# root folder
+	my_root_disk_device=$3
+	dev_p=`deduce_dev_stamen $dev`
+	cores=1
+	#echo aaa
+	#exit 0
+	echo "redo_mbr($root,$dev_p,$my_root_disk_device) --- calling"
+	redo_mbr $root $dev_p $my_root_disk_device
+	res=$?
+	#echo "Exiting w/ res=$res"
+	exit $res
+else
+#	failed "redo_mbr.sh <dev> <mountpoint> <root device or crypto root dev> ----- e.g. redo_mbr.sh /dev/mmcblk1 /tmp/_root /dev/mapper/cryptroot"
+echo aaaa
+	generate_logmein_script /dev/mmcblk1 
+echo zzzz
 fi
 
-dev=$1					# disk, e.g. /dev/mmcblk1
-root=$2					# root folder
-my_root_disk_device=$3
-
-dev_p=`deduce_dev_stamen $dev`
-cores=1
-#echo aaa
-#exit 0
-echo "redo_mbr($root,$dev_p,$my_root_disk_device) --- calling"
-redo_mbr $root $dev_p $my_root_disk_device
-res=$?
-#echo "Exiting w/ res=$res"
-exit $res
 

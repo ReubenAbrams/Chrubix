@@ -160,43 +160,6 @@ unmount_bootstrap_stuff() {
 }
 
 
-make_sure_mkfs_code_was_successfully_modified() {
-	local look_for_me dirname
-	for look_for_me in \"_BHRfS_M\" 4D5F53665248425F \"JFS1\" 3153464a \"XAGF\" 58414746 ; do
-		for dirname in $1/*fs*/*fs* ; do
-#			echo "Searching $dirname for $look_for_me"
-			fgrep --include='*.h' --include='*.c' -r "$look_for_me" $dirname && failed "Found $look_for_me still present in $1 sources." || echo -en ""
-		done
-	done		
-	cd /
-#	echo "FYI, make_sure_mkfs_code_was_successfully_modified() says the code WAS modified OK."
-}
-
-
-
-save_current_partitions_layout() {
-	local dev outstub lastblock
-	dev=$1
-	outstub=$2
-
-	lastblock=`cgpt show $dev | tail -n3 | grep "Sec GPT table" | tr -s ' ' '\t' | cut -f2`
-	dd if=$dev bs=16 count=$((0x9d)) of="$outstub".A.dat 2> /dev/null
-	dd if=$dev skip=$lastblock of="$outstub".B.dat 2>/dev/null
-	cgpt show $dev > "$outstub".cgpt.show.txt
-}
-
-
-restore_partitions_layout() {
-	local dev outstub lastblock
-	dev=$1
-	outstub=$2
-	
-	lastblock=`cgpt show $dev | tail -n3 | grep "Sec GPT table" | tr -s ' ' '\t' | cut -f2`
-	dd if="$outstub".A.dat of=$dev 2> /dev/null
-	dd if="$outstub".B.dat | dd seek=$lastblock of=$dev 2> /dev/null
-	sync;sync;sync
-	chroot_this $btstrap "partprobe $dev"
-}
 
 
 ##################################################################################################################################
@@ -242,6 +205,10 @@ install_chrubix() {
 	wget $OVERLAY_URL -O - | tar -Jx -C $root/usr/local/bin/Chrubix 2> /dev/null || echo "Sorry. Dropbox is down. We'll have to rely on GitHub..."
 
 	for rr in $root$MYDISK_CHR_STUB $root; do
+		if [ ! -e "$rr/usr/local/bin" ] ; then
+			echo "You are probably installing from scratch. Fair enough."
+			continue
+		fi
 		[ -d "$rr" ] || failed "install_chrubix() -- $rr does not exist. BummeR."
 		for f in chrubix.sh greeter.sh ersatz_lxdm.sh CHRUBIX redo_mbr.sh modify_sources.sh make_me_permanent.sh ; do
 			ln -sf Chrubix/bash/$f $rr/usr/local/bin/$f || echo "Cannot do $f softlink"
@@ -271,11 +238,13 @@ install_chrubix() {
         rm -Rf src.woof
 	done
 
-	cd /
-	[ -e "$root/usr/local/bin/Chrubix" ] || failed "Where is $root/usr/local/bin/Chrubix?"
-	cp -af $root/usr/local/bin/Chrubix $root$MYDISK_CHR_STUB/usr/local/bin/ || failed "Failed to copy chrubix folder from mydisk to minidistro #1"
-	cp -af $root/usr/local/bin/Chrubix $TOP_BTSTRAP/usr/local/bin/ || failed "Failed to copy chrubix folder from mydisk to root #1"
-
+	if [ -e "$root$MYDISK_CHR_STUB/usr/local/bin" ] ; then
+		cp -af $root/usr/local/bin/Chrubix $root$MYDISK_CHR_STUB/usr/local/bin/ || failed "Failed to copy chrubix folder from mydisk to minidistro #1"
+	fi
+		
+	if [ -e "$TOP_BTSTRAP/usr/local/bin/" ] ; then
+		cp -af $root/usr/local/bin/Chrubix $TOP_BTSTRAP/usr/local/bin/ || failed "Failed to copy chrubix folder from mydisk to minidistro #1"
+	fi
 }
 
 
@@ -623,8 +592,6 @@ sign_and_install_kernel() {
 	rm -f $MYDISK_CHROOT/.checkpoint.txt
 	rm -f $VFAT_MOUNTPOINT/.checkpoint.txt
 	rm -f $MINIDISTRO_CHROOT/.checkpoint.txt
-	
-#	mkdir -p $MYDISK_CHROOT/.ro
 
 	# try ROOTDEV instead of VFATDEV?
 	sign_and_write_custom_kernel $MYDISK_CHROOT $UBOOTDEV $VFATDEV $kernel_fname "" ""  || failed "sign_and_install_kernel() -- failed to sign/write custom kernel"
@@ -638,6 +605,7 @@ delete_p3_if_it_exists() {
 		echo -en "Deleting p3..."
 		umount $ROOTDEV || echo -en ""
 		mount | fgrep " $ROOTDEV" && failed "delete_p3_if_it_exists() -- p3 is still mounted!"
+		dd if=/dev/urandom bs=1k count=1024 > $ROOTDEV
 		if [ ! -e "$PARTED_CHROOT/bin/parted" ] ; then
 			mount_scratch_space_loopback
 			install_parted_chroot
@@ -678,16 +646,26 @@ yes_save_IMG_file_for_posterity() {
 		cksum_sectornum=$SPLITPOINT
 	fi
 	
-	mount | grep "$DEV" && failed "yes_save_output_imgfile_for_posterity() -- please unmount $DEV etc. before proceeding #1"
-#	delete_p3_if_it_exists
-	mount | grep "$DEV" && failed "yes_save_output_imgfile_for_posterity() -- please unmount $DEV etc. before proceeding #2"	
+	if mount | grep "$DEV" ; then
+		echo "yes_save_IMG_file_for_posterity() -- $DEV is still mounted. Unmounting..."
+		umount $TOP_BTSTRAP &> /dev/null || echo -en ""
+		if mount | grep "$DEV" ; then
+			echo "yes_save_IMG_file_for_posterity() -- $DEV is STILL mounted Unmounting..."
+			for r in `mount | grep "$DEV" | cut -d' ' -f3`; do
+				umount $r || echo "yes_save_IMG_file_for_posterity() -- failed to unmount $r"
+			done
+	 		failed "yes_save_IMG_file_for_posterity() -- please unmount $DEV etc. before proceeding #1"
+	 	fi
+	fi
+	echo "Done."
+
+	delete_p3_if_it_exists
+	mount | grep "$DEV" && failed "yes_save_IMG_file_for_posterity() -- please unmount $DEV etc. before proceeding #2"	
 	wipe_spare_space_in_partition $VFATDEV
-	dd if=/dev/urandom bs=1k count=128 > $ROOTDEV			#	yes Y | mkfs -t ext4 $ROOTDEV
-	mkfs.exfat $ROOTDEV
 	
 	mount_sectornum=$(($cksum_sectornum+1))					#	echo "cksum_sectornum = $cksum_sectornum; mount_sectornum=$mount_sectornum"
 	echo "Saving image of $DEV ==> $output_imgfile"
-	pv $DEV | dd count=$mount_sectornum 2> /dev/null | gzip -1 > "$output_imgfile".TEMP || failed "yes_save_output_imgfile_for_posterity() -- failed to save image $output_imgfile"
+	pv $DEV | dd count=$mount_sectornum 2> /dev/null | gzip -1 > "$output_imgfile".TEMP || failed "yes_save_IMG_file_for_posterity() -- failed to save image $output_imgfile"
 	echo -en "Done."
 	mv -f "$output_imgfile".TEMP $output_imgfile
 	echo ""
@@ -739,7 +717,6 @@ install_from_prefab_img() {
 	fi
 
 	sign_and_write_custom_kernel $MYDISK_CHROOT $UBOOTDEV $VFATDEV $kernel_fname "" ""  || failed "install_from_prefab_img() -- failed to sign/write custom kernel"
-
 	unmount_absolutely_everything &> /dev/null || echo -en ""
 }
 
@@ -752,8 +729,8 @@ install_from_prefab_sqfs() {
 
 	mount | fgrep "$DEV" && failed "partition_my_disk() --- stuff from $DEV is already mounted. Abort!" || echo -en ""
 
-#											it used to be .... v "yes" v .... but now, we leave p3 in place (junk, sausage)
-	partition_the_device $DEV $DEV_P $PARTED_CHROOT $SPLITPOINT "" 2> /tmp/ptxt.txt || failed "Failed to partition myself. `cat /tmp/ptxt.txt` .. Ugh. ###3"
+#											                    "yes" for only 2 partitions; "" for 3 partitions
+	partition_the_device $DEV $DEV_P $PARTED_CHROOT $SPLITPOINT "yes" 2> /tmp/ptxt.txt || failed "Failed to partition myself. `cat /tmp/ptxt.txt` .. Ugh. ###3"
 	format_my_disk
 	mount_my_disk
 	echo "Restoring from $prefab_fname_or_url and .../`basename $kernel_fname_or_url`"
@@ -767,7 +744,6 @@ install_from_prefab_sqfs() {
 	sign_and_install_kernel
 	unmount_my_disk &> /dev/null || echo -en ""
 	unmount_absolutely_everything &> /dev/null || echo -en ""
-	save_IMG_file_for_posterity_if_possible
 }
 
 
@@ -780,8 +756,6 @@ install_from_prefab_stageX() {
 
 install_from_the_beginning() {
 	install_the_hard_way
-	unmount_absolutely_everything &> /dev/null || echo -en ""
-	save_IMG_file_for_posterity_if_possible
 }
 
 
@@ -789,10 +763,15 @@ install_from_prefab() {
 	local prefab_fname_or_url=$1
 	if echo $prefab_fname_or_url | fgrep ".img" &> /dev/null ; then
 		install_from_prefab_img $prefab_fname_or_url
-	elif echo $prefab_fname_or_url | fgrep ".sqfs" &> /dev/null ; then
-		install_from_prefab_sqfs $prefab_fname_or_url `echo "$prefab_fname_or_url" | sed s/\.sqfs/\.kernel/`
+		unmount_absolutely_everything &> /dev/null || echo -en ""		
 	else
-		install_from_prefab_stageX $prefab_fname_or_url
+		if echo $prefab_fname_or_url | fgrep ".sqfs" &> /dev/null ; then
+			install_from_prefab_sqfs $prefab_fname_or_url `echo "$prefab_fname_or_url" | sed s/\.sqfs/\.kernel/`
+		else
+			install_from_prefab_stageX $prefab_fname_or_url
+		fi
+		unmount_absolutely_everything &> /dev/null || echo -en ""
+		save_IMG_file_for_posterity_if_possible
 	fi
 }
 
@@ -818,8 +797,13 @@ unmount_absolutely_everything() {
 	unmount_bootstrap_stuff $LOOPFS_BTSTRAP || echo -en ""
 	unmount_bootstrap_stuff $TOP_BTSTRAP || echo -en ""
 	echo -en "."
-	umount $TOP_BTSTRAP/{tmp,proc,sys,dev} $TOP_BTSTRAP || echo -en ""
+	sync;sync;sync
+	umount $TOP_BTSTRAP/{tmp,proc,sys,dev} || echo -en ""
+	sync;sync;sync
+	umount $TOP_BTSTRAP &> /dev/null || echo -en ""
+	sync;sync;sync
 	umount "$DEV"* &> /dev/null || echo -en ""
+	sync;sync;sync
 	umount /dev/mmcblk1* /dev/sd* /tmp/_* /tmp/.* 2> /dev/null || echo -en ""
 	echo -en "."
 }
@@ -844,17 +828,21 @@ mkdir -p $ROOTMOUNT $BOOTMOUNT $KERNMOUNT
 
 
 
-## keep trying the newly modified redo>_mbr.sh until the sausage can be found reliably
-#DISTRONAME=debianwheezy
-#unmount_absolutely_everything &> /dev/null || echo -en ""
-#mount_my_disk
-#mount_dev_sys_proc_and_tmp $MINIDISTRO_CHROOT
-#install_chrubix $MINIDISTRO_CHROOT $DEV $ROOTDEV $VFATDEV $KERNELDEV $DISTRONAME
-#chmod +x $MINIDISTRO_CHROOT/usr/local/bin/redo_mbr.sh || failed "Failed to mark redo_mbr.sh +x"
-#chroot_this $MINIDISTRO_CHROOT "/usr/local/bin/redo_mbr.sh $DEV $MYDISK_CHR_STUB $VFATDEV" || failed "Failed to redo_mbr.sh :-/"
-#unmount_my_disk &> /dev/null || echo -en ""
-#sudo reboot
-#exit 0
+# put temp copy of modified log_me_in.sh on sda2 :)
+DISTRONAME=debianwheezy
+DEV=/dev/mmcblk1
+unmount_absolutely_everything &> /dev/null || echo -en ""
+mkdir -p /tmp/weee
+wget $OVERLAY_URL -O - | tar -Jx -C /tmp/weee || failed "Failed to snag latest python, bash, etc. code"
+mkdir -p /tmp/ababab
+mount /dev/sda2 /tmp/ababab || failed "Failed to mount /dev/sda2"
+bash /tmp/weee/bash/redo_mbr.sh $DEV > /tmp/ababab/log_me_in.sh
+echo "Generated this log_me_in.sh file:-"
+cat /tmp/ababab/log_me_in.sh
+umount /tmp/ababab
+echo ""
+echo "Saved it to sda2. Yay."
+exit 0
 
 
 

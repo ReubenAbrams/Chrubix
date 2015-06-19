@@ -29,7 +29,7 @@ class Distro():
     '''
     '''
     # Class-level consts
-    hewwo = '2015/06/17 @ 13:07'
+    hewwo = '2015/06/19 @ 06:00'
     crypto_rootdev = "/dev/mapper/cryptroot"
     crypto_homedev = "/dev/mapper/crypthome"
     boomfname = "/etc/.boom"
@@ -56,7 +56,7 @@ libdevmapper-dev \
         self.branch = None
         self.__args = args
         self.__pheasants = False  # Starts FALSE so that the generic _D is... generic. Turns TRUE later on, in migrate_OS().
-        self.__kthx = True  # Always TRUE. That way, even the generic stage files have the obfuscated filesystems (xfs, jfs, btrfs).
+        self.__kthx = False  # Always TRUE. That way, even the generic stage files have the obfuscated filesystems (xfs, jfs, btrfs).
         self.__crypto_filesystem_format = 'ext4'  # xfs, jfs, btrfs, ext4...?
         self.__device = '/dev/null'  # e.g. /dev/mmcblk1
         self.__kernel_dev = '/dev/null'  # e.g. /dev/mmcblk1p1
@@ -277,7 +277,7 @@ cd %s/linux-latest && \
 cat ../linux-chromebook/config | sed s/ZSMALLOC=.*/ZSMALLOC=y/ > .config && \
 yes "" 2>/dev/null | make oldconfig && \
 make' % ( self.sources_basedir ), title_str = self.title_str, status_lst = self.status_lst )
-        self.update_status_with_newline( '...kernel built.' )
+        self.update_status( '...kernel built. ' )
 
     def redo_mbr_for_encrypted_root( self, chroot_here ):
         self.redo_mbr( root_partition_device = self.crypto_rootdev, chroot_here = chroot_here )
@@ -317,7 +317,7 @@ make' % ( self.sources_basedir ), title_str = self.title_str, status_lst = self.
 
     def install_vbutils_and_firmware_from_cbook( self ):
         for f in ( 'hipxorg', 'vbtools', 'firmware', 'usr_share_alsa_ucm' ):
-            system_or_die( 'tar -zxf /tmp/ -C /tmp/.%s.tgz -C %s 2> /dev/null' % ( f, self.mountpoint ), status_lst = self.status_lst, title_str = self.title_str )
+            system_or_die( 'tar -zxf /tmp/.%s.tgz -C %s 2> /dev/null' % ( f, self.mountpoint ), status_lst = self.status_lst, title_str = self.title_str )
         chroot_this( self.mountpoint, 'cd /lib/firmware/ && ln -sf s5p-mfc/s5p-mfc-v6.fw mfc_fw.bin 2> /dev/null' )
 
     def set_disk_password( self ):
@@ -689,22 +689,26 @@ Choose the 'boom' password : """ ).strip( '\r\n\r\n\r' )
         setup_onceaminute_timer( self.mountpoint )
 
     def install_extra_menu_items_in_gui ( self ):
+        f = '%s/usr/local/bin/xterm_mmp.sh' % ( self.mountpoint )  # FIXME this file should be created by another subroutine instead, perhaps?
+        write_oneliner_file( f, '''#!/bin/sh
+/usr/bin/x-terminal-emulator -e /usr/local/bin/make_me_permanent.sh
+exit $?
+''' )
+        system_or_die( 'chmod +x %s' % ( f ) )
         f = '%s/usr/share/applications/make_me_permanent.desktop' % ( self.mountpoint )
         write_oneliner_file( f, '''[Desktop Entry]
 Name=***Make Me Permanent***
 Comment=Creates a permanent, encrypted storage locker on this disk
 Encoding=UTF-8
-Exec=gksu "/usr/bin/x-terminal-emulator -e bash /usr/local/bin/Chrubis/bash/make_me_permanent.sh"
-Icon=
-StartupNotify=True
-Terminal=false
+Exec=gksu /usr/local/bin/xterm_mmp.sh
+Icon=/usr/local/bin/Chrubix/src/ui/alarmist.png
+StartupNotify=true
+Terminal=true
 X-MultipleArgs=false
 Type=Application
 Categories=GTK;Utility;TerminalEmulator;
 ''' )  # FIME should use /usr/local/bin/make_me_permanent.sh
-
-
-#        setup_onceeverythreeseconds_timer( self.mountpoint )
+        setup_onceeverythreeseconds_timer( self.mountpoint )
 
     def configure_lxdm_login_manager( self ):
         configure_lxdm_onetime_changes( self.mountpoint )
@@ -825,6 +829,7 @@ exit 0
                 failed( '%s%s does not exist' % ( self.mountpoint, f ) )
         system_or_die( 'rm -f %s/.squashfs.sqfs /.squashfs.sqfs' % ( self.mountpoint ) )
 #            os.system( 'clear' )
+        self.update_status( '***QQQ For testing porpoises, we are setting the root pw to hi QQQ***' )
         self.set_root_password( 'hi' )
         username = 'guest'  # ask_the_user__guest_mode_or_user_mode__and_create_one_if_necessary( self.name, self.mountpoint )
         self.lxdm_settings['login as user'] = username
@@ -843,9 +848,6 @@ exit 0
         self.root_is_encrypted = True
         self.pheasants = True
         self.kthx = True
-
-
-
         self.call_bash_script_that_modifies_kernel_n_mkfs_sources()
         self.build_kernel_and_mkfs()  # Recompile mk*fs because our new kernel will probably use random magic#'s for xfs, jfs, and btrfs
         self.install_kernel_and_mkfs()
@@ -1295,6 +1297,7 @@ exit $errors
 
     def configure_winxp_camo_and_guest_default_files( self ):
         install_windows_xp_theme_stuff( self.mountpoint )
+        install_mp3_files( self.mountpoint )
 #        if os.path.exists( '%s/usr/share/icons/GnomeXP' % ( self.mountpoint ) ):
 #            raise RuntimeError( 'I have already installed the groovy XP stuff, FYI.' )
         assert( os.path.exists( '%s/etc/.mp3/winxp.mp3' % ( self.mountpoint ) ) )
@@ -1545,12 +1548,13 @@ WantedBy=multi-user.target
 # From this point on, assume Internet access is gone.
         fourth_stage = ( 
                                 self.call_bash_script_that_modifies_kernel_n_mkfs_sources,  # Why are these three lines here?
-                                self.build_kernel_and_mkfs,  # If they work, let's leave them
-                                self.install_kernel_and_mkfs,  # alone... but are they needed?
-                                self.forcibly_rebuild_initramfs_and_vmlinux,  # I think this is for testing modifications to /init, /log_me_in.sh, etc.
+                                self.build_kernel_and_mkfs,  # ...............................If they work, let's leave them
+                                self.install_kernel_and_mkfs,  # .............................alone, but are they needed?
+                                self.forcibly_rebuild_initramfs_and_vmlinux,  # ...............What about this? Is this needed too?
                                 self.remove_all_junk,
                                 self.save_for_posterity_if_possible_D )
         fifth_stage = ( # Chrubix ought to have been installed in MYDISK_MTPT/{dest distro} already, by the stage 1 bash script.
+                                self.forcibly_rebuild_initramfs_and_vmlinux,  # I think this is for testing modifications to /init, /log_me_in.sh, etc.
                                 self.add_guest_user,
                                 self.install_panic_button,
                                 self.install_vbutils_and_firmware_from_cbook,
