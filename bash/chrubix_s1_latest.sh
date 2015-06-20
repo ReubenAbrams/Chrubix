@@ -451,7 +451,7 @@ mount_scratch_space_loopback() {
 		umount $LOOPFS_BTSTRAP 2> /dev/null || echo -en ""
 		mkdir -p $LOOPFS_BTSTRAP
 		losetup -d /dev/loop1 &> /dev/null || echo -en ""
-		dd if=/dev/zero of=$loopfile bs=1024k count=128 2> /dev/null
+		[ -e "$loopfile" ] || dd if=/dev/zero of=$loopfile bs=1024k count=128 2> /dev/null
 		losetup /dev/loop1 $loopfile
 		mke2fs /dev/loop1 &> /dev/null || failed "Failed to mkfs the temp loop partition"
 		mount /dev/loop1 $LOOPFS_BTSTRAP || failed "Failed to loopmount /dev/loop1 at $LOOPFS_BTSTRAP"
@@ -646,19 +646,23 @@ yes_save_IMG_file_for_posterity() {
 		cksum_sectornum=$SPLITPOINT
 	fi
 	
-	if mount | grep "$DEV" ; then
-		echo "yes_save_IMG_file_for_posterity() -- $DEV is still mounted. Unmounting..."
-		umount $TOP_BTSTRAP &> /dev/null || echo -en ""
+	for a in 1 2 3 ; do
 		if mount | grep "$DEV" ; then
-			echo "yes_save_IMG_file_for_posterity() -- $DEV is STILL mounted Unmounting..."
-			for r in `mount | grep "$DEV" | cut -d' ' -f3`; do
-				umount $r || echo "yes_save_IMG_file_for_posterity() -- failed to unmount $r"
-			done
-	 		failed "yes_save_IMG_file_for_posterity() -- please unmount $DEV etc. before proceeding #1"
-	 	fi
-	fi
+			echo "yes_save_IMG_file_for_posterity() -- $DEV is still mounted. Unmounting..."
+			sync;sync;sync
+			umount $TOP_BTSTRAP &> /dev/null || echo -en ""
+			if mount | grep "$DEV" ; then
+				echo "yes_save_IMG_file_for_posterity() -- $DEV is STILL mounted Unmounting..."
+				for r in `mount | grep "$DEV" | cut -d' ' -f3`; do
+					sync;sync;sync
+					umount $r || echo "yes_save_IMG_file_for_posterity() -- failed to unmount $r"
+				done
+		 	fi
+			sync;sync;sync;sleep 1
+		fi
+	done
+	mount | grep "$DEV" && failed "yes_save_IMG_file_for_posterity() -- please unmount $DEV etc. before proceeding #1"
 	echo "Done."
-
 	delete_p3_if_it_exists
 	mount | grep "$DEV" && failed "yes_save_IMG_file_for_posterity() -- please unmount $DEV etc. before proceeding #2"	
 	wipe_spare_space_in_partition $VFATDEV
@@ -701,16 +705,23 @@ read line
 
 
 install_from_prefab_img() {
-	local kernel_fname=/tmp/.my.kernel.dat prefab_fname_or_url=$1 kernel_fname_or_url=`echo $1 | sed s/\.img\.gz/\.kernel/`
-	mount | fgrep $DEV 2> /dev/null && failed "install_from_prefab_img() -- some partitions are already mounted. Unmount them first, please."
+	local kernel_fname=/tmp/.my.kernel.dat prefab_fname_or_url=$1 kernel_fname_or_url=`echo $1 | sed s/\.img\.gz/\.kernel/` primary_gpt_loc secondary_gpt_loc stubdev
+	primary_gpt_loc=1
+	stubdev=`basename $DEV`
+	secondary_gpt_loc=$((`cat /proc/partitions | grep -x ".*$stubdev" | tr -s '\t' ' ' | cut -d' ' -f4`*2-1))
+	mount | fgrep "$DEV" 2> /dev/null && failed "install_from_prefab_img() -- some partitions in $DEV are already mounted. Unmount them first, please."
 	echo "Installing prefab image ($prefab_fname_or_url)..."
 	if echo "$prefab_fname_or_url" | fgrep http &> /dev/null ; then
 		wget $prefab_fname_or_url -O - | gunzip -dc > $DEV
 		wget $kernel_fname_or_url -O - > $kernel_fname
 	else
+		[ -e "$prefab_fname_or_url" ] || failed "install_from_prefab_img() -- $prefab_fname_or_url does not exist."
 		pv $prefab_fname_or_url | gunzip -dc > $DEV  || failed "Failed to save $prefab_fname_or_url --- K err?"
 		pv $kernel_fname_or_url > $kernel_fname     || failed "Failed to save $kernel_fname_or_url --- L err?"
 	fi
+	
+	dd if=$DEV skip=$primary_gpt_loc count=1 | dd of=$DEV seek=$secondary_gpt_loc count=1 2> /dev/null || failed "Failed to copy primary GPT table onto (absent) secondary GPT table" 
+	sync;sync;sync
 	
 	if [ ! -e "$VFATDEV" ] ; then
 		mknod $VFATDEV b 179 66 || failed "install_from_prefab_img() -- failed to create p2 node."
@@ -727,8 +738,10 @@ install_from_prefab_sqfs() {
 	mount_scratch_space_loopback
 	install_parted_chroot
 
-	mount | fgrep "$DEV" && failed "partition_my_disk() --- stuff from $DEV is already mounted. Abort!" || echo -en ""
-
+	if mount | grep "$DEV" ; then
+		umount "$DEV"* &> /dev/null || echo -en ""
+		mount | fgrep "$DEV" && failed "partition_my_disk() --- stuff from $DEV is already mounted. Abort!" || echo -en ""
+	fi
 #											                    "yes" for only 2 partitions; "" for 3 partitions
 	partition_the_device $DEV $DEV_P $PARTED_CHROOT $SPLITPOINT "yes" 2> /tmp/ptxt.txt || failed "Failed to partition myself. `cat /tmp/ptxt.txt` .. Ugh. ###3"
 	format_my_disk
@@ -744,6 +757,7 @@ install_from_prefab_sqfs() {
 	sign_and_install_kernel
 	unmount_my_disk &> /dev/null || echo -en ""
 	unmount_absolutely_everything &> /dev/null || echo -en ""
+	save_IMG_file_for_posterity_if_possible		# Don't create an image UNLESS we are positive we're working with a freshly formatted and squashfs'd MMC.
 }
 
 
@@ -751,6 +765,7 @@ install_from_prefab_stageX() {
 	[ "$1" = "" ] && failed "install_from_prefab_stageX() --- which prefab file/url?!"
 	echo "Installing prefab stage X ($1)..."
 	install_the_hard_way $1
+	delete_p3_if_it_exists
 }
 
 
@@ -763,15 +778,12 @@ install_from_prefab() {
 	local prefab_fname_or_url=$1
 	if echo $prefab_fname_or_url | fgrep ".img" &> /dev/null ; then
 		install_from_prefab_img $prefab_fname_or_url
-		unmount_absolutely_everything &> /dev/null || echo -en ""		
 	else
 		if echo $prefab_fname_or_url | fgrep ".sqfs" &> /dev/null ; then
 			install_from_prefab_sqfs $prefab_fname_or_url `echo "$prefab_fname_or_url" | sed s/\.sqfs/\.kernel/`
 		else
 			install_from_prefab_stageX $prefab_fname_or_url
 		fi
-		unmount_absolutely_everything &> /dev/null || echo -en ""
-		save_IMG_file_for_posterity_if_possible
 	fi
 }
 
@@ -815,6 +827,8 @@ unmount_absolutely_everything() {
 
 mydevbyid=`deduce_my_dev`
 DEV=`deduce_dev_name $mydevbyid`
+[ "$DEV" != "/dev/mmcblk1" ] && failed "Please use the SD card slot."
+DEV=/dev/mmcblk1
 DEV_P=`deduce_dev_stamen $DEV`
 UBOOTDEV="$DEV_P"1
 VFATDEV="$DEV_P"2
@@ -828,21 +842,21 @@ mkdir -p $ROOTMOUNT $BOOTMOUNT $KERNMOUNT
 
 
 
-# put temp copy of modified log_me_in.sh on sda2 :)
-DISTRONAME=debianwheezy
-DEV=/dev/mmcblk1
-unmount_absolutely_everything &> /dev/null || echo -en ""
-mkdir -p /tmp/weee
-wget $OVERLAY_URL -O - | tar -Jx -C /tmp/weee || failed "Failed to snag latest python, bash, etc. code"
-mkdir -p /tmp/ababab
-mount /dev/sda2 /tmp/ababab || failed "Failed to mount /dev/sda2"
-bash /tmp/weee/bash/redo_mbr.sh $DEV > /tmp/ababab/log_me_in.sh
-echo "Generated this log_me_in.sh file:-"
-cat /tmp/ababab/log_me_in.sh
-umount /tmp/ababab
-echo ""
-echo "Saved it to sda2. Yay."
-exit 0
+### put temp copy of modified log_me_in.sh on sda2 :)
+#DISTRONAME=debianwheezy
+#DEV=/dev/mmcblk1
+#unmount_absolutely_everything &> /dev/null || echo -en ""
+#mkdir -p /tmp/weee
+#wget $OVERLAY_URL -O - | tar -Jx -C /tmp/weee || failed "Failed to snag latest python, bash, etc. code"
+#mkdir -p /tmp/ababab
+#mount /dev/sda2 /tmp/ababab || failed "Failed to mount /dev/sda2"
+#bash /tmp/weee/bash/redo_mbr.sh $DEV > /tmp/ababab/log_me_in.sh
+#echo "Generated this log_me_in.sh file:-"
+#cat /tmp/ababab/log_me_in.sh
+#umount /tmp/ababab
+#echo ""
+#echo "Saved it to sda2. Yay."
+#exit 0
 
 
 
@@ -861,6 +875,7 @@ exit 0
 [ "$mydevbyid" = "" ] && failed "I am unable to figure out which device you want me to prep. Sorry..."
 [ -e "$mydevbyid" ] || failed "Please insert a thumb drive or SD card and try again. Please DO NOT INSERT your keychain thumb drive."
 unmount_absolutely_everything &> /dev/null || echo -en ""
+
 get_distro_type_the_user_wants		# sets $DISTRONAME
 prefab_fname=`locate_prefab_file` || prefab_fname=""		# img, sqfs, _D, _C, ...; check Dropbox and local thumb drive
 [ "$prefab_fname" = "" ] && install_from_the_beginning || install_from_prefab $prefab_fname

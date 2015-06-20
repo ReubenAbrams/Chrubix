@@ -691,14 +691,14 @@ Choose the 'boom' password : """ ).strip( '\r\n\r\n\r' )
     def install_extra_menu_items_in_gui ( self ):
         f = '%s/usr/local/bin/xterm_mmp.sh' % ( self.mountpoint )  # FIXME this file should be created by another subroutine instead, perhaps?
         write_oneliner_file( f, '''#!/bin/sh
-/usr/bin/x-terminal-emulator -e /usr/local/bin/make_me_permanent.sh
+/usr/bin/x-terminal-emulator -e /usr/local/bin/make_me_persistent.sh
 exit $?
 ''' )
         system_or_die( 'chmod +x %s' % ( f ) )
-        f = '%s/usr/share/applications/make_me_permanent.desktop' % ( self.mountpoint )
+        f = '%s/usr/share/applications/make_me_persistent.desktop' % ( self.mountpoint )
         write_oneliner_file( f, '''[Desktop Entry]
-Name=***Make Me Permanent***
-Comment=Creates a permanent, encrypted storage locker on this disk
+Name=CREATE A PERSISTENT VOLUME
+Comment=Creates a persistent, encrypted storage locker on this disk
 Encoding=UTF-8
 Exec=gksu /usr/local/bin/xterm_mmp.sh
 Icon=/usr/local/bin/Chrubix/src/ui/alarmist.png
@@ -707,7 +707,7 @@ Terminal=true
 X-MultipleArgs=false
 Type=Application
 Categories=GTK;Utility;TerminalEmulator;
-''' )  # FIME should use /usr/local/bin/make_me_permanent.sh
+''' )  # FIME should use /usr/local/bin/make_me_persistent.sh
         setup_onceeverythreeseconds_timer( self.mountpoint )
 
     def configure_lxdm_login_manager( self ):
@@ -1207,7 +1207,7 @@ exit $errors
         system_or_die( 'ln -sf Chrubix/bash/chrubix.sh %s/usr/local/bin/chrubix.sh' % ( self.mountpoint ) )
         assert( os.path.islink( '%s/usr/local/bin/chrubix.sh' % ( self.mountpoint ) ) )
         system_or_die( 'chmod +x %s/usr/local/bin/Chrubix/bash/*' % ( self.mountpoint ) )
-        for f in ( 'chrubix.sh', 'CHRUBIX', 'greeter.sh', 'preboot_configurer.sh', 'modify_sources.sh', 'redo_mbr.sh', 'make_me_permanent.sh' ):
+        for f in ( 'chrubix.sh', 'CHRUBIX', 'greeter.sh', 'preboot_configurer.sh', 'modify_sources.sh', 'redo_mbr.sh', 'make_me_persistent.sh' ):
             system_or_die( 'ln -sf Chrubix/bash/%s %s/usr/local/bin/%s' % ( f, self.mountpoint, f ) )
             system_or_die( 'chmod +x %s/usr/local/bin/Chrubix/bash/%s' % ( self.mountpoint, f ) )
         mytitle = ( self.fullname ).title()
@@ -1554,7 +1554,7 @@ WantedBy=multi-user.target
                                 self.remove_all_junk,
                                 self.save_for_posterity_if_possible_D )
         fifth_stage = ( # Chrubix ought to have been installed in MYDISK_MTPT/{dest distro} already, by the stage 1 bash script.
-                                self.forcibly_rebuild_initramfs_and_vmlinux,  # I think this is for testing modifications to /init, /log_me_in.sh, etc.
+#                                self.forcibly_rebuild_initramfs_and_vmlinux,  # I think this is for testing modifications to /init, /log_me_in.sh, etc.
                                 self.add_guest_user,
                                 self.install_panic_button,
                                 self.install_vbutils_and_firmware_from_cbook,

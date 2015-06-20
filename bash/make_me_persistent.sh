@@ -7,10 +7,17 @@ PARTN_LOOP=/dev/loop6
 SAUSAGE=/dev/mapper/hSg
 SPLITPOINT=`cat /usr/local/bin/redo_mbr.sh | fgrep "SPLITPOINT=" | head -n1 | tr -s '=' ' ' | tr -s '\t' ' ' | cut -d' ' -f2`
 echo "SPLITPOINT=$SPLITPOINT"
+
 # vvv If you change these, change the redo_mbr.sh stuff too! vvv
 START_OF_HIDDEN_DATA=$(($(($SPLITPOINT+128))*512))			# Try reducing 64 a little (32? 16?)
-END_OF_DEVICE_IN_MB=`cat /proc/partitions | grep -x ".*$DEV_STUB" | tr -s ' ' '\t' | cut -f4`	# make_me_permanent.sh uses this
-END_OF_HIDDEN_DATA=$(($END_OF_DEVICE_IN_MB*1024))
+if which cgpt &> /dev/null ; then
+	lastblock=`cgpt show $dev | tail -n3 | grep "Sec GPT table" | tr -s ' ' '\t' | cut -f2`
+	eohd=$(($lastblock/2))
+else
+	eod_in_mb=`cat /proc/partitions | grep -x ".*$DEV_STUB" | tr -s ' ' '\t' | cut -f4`	# make_me_permanent.sh uses this
+	eohd=$(($eod_in_mb*1024))
+fi
+END_OF_HIDDEN_DATA=$(($(($eohd/262144))*262144))
 LENGTH_OF_HIDDEN_DATA=$(($END_OF_HIDDEN_DATA-$START_OF_HIDDEN_DATA))
 GROOVY_CRYPT_PARAMS="-c aes-xts-plain -s 512 -c aes -s 256 -h sha256" 		# --hash ripemd160
 # ^^^ If you change these, change the redo_mbr.sh stuff too! ^^^
@@ -52,10 +59,10 @@ create_encrypted_partition() {
 
 
 format_encrypted_partition() {
-	echo -en "Formatting..."
-	mkfs.xfs -f $SAUSAGE			&>/dev/null	|| failed "Err W -- failed to prep your hidden partition"
-#	mkfs.jfs -f $SAUSAGE			&>/dev/null || failed "Err W -- failed to prep your hidden partition"
-#	yes Y | mkfs.ext4 $SAUSAGE					|| failed "Err W -- failed to prep your hidden partition"
+	echo -en "Formatting (this will take a while)..."
+#	mkfs.xfs -f $SAUSAGE			&>/dev/null	|| failed "Err W -- failed to prep your hidden partition"
+	mkfs.jfs -f $SAUSAGE			&>/dev/null || failed "Err W -- failed to prep your hidden partition"
+#	yes Y | mkfs.ext4 $SAUSAGE		&>/dev/null	|| failed "Err W -- failed to prep your hidden partition"
 #	mkfs.btrfs -f -O ^extref $SAUSAGE	&>/dev/null	|| failed "Err W -- failed to prep your hidden partition"
 	mkdir -p /tmp/.hs.
 	mount $SAUSAGE /tmp/.hs. 				|| failed "Err X -- failed to prep your hidden partition"
@@ -78,12 +85,12 @@ close_encrypted_partition() {
 	sync;sync;sync
 	if ! cryptsetup close $SAUSAGE 2> /dev/null ; then
 		sync;sync;sync
-		echo -en "Retrying..."
+		echo -en "...Retrying..."
 		if ! cryptsetup close $SAUSAGE 2> /dev/null ; then
 			echo "I experienced a non-fatal error."
 		fi
 	fi
-	echo "Press ENTER to reboot."
+	echo -en "\nPress ENTER to reboot."
 	read line
 	sync;sync;sync
 	sudo reboot

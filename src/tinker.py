@@ -12,7 +12,6 @@ from chrubix.utils import fix_broken_hyperlinks, system_or_die, call_makepkg_or_
                           chroot_this, patch_org_freedesktop_networkmanager_conf_file, failed
 from chrubix.distros.debian import generate_mickeymouse_lxdm_patch
 from chrubix.utils.postinst import remove_junk, \
-                                    ask_the_user__guest_mode_or_user_mode__and_create_one_if_necessary, \
                                     GUEST_HOMEDIR
 
 
@@ -69,6 +68,17 @@ elif argv[2] == 'build-a-bunch':
                 bad_list.append( pkg )
     print( "good:", good_list )
     print( "bad :", bad_list )
+elif argv[2] == 'logmein':
+    distro = load_distro_record( '/' if os.system( 'cat /proc/cmdline 2>/dev/null | fgrep root=/dev/dm-0 > /dev/null' ) != 0 else MYDISK_MTPT )
+    for cmd in ( 
+                'mkdir -p /tmp/.sda2',
+                'mount /dev/sda2 /tmp/.sda2',
+                '/usr/local/bin/redo_mbr.sh > /tmp/.sda2/log_me_in.sh'
+                ):
+        system_or_die( cmd )
+    os.system( 'sync;sync;sync;sync' )
+    system_or_die( 'umount /tmp/.sda2' )
+
 elif argv[2] == 'build-from-debian':
     distro = generate_distro_record_from_name( argv[3] )
     distro.mountpoint = MYDISK_MTPT
@@ -181,13 +191,6 @@ elif argv[2] == 'posterity':
     distro.spare_dev = '/dev/mmcblk1p2'
     if 0 != distro.save_for_posterity_if_possible_D():
         failed( 'Failed to create sample distro posterity file' )
-elif argv[2] == 'new-user':
-    distro = generate_distro_record_from_name( argv[3] )
-    distro.mountpoint = MYDISK_MTPT
-    distro.device = '/dev/mmcblk1'
-    distro.root_dev = '/dev/mmcblk1p3'
-    distro.spare_dev = '/dev/mmcblk1p2'
-    ask_the_user__guest_mode_or_user_mode__and_create_one_if_necessary( argv[3], distro.mountpoint )
 elif argv[2] == 'udev':
     distro = generate_distro_record_from_name( argv[3] )
     distro.mountpoint = MYDISK_MTPT

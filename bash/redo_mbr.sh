@@ -193,13 +193,18 @@ get_number_of_cores() {
 
 
 generate_logmein_script() {
-	local rootdev=$1 dev
+	local rootdev=$1 dev lastblock eohd
 	dev=`echo "$rootdev" | sed s/p[0-9]//`
-
+	DEV_STUB=`basename $dev`
 # vvv If you change these, change the make_me_permanent.sh stuff too! vvv
-	lastblock=`cgpt show $dev | tail -n3 | grep "Sec GPT table" | tr -s ' ' '\t' | cut -f2`
-	END_OF_DEVICE_IN_MB=$(($lastblock/2048))			# redo_mbr.sh uses this
-	END_OF_HIDDEN_DATA=$(($END_OF_DEVICE_IN_MB*1024))
+	if which cgpt &> /dev/null ; then
+		lastblock=`cgpt show $dev | tail -n3 | grep "Sec GPT table" | tr -s ' ' '\t' | cut -f2`
+		eohd=$(($lastblock/2))
+	else
+		eod_in_mb=`cat /proc/partitions | grep -x ".*$DEV_STUB" | tr -s ' ' '\t' | cut -f4`	# make_me_permanent.sh uses this
+		eohd=$(($eod_in_mb*1024))
+	fi
+	END_OF_HIDDEN_DATA=$(($(($eohd/262144))*262144))
 	LENGTH_OF_HIDDEN_DATA=$(($END_OF_HIDDEN_DATA-$START_OF_HIDDEN_DATA))
 	GROOVY_CRYPT_PARAMS="-c aes-xts-plain -s 512 -c aes -s 256 -h sha256" 		# --hash ripemd160
 # ^^^ If you change these, change the make_me_permanent.sh stuff too! ^^^
@@ -267,9 +272,11 @@ if [ -e \"/newroot/$SQUASHFS_FNAME\" ]; then
   mkdir -p /ro /rw
   mount -o loop,squashfs /deviceroot/$SQUASHFS_FNAME /ro
   losetup /dev/loop6 $dev -o $START_OF_HIDDEN_DATA 			# --sizelimit $LENGTH_OF_HIDDEN_DATA
+
   while ! mount | grep \"/rw \" > /dev/null ; do
     echo -en \"BOOT: \"
-	read -t 10 line
+	read -t 10 -s line
+	echo ""
 	if [ \"\$line\" = \"x\" ] ; then
         sh
     elif [ \"\$line\" = \"\" ] ; then
@@ -277,7 +284,10 @@ if [ -e \"/newroot/$SQUASHFS_FNAME\" ]; then
       mount -t tmpfs -o size=1024m tmpfs /rw
     elif echo \"\$line\" | cryptsetup plainOpen /dev/loop6 hSg $GROOVY_CRYPT_PARAMS ; then
 	  echo SausageFound
-      mount /dev/mapper/hSg /rw
+      if ! mount -o noatime,errors=remount-ro /dev/mapper/hSg /rw ; then
+        cryptsetup plainClose hSg
+        echo FailedToMount_SoTryingAgain
+      fi
     else
       echo SausageNotFoundTryAgain
     fi
@@ -352,25 +362,18 @@ mount -t sysfs sysfs /sys
 $STOP_JFS_HANGUPS
 mdev -s
 mkdir -p /newroot
-mkdir -p /.sda2
 mknod /dev/sda2 b 8 2
-if mount /dev/sda2 /.sda2 ; then
-  umount /.sda2
-  if [ -e \"/.sda2/log_me_in.sh\" ] ; then
-    cp -f /.sda2/log_me_in.sh /
-    chmod +x    /log_me_in.sh
-  fi
-  rmdir /.sda2
+read -t 2 line
+if [ \"\$line\" = \"x\" ] ; then
+  echo \"Shelling. Please install a fresh copy of /log_me_in.sh (perhaps via sda2) and then type 'exit'.\"
+  sh
+  echo \"Back. Now, let's run /log_me_in.sh and see what happens.\"
 fi
+
 /log_me_in.sh
 if [ \"\$?\" -eq \"0\" ] ; then
     echo -en \"$BOOT_PROMPT_STRING\"
-#	umount /sys /proc
-	read -t 2 line
-	if [ \"\$line\" = \"x\" ] ; then
-        sh
-    fi
-    clear
+#    clear
 	exec switch_root /newroot /sbin/init
 else
 	echo \"Failed to switch_root, dropping to a shell\"		#This will only be run if the exec above failed
@@ -543,9 +546,7 @@ if [ "$#" -eq "3" ] ; then
 	exit $res
 else
 #	failed "redo_mbr.sh <dev> <mountpoint> <root device or crypto root dev> ----- e.g. redo_mbr.sh /dev/mmcblk1 /tmp/_root /dev/mapper/cryptroot"
-echo aaaa
-	generate_logmein_script /dev/mmcblk1 
-echo zzzz
+	generate_logmein_script /dev/mmcblk1p2
 fi
 
 
