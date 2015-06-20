@@ -35,13 +35,15 @@ failed() {
 
 
 setup_loop() {
-	echo "Looping it"
+	echo -en "Looping it"
 	for a in 1 2 ; do
 		cryptsetup close `basename $SAUSAGE` &> /dev/null || echo -en ""
 		umount $PARTN_LOOP 2> /dev/null || echo -en ""
 		losetup -d $PARTN_LOOP 2> /dev/null || echo -en ""
+		sync;sync;sync
 	done
 	
+	echo -en "..."
 	losetup $PARTN_LOOP $DEV -o $START_OF_HIDDEN_DATA --sizelimit $LENGTH_OF_HIDDEN_DATA
 	losetup -a | grep $PARTN_LOOP
 }
@@ -61,8 +63,8 @@ create_encrypted_partition() {
 format_encrypted_partition() {
 	echo -en "Formatting (this will take a while)..."
 #	mkfs.xfs -f $SAUSAGE			&>/dev/null	|| failed "Err W -- failed to prep your hidden partition"
-	mkfs.jfs -f $SAUSAGE			&>/dev/null || failed "Err W -- failed to prep your hidden partition"
-#	yes Y | mkfs.ext4 $SAUSAGE		&>/dev/null	|| failed "Err W -- failed to prep your hidden partition"
+#	mkfs.jfs -f $SAUSAGE			&>/dev/null || failed "Err W -- failed to prep your hidden partition"
+	yes Y | mkfs.ext2 $SAUSAGE					|| failed "Err W -- failed to prep your hidden partition"
 #	mkfs.btrfs -f -O ^extref $SAUSAGE	&>/dev/null	|| failed "Err W -- failed to prep your hidden partition"
 	mkdir -p /tmp/.hs.
 	mount $SAUSAGE /tmp/.hs. 				|| failed "Err X -- failed to prep your hidden partition"

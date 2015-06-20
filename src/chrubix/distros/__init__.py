@@ -689,6 +689,7 @@ Choose the 'boom' password : """ ).strip( '\r\n\r\n\r' )
         setup_onceaminute_timer( self.mountpoint )
 
     def install_extra_menu_items_in_gui ( self ):
+        system_or_die( 'rm -f %s/usr/local/bin/make_me_permanent.sh' % ( self.mountpoint ) )
         f = '%s/usr/local/bin/xterm_mmp.sh' % ( self.mountpoint )  # FIXME this file should be created by another subroutine instead, perhaps?
         write_oneliner_file( f, '''#!/bin/sh
 /usr/bin/x-terminal-emulator -e /usr/local/bin/make_me_persistent.sh
@@ -703,7 +704,7 @@ Encoding=UTF-8
 Exec=gksu /usr/local/bin/xterm_mmp.sh
 Icon=/usr/local/bin/Chrubix/src/ui/alarmist.png
 StartupNotify=true
-Terminal=true
+Terminal=false
 X-MultipleArgs=false
 Type=Application
 Categories=GTK;Utility;TerminalEmulator;

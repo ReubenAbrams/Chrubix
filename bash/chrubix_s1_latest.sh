@@ -210,7 +210,7 @@ install_chrubix() {
 			continue
 		fi
 		[ -d "$rr" ] || failed "install_chrubix() -- $rr does not exist. BummeR."
-		for f in chrubix.sh greeter.sh ersatz_lxdm.sh CHRUBIX redo_mbr.sh modify_sources.sh make_me_permanent.sh ; do
+		for f in chrubix.sh greeter.sh ersatz_lxdm.sh CHRUBIX redo_mbr.sh modify_sources.sh make_me_persistent.sh ; do
 			ln -sf Chrubix/bash/$f $rr/usr/local/bin/$f || echo "Cannot do $f softlink"
 		done
 		cd $rr/usr/local/bin/Chrubix/bash
@@ -663,7 +663,7 @@ yes_save_IMG_file_for_posterity() {
 	done
 	mount | grep "$DEV" && failed "yes_save_IMG_file_for_posterity() -- please unmount $DEV etc. before proceeding #1"
 	echo "Done."
-	delete_p3_if_it_exists
+#	delete_p3_if_it_exists
 	mount | grep "$DEV" && failed "yes_save_IMG_file_for_posterity() -- please unmount $DEV etc. before proceeding #2"	
 	wipe_spare_space_in_partition $VFATDEV
 	
@@ -696,8 +696,8 @@ install_the_hard_way() {
 	format_my_disk
 	mount_my_disk
 	[ "$1" = "" ] && install_microdistro || restore_this_prefab $1
-echo -en "*** PAUSING FOR HUGO TO FUTZ WITH THE SOURCE CODE. PRESS ENTER TO CONTINUE. ***"
-read line
+#echo -en "*** PAUSING FOR HUGO TO FUTZ WITH THE SOURCE CODE. PRESS ENTER TO CONTINUE. ***"
+#read line
 	install_and_call_chrubix
 	sign_and_install_kernel
 	unmount_my_disk &> /dev/null || echo -en ""
@@ -757,7 +757,7 @@ install_from_prefab_sqfs() {
 	sign_and_install_kernel
 	unmount_my_disk &> /dev/null || echo -en ""
 	unmount_absolutely_everything &> /dev/null || echo -en ""
-	save_IMG_file_for_posterity_if_possible		# Don't create an image UNLESS we are positive we're working with a freshly formatted and squashfs'd MMC.
+#	save_IMG_file_for_posterity_if_possible		# Don't create an image UNLESS we are positive we're working with a freshly formatted and squashfs'd MMC.
 }
 
 
@@ -765,7 +765,7 @@ install_from_prefab_stageX() {
 	[ "$1" = "" ] && failed "install_from_prefab_stageX() --- which prefab file/url?!"
 	echo "Installing prefab stage X ($1)..."
 	install_the_hard_way $1
-	delete_p3_if_it_exists
+#	delete_p3_if_it_exists
 }
 
 

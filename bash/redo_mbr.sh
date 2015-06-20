@@ -196,18 +196,18 @@ generate_logmein_script() {
 	local rootdev=$1 dev lastblock eohd
 	dev=`echo "$rootdev" | sed s/p[0-9]//`
 	DEV_STUB=`basename $dev`
-# vvv If you change these, change the make_me_permanent.sh stuff too! vvv
+# vvv If you change these, change the make_me_persistent.sh stuff too! vvv
 	if which cgpt &> /dev/null ; then
 		lastblock=`cgpt show $dev | tail -n3 | grep "Sec GPT table" | tr -s ' ' '\t' | cut -f2`
 		eohd=$(($lastblock/2))
 	else
-		eod_in_mb=`cat /proc/partitions | grep -x ".*$DEV_STUB" | tr -s ' ' '\t' | cut -f4`	# make_me_permanent.sh uses this
+		eod_in_mb=`cat /proc/partitions | grep -x ".*$DEV_STUB" | tr -s ' ' '\t' | cut -f4`	# make_me_persistent.sh uses this
 		eohd=$(($eod_in_mb*1024))
 	fi
 	END_OF_HIDDEN_DATA=$(($(($eohd/262144))*262144))
 	LENGTH_OF_HIDDEN_DATA=$(($END_OF_HIDDEN_DATA-$START_OF_HIDDEN_DATA))
 	GROOVY_CRYPT_PARAMS="-c aes-xts-plain -s 512 -c aes -s 256 -h sha256" 		# --hash ripemd160
-# ^^^ If you change these, change the make_me_permanent.sh stuff too! ^^^
+# ^^^ If you change these, change the make_me_persistent.sh stuff too! ^^^
 
 
 	if echo "$rootdev" | grep /dev/mapper &>/dev/null ; then
@@ -274,27 +274,27 @@ if [ -e \"/newroot/$SQUASHFS_FNAME\" ]; then
   losetup /dev/loop6 $dev -o $START_OF_HIDDEN_DATA 			# --sizelimit $LENGTH_OF_HIDDEN_DATA
 
   while ! mount | grep \"/rw \" > /dev/null ; do
-    echo -en \"BOOT: \"
+    echo -en \"boot: \"
 	read -t 10 -s line
 	echo ""
 	if [ \"\$line\" = \"x\" ] ; then
         sh
     elif [ \"\$line\" = \"\" ] ; then
-      echo ContinuingAsVanilla
+#      echo ContinuingAsVanilla
       mount -t tmpfs -o size=1024m tmpfs /rw
     elif echo \"\$line\" | cryptsetup plainOpen /dev/loop6 hSg $GROOVY_CRYPT_PARAMS ; then
-	  echo SausageFound
+#	  echo SausageFound
       if ! mount -o noatime,errors=remount-ro /dev/mapper/hSg /rw ; then
         cryptsetup plainClose hSg
-        echo FailedToMount_SoTryingAgain
+#        echo FailedToMount_SoTryingAgain
       fi
-    else
-      echo SausageNotFoundTryAgain
+#    else
+#      echo SausageNotFoundTryAgain
     fi
   done
   mount -t unionfs -o dirs=/rw:/ro=ro none /newroot
   if mount | grep /dev/mapper/ > /dev/null ; then
-    rm -f /newroot/usr/share/applications/make_me_permanent.desktop /newroot/usr/local/bin/make_me_permanent.sh /newroot/usr/local/bin/secretsquirrel.sh
+    rm -f /newroot/usr/share/applications/make_me_persistent.desktop /newroot/usr/local/bin/make_me_persistent.sh /newroot/usr/local/bin/secretsquirrel.sh
   fi
 fi
 "
@@ -363,6 +363,7 @@ $STOP_JFS_HANGUPS
 mdev -s
 mkdir -p /newroot
 mknod /dev/sda2 b 8 2
+
 read -t 2 line
 if [ \"\$line\" = \"x\" ] ; then
   echo \"Shelling. Please install a fresh copy of /log_me_in.sh (perhaps via sda2) and then type 'exit'.\"
@@ -373,7 +374,7 @@ fi
 /log_me_in.sh
 if [ \"\$?\" -eq \"0\" ] ; then
     echo -en \"$BOOT_PROMPT_STRING\"
-#    clear
+    clear
 	exec switch_root /newroot /sbin/init
 else
 	echo \"Failed to switch_root, dropping to a shell\"		#This will only be run if the exec above failed
