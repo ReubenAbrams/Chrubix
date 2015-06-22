@@ -25,6 +25,11 @@ setxkbmap us
 localectl set-x11-keymap us
 xset -b        # dpms, no audio bell; see https://www.notabilisfactum.com/blog/?page_id=7
 xset m 30/10 3
+xmodmap -e "keycode 72=XF86MonBrightnessDown"
+xmodmap -e "keycode 73=XF86MonBrightnessUp"
+xmodmap -e "keycode 74=XF86AudioMute"
+xmodmap -e "keycode 75=XF86AudioLowerVolume"
+xmodmap -e "keycode 76=XF86AudioRaiseVolume"
 logger "QQQ startx cccc"
 syndaemon -t -k -i 1 -d    # disable mousepad for 1s after typing finishes
 logger "QQQ startx end of startx addendum"
@@ -79,6 +84,9 @@ def write_lxdm_pre_login_file( mountpoint, outfile ):
 [ -e "%s.old" ] && rm %s.old
 [ -e "%s" ] && mv %s %s.old
 ln -sf / %s
+bh=`find /sys/devices -name brightness | head -n1`
+me=`dirname $bh`
+chmod -R 777 $me        # fix brightness setter
 ''' % ( mountpoint, mountpoint, mountpoint, mountpoint, mountpoint, mountpoint ) )
     f.close()
 
@@ -239,7 +247,13 @@ MSVA_PORT='6316'        # MonkeySphere?
     f.close()
 
 
-def add_speech_synthesis_script( mountpoint ):
+def tweak_speech_synthesis( mountpoint ):
+    f = open( mountpoint + '/usr/share/festival/festival.scm', 'a' )
+    f.write( '''
+(Parameter.set 'Audio_Method 'Audio_Command)
+(Parameter.set 'Audio_Command "aplay -q -c 1 -t raw -f s16 -r $SR $FILE")
+''' )
+    f.close()
     write_oneliner_file( '%s/usr/local/bin/sayit.sh' % ( mountpoint ), '''#!/bin/bash
 tmpfile=/tmp/$RANDOM$RANDOM$RANDOM
 echo "$1" | text2wave > $tmpfile
@@ -579,6 +593,13 @@ WantedBy=multi-user.target
 def tweak_xwindow_for_cbook( mountpoint ):
 #        print( "Installing GUI tweaks" )
     system_or_die( 'rm -Rf %s/etc/X11/xorg.conf.d/' % ( mountpoint ) )
+
+#    if os.path.exists( '%s/tmp/.xorg.conf.d.tgz' % ( mountpoint ) ):
+#        system_or_die( 'tar -zxf %s/tmp/.xorg.conf.d.tgz -C %s' % ( mountpoint, mountpoint ) )
+#    else:
+#        system_or_die( 'tar -zxf /tmp/.xorg.conf.d.tgz -C %s' % ( mountpoint ) )
+#    chroot_this( mountpoint, 'mv /etc/X11/xorg.conf.d /etc/X11/xorg.conf.d.CB.disabled' )
+
     system_or_die( 'mkdir -p %s/etc/X11/xorg.conf.d/' % ( mountpoint ) )
     system_or_die( 'unzip %s/usr/local/bin/Chrubix/blobs/settings/x_alarm_chrubuntu.zip -d %s/etc/X11/xorg.conf.d/ &> /dev/null' % ( mountpoint, mountpoint, ), "Failed to extract X11 settings from Chrubuntu" )
     f = '%s/etc/X11/xorg.conf.d/10-keyboard.conf' % ( mountpoint )
@@ -587,15 +608,9 @@ def tweak_xwindow_for_cbook( mountpoint ):
     do_a_sed( f, 'gb', 'us' )
     system_or_die( 'mkdir -p %s/etc/tmpfiles.d' % ( mountpoint, ) )
     write_oneliner_file( mountpoint + '/etc/tmpfiles.d/touchpad.conf', "f /sys/devices/s3c2440-i2c.1/i2c-1/1-0067/power/wakeup - - - - disabled" )
-    f = open( mountpoint + '/usr/share/festival/festival.scm', 'a' )
-    f.write( '''
-(Parameter.set 'Audio_Method 'Audio_Command)
-(Parameter.set 'Audio_Command "aplay -q -c 1 -t raw -f s16 -r $SR $FILE")
-''' )
-    f.close()
 #    chroot_this( mountpoint, 'systemctl enable i_run_every_minute.timer' )
-    f = open( '%s/etc/X11/xorg.conf' % ( mountpoint ), 'a' )
     system_or_die( 'cp -f %s/usr/local/bin/Chrubix/blobs/apps/mtrack_drv.so %s/usr/lib/mtrack.so' % ( mountpoint, mountpoint ) )
+    f = open( '%s/etc/X11/xorg.conf' % ( mountpoint ), 'a' )
     f.write( '''
     Section "Device"
         Identifier "card0"
@@ -616,7 +631,8 @@ def install_panicbutton_scripting( mountpoint, boomfname ):
 #        print( "Configuring acpi" )
     system_or_die( 'mkdir -p %s/etc/tmpfiles.d' % ( mountpoint ) )
     write_oneliner_file( '%s/etc/tmpfiles.d/brightness.conf' % ( mountpoint ), \
-                        'f /sys/class/backlight/pwm-backlight.0/brightness 0666 - - - 800' )
+'''f /sys/class/backlight/pwm-backlight.0/brightness 0666 - - - 800
+''' )
     powerbuttonpushed_fname = '/usr/local/bin/power_button_pushed.sh'
     write_oneliner_file( '%s%s' % ( mountpoint, powerbuttonpushed_fname ), '''#!/bin/bash
 ctrfile=/etc/.pwrcounter

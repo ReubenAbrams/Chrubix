@@ -25,6 +25,7 @@ g_proxy = None  # if ( 0 != os.system( 'ifconfig | grep inet | fgrep 192.168.0 &
 g_default_window_manager = '/usr/bin/startlxde'  # wmaker, startxfce4, startlxde, ...
 
 
+REBOOT_INTO_STAGE_TWO = False  # Set to True by -E (i.e. prep for evil mid)
 MAXIMUM_COMPRESSION = False  # True  # Max compression on the left; quicker testing on the right :)
 __g_start_time = time.time()
 

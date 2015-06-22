@@ -9,11 +9,11 @@ from chrubix.utils import rootcryptdevice, mount_device, mount_sys_tmp_proc_n_de
             generate_temporary_filename, backup_the_resolvconf_file, install_gpg_applet, patch_kernel, \
             fix_broken_hyperlinks, disable_root_password, install_windows_xp_theme_stuff, \
             MAXIMUM_COMPRESSION, set_user_password, call_makepkg_or_die, remaining_megabytes_free_on_device, \
-            is_this_bindmounted, check_sanity_of_distro  # , create_IMG_file_for_posterity
+            is_this_bindmounted, REBOOT_INTO_STAGE_TWO, check_sanity_of_distro  # , create_IMG_file_for_posterity
 
 from chrubix.utils.postinst import write_lxdm_post_login_file, write_lxdm_post_logout_file, \
             append_lxdm_xresources_addendum, generate_wifi_manual_script, generate_wifi_auto_script, \
-            configure_privoxy, add_speech_synthesis_script, \
+            configure_privoxy, tweak_speech_synthesis, \
             configure_lxdm_onetime_changes, configure_lxdm_behavior, configure_lxdm_service, \
             install_chrome_or_iceweasel_privoxy_wrapper, remove_junk, tweak_xwindow_for_cbook, install_panicbutton_scripting, \
             check_and_if_necessary_fix_password_file, install_insecure_browser, append_proxy_details_to_environment_file, \
@@ -29,7 +29,7 @@ class Distro():
     '''
     '''
     # Class-level consts
-    hewwo = '2015/06/19 @ 06:00'
+    hewwo = '2015/06/22 @ 14:00'
     crypto_rootdev = "/dev/mapper/cryptroot"
     crypto_homedev = "/dev/mapper/crypthome"
     boomfname = "/etc/.boom"
@@ -47,7 +47,7 @@ ntfs-3g autogen automake docbook-xsl pkg-config dosfstools expect acpid make pwg
 xterm xscreensaver rxvt rxvt-unicode smem python-qrencode python-imaging cmake \
 gimp inkscape scribus audacity pitivi poedit alsa-utils libcanberra-pulse sound-juicer \
 simple-scan macchanger brasero pm-utils mousepad keepassx claws-mail bluez-utils \
-libdevmapper-dev \
+libdevmapper-dev xbindkeys \
 '  # palimpsest gnome-session-fallback mate-settings-daemon-pulseaudio
     final_push_packages = 'lxde tor privoxy vidalia systemd syslog-ng gnome-tweak-tool'  # Install these, all at once, when we're ready to break the Internet :)
     # Instance-level attributes
@@ -679,14 +679,16 @@ Choose the 'boom' password : """ ).strip( '\r\n\r\n\r' )
 
     def install_panic_button( self ):
         install_panicbutton_scripting( self.mountpoint , self.boomfname )
-        write_boom_script( self.mountpoint, ( self.root_dev, self.kernel_dev, self.spare_dev, self.device ) )
+        write_boom_script( self.mountpoint, ( self.spare_dev, ) )  # self.root_dev, self.kernel_dev, self.spare_dev, self.device ) )
 
     def configure_hostname( self ):
         write_oneliner_file( '%s/etc/hostname' % ( self.mountpoint ), self.name )
 
-    def configure_xwindow_and_onceminute_timer( self ):
+    def configure_xwindow_and_timers( self ):
+        chroot_this( self.mountpoint, 'yes Y | apt-get install xbindkeys' )  # FIXME remove by 7/1/2015
         tweak_xwindow_for_cbook( self.mountpoint )
         setup_onceaminute_timer( self.mountpoint )
+        setup_onceeverythreeseconds_timer( self.mountpoint )
 
     def install_extra_menu_items_in_gui ( self ):
         system_or_die( 'rm -f %s/usr/local/bin/make_me_permanent.sh' % ( self.mountpoint ) )
@@ -709,7 +711,6 @@ X-MultipleArgs=false
 Type=Application
 Categories=GTK;Utility;TerminalEmulator;
 ''' )  # FIME should use /usr/local/bin/make_me_persistent.sh
-        setup_onceeverythreeseconds_timer( self.mountpoint )
 
     def configure_lxdm_login_manager( self ):
         configure_lxdm_onetime_changes( self.mountpoint )
@@ -740,9 +741,10 @@ Categories=GTK;Utility;TerminalEmulator;
             self.update_status( 'Warning - failed to install insecure browser' )
 
     def configure_sound_speech_and_font_cache( self ):
-        add_speech_synthesis_script( self.mountpoint )
+        tweak_speech_synthesis( self.mountpoint )
         chroot_this( self.mountpoint, 'fc-cache' )
         self.tweak_pulseaudio()
+
 
     def tweak_pulseaudio( self ):
         if os.path.exists( '%s/etc/pulse/default.pa' % ( self.mountpoint ) ):
@@ -830,8 +832,7 @@ exit 0
                 failed( '%s%s does not exist' % ( self.mountpoint, f ) )
         system_or_die( 'rm -f %s/.squashfs.sqfs /.squashfs.sqfs' % ( self.mountpoint ) )
 #            os.system( 'clear' )
-        self.update_status( '***QQQ For testing porpoises, we are setting the root pw to hi QQQ***' )
-        self.set_root_password( 'hi' )
+        self.set_root_password()
         username = 'guest'  # ask_the_user__guest_mode_or_user_mode__and_create_one_if_necessary( self.name, self.mountpoint )
         self.lxdm_settings['login as user'] = username
         if username != 'guest':  # Login as specific user, other than guest
@@ -867,6 +868,12 @@ exit 0
         except ( SystemError, SyntaxError ):
             pass
 
+    def squash_OS_if_appropriate( self ):
+        if REBOOT_INTO_STAGE_TWO:
+            self.redo_mbr_for_plaintext_root( self.mountpoint )
+        else:
+            self.squash_OS()
+
     def squash_OS( self ):
         self.update_status( 'Checking sanity of distro...' )
         broken_pkgs = check_sanity_of_distro( self.mountpoint, self.kernel_src_basedir )
@@ -888,6 +895,7 @@ exit 0
         self.redo_mbr_for_squashfs_root( self.mountpoint )  # '/tmp/squashfs_dir' )
         self.generate_squashfs_of_my_OS()
         os.system( 'rm -f %s/etc/.randomized_serno*' % ( self.mountpoint ) )
+
 #---------------------------------------------------------------------------------------------------
     def give_me_PKGBUILDs_folder_now( self ):
         os.system( 'mkdir -p %s' % ( self.ryo_tempdir ) )
@@ -1208,7 +1216,8 @@ exit $errors
         system_or_die( 'ln -sf Chrubix/bash/chrubix.sh %s/usr/local/bin/chrubix.sh' % ( self.mountpoint ) )
         assert( os.path.islink( '%s/usr/local/bin/chrubix.sh' % ( self.mountpoint ) ) )
         system_or_die( 'chmod +x %s/usr/local/bin/Chrubix/bash/*' % ( self.mountpoint ) )
-        for f in ( 'chrubix.sh', 'CHRUBIX', 'greeter.sh', 'preboot_configurer.sh', 'modify_sources.sh', 'redo_mbr.sh', 'make_me_persistent.sh' ):
+        for f in ( 'chrubix.sh', 'CHRUBIX', 'greeter.sh', 'preboot_configurer.sh', 'modify_sources.sh', \
+                   'redo_mbr.sh', 'make_me_persistent.sh', 'adjust_brightness.sh' ):
             system_or_die( 'ln -sf Chrubix/bash/%s %s/usr/local/bin/%s' % ( f, self.mountpoint, f ) )
             system_or_die( 'chmod +x %s/usr/local/bin/Chrubix/bash/%s' % ( self.mountpoint, f ) )
         mytitle = ( self.fullname ).title()
@@ -1566,11 +1575,11 @@ WantedBy=multi-user.target
                                 self.configure_networking,
                                 self.configure_sound_speech_and_font_cache,
                                 self.configure_winxp_camo_and_guest_default_files,
-                                self.configure_xwindow_and_onceminute_timer,
+                                self.configure_xwindow_and_timers,
                                 self.install_extra_menu_items_in_gui,
                                 self.configure_distrospecific_tweaks,
                                 self.install_vbutils_and_firmware_from_cbook,  # just in case the new user's tools differ from the original builder's tools
-                                self.squash_OS,
+                                self.squash_OS_if_appropriate,
                                 self.unmount_and_clean_up
                                 )
         all_my_funcs = first_stage + second_stage + third_stage + fourth_stage + fifth_stage

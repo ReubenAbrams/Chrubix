@@ -165,7 +165,7 @@ unmount_bootstrap_stuff() {
 ##################################################################################################################################
 
 install_chrubix() {
-	local root dev rootdev hiddendev kerndev distro proxy_string mydiskmtpt rr sss
+	local root dev rootdev hiddendev kerndev distro proxy_string mydiskmtpt rr sss evilmaid
 	root=$1
 	dev=$2
 	rootdev=$3
@@ -173,7 +173,8 @@ install_chrubix() {
 	kerndev=$5
 	distroname=$6
 	
-	echo "install_chrubix() --- root=$root; dev=$dev; rootdev=$rootdev; hiddendev=$hiddendev; kerndev=$kerndev; distroname=$distroname"
+	[ "$EVILMAID" = "yes" ] && evilmaid="\-E" || evilmaid="" 
+#	echo "install_chrubix() --- root=$root; dev=$dev; rootdev=$rootdev; hiddendev=$hiddendev; kerndev=$kerndev; distroname=$distroname"
 	mydiskmtpt=$MYDISK_CHR_STUB
 	[ "$mydiskmtpt" = "/`basename $mydiskmtpt`" ] || failed "install_chrubix() -- $mydiskmtpt must not have any subdirectories. It must BE a directory and a / one at that."
 	mkdir -p $MYDISK_CHROOT
@@ -225,6 +226,7 @@ install_chrubix() {
 | sed s/\$splitpoint/$(($SPLITPOINT*512))/ \
 | sed s/\$sizelimit/$SIZELIMIT/ \
 | sed s/\$mydiskmtpt/\\\/`basename $mydiskmtpt`/ \
+| sed s/\$evilmaid/$evilmaid/ \
 > chrubix.sh || failed "Failed to rejig chrubix.sh.orig"
 
 # Is this necessary? Does it even work?
@@ -263,6 +265,7 @@ call_chrubix() {
 	tar -cz /usr/share/alsa/ucm/ > $btstrap/tmp/.usr_share_alsa_ucm.tgz
 	tar -cz /usr/share/vboot > $btstrap/tmp/.vbkeys.tgz || failed "Failed to save your keys" #### MAKE SURE CHRUBIX HAS ACCESS TO Y-O-U-R KEYS and YOUR vbutil* binaries ####
 	tar -cz /lib/firmware > $btstrap/tmp/.firmware.tgz || failed "Failed to save your firmware"  # save firmware!
+#	tar -cz /etc/X11/xorg.conf.d /usr/share/gestures > $btstrap/tmp/.xorg.conf.d.tgz || failed "Failed to save xorg.conf.d stuff"
 	chroot_this $btstrap "chmod +x /usr/local/bin/*"
 	ln -sf ../../bin/python3 $btstrap/usr/local/bin/python3
 	echo "************ Calling CHRUBIX, the Python powerhouse of pulchritudinous perfection ************"
@@ -348,7 +351,7 @@ sign_and_write_custom_kernel() {
 
 
 get_distro_type_the_user_wants() {
-	RETVAL=""
+	local r
 	url=""
 	while [ "$distroname" = "" ] ; do
 		clear
@@ -386,6 +389,20 @@ Which would you like me to install? "
 
 
 
+ask_if_afraid_of_evil_maid() {
+	local r
+	EVILMAID=""
+	while [ "$EVILMAID" != "yes" ] && [ "$EVILMAID" != "no" ] ; do
+		echo -en "Does the evil maid scare you (y/n)? "
+		read r
+		if [ "$r" = "Y" ] || [ "$r" = "y" ] ; then
+			EVILMAID=yes
+		elif [ "$r" = "N" ] || [ "$r" = "n" ] ; then
+			EVILMAID=no
+		fi
+	done
+}
+
 
 
 locate_prefab_file() {
@@ -414,6 +431,10 @@ locate_prefab_on_dropbox() {
 	img_url=$FINALS_URL/$DISTRONAME/$DISTRONAME".img.gz"
 	sqfs_url=$FINALS_URL/$DISTRONAME/$DISTRONAME".sqfs"
 	stageD_url=$FINALS_URL/$DISTRONAME/$DISTRONAME"__D.xz"
+	if [ "$EVILMAID" = "yes" ] ;then
+		img_url=""
+		sqfs_url=""
+	fi
 	for url in $img_url $sqfs_url $stageD_url ; do
 		if wget --spider $url -O /dev/null 2> /dev/null ; then
 			echo "$url"
@@ -433,6 +454,10 @@ locate_prefab_on_thumbdrive() {
 	stageC_fname=$mypath/$DISTRONAME/$DISTRONAME"__C.xz"
 	stageB_fname=$mypath/$DISTRONAME/$DISTRONAME"__B.xz"
 	stageA_fname=$mypath/$DISTRONAME/$DISTRONAME"__A.xz"
+	if [ "$EVILMAID" = "yes" ] ;then
+		img_fname=""
+		sqfs_fname=""
+	fi
 	for fname in $img_fname $sqfs_fname $stageD_fname $stageC_fname $stageB_fname $stageA_fname ; do
 		if [ -f "$fname" ] ; then
 			echo "$fname"
@@ -447,7 +472,6 @@ mount_scratch_space_loopback() {
 	local loopfile
 	loopfile=/home/chronos/user/Downloads/.alarpy.dat
 	if [ ! -e "$LOOPFS_BTSTRAP/bin/parted" ] ; then
-		echo -en "Thinking..."
 		umount $LOOPFS_BTSTRAP 2> /dev/null || echo -en ""
 		mkdir -p $LOOPFS_BTSTRAP
 		losetup -d /dev/loop1 &> /dev/null || echo -en ""
@@ -461,7 +485,7 @@ mount_scratch_space_loopback() {
 
 install_parted_chroot() {
 	local bkgd_proc=$1 bt_fname=/tmp/.$RANDOM$RANDOM$RANDOM
-	wget $PARTED_URL -O - > $bt_fname 2> /dev/null || failed "Failed to download/install parted and friends"
+	wget $PARTED_URL -O - > $bt_fname || failed "Failed to download/install parted and friends"
 	mkdir -p $PARTED_CHROOT
 	while ps $bkgd_proc &> /dev/null; do
 		echo -en "."
@@ -544,7 +568,7 @@ install_and_call_chrubix() {
 	install_chrubix $MINIDISTRO_CHROOT $DEV $ROOTDEV $VFATDEV $KERNELDEV $DISTRONAME
 	call_chrubix $MINIDISTRO_CHROOT || failed "call_chrubix() returned an error. Failing."
 # FIXME is this necessary? v
-	cp -vf $MYDISK_CHROOT/.*.txt $VFAT_MOUNTPOINT/ || failed "install_and_call_chrubix() -- failed to copy cool stuff to vfat partition"
+	cp -f $MYDISK_CHROOT/.*.txt $VFAT_MOUNTPOINT/ || failed "install_and_call_chrubix() -- failed to copy cool stuff to vfat partition"
 # FIXME is this necessary? ^
 }
 
@@ -607,23 +631,6 @@ sign_and_install_kernel() {
 }
 
 
-
-delete_p3_if_it_exists() {
-	sync;sync;sync
-	if cgpt show $DEV | tr -s '\t' ' ' | fgrep " 3 Label" &> /dev/null ; then
-		echo -en "Deleting p3..."
-		umount $ROOTDEV || echo -en ""
-		mount | fgrep " $ROOTDEV" && failed "delete_p3_if_it_exists() -- p3 is still mounted!"
-		dd if=/dev/urandom bs=1k count=1024 > $ROOTDEV
-		[ -e "$PARTED_CHROOT/bin/parted" ] || failed "delete_p3_if_it_exists() -- failed to prep loopback parted thingy"
-		chroot_this $PARTED_CHROOT "echo -en \"rm 3\\nq\\n\" | parted $DEV" || failed "Failed to delete p3"
-		sync;sync;sync
-		chroot_this $btstrap "partprobe $DEV"
-	fi
-	sync;sync;sync
-}
-
-
 	
 wipe_spare_space_in_partition() {
 	local mtpt=/tmp/koalabear918
@@ -634,32 +641,6 @@ wipe_spare_space_in_partition() {
 	rm -f $mtpt/zero
 	umount $mtpt
 	echo "Done."
-}
-
-
-yes_save_IMG_file_for_posterity() {
-	local output_imgfile last_sector_of_p2 lsop start length mount_sectornum cksum_sectornum
-	output_imgfile=$1
-
-	mount | grep "$DEV" && failed "yes_save_IMG_file_for_posterity() -- please unmount $DEV etc. before proceeding"
-	wipe_spare_space_in_partition $VFATDEV
-	echo "Saving image of $VFATDEV ==> $output_imgfile"
-	pv $VFATDEV | gzip -1 > "$output_imgfile".TEMP || failed "yes_save_IMG_file_for_posterity() -- failed to save image $output_imgfile"
-	mv -f "$output_imgfile".TEMP $output_imgfile
-	echo ""
-}
-
-
-save_IMG_file_for_posterity_if_possible() {
-	local dirname_of_posterity_thumb_drive_path img_file
-	dirname_of_posterity_thumb_drive_path=/tmp/pot_img_save_place/
-	mkdir -p $dirname_of_posterity_thumb_drive_path 						|| echo -en ""
-	mount /dev/sda1 $dirname_of_posterity_thumb_drive_path 2> /dev/null 	|| echo -en ""
-	if [ -e "$dirname_of_posterity_thumb_drive_path/$DISTRONAME" ] ; then
-		img_file=$dirname_of_posterity_thumb_drive_path/$DISTRONAME/$DISTRONAME.img.gz
-		yes_save_IMG_file_for_posterity $img_file							|| failed "save_IMG_file_for_posterity_if_possible() -- failed to yes_save_IMG_file_for_posterity. Darn." 
-	fi
-	umount $dirname_of_posterity_thumb_drive_path 2> /dev/null 				|| echo -en ""
 }
 
 
@@ -730,7 +711,6 @@ install_from_prefab_sqfs() {
 	sign_and_install_kernel
 	unmount_my_disk &> /dev/null || echo -en ""
 	unmount_absolutely_everything &> /dev/null || echo -en ""
-#	save_IMG_file_for_posterity_if_possible		# Don't create an image UNLESS we are positive we're working with a freshly formatted and squashfs'd MMC.
 }
 
 
@@ -738,7 +718,6 @@ install_from_prefab_stageX() {
 	[ "$1" = "" ] && failed "install_from_prefab_stageX() --- which prefab file/url?!"
 	echo "Installing prefab stage X ($1)..."
 	install_the_hard_way $1
-#	delete_p3_if_it_exists
 }
 
 
@@ -791,6 +770,15 @@ unmount_absolutely_everything() {
 	sync;sync;sync
 	umount /dev/mmcblk1* /dev/sd* /tmp/_* /tmp/.* 2> /dev/null || echo -en ""
 	echo -en "."
+}
+
+
+
+install_me() {
+	[ "$prefab_fname" = "" ] && install_from_the_beginning || install_from_prefab $prefab_fname
+	echo -en "$distroname has been installed on $DEV\nPress <Enter> to reboot. Then, press <Ctrl>U to boot into Linux."
+	read line
+	echo "End of line :-)"
 }
 
 
@@ -848,12 +836,9 @@ mkdir -p $ROOTMOUNT $BOOTMOUNT $KERNMOUNT
 [ "$mydevbyid" = "" ] && failed "I am unable to figure out which device you want me to prep. Sorry..."
 [ -e "$mydevbyid" ] || failed "Please insert a thumb drive or SD card and try again. Please DO NOT INSERT your keychain thumb drive."
 unmount_absolutely_everything &> /dev/null || echo -en ""
-
-get_distro_type_the_user_wants		# sets $DISTRONAME
+get_distro_type_the_user_wants								# sets $DISTRONAME
+ask_if_afraid_of_evil_maid									# sets $EVILMAID
 prefab_fname=`locate_prefab_file` || prefab_fname=""		# img, sqfs, _D, _C, ...; check Dropbox and local thumb drive
-[ "$prefab_fname" = "" ] && install_from_the_beginning || install_from_prefab $prefab_fname
-echo -en "$distroname has been installed on $DEV\nPress <Enter> to reboot. Then, press <Ctrl>U to boot into Linux."
-read line
-echo "End of line :-)"
+install_me
 sudo reboot
 exit 0

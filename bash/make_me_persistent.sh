@@ -65,11 +65,11 @@ format_encrypted_partition() {
 
 
 close_encrypted_partition() {
-	echo -en "Closing encrypted partition"
+	echo -en "Closing encrypted partition..."
 	sync;sync;sync
 	if ! cryptsetup close $SAUSAGE 2> /dev/null ; then
 		sync;sync;sync
-		echo -en "...Retrying..."
+		echo -en "Retrying..."
 		if ! cryptsetup close $SAUSAGE 2> /dev/null ; then
 			echo "I experienced a non-fatal error, but it's OK."
 			echo -en "\nPress ENTER to reboot."
@@ -83,14 +83,15 @@ close_encrypted_partition() {
 
 
 reopen_encrypted_partition() {
-res=999
-while [ "$res" -ne "0" ] ; do
-	echo -en "Re-enter your password (3rd time), please:"
-	read -s pw
-	echo ""
-	echo "$pw" | cryptsetup plainOpen $DEV_P3 `basename $SAUSAGE` $GROOVY_CRYPT_PARAMS 
-	res=$?
-done
+	clear
+	res=999
+	while [ "$res" -ne "0" ] ; do
+		echo -en "Re-enter your password (3rd time), please:"
+		read -s pw
+		echo ""
+		echo "$pw" | cryptsetup plainOpen $DEV_P3 `basename $SAUSAGE` $GROOVY_CRYPT_PARAMS 
+		res=$?
+	done
 }
 
 

@@ -10,7 +10,7 @@ import getopt
 import hashlib
 import base64
 from chrubix.utils import call_binary, read_oneliner_file, write_oneliner_file, call_binary_and_show_progress, \
-                          wget, failed, logme
+                          wget, failed, logme, REBOOT_INTO_STAGE_TWO
 from chrubix.utils.postinst import configure_lxdm_behavior
 from chrubix import distros
 from chrubix.distros.archlinux import ArchlinuxDistro
@@ -33,6 +33,7 @@ def list_command_line_options():
     -s<dev>       spare device; you may mount, reformat, etc. this partition
     -k<dev>       where the kernel is to be written (with dd)
     -m<mountpt>   where is the root fs mounted
+    -E            evil maid mode :)
     """ )
 
 
@@ -91,7 +92,7 @@ def process_command_line( argv ):
     if len( sys.argv ) <= 1:
         list_command_line_options()
         raise getopt.GetoptError( "In command line, please specify name of distro" )
-    optlist, args = getopt.getopt( argv[1:], 'hK:P:D:d:r:s:k:m:' )
+    optlist, args = getopt.getopt( argv[1:], 'hEK:P:D:d:r:s:k:m:' )
     args = args  # hide Eclipse warning
     for ( opt, param ) in optlist:
         if opt == '-h':
@@ -110,6 +111,8 @@ def process_command_line( argv ):
             do_kernel_dev = param
         elif opt == '-m':
             do_mountpoint = param
+        elif opt == '-E':
+            REBOOT_INTO_STAGE_TWO = True
         else:
             raise getopt.GetoptError( str( opt ) + " is an unrecognized command-line parameter" )
     distro = generate_distro_record_from_name( do_distro )
