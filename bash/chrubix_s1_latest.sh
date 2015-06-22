@@ -451,7 +451,7 @@ mount_scratch_space_loopback() {
 		umount $LOOPFS_BTSTRAP 2> /dev/null || echo -en ""
 		mkdir -p $LOOPFS_BTSTRAP
 		losetup -d /dev/loop1 &> /dev/null || echo -en ""
-		[ -e "$loopfile" ] || dd if=/dev/zero of=$loopfile bs=1024k count=128 2> /dev/null
+		[ -e "$loopfile" ] || dd if=/dev/zero of=$loopfile bs=1024k count=110 2> /dev/null	#FIXME change to 100
 		losetup /dev/loop1 $loopfile
 		mke2fs /dev/loop1 &> /dev/null || failed "Failed to mkfs the temp loop partition"
 		mount /dev/loop1 $LOOPFS_BTSTRAP || failed "Failed to loopmount /dev/loop1 at $LOOPFS_BTSTRAP"
@@ -460,11 +460,14 @@ mount_scratch_space_loopback() {
 
 
 install_parted_chroot() {
-	if [ ! -f "/home/chronos/user/Downloads/.bt.tar.xz" ] ; then
-		wget $PARTED_URL -O - > /home/chronos/user/Downloads/.bt.tar.xz || failed "Failed to download/install parted and friends"
-	fi
+	local bkgd_proc=$1 bt_fname=/tmp/.$RANDOM$RANDOM$RANDOM
+	wget $PARTED_URL -O - > $bt_fname 2> /dev/null || failed "Failed to download/install parted and friends"
 	mkdir -p $PARTED_CHROOT
-	tar -Jxf /home/chronos/user/Downloads/.bt.tar.xz -C $PARTED_CHROOT/
+	while ps $bkgd_proc &> /dev/null; do
+		echo -en "."
+		sleep 1
+	done
+	tar -Jxf $bt_fname -C $PARTED_CHROOT/
 	mkdir -p $PARTED_CHROOT/{dev,sys,proc,tmp}
 	mount devtmpfs  $PARTED_CHROOT/dev -t devtmpfs	|| echo -en ""
 	mount sysfs     $PARTED_CHROOT/sys -t sysfs		|| echo -en ""
@@ -472,6 +475,13 @@ install_parted_chroot() {
 	mount tmpfs     $PARTED_CHROOT/tmp -t tmpfs		|| echo -en ""
 }
 
+
+mount_scratch_space_loopback_and_install_parted_chroot() {
+	local bkgd_proc
+	mount_scratch_space_loopback &
+	bkgd_proc=$?
+	install_parted_chroot $bkgd_proc
+}
 
 
 format_my_disk() {
@@ -551,10 +561,9 @@ mount_dev_sys_proc_and_tmp() {
 restore_this_prefab() {
 	local prefab_fname_or_url=$1
 	cd /
-	echo "Restoring..."
 	[ -e "$TOP_BTSTRAP/bin/date" ] && failed "restore_this_prefab() -- haven't you called me once already?"
 	mkdir -p $TOP_BTSTRAP/{dev,sys,proc,tmp}
-	echo "Unzipping $prefab_fname_or_url"
+	echo "Restoring $prefab_fname_or_url"
 	if echo "$prefab_fname_or_url" | fgrep http &> /dev/null ; then
 		wget $prefab_fname_or_url -O - | tar -Jx -C $TOP_BTSTRAP
 	else
@@ -606,10 +615,6 @@ delete_p3_if_it_exists() {
 		umount $ROOTDEV || echo -en ""
 		mount | fgrep " $ROOTDEV" && failed "delete_p3_if_it_exists() -- p3 is still mounted!"
 		dd if=/dev/urandom bs=1k count=1024 > $ROOTDEV
-		if [ ! -e "$PARTED_CHROOT/bin/parted" ] ; then
-			mount_scratch_space_loopback
-			install_parted_chroot
-		fi
 		[ -e "$PARTED_CHROOT/bin/parted" ] || failed "delete_p3_if_it_exists() -- failed to prep loopback parted thingy"
 		chroot_this $PARTED_CHROOT "echo -en \"rm 3\\nq\\n\" | parted $DEV" || failed "Failed to delete p3"
 		sync;sync;sync
@@ -636,41 +641,10 @@ yes_save_IMG_file_for_posterity() {
 	local output_imgfile last_sector_of_p2 lsop start length mount_sectornum cksum_sectornum
 	output_imgfile=$1
 
-	echo -en "So...."
-	start=`cgpt show $DEV | tr -s '\t' ' ' | fgrep " 2 Label" | cut -d' ' -f2`
-	length=`cgpt show $DEV | tr -s '\t' ' ' | fgrep " 2 Label" | cut -d' ' -f3`
-	cksum_sectornum=$(($start+$length))
-	if [ "$cksum_sectornum" -lt "$SPLITPOINT" ] ; then
-		echo "WARNING --- I think the splitpoint *is* at $cksum_sectornum but it *should be* at $SPLITPOINT"
-		echo "Therefore, I am bumping ckusmhere up and making it equal $SPLITPOINT"
-		cksum_sectornum=$SPLITPOINT
-	fi
-	
-	for a in 1 2 3 ; do
-		if mount | grep "$DEV" ; then
-			echo "yes_save_IMG_file_for_posterity() -- $DEV is still mounted. Unmounting..."
-			sync;sync;sync
-			umount $TOP_BTSTRAP &> /dev/null || echo -en ""
-			if mount | grep "$DEV" ; then
-				echo "yes_save_IMG_file_for_posterity() -- $DEV is STILL mounted Unmounting..."
-				for r in `mount | grep "$DEV" | cut -d' ' -f3`; do
-					sync;sync;sync
-					umount $r || echo "yes_save_IMG_file_for_posterity() -- failed to unmount $r"
-				done
-		 	fi
-			sync;sync;sync;sleep 1
-		fi
-	done
-	mount | grep "$DEV" && failed "yes_save_IMG_file_for_posterity() -- please unmount $DEV etc. before proceeding #1"
-	echo "Done."
-#	delete_p3_if_it_exists
-	mount | grep "$DEV" && failed "yes_save_IMG_file_for_posterity() -- please unmount $DEV etc. before proceeding #2"	
+	mount | grep "$DEV" && failed "yes_save_IMG_file_for_posterity() -- please unmount $DEV etc. before proceeding"
 	wipe_spare_space_in_partition $VFATDEV
-	
-	mount_sectornum=$(($cksum_sectornum+1))					#	echo "cksum_sectornum = $cksum_sectornum; mount_sectornum=$mount_sectornum"
-	echo "Saving image of $DEV ==> $output_imgfile"
-	pv $DEV | dd count=$mount_sectornum 2> /dev/null | gzip -1 > "$output_imgfile".TEMP || failed "yes_save_IMG_file_for_posterity() -- failed to save image $output_imgfile"
-	echo -en "Done."
+	echo "Saving image of $VFATDEV ==> $output_imgfile"
+	pv $VFATDEV | gzip -1 > "$output_imgfile".TEMP || failed "yes_save_IMG_file_for_posterity() -- failed to save image $output_imgfile"
 	mv -f "$output_imgfile".TEMP $output_imgfile
 	echo ""
 }
@@ -690,8 +664,7 @@ save_IMG_file_for_posterity_if_possible() {
 
 
 install_the_hard_way() {
-	mount_scratch_space_loopback
-	install_parted_chroot
+	mount_scratch_space_loopback_and_install_parted_chroot
 	partition_the_device $DEV $DEV_P $PARTED_CHROOT $SPLITPOINT 2> /tmp/ptxt.txt || failed "Failed to partition myself. `cat /tmp/ptxt.txt` .. Ugh. ###3"
 	format_my_disk
 	mount_my_disk
@@ -705,29 +678,30 @@ install_the_hard_way() {
 
 
 install_from_prefab_img() {
-	local kernel_fname=/tmp/.my.kernel.dat prefab_fname_or_url=$1 kernel_fname_or_url=`echo $1 | sed s/\.img\.gz/\.kernel/` primary_gpt_loc secondary_gpt_loc stubdev
-	primary_gpt_loc=1
-	stubdev=`basename $DEV`
-	secondary_gpt_loc=$((`cat /proc/partitions | grep -x ".*$stubdev" | tr -s '\t' ' ' | cut -d' ' -f4`*2-1))
-	mount | fgrep "$DEV" 2> /dev/null && failed "install_from_prefab_img() -- some partitions in $DEV are already mounted. Unmount them first, please."
-	echo "Installing prefab image ($prefab_fname_or_url)..."
-	if echo "$prefab_fname_or_url" | fgrep http &> /dev/null ; then
-		wget $prefab_fname_or_url -O - | gunzip -dc > $DEV
-		wget $kernel_fname_or_url -O - > $kernel_fname
-	else
-		[ -e "$prefab_fname_or_url" ] || failed "install_from_prefab_img() -- $prefab_fname_or_url does not exist."
-		pv $prefab_fname_or_url | gunzip -dc > $DEV  || failed "Failed to save $prefab_fname_or_url --- K err?"
-		pv $kernel_fname_or_url > $kernel_fname     || failed "Failed to save $kernel_fname_or_url --- L err?"
-	fi
+	local prefab_fname_or_url=$1
+	local kernel_fname_or_url=$2
+	local kernel_fname=/tmp/.my.kernel
 	
-	dd if=$DEV skip=$primary_gpt_loc count=1 | dd of=$DEV seek=$secondary_gpt_loc count=1 2> /dev/null || failed "Failed to copy primary GPT table onto (absent) secondary GPT table" 
-	sync;sync;sync
-	
-	if [ ! -e "$VFATDEV" ] ; then
-		mknod $VFATDEV b 179 66 || failed "install_from_prefab_img() -- failed to create p2 node."
+	mount_scratch_space_loopback_and_install_parted_chroot
+	if mount | grep "$DEV" ; then
+		umount "$DEV"* &> /dev/null || echo -en ""
+		mount | fgrep "$DEV" && failed "partition_my_disk() --- stuff from $DEV is already mounted. Abort!" || echo -en ""
 	fi
+#											                    "yes" for only 2 partitions; "" for 3 partitions
+	partition_the_device $DEV $DEV_P $PARTED_CHROOT $SPLITPOINT "" 2> /tmp/ptxt.txt || failed "Failed to partition myself. `cat /tmp/ptxt.txt` .. Ugh. ###3"
+	mkfs.vfat -F 16 $KERNELDEV || failed "install_from_prefab_img() -- failed to format kerneldev"		# format_my_disk	# Technically, we don't need to format p2. It gets overwritten with our image anyway.
 
-	sign_and_write_custom_kernel $MYDISK_CHROOT $UBOOTDEV $VFATDEV $kernel_fname "" ""  || failed "install_from_prefab_img() -- failed to sign/write custom kernel"
+	VFAT_MOUNTPOINT=/tmp
+	echo "Restoring from $prefab_fname_or_url and .../`basename $kernel_fname_or_url`"
+	if echo "$prefab_fname_or_url" | fgrep http &> /dev/null ; then
+		wget $prefab_fname_or_url -O - > $VFATDEV || failed "install_from_prefab_img() -- Unable to download $prefab_fname_or_url"
+		wget $kernel_fname_or_url -O - > kernel_fname || failed "install_from_prefab_img() -- Unable to download $kernel_fname_or_url"
+	else
+		pv $prefab_fname_or_url  > $VFATDEV || failed "install_from_prefab_img() -- Failed to save $prefab_fname_or_url --- L err?"
+		cp -f $kernel_fname_or_url $kernel_fname || failed "install_from_prefab_img() -- Failed to save $kernel_fname_or_url --- L err?"
+	fi
+	sign_and_write_custom_kernel $MYDISK_CHROOT $UBOOTDEV $VFATDEV $kernel_fname "" ""  || failed "sign_and_install_kernel() -- failed to sign/write custom kernel"
+	unmount_my_disk &> /dev/null || echo -en ""
 	unmount_absolutely_everything &> /dev/null || echo -en ""
 }
 
@@ -735,15 +709,14 @@ install_from_prefab_img() {
 install_from_prefab_sqfs() {
 	local prefab_fname_or_url=$1
 	local kernel_fname_or_url=$2
-	mount_scratch_space_loopback
-	install_parted_chroot
-
+	
+	mount_scratch_space_loopback_and_install_parted_chroot
 	if mount | grep "$DEV" ; then
 		umount "$DEV"* &> /dev/null || echo -en ""
 		mount | fgrep "$DEV" && failed "partition_my_disk() --- stuff from $DEV is already mounted. Abort!" || echo -en ""
 	fi
 #											                    "yes" for only 2 partitions; "" for 3 partitions
-	partition_the_device $DEV $DEV_P $PARTED_CHROOT $SPLITPOINT "yes" 2> /tmp/ptxt.txt || failed "Failed to partition myself. `cat /tmp/ptxt.txt` .. Ugh. ###3"
+	partition_the_device $DEV $DEV_P $PARTED_CHROOT $SPLITPOINT "" 2> /tmp/ptxt.txt || failed "Failed to partition myself. `cat /tmp/ptxt.txt` .. Ugh. ###3"
 	format_my_disk
 	mount_my_disk
 	echo "Restoring from $prefab_fname_or_url and .../`basename $kernel_fname_or_url`"
@@ -777,7 +750,7 @@ install_from_the_beginning() {
 install_from_prefab() {
 	local prefab_fname_or_url=$1
 	if echo $prefab_fname_or_url | fgrep ".img" &> /dev/null ; then
-		install_from_prefab_img $prefab_fname_or_url
+		install_from_prefab_img $prefab_fname_or_url `echo "$prefab_fname_or_url" | sed s/\.img\.gz/\.kernel/`
 	else
 		if echo $prefab_fname_or_url | fgrep ".sqfs" &> /dev/null ; then
 			install_from_prefab_sqfs $prefab_fname_or_url `echo "$prefab_fname_or_url" | sed s/\.sqfs/\.kernel/`

@@ -193,22 +193,16 @@ get_number_of_cores() {
 
 
 generate_logmein_script() {
-	local rootdev=$1 dev lastblock eohd
+	local rootdev=$1 dev lastblock eohd dev_p3
 	dev=`echo "$rootdev" | sed s/p[0-9]//`
+	dev_p3=`echo "$rootdev" | sed s/2/3/`
+	if [ "$dev_p3" != "/dev/mmcblk1p3" ] ; then
+		failed "generate_logmein_script() --- WTF?!?!?!"
+	fi
 	DEV_STUB=`basename $dev`
 # vvv If you change these, change the make_me_persistent.sh stuff too! vvv
-	if which cgpt &> /dev/null ; then
-		lastblock=`cgpt show $dev | tail -n3 | grep "Sec GPT table" | tr -s ' ' '\t' | cut -f2`
-		eohd=$(($lastblock/2))
-	else
-		eod_in_mb=`cat /proc/partitions | grep -x ".*$DEV_STUB" | tr -s ' ' '\t' | cut -f4`	# make_me_persistent.sh uses this
-		eohd=$(($eod_in_mb*1024))
-	fi
-	END_OF_HIDDEN_DATA=$(($(($eohd/262144))*262144))
-	LENGTH_OF_HIDDEN_DATA=$(($END_OF_HIDDEN_DATA-$START_OF_HIDDEN_DATA))
 	GROOVY_CRYPT_PARAMS="-c aes-xts-plain -s 512 -c aes -s 256 -h sha256" 		# --hash ripemd160
 # ^^^ If you change these, change the make_me_persistent.sh stuff too! ^^^
-
 
 	if echo "$rootdev" | grep /dev/mapper &>/dev/null ; then
 			echo "#!/bin/sh
@@ -271,7 +265,6 @@ if [ -e \"/newroot/$SQUASHFS_FNAME\" ]; then
   mount -o ro $rootdev /deviceroot
   mkdir -p /ro /rw
   mount -o loop,squashfs /deviceroot/$SQUASHFS_FNAME /ro
-  losetup /dev/loop6 $dev -o $START_OF_HIDDEN_DATA 			# --sizelimit $LENGTH_OF_HIDDEN_DATA
 
   while ! mount | grep \"/rw \" > /dev/null ; do
     echo -en \"boot: \"
@@ -280,16 +273,11 @@ if [ -e \"/newroot/$SQUASHFS_FNAME\" ]; then
 	if [ \"\$line\" = \"x\" ] ; then
         sh
     elif [ \"\$line\" = \"\" ] ; then
-#      echo ContinuingAsVanilla
       mount -t tmpfs -o size=1024m tmpfs /rw
-    elif echo \"\$line\" | cryptsetup plainOpen /dev/loop6 hSg $GROOVY_CRYPT_PARAMS ; then
-#	  echo SausageFound
-      if ! mount -o noatime,errors=remount-ro /dev/mapper/hSg /rw ; then
+    elif echo \"\$line\" | cryptsetup plainOpen $dev_p3 hSg $GROOVY_CRYPT_PARAMS ; then
+      if ! mount -o noatime,errors=remount-ro /dev/mapper/hSg /rw 2> /dev/null ; then
         cryptsetup plainClose hSg
-#        echo FailedToMount_SoTryingAgain
       fi
-#    else
-#      echo SausageNotFoundTryAgain
     fi
   done
   mount -t unionfs -o dirs=/rw:/ro=ro none /newroot
