@@ -612,7 +612,7 @@ Choose the 'boom' password : """ ).strip( '\r\n\r\n\r' )
 #        self.update_status_with_newline( "..OK." )
 
     def generate_tarball_of_my_rootfs( self, output_file ):
-        compression_parameters = '-9 --extreme' if ( output_file.find( '_D' ) >= 0 and chrubix.utils.MAXIMUM_COMPRESSION is True ) else '-1'
+        compression_parameters = '-9 --extreme' if ( output_file.find( '_D' ) >= 0 or chrubix.utils.MAXIMUM_COMPRESSION is True ) else '-1'
         self.update_status( 'Creating tarball %s of my rootfs' % ( output_file ) )
         dirs_to_backup = 'bin boot etc home lib mnt opt root run sbin srv usr var'
         if not is_this_bindmounted( self.mountpoint ):

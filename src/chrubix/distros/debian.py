@@ -42,7 +42,7 @@ def do_debian_specific_mbr_related_hacks( mountpoint ):
             logme( '%s%s does not exist. Therefore, I am copying it across' % ( mountpoint, missing_path ) )
             system_or_die( 'mkdir -p %s%s' % ( mountpoint, os.path.dirname( missing_path ) ) )
             try:
-                system_or_die( 'cp -avf %s %s%s/ 2> /dev/null' % ( missing_path, mountpoint, os.path.dirname( missing_path ) ) )
+                system_or_die( 'cp -af %s %s%s/ 2> /dev/null' % ( missing_path, mountpoint, os.path.dirname( missing_path ) ) )
             except RuntimeError:
                 logme( '** FYI, I was unable to kludge %s **' % ( missing_path ) )
     system_or_die( 'rm -f %s/usr/lib/initcpio/busybox' % ( mountpoint ) )
