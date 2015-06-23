@@ -25,11 +25,7 @@ setxkbmap us
 localectl set-x11-keymap us
 xset -b        # dpms, no audio bell; see https://www.notabilisfactum.com/blog/?page_id=7
 xset m 30/10 3
-xmodmap -e "keycode 72=XF86MonBrightnessDown"
-xmodmap -e "keycode 73=XF86MonBrightnessUp"
-xmodmap -e "keycode 74=XF86AudioMute"
-xmodmap -e "keycode 75=XF86AudioLowerVolume"
-xmodmap -e "keycode 76=XF86AudioRaiseVolume"
+# FIXME Why don't we put xmodmap stuff (bightness, volume) in here instead? At present, it's in post_lxdm thingumabob
 logger "QQQ startx cccc"
 syndaemon -t -k -i 1 -d    # disable mousepad for 1s after typing finishes
 logger "QQQ startx end of startx addendum"

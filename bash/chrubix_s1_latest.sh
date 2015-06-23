@@ -37,6 +37,8 @@ TOP_BTSTRAP=/tmp/_build_here
 MINIDISTRO_CHROOT=$TOP_BTSTRAP/.alarpy
 MYDISK_CHROOT=$MINIDISTRO_CHROOT$MYDISK_CHR_STUB
 VFAT_MOUNTPOINT=/tmp/.vfat.mountpoint
+PV_BUF_SIZE=128m
+
 
 if [ "$USER" != "root" ] ; then
 	SCRIPTPATH=$( cd $(dirname $0) ; pwd -P )
@@ -56,6 +58,7 @@ mount | grep /dev/mapper/encstateful &> /dev/null || failed "Run me from within 
 
 
 failed() {
+	kill $bkgd_proc &> /dev/null || echo -en ""
 	echo "$1" >> /dev/stderr
 	exit 1
 }
@@ -211,7 +214,7 @@ install_chrubix() {
 			continue
 		fi
 		[ -d "$rr" ] || failed "install_chrubix() -- $rr does not exist. BummeR."
-		for f in chrubix.sh greeter.sh ersatz_lxdm.sh CHRUBIX redo_mbr.sh modify_sources.sh make_me_persistent.sh ; do
+		for f in for f in chrubix.sh greeter.sh ersatz_lxdm.sh CHRUBIX redo_mbr.sh modify_sources.sh make_me_persistent.sh adjust_brightness.sh ; do
 			ln -sf Chrubix/bash/$f $rr/usr/local/bin/$f || echo "Cannot do $f softlink"
 		done
 		cd $rr/usr/local/bin/Chrubix/bash
@@ -362,7 +365,7 @@ Choose from...
 
    (A)rchLinux <== ArchLinuxArm's make package is broken. It keeps segfaulting.
    (F)edora 19
-   (S)tretch, a.k.a. Debian Testing
+   (S)tretch, a.k.a. Debian Testing w/ kernel 4.1
    (J)essie, a.k.a. Debian Stable
    (W)heezy, a.k.a. Debian Oldstable
    (U)buntu 15.04, a.k.a. Vivid <== kernel/jfsutils problems
@@ -427,15 +430,14 @@ locate_prefab_file() {
 
 
 locate_prefab_on_dropbox() {
-	local img_url sqfs_url stageD_url url
-	img_url=$FINALS_URL/$DISTRONAME/$DISTRONAME".img.gz"
+	local sqfs_url stageD_url url
 	sqfs_url=$FINALS_URL/$DISTRONAME/$DISTRONAME".sqfs"
 	stageD_url=$FINALS_URL/$DISTRONAME/$DISTRONAME"__D.xz"
 	if [ "$EVILMAID" = "yes" ] ;then
 		img_url=""
 		sqfs_url=""
 	fi
-	for url in $img_url $sqfs_url $stageD_url ; do
+	for url in $sqfs_url $stageD_url ; do
 		if wget --spider $url -O /dev/null 2> /dev/null ; then
 			echo "$url"
 			return 0
@@ -446,9 +448,8 @@ locate_prefab_on_dropbox() {
 
 
 locate_prefab_on_thumbdrive() { 
-	local mypath img_fname sqfs_fname fname stageD_fname stageC_fname stageB_fname stageA_fname
+	local mypath sqfs_fname fname stageD_fname stageC_fname stageB_fname stageA_fname
 	mypath=$1
-	img_fname=$mypath/$DISTRONAME/$DISTRONAME".img.gz"
 	sqfs_fname=$mypath/$DISTRONAME/$DISTRONAME".sqfs"
 	stageD_fname=$mypath/$DISTRONAME/$DISTRONAME"__D.xz"
 	stageC_fname=$mypath/$DISTRONAME/$DISTRONAME"__C.xz"
@@ -503,7 +504,7 @@ install_parted_chroot() {
 mount_scratch_space_loopback_and_install_parted_chroot() {
 	local bkgd_proc
 	mount_scratch_space_loopback &
-	bkgd_proc=$?
+	bkgd_proc=$!
 	install_parted_chroot $bkgd_proc
 }
 
@@ -534,8 +535,20 @@ mount_my_disk() {
 }
 
 
+wait_for_partitioning_and_formatting_to_complete() {
+	echo -en "Partitioning and formatting"
+	while ps $partandform_proc &> /dev/null ; do
+		echo -en "."
+		sleep 1
+	done
+	echo "Done."
+}	
+
+
 install_microdistro() {
 	cd /
+	wait_for_partitioning_and_formatting_to_complete
+	mount_my_disk
 	echo "Installing microdistro..."
 	mkdir -p $MINIDISTRO_CHROOT
 	wget $ALARPY_URL -O - | tar -Jx -C $MINIDISTRO_CHROOT || failed "Failed to download/install microdistro"
@@ -584,17 +597,30 @@ mount_dev_sys_proc_and_tmp() {
 
 restore_this_prefab() {
 	local prefab_fname_or_url=$1
+	local myfifo=/tmp/`basename $prefab_fname_or_url | tr -s '/' '_'`
+	local bkgd_proc
+
+	rm -f $myfifo
+	mkfifo $myfifo
 	cd /
-	[ -e "$TOP_BTSTRAP/bin/date" ] && failed "restore_this_prefab() -- haven't you called me once already?"
-	mkdir -p $TOP_BTSTRAP/{dev,sys,proc,tmp}
+	
 	echo "Restoring $prefab_fname_or_url"
 	if echo "$prefab_fname_or_url" | fgrep http &> /dev/null ; then
-		wget $prefab_fname_or_url -O - | tar -Jx -C $TOP_BTSTRAP
+		wget $prefab_fname_or_url -O - | pv -B $PV_BUF_SIZE > $myfifo &
+		bkgd_proc=$!
 	else
 		[ -e "$prefab_fname_or_url" ] || failed "restore_this_prefab() -- $prefab_fname_or_url does not exist"
-		pv $prefab_fname_or_url | tar -Jx -C $TOP_BTSTRAP || failed "restore_this_prefab() -- Failed to unzip $fname --- J err?"
+		pv -B $PV_BUF_SIZE $prefab_fname_or_url > $myfifo &
+		bkgd_proc=$!
 	fi
 
+	wait_for_partitioning_and_formatting_to_complete
+	mount_my_disk
+	
+	cat $myfifo | tar -Jx -C $TOP_BTSTRAP || failed "restore_this_prefab() -- Failed to unzip $fname --- J err?"	
+	echo "Done."
+
+	mkdir -p $TOP_BTSTRAP/{dev,sys,proc,tmp}
 	[ -e "$TOP_BTSTRAP/bin/date" ] || failed "restore_this_prefab() -- you say you've restored from a Stage X file... but where's the date binary? #1"
 	[ -e "$MINIDISTRO_CHROOT" ] || failed "Prefab file $prefab_fname_or_url did not contain an .alarpy folder; that is odd. It should have been backed up."
 	mount_dev_sys_proc_and_tmp $MINIDISTRO_CHROOT || failed "restore_this_prefab() -- failed to mount dev, sys, etc. on $MINIDISTRO_CHROOT"
@@ -607,6 +633,7 @@ restore_this_prefab() {
 	
 	echo "9999"                > $MINIDISTRO_CHROOT/.checkpoint.txt 	|| echo "BLAH 1"
 	echo "$prefab_fname_or_url" > $MINIDISTRO_CHROOT/.url_or_fname.txt 	|| echo "BLAH 2"
+	rm -f $myfifo
 }
 
 
@@ -645,11 +672,9 @@ wipe_spare_space_in_partition() {
 
 
 install_the_hard_way() {
-	mount_scratch_space_loopback_and_install_parted_chroot
-	partition_the_device $DEV $DEV_P $PARTED_CHROOT $SPLITPOINT 2> /tmp/ptxt.txt || failed "Failed to partition myself. `cat /tmp/ptxt.txt` .. Ugh. ###3"
-	format_my_disk
-	mount_my_disk
-	[ "$1" = "" ] && install_microdistro || restore_this_prefab $1
+	local prefab_fname_or_url=$1
+	# The mounting of the disk is handled by install_microdistro or restore_this_prefab
+	[ "$prefab_fname_or_url" = "" ] && install_microdistro || restore_this_prefab $prefab_fname_or_url
 #echo -en "*** PAUSING FOR HUGO TO FUTZ WITH THE SOURCE CODE. PRESS ENTER TO CONTINUE. ***"
 #read line
 	install_and_call_chrubix
@@ -658,60 +683,47 @@ install_the_hard_way() {
 }
 
 
-install_from_prefab_img() {
-	local prefab_fname_or_url=$1
-	local kernel_fname_or_url=$2
-	local kernel_fname=/tmp/.my.kernel
-	
-	mount_scratch_space_loopback_and_install_parted_chroot
-	if mount | grep "$DEV" ; then
-		umount "$DEV"* &> /dev/null || echo -en ""
-		mount | fgrep "$DEV" && failed "partition_my_disk() --- stuff from $DEV is already mounted. Abort!" || echo -en ""
-	fi
-#											                    "yes" for only 2 partitions; "" for 3 partitions
-	partition_the_device $DEV $DEV_P $PARTED_CHROOT $SPLITPOINT "" 2> /tmp/ptxt.txt || failed "Failed to partition myself. `cat /tmp/ptxt.txt` .. Ugh. ###3"
-	mkfs.vfat -F 16 $KERNELDEV || failed "install_from_prefab_img() -- failed to format kerneldev"		# format_my_disk	# Technically, we don't need to format p2. It gets overwritten with our image anyway.
-
-	VFAT_MOUNTPOINT=/tmp
-	echo "Restoring from $prefab_fname_or_url and .../`basename $kernel_fname_or_url`"
-	if echo "$prefab_fname_or_url" | fgrep http &> /dev/null ; then
-		wget $prefab_fname_or_url -O - > $VFATDEV || failed "install_from_prefab_img() -- Unable to download $prefab_fname_or_url"
-		wget $kernel_fname_or_url -O - > kernel_fname || failed "install_from_prefab_img() -- Unable to download $kernel_fname_or_url"
-	else
-		pv $prefab_fname_or_url  > $VFATDEV || failed "install_from_prefab_img() -- Failed to save $prefab_fname_or_url --- L err?"
-		cp -f $kernel_fname_or_url $kernel_fname || failed "install_from_prefab_img() -- Failed to save $kernel_fname_or_url --- L err?"
-	fi
-	sign_and_write_custom_kernel $MYDISK_CHROOT $UBOOTDEV $VFATDEV $kernel_fname "" ""  || failed "sign_and_install_kernel() -- failed to sign/write custom kernel"
-	unmount_my_disk &> /dev/null || echo -en ""
-	unmount_absolutely_everything &> /dev/null || echo -en ""
-}
-
-
 install_from_prefab_sqfs() {
 	local prefab_fname_or_url=$1
 	local kernel_fname_or_url=$2
+	local myfifo=/tmp/`basename $prefab_fname_or_url | tr -s '/' '_'`
+	bkgd_proc=""	# DO NOT MAKE THIS LOCAL! ...failed() might need it...
+	rm -f $myfifo
+	mkfifo $myfifo
 	
-	mount_scratch_space_loopback_and_install_parted_chroot
+	echo -en "Partitioning and formatting"
+	
 	if mount | grep "$DEV" ; then
 		umount "$DEV"* &> /dev/null || echo -en ""
 		mount | fgrep "$DEV" && failed "partition_my_disk() --- stuff from $DEV is already mounted. Abort!" || echo -en ""
 	fi
-#											                    "yes" for only 2 partitions; "" for 3 partitions
-	partition_the_device $DEV $DEV_P $PARTED_CHROOT $SPLITPOINT "" 2> /tmp/ptxt.txt || failed "Failed to partition myself. `cat /tmp/ptxt.txt` .. Ugh. ###3"
-	format_my_disk
-	mount_my_disk
-	echo "Restoring from $prefab_fname_or_url and .../`basename $kernel_fname_or_url`"
+	
 	if echo "$prefab_fname_or_url" | fgrep http &> /dev/null ; then
-		wget $prefab_fname_or_url -O - > $VFAT_MOUNTPOINT/.squashfs.sqfs || failed "install_from_prefab_sqfs() -- Unable to download $prefab_fname_or_url"
+		wget $prefab_fname_or_url -O - | pv -B $PV_BUF_SIZE > $myfifo & # || failed "install_from_prefab_sqfs() -- Unable to download $prefab_fname_or_url"
+		bkgd_proc=$!
+	else
+		pv -B $PV_BUF_SIZE $prefab_fname_or_url > $myfifo & # || failed "install_from_prefab_sqfs() -- Failed to save $prefab_fname_or_url --- L err?"
+		bkgd_proc=$!
+	fi
+
+	wait_for_partitioning_and_formatting_to_complete
+
+	mount_my_disk
+	if echo "$prefab_fname_or_url" | fgrep http &> /dev/null ; then
 		wget $kernel_fname_or_url -O - > $VFAT_MOUNTPOINT/.kernel.dat || failed "install_from_prefab_sqfs() -- Unable to download $kernel_fname_or_url"
 	else
-		pv $prefab_fname_or_url  > $VFAT_MOUNTPOINT/.squashfs.sqfs || failed "install_from_prefab_sqfs() -- Failed to save $prefab_fname_or_url --- L err?"
 		cp -f $kernel_fname_or_url $VFAT_MOUNTPOINT/.kernel.dat || failed "install_from_prefab_sqfs() -- Failed to save $kernel_fname_or_url --- L err?"
 	fi
-	sign_and_install_kernel
+
+	ps $bkgd_proc &> /dev/null || failed "install_from_prefab_sqfs() -- pv crapped out :-/"
+	echo "Restoring from $prefab_fname_or_url and .../`basename $kernel_fname_or_url`"
+	cat $myfifo > $VFAT_MOUNTPOINT/.squashfs.sqfs 
+	sign_and_install_kernel		# Try putting this line after mount_my_disk :) ... and see what happens
 	unmount_my_disk &> /dev/null || echo -en ""
 	unmount_absolutely_everything &> /dev/null || echo -en ""
+	rm -f $myfifo
 }
+
 
 
 install_from_prefab_stageX() {
@@ -728,14 +740,10 @@ install_from_the_beginning() {
 
 install_from_prefab() {
 	local prefab_fname_or_url=$1
-	if echo $prefab_fname_or_url | fgrep ".img" &> /dev/null ; then
-		install_from_prefab_img $prefab_fname_or_url `echo "$prefab_fname_or_url" | sed s/\.img\.gz/\.kernel/`
+	if echo $prefab_fname_or_url | fgrep ".sqfs" &> /dev/null ; then
+		install_from_prefab_sqfs $prefab_fname_or_url `echo "$prefab_fname_or_url" | sed s/\.sqfs/\.kernel/`
 	else
-		if echo $prefab_fname_or_url | fgrep ".sqfs" &> /dev/null ; then
-			install_from_prefab_sqfs $prefab_fname_or_url `echo "$prefab_fname_or_url" | sed s/\.sqfs/\.kernel/`
-		else
-			install_from_prefab_stageX $prefab_fname_or_url
-		fi
+		install_from_prefab_stageX $prefab_fname_or_url
 	fi
 }
 
@@ -780,6 +788,16 @@ install_me() {
 	read line
 	echo "End of line :-)"
 }
+
+
+partition_and_format_me() {
+	touch /tmp/.iamrunningalready
+	mount_scratch_space_loopback_and_install_parted_chroot
+	partition_the_device $DEV $DEV_P $PARTED_CHROOT $SPLITPOINT 2> /tmp/ptxt.txt || failed "Failed to partition myself. `cat /tmp/ptxt.txt` .. Ugh. ###3"
+	format_my_disk
+	rm -f /tmp/.iamrunningalready
+}	
+
 
 
 ##################################################################################################################################
@@ -836,6 +854,10 @@ mkdir -p $ROOTMOUNT $BOOTMOUNT $KERNMOUNT
 [ "$mydevbyid" = "" ] && failed "I am unable to figure out which device you want me to prep. Sorry..."
 [ -e "$mydevbyid" ] || failed "Please insert a thumb drive or SD card and try again. Please DO NOT INSERT your keychain thumb drive."
 unmount_absolutely_everything &> /dev/null || echo -en ""
+
+[ -e "/tmp/.iamrunningalready" ] && failed "Please reboot and run me again."
+partition_and_format_me &>/dev/null &
+partandform_proc=$!
 get_distro_type_the_user_wants								# sets $DISTRONAME
 ask_if_afraid_of_evil_maid									# sets $EVILMAID
 prefab_fname=`locate_prefab_file` || prefab_fname=""		# img, sqfs, _D, _C, ...; check Dropbox and local thumb drive
