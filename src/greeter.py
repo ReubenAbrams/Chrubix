@@ -165,6 +165,8 @@ class AlarmistGreeter( QtGui.QDialog, Ui_dlgAlarmistGreeter ):
 # #        self.btnContinue.set
         self.more_options = True
         self.btnMoreoptions.setText( 'Abort' )
+        self.chkAllowrootpassword.setChecked( True )
+        self.clickedAllowrootpassword( True )
         self.adjustSize()
 
     @pyqtSignature( "" )
