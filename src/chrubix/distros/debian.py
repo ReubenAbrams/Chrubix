@@ -691,6 +691,7 @@ class StretchDebianDistro( DebianDistro ):
         super( StretchDebianDistro, self ).__init__( *args, **kwargs )
         self.branch = 'stretch'  # lowercase; yes, it matters
         self.important_packages += ' libetpan-dev g++-4.8'
+#        self.use_latest_kernel = True
 
     def install_important_packages( self ):
         chroot_this( self.mountpoint, '''yes "Yes, do as I say!" | apt-get install systemd systemd-sysv''' , title_str = self.title_str, status_lst = self.status_lst,
@@ -700,5 +701,7 @@ class StretchDebianDistro( DebianDistro ):
     def install_package_manager_tweaks( self ):
         super( StretchDebianDistro, self ).install_package_manager_tweaks()
         super( StretchDebianDistro, self ).install_package_manager_tweaks( yes_add_ffmpeg_repo = True )
+
+
 
 
