@@ -71,7 +71,7 @@ close_encrypted_partition() {
 		sync;sync;sync
 		echo -en "Retrying..."
 		if ! cryptsetup close $SAUSAGE 2> /dev/null ; then
-			echo "I experienced a non-fatal error, but it's OK."
+#			echo "I experienced a non-fatal error, but it's OK."
 			echo -en "\nPress ENTER to reboot."
 			read line
 			sync;sync;sync
@@ -108,8 +108,8 @@ verify_encrypted_partition() {
 ########################################################################################
 
 
+mount | fgrep "$DEV_P3 on / " && failed "I am already persistent. Damn it, I'm more than persistent. I'm permanent! Yeah!! (Sorry.)"
 echo "Thinking..."
-
 setup_loop
 create_encrypted_partition
 format_encrypted_partition
