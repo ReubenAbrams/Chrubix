@@ -194,10 +194,10 @@ if __name__ == "__main__":
     os.system( 'xset s off' )
     os.system( 'xset -dpms' )
     print( 'bbbbb\n' )
+#        os.system( "rm -f ui_AlarmistGreeter.py ui/ui_AlarmistGreeter.py qrc_resources.py" )
     if os.system( 'mount | grep /dev/mapper/encstateful &> /dev/null' ) == 0 \
     or os.system( 'mount | grep hfs &> /dev/null' ) == 0:
         # compile Qt Creator UI files into Python bindings
-        os.system( "rm -f ui_AlarmistGreeter.py ui/ui_AlarmistGreeter.py qrc_resources.py" )
         os.system( 'export PATH=/opt/local/bin:$PATH' )
         for fname in [f for f in os.listdir( "ui" ) if f[-3:] == ".ui" and f[0] != "." ]:
             if not os.path.exists( 'ui/ui_%s.py' % ( fname[:-3] ) ):
@@ -205,6 +205,7 @@ if __name__ == "__main__":
                 print ( "Processing " + fname )
         if not os.path.exists( 'resources_rc.py' ):
             os.system( "PATH=/opt/local/bin:$PATH pyrcc4 -py3 -o resources_rc.py ui/resources.qrc" )
+
     print( 'cccccc\n' )
     app = QtGui.QApplication( sys.argv )
     print( 'dddddd\n' )

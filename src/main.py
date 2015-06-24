@@ -23,17 +23,6 @@ if os.system( 'cat /proc/cmdline 2>/dev/null | fgrep root=/dev/dm-0 > /dev/null'
     logme( 'Calling exec_cli()' )
     sys.exit( exec_cli( sys.argv ) )
 
-logme( 'Still here? Oh, good.' )
-if os.system( 'mount | grep /dev/mapper/encstateful &> /dev/null' ) == 0 \
-or os.system( 'mount | grep hfs &> /dev/null' ) == 0:
-    # compile Qt Creator UI files into Python bindings
-    os.system( "rm -f ui_AlarmistGreeter.py ui/ui_AlarmistGreeter.py qrc_resources.py" )
-    os.system( 'export PATH=/opt/local/bin:$PATH' )
-    for fname in [f for f in os.listdir( "ui" ) if f[-3:] == ".ui" and f[0] != "." ]:
-        os.system( "PATH=/opt/local/bin:$PATH pyuic4 -o ui/ui_" + fname[:-3] + ".py ui/" + fname[:-3] + ".ui" )
-        print ( "Processing " + fname )
-    os.system( "PATH=/opt/local/bin:$PATH pyrcc4 -py3 -o resources_rc.py ui/resources.qrc" )
-
 
 from PyQt4.QtCore import SIGNAL, SLOT, pyqtSignature
 from PyQt4.Qt import QLineEdit
@@ -169,17 +158,9 @@ class MainWindow( QtGui.QMainWindow, Ui_mnwMain ):
     @pyqtSignature( "" )
     def configureCheckBoxes( self ):
         self.chkEncryptedRootPartition.setChecked( self.distro.root_is_encrypted )
-        self.chkEncryptedHomePartition.setChecked( self.distro.home_is_encrypted )
-        self.chkRootKeyTD.setChecked( self.distro.root_key_partly_on_TD )
-        self.chkHomeKeyTD.setChecked( self.distro.home_key_partly_on_TD )
         self.chkUseDuressPassword.setChecked( self.distro.boom_pw_hash is not None )
-        self.btnChangeRootPassword.setEnabled( self.distro.root_key_partly_on_TD )
-        self.btnChangeHomePassword.setEnabled( self.distro.home_key_partly_on_TD )
         self.btnChangeDuressPassword.setEnabled( self.distro.boom_pw_hash is not None )
-        self.chkUseDropboxWhenEncryptingHome.setChecked( self.distro.use_dropbox )
-        self.chkStoreFreenetAndI2pOnHome.setChecked( self.distro.freenet_and_i2p_in_home )
         self.chkPanicButtonClicked( True if self.distro.panic_button > 0 else False )
-        self.chkKernelSignedInTriplicate.setChecked( self.distro.kernel_triple_signed )
 
     @pyqtSignature( "bool" )
     def chkPanicButtonClicked( self, checked ):
@@ -368,7 +349,23 @@ class ReconfigureorexitDialog( QtGui.QDialog, Ui_dlgReconfigureorexit ):
 
 
 if __name__ == "__main__":
+    logme( 'main.py ----- __main__' )
+    if os.system( 'mount | grep /dev/mapper/encstateful &> /dev/null' ) == 0 \
+    or os.system( 'mount | grep hfs &> /dev/null' ) == 0:
+        # compile Qt Creator UI files into Python bindings
+    #    os.system( "rm -f ui_AlarmistGreeter.py ui/ui_AlarmistGreeter.py qrc_resources.py" )
+        os.system( 'export PATH=/opt/local/bin:$PATH' )
+        logme( 'ui etc.' )
+        for fname in [f for f in os.listdir( "ui" ) if f[-3:] == ".ui" and f[0] != "." ]:
+            if not os.path.exists( 'ui/ui_%s.py' % ( fname[:-3] ) ):
+                logme( '=> %s' % ( fname ) )
+                os.system( "PATH=/opt/local/bin:$PATH pyuic4 -o ui/ui_" + fname[:-3] + ".py ui/" + fname[:-3] + ".ui" )
+                print ( "Processing " + fname )
+    if not os.path.exists( 'resources_rc.py' ):
+        os.system( "PATH=/opt/local/bin:$PATH pyrcc4 -py3 -o resources_rc.py ui/resources.qrc" )
+    logme( 'app' )
     app = QtGui.QApplication( sys.argv )
+    logme( 'MainWindow' )
     window = MainWindow()
     window.show()
     window.raise_()
