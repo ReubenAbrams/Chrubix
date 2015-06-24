@@ -35,7 +35,7 @@ if argv[2] == 'secretsquirrel':
     if 0 == os.system( 'mount | fgrep "cryptroot on /"' ):
         failed( 'No! You are already in Secret Squirrel Mode.' )
     distro = load_distro_record()
-    distro.after_rebooting_into_temp_mode_OS___please_migrate_to_obfuscated_filesystem()
+    distro.migrate_to_obfuscated_filesystem()
 elif argv[2] == 'crypto-mbr':
     distro = load_distro_record()
     for cmd in ( 
