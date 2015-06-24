@@ -26,16 +26,22 @@ if [ "$hiddendev" = "/dev/loop3" ] ; then
 fi
 
 if [ "$1" = "tinker" ] ; then
+	echo "chrubix.sh -- Calling tinker" >> /tmp/chrubix.log
 	python3 tinker.py $@
 elif [ "$1" = "greeter" ] ; then
+	echo "chrubix.sh -- Calling greeter" >> /tmp/chrubix.log
 	python3 greeter.py $@
 elif [ "$1" = "ersatz_lxdm" ] ; then
+	echo "chrubix.sh -- Calling ersatz_lxdm" >> /tmp/chrubix.log
 	python3 ersatz_lxdm.py $@
 elif [ "$1" = "stage2" ] ; then
+	echo "chrubix.sh -- Calling stage2" >> /tmp/chrubix.log
 	python3 stage2.py $@
 elif [ "$1" = "secretsquirrel" ] ; then
+	echo "chrubix.sh -- Calling secretsquirrel" >> /tmp/chrubix.log
 	python3 tinker.py secretsquirrel $distroname $@		# the distro name variable will be replaced, thanks to sed, with the ACTUAL distro name.
 else
+	echo "chrubix.sh -- Calling main" >> /tmp/chrubix.log
 	python3 main.py $evilmaid -d$dev -r$rootdev -s$hiddendev -k$kerndev -D$distroname -m$mydiskmtpt
 fi
 exit $?
