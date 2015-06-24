@@ -298,7 +298,7 @@ Acquire::https::Proxy "https://%s/";
 
     def configure_distrospecific_tweaks( self ):
         logme( 'DebianDistro - configure_distrospecific_tweaks() - starting' )
-        self.update_status_with_newline( 'Installing distro-specific tweaks' )
+        self.update_status( 'Installing distro-specific tweaks' )
         if 0 != patch_org_freedesktop_networkmanager_conf_file( '%s/etc/dbus-1/system.d/org.freedesktop.NetworkManager.conf' % ( self.mountpoint ),
                                                         '%s/usr/local/bin/Chrubix/blobs/settings/nmgr-cfg-diff.txt.gz' % ( self.mountpoint ) ):
             self.update_status( ' ...(FYI, I failed to patch org.freedesktop.NetworkManager.conf)' )
