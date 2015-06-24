@@ -2,7 +2,7 @@
 
 # Form implementation generated from reading ui file 'ui/AlarmistGreeter.ui'
 #
-# Created: Thu Jun 18 23:26:05 2015
+# Created: Wed Jun 24 06:49:23 2015
 #      by: PyQt4 UI code generator 4.10.4
 #
 # WARNING! All changes made in this file will be lost!
