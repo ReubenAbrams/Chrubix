@@ -31,6 +31,8 @@ elif [ "$1" = "greeter" ] ; then
 	python3 greeter.py $@
 elif [ "$1" = "ersatz_lxdm" ] ; then
 	python3 ersatz_lxdm.py $@
+elif [ "$1" = "stage2" ] ; then
+	python3 stage2.py $@
 elif [ "$1" = "secretsquirrel" ] ; then
 	python3 tinker.py secretsquirrel $distroname $@		# the distro name variable will be replaced, thanks to sed, with the ACTUAL distro name.
 else
