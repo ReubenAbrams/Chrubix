@@ -9,8 +9,7 @@
 import sys
 import os
 from chrubix.utils import logme, write_oneliner_file
-from chrubix.utils.postinst import configure_lxdm_behavior, install_iceweasel_mozilla_settings, \
-                                    set_up_guest_homedir
+from chrubix.utils.postinst import configure_lxdm_behavior
 from chrubix import load_distro_record
 
 
