@@ -25,7 +25,6 @@ g_proxy = None  # if ( 0 != os.system( 'ifconfig | grep inet | fgrep 192.168.0 &
 g_default_window_manager = '/usr/bin/startlxde'  # wmaker, startxfce4, startlxde, ...
 
 
-REBOOT_INTO_STAGE_TWO = False  # Set to True by -E (i.e. prep for evil mid)
 MAXIMUM_COMPRESSION = False  # True  # Max compression on the left; quicker testing on the right :)
 __g_start_time = time.time()
 
@@ -508,13 +507,6 @@ def remaining_megabytes_free_on_device( dev ):  # FIXME broken
             failed( 'Unable to return %s' % str( res ) )
 
 
-# def create_IMG_file_for_posterity( device, spare_dev, mountpoint, save_file_here ):
-# #    failed( 'dev=%s; spare=%s; Create %s => %s here' % ( device, spare_dev, mountpoint, save_file_here ) )
-
-
-
-
-
 def check_sanity_of_distro( mountpoint, kernel_src_basedir ):
     flaws = 0
     broken_pkgs = ''
@@ -530,7 +522,7 @@ def check_sanity_of_distro( mountpoint, kernel_src_basedir ):
                                 'sayit.sh', 'vidalia', 'i2prouter', 'claws-mail', \
                                 'CHRUBIX', 'libreoffice', 'ssss-combine', 'ssss-split', 'dillo'
                               ):
-        if chroot_this( mountpoint, 'which %s' % ( executable_to_find ), attempts = 1 ):
+        if chroot_this( mountpoint, 'which %s &> /dev/null' % ( executable_to_find ), attempts = 1 ):
             broken_pkgs += '%s ' % ( executable_to_find )
             flaws += 1
     logme( "This sanity-checker is incomplete. Please improve it." )

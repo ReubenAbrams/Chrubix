@@ -9,7 +9,7 @@ from chrubix.utils import rootcryptdevice, mount_device, mount_sys_tmp_proc_n_de
             generate_temporary_filename, backup_the_resolvconf_file, install_gpg_applet, patch_kernel, \
             fix_broken_hyperlinks, disable_root_password, install_windows_xp_theme_stuff, \
             MAXIMUM_COMPRESSION, set_user_password, call_makepkg_or_die, remaining_megabytes_free_on_device, \
-            is_this_bindmounted, REBOOT_INTO_STAGE_TWO, check_sanity_of_distro  # , create_IMG_file_for_posterity
+            is_this_bindmounted, check_sanity_of_distro
 
 from chrubix.utils.postinst import write_lxdm_post_login_file, write_lxdm_post_logout_file, \
             append_lxdm_xresources_addendum, generate_wifi_manual_script, generate_wifi_auto_script, \
@@ -21,15 +21,13 @@ from chrubix.utils.postinst import write_lxdm_post_login_file, write_lxdm_post_l
             add_user_to_the_relevant_groups, write_login_ready_file, setup_poweroffifunplugdisk_service, write_boom_script, \
             tidy_up_alarpy, GUEST_HOMEDIR, set_up_guest_homedir
 from chrubix.utils.mbr import install_initcpio_wiperamonshutdown_files
-from xml.dom import NotFoundErr
-from pipes import SOURCE
 
 
 class Distro():
     '''
     '''
     # Class-level consts
-    hewwo = '2015/06/22 @ 14:00'
+    hewwo = '2015/06/23 @ 15:18'
     crypto_rootdev = "/dev/mapper/cryptroot"
     crypto_homedev = "/dev/mapper/crypthome"
     boomfname = "/etc/.boom"
@@ -54,6 +52,7 @@ libdevmapper-dev xbindkeys \
     def __init__( self, *args, **kwargs ):
         self.name = None
         self.branch = None
+        self.reboot_into_stage_two = False  # set to True by Evil Maid protector :)
         self.__args = args
         self.__pheasants = False  # Starts FALSE so that the generic _D is... generic. Turns TRUE later on, in migrate_OS().
         self.__kthx = False  # Always TRUE. That way, even the generic stage files have the obfuscated filesystems (xfs, jfs, btrfs).
@@ -398,6 +397,11 @@ make' % ( self.sources_basedir ), title_str = self.title_str, status_lst = self.
             self.kthx = True
         if 0 != chroot_this( self.mountpoint, 'cd %s/cryptsetup/ && cd / || return 1' % ( self.sources_basedir ) ):
             failed( 'WHERE IS cryptsetup SOURCE? It should have been downloaded. Vart de herk?' )
+        try:
+            old_sn = read_oneliner_file( '%s/etc/.randomized_serno' % ( self.mountpoint ) )
+            logme( 'QQQ Randomized serial number was %s' % ( old_sn ) )
+        except:
+            logme( 'QQQ No serial number... yet.' )
         system_or_die( 'bash /usr/local/bin/modify_sources.sh %s %s %s %s' % ( 
                                                                 self.device,
                                                                 self.mountpoint,
@@ -530,7 +534,7 @@ Exec=/usr/lib/notification-daemon-1.0/notification-daemon
             chroot_this( self.mountpoint, 'ln -sf /usr/lib/systemd/system/%s.service /etc/systemd/system/%s.service' % ( real_name, pretend_name ) )
         services_to_disable = ( 'tor', 'netctl.service', 'netcfg.service', 'netctl' )
         for pkg in services_to_disable:
-            chroot_this( self.mountpoint, 'systemctl disable %s' % ( pkg ) , title_str = self.title_str, status_lst = self.status_lst )
+            chroot_this( self.mountpoint, 'systemctl disable %s' % ( pkg ) , title_str = self.title_str, status_lst = self.status_lst, attempts = 1 )
         generate_wifi_manual_script( '%s/usr/local/bin/wifi_manual.sh' % ( self.mountpoint ) )
         generate_wifi_auto_script( '%s/usr/local/bin/wifi_auto.sh' % ( self.mountpoint ) )
         chroot_this( self.mountpoint, 'chmod u+s `which ping`' , title_str = self.title_str, status_lst = self.status_lst )
@@ -612,7 +616,7 @@ Choose the 'boom' password : """ ).strip( '\r\n\r\n\r' )
 #        self.update_status_with_newline( "..OK." )
 
     def generate_tarball_of_my_rootfs( self, output_file ):
-        compression_parameters = '-9 --extreme' if ( output_file.find( '_D' ) >= 0 or chrubix.utils.MAXIMUM_COMPRESSION is True ) else '-1'
+        compression_parameters = '-6e' if ( output_file.find( '_D' ) >= 0 or chrubix.utils.MAXIMUM_COMPRESSION is True ) else '-1'
         self.update_status( 'Creating tarball %s of my rootfs' % ( output_file ) )
         dirs_to_backup = 'bin boot etc home lib mnt opt root run sbin srv usr var'
         if not is_this_bindmounted( self.mountpoint ):
@@ -668,7 +672,7 @@ Choose the 'boom' password : """ ).strip( '\r\n\r\n\r' )
         chroot_this( self.mountpoint, 'which easy_install  2>/dev/null && easy_install  urwid', status_lst = self.status_lst, title_str = self.title_str )
         self.update_status( '.' )
         for my_executable in ( 'mkinitcpio', 'dtc' ):
-            chroot_this( self.mountpoint, 'which %s &> /dev/null' % ( my_executable ), on_fail = 'Programmer forgot to install %s as part of %s distro' % ( my_executable, self.name ) )
+            chroot_this( self.mountpoint, 'which %s &> /dev/null' % ( my_executable ), on_fail = 'Programmer forgot to install %s as part of %s distro' % ( my_executable, self.name ), attempts = 1 )
         self.update_status( '.' )
         wget( url = 'https://raw.github.com/andreafabrizi/Dropbox-Uploader/master/dropbox_uploader.sh', save_as_file = self.mountpoint + '/usr/local/bin/dropbox_uploader.sh', \
                                             title_str = self.title_str, status_lst = self.status_lst )
@@ -805,9 +809,9 @@ exit 0
         set_user_password( login = 'guest', password = 'guest', mountpoint = self.mountpoint )
         set_up_guest_homedir( mountpoint = self.mountpoint )
 #        set_up_guest_homedir( mountpoint = self.mountpoint, homedir = '/tmp/.guest' )
-        if 0 == chroot_this( self.mountpoint, 'ls -dl %s | grep root' % ( GUEST_HOMEDIR ) ):
+        if 0 == chroot_this( self.mountpoint, 'ls -dl %s | grep root' % ( GUEST_HOMEDIR ), attempts = 1 ):
             failed( 'For some reason, the guest directory contents still belongs to root.' )
-        if 0 == chroot_this( self.mountpoint, 'ls -dl %s/.[a-z,A-Z]* | grep root' % ( GUEST_HOMEDIR ) ):
+        if 0 == chroot_this( self.mountpoint, 'ls -dl %s/.[a-z,A-Z]* | grep root' % ( GUEST_HOMEDIR ), attempts = 1 ):
             failed( 'For some reason, the guest directory still belongs to root.' )
 
     def remove_all_junk( self ):
@@ -869,19 +873,43 @@ exit 0
             pass
 
     def squash_OS_if_appropriate( self ):
-        if REBOOT_INTO_STAGE_TWO:
+        if self.reboot_into_stage_two:
+            write_oneliner_file( '%s/.stage2.sh' % ( self.mountpoint ), '''#!/bin/bash
+export PATH=/usr/bin:/usr/local/bin:/usr/sbin:/usr/local/sbin:/bin:/sbin
+mount devtmpfs /dev  -t devtmpfs
+mount tmpfs    /tmp  -t tmpfs
+mount proc     /proc -t proc
+mount sysfs    /sys  -t sysfs
+ln -s /proc/self/fd /dev/
+ln -s /proc/self/fd/0 /dev/stdin
+ln -s /proc/self/fd/1 /dev/stdout
+
+mv /.*z /tmp/                # .vbutils.tgz, .vbkeys.tgz, ...
+echo "Calling Chrubix's stage 2..."
+cd /usr/local/bin/Chrubix/src
+python3 stage2.py
+echo "Shelling to root, because I'm nice like that."
+bash
+echo "Rebooting..."
+umount /tmp /proc /dev/sys
+reboot
+sleep 10
+''' )
+            system_or_die( 'chmod +x %s/.stage2.sh' % ( self.mountpoint ) )
+            chrubix.save_distro_record( self, self.mountpoint )
             self.redo_mbr_for_plaintext_root( self.mountpoint )
         else:
+            self.set_root_password( 'hi' )
             self.squash_OS()
 
-    def squash_OS( self ):
-        self.update_status( 'Checking sanity of distro...' )
-        broken_pkgs = check_sanity_of_distro( self.mountpoint, self.kernel_src_basedir )
-        if broken_pkgs in ( None, '' ):
-            self.update_status_with_newline( 'distro is not insane. (How nice)' )
-        else:
-            self.update_status_with_newline( 'distro has issues w/ %s' % ( broken_pkgs ) )
-
+    def squash_OS( self, prefixpath = '' ):
+        if prefixpath == '':  # In other words, if we AREN'T being run within stage 2...
+            self.update_status( 'Checking sanity of distro...' )
+            broken_pkgs = check_sanity_of_distro( self.mountpoint, self.kernel_src_basedir )
+            if broken_pkgs in ( None, '' ):
+                self.update_status_with_newline( 'distro is not insane. (How nice)' )
+            else:
+                self.update_status_with_newline( 'squash_OS() -- distro has issues w/ %s' % ( broken_pkgs ) )
         self.update_status( 'Squashing OS...' )
         if not os.path.exists( '%s%s/src/chromeos-3.4/arch/arm/boot/vmlinux.uimg' % ( self.mountpoint, self.kernel_src_basedir ) ):
             system_or_die( 'cp -f /tmp/.vmlinuz.uimg %s%s/src/chromeos-3.4/arch/arm/boot/vmlinux.uimg' % ( self.mountpoint, self.kernel_src_basedir ) )
@@ -893,7 +921,7 @@ exit 0
         self.lxdm_settings['use greeter gui'] = True
         chrubix.save_distro_record( distro_rec = self, mountpoint = self.mountpoint )
         self.redo_mbr_for_squashfs_root( self.mountpoint )  # '/tmp/squashfs_dir' )
-        self.generate_squashfs_of_my_OS()
+        self.generate_squashfs_of_my_OS( prefixpath = prefixpath )
         os.system( 'rm -f %s/etc/.randomized_serno*' % ( self.mountpoint ) )
 
 #---------------------------------------------------------------------------------------------------
@@ -945,7 +973,8 @@ download_kernelrebuilding_skeleton %s %s
 #---------------------------------------------------------------------------------------------------
 
 
-    def after_rebooting_into_temp_mode_OS___please_migrate_to_obfuscated_filesystem( self ):
+    def migrate_to_obfuscated_filesystem( self ):
+        failed( 'migrate_to_obfuscated_filesystem() -- nefarious porpoises' )
         os.system( 'clear' )
         if self.status_lst not in ( None, [] ) and len( self.status_lst ) > 1:
             self.status_lst = self.status_lst[-1:]
@@ -1021,7 +1050,7 @@ exit $errors
             self.update_status( '.' )
 # Were the binaries installed?
         for looking_for_cmd in ( 'mkfs.xfs', 'jfs_mkfs', 'mkfs.bfs' ):
-            if 0 != os.system( 'which %s' % ( looking_for_cmd ) ):
+            if 0 != os.system( 'which %s' % ( looking_for_cmd ), attempts = 1 ):
                 failed( 'Unable to locate %s in current filesystem, even though I rebuilt it a moment ago.' % ( looking_for_cmd ) )
         system_or_die( 'cp -f %s/tmp/whoopshoop/.*gz /tmp/' % ( new_mtpt ) )
         self.redo_mbr_for_encrypted_root( new_mtpt )
@@ -1238,7 +1267,7 @@ exit $errors
                 failed( 'Well, that escalated rather quickly.' )
         self.update_status( '...installed.' )
 
-    def generate_squashfs_of_my_OS( self ):
+    def generate_squashfs_of_my_OS( self, prefixpath = '' ):
         logme( 'qqq generate_squashfs_of_my_OS() --- hi' )
         assert( os.path.isdir( '%s/usr/local/bin/Chrubix' % ( self.mountpoint ) ) )
         system_or_die( 'mkdir -p /tmp/posterity' )  # Might be unnecessary
@@ -1261,8 +1290,8 @@ exit $errors
             system_or_die( 'mkdir -p %s/_to_add_to_squashfs/{dev,proc,sys,tmp,root}' % ( self.mountpoint ) )
             chroot_this( self.mountpoint, 'mkdir -p /usr/share/doc' )
             chroot_this( self.mountpoint, \
-'mksquashfs /bin /boot /etc /home /lib /mnt /opt /run /sbin /usr /srv /var /_to_add_to_squashfs/* /.squashfs.sqfs %s' % \
-                                                         ( '-b 1048576 -comp xz -Xdict-size 100%' if chrubix.utils.MAXIMUM_COMPRESSION else '' ),
+'mksquashfs /bin /boot /etc /home /lib /mnt /opt /run /sbin /usr /srv /var /_to_add_to_squashfs/* %s/.squashfs.sqfs %s' % \
+                                                         ( prefixpath, '-b 1048576 -comp xz -Xdict-size 100%' if chrubix.utils.MAXIMUM_COMPRESSION else '' ),
                                                          status_lst = self.status_lst, title_str = self.title_str,
                                                          attempts = 1, on_fail = 'Failed to generate squashfs' )
 #            chroot_this( self.mountpoint, 'mv /etc/.randomized_serno.DISABLED /etc/.randomized_serno' )
@@ -1513,6 +1542,24 @@ WantedBy=multi-user.target
     def abort_here( self ):
         failed( 'Now... Save the squash fs file to a thumb drive and re-run the installation script. Ask the author for help if necessary.' )
 
+    def rebuild_EVERYTHING_if_evil_maid_mode( self ):
+        if self.reboot_into_stage_two:
+            assert( os.path.exists( '%s/.vbkeys.tgz' % ( self.mountpoint ) ) )
+            self.update_status_with_newline( '**INFERNAL PORPOISES --- re-enabled me by 7/1/2015**' )
+#            self.kernel_rebuild_required = True
+#            self.initrd_rebuild_required = True
+#            self.call_bash_script_that_modifies_kernel_n_mkfs_sources()
+#            self.build_kernel_and_mkfs()
+#            self.install_kernel_and_mkfs()
+# #            self.forcibly_rebuild_initramfs_and_vmlinux()   # Is this necessary? Remember, squash_OS() calls redo_mbr(). which rebuilds initramfs and vmlinux.
+            try:
+                assert( self.kernel_rebuild_required is False )
+                assert( self.initrd_rebuild_required is False )
+            except AssertionError:
+                logme( '**FYI, assertion error in rebuild_EVERYTHING_if_evil_maid_mode()**' )
+                self.kernel_rebuild_required = False
+                self.initrd_rebuild_required = False
+
     def install( self ):
         '''
         At this point, I am chroot()'d to self.root_dev, my /proc, /sys, /tmp, and /dev are mounted,
@@ -1564,7 +1611,7 @@ WantedBy=multi-user.target
                                 self.remove_all_junk,
                                 self.save_for_posterity_if_possible_D )
         fifth_stage = ( # Chrubix ought to have been installed in MYDISK_MTPT/{dest distro} already, by the stage 1 bash script.
-#                                self.forcibly_rebuild_initramfs_and_vmlinux,  # I think this is for testing modifications to /init, /log_me_in.sh, etc.
+                                self.rebuild_EVERYTHING_if_evil_maid_mode,  # modifies+builds+installs mkfs AND kernel AND vmlinux AND initrd
                                 self.add_guest_user,
                                 self.install_panic_button,
                                 self.install_vbutils_and_firmware_from_cbook,

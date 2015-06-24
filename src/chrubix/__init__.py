@@ -10,7 +10,7 @@ import getopt
 import hashlib
 import base64
 from chrubix.utils import call_binary, read_oneliner_file, write_oneliner_file, call_binary_and_show_progress, \
-                          wget, failed, logme, REBOOT_INTO_STAGE_TWO
+                          wget, failed, logme
 from chrubix.utils.postinst import configure_lxdm_behavior
 from chrubix import distros
 from chrubix.distros.archlinux import ArchlinuxDistro
@@ -88,6 +88,7 @@ def process_command_line( argv ):
     do_root_dev = None
     do_kernel_dev = None
     do_spare_dev = None
+    do_evil_maid = False
     print( "Running chrubix from command line." )
     if len( sys.argv ) <= 1:
         list_command_line_options()
@@ -112,7 +113,7 @@ def process_command_line( argv ):
         elif opt == '-m':
             do_mountpoint = param
         elif opt == '-E':
-            REBOOT_INTO_STAGE_TWO = True
+            do_evil_maid = True
         else:
             raise getopt.GetoptError( str( opt ) + " is an unrecognized command-line parameter" )
     distro = generate_distro_record_from_name( do_distro )
@@ -121,6 +122,12 @@ def process_command_line( argv ):
     distro.kernel_dev = do_kernel_dev
     distro.spare_dev = do_spare_dev
     distro.mountpoint = do_mountpoint
+    if do_evil_maid:
+        distro.reboot_into_stage_two = True
+        distro.kernel_rebuild_required = True
+        distro.kthx = True
+        distro.pheasants = True
+        logme( 'Configuring for Evil Maid Protection Mode' )
     return distro
 
 

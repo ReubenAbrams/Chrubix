@@ -344,7 +344,7 @@ def configure_lxdm_service( mountpoint ):
 #    if os.path.exists( '%s/usr/lib/systemd/system/lxdm.service' % ( mountpoint ) ):
     write_lxdm_service_file( '%s/usr/lib/systemd/system/lxdm.service' % ( mountpoint ) )
     chroot_this( mountpoint, 'which lxdm &> /dev/null', on_fail = 'I cannot find lxdm. This is not good.' )
-    if chroot_this( mountpoint, 'which kdm &> /dev/null' ) == 0:
+    if chroot_this( mountpoint, 'which kdm &> /dev/null' , attempts = 1 ) == 0:
         chroot_this( mountpoint, 'systemctl disable kdm', attempts = 1 )
 
 
