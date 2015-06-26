@@ -30,7 +30,7 @@ class KaliDistro( JessieDebianDistro ):
         mount_sys_tmp_proc_n_dev( self.mountpoint )
         return 0
 
-    def install_debianspecific_package_manager_tweaks( self, yes_add_ffmpeg_repo = False ):
+    def install_debianspecific_package_manager_tweaks( self ):
 #        f = open('%s/etc/apt/sources.list' % ( self.mountpoint ), 'a')
 #        f.write(''' ''')
 #        f.close()

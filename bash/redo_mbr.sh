@@ -8,7 +8,7 @@
 #################################################################################
 
 
-SPLITPOINT=3600998	# 1.8GB			# If you change this, you shall change the line in redo_mbr.sh too!
+SPLITPOINT=4000998	# 2GB			# If you change this, you shall change the line in redo_mbr.sh too!
 LOGLEVEL="2"		# .... or "6 debug verbose" .... or "2 debug verbose" or "2 quiet"
 BOOMFNAME=/etc/.boom
 BOOT_PROMPT_STRING="boot: "
@@ -24,9 +24,6 @@ INITRAMFS_CPIO=$RYO_TEMPDIR/uInit.cpio.gz
 RAMFS_BOOMFILE=.sha512boom
 STOP_JFS_HANGUPS="echo 0 > /proc/sys/kernel/hung_task_timeout_secs"
 SQUASHFS_FNAME=/.squashfs.sqfs
-START_OF_HIDDEN_DATA=$(($(($SPLITPOINT+128))*512))			# Try reducing 64 a little (32? 16?)
-
-
 
 
 # FIXME --- for ERROR: file not found: `/lib/udev/rules.d/10-dm.rules' -type errors, be aware
@@ -179,13 +176,6 @@ get_internal_serial_number() {
 
 
 
-get_number_of_cores() {
-	local cores
-	which lscpu &> /dev/null || failed "ChromeOS does not have lscpu. Bugger."
-	cores="`lscpu | grep "CPU(s):" | tr -s ' ' '\n' | tail -n1`"
-	[ "$cores" = "" ] && cores=2
-	echo "$cores"
-}
 
 
 
@@ -257,7 +247,6 @@ exit 0
 #############
 	
 		echo "#!/bin/sh
-# looking for sausage...?
 mount $rootdev /newroot
 if [ -e \"/newroot/$SQUASHFS_FNAME\" ]; then
   umount /newroot
@@ -267,7 +256,7 @@ if [ -e \"/newroot/$SQUASHFS_FNAME\" ]; then
   mount -o loop,squashfs /deviceroot/$SQUASHFS_FNAME /ro
 
   while ! mount | grep \"/rw \" > /dev/null ; do
-    echo -en \"boot: \"
+    echo -en \"$BOOT_PROMPT_STRING\"
 	read -t 10 -s line
 	echo ""
 	if [ \"\$line\" = \"x\" ] ; then
@@ -352,21 +341,23 @@ mdev -s
 mkdir -p /newroot
 mknod /dev/sda2 b 8 2
 
-read -t 2 line
-if [ \"\$line\" = \"x\" ] ; then
-  echo \"Shelling. Please install a fresh copy of /log_me_in.sh (perhaps via sda2) and then type 'exit'.\"
-  sh
-  echo \"Back. Now, let's run /log_me_in.sh and see what happens.\"
-fi
+#read -t 2 line
+#if [ \"\$line\" = \"x\" ] ; then
+#  echo \"Shelling. Please install a fresh copy of /log_me_in.sh (perhaps via sda2) and then type 'exit'.\"
+#  sh
+#  echo \"Back. Now, let's run /log_me_in.sh and see what happens.\"
+#fi
 
 /log_me_in.sh
-if [ \"\$?\" -eq \"0\" ] ; then
-    echo -en \"$BOOT_PROMPT_STRING\"
-    clear
-	exec switch_root /newroot /sbin/init
-else
-	echo \"Failed to switch_root, dropping to a shell\"		#This will only be run if the exec above failed
-	exec sh
+clear
+if [ \"\$?\" -ne \"0\" ] ; then								# Shell out if /log_me_in.sh failed.
+  echo \"Failed to switch_root, dropping to a shell\"
+  exec sh
+elif [ -e \"/newroot/.stage2.sh\" ] ; then					# Run stage 2 if there *is* a stage 2.
+  	mv -f /newroot/.stage2.sh /newroot/tmp/
+  	exec switch_root /newroot /tmp/.stage2.sh
+else 
+  exec switch_root /newroot /sbin/init						# Otherwise, launch greeter etc.
 fi
 " > $root$INITRAMFS_DIRECTORY/init
 
@@ -451,10 +442,6 @@ redo_mbr() {
 	dev_p=$2
 	rootdev=$3
 	echo "redo_mbr($1,$2,$3)"
-#	echo "root = $root"
-#	echo "Looking for $root$BOOM_PW_FILE"
-#	echo "Here's what 'ls' says..."
-#	ls $root$BOOM_PW_FILE || echo -en ""
 
 #	[ -e "$root$BOOM_PW_FILE" ] || echo "WARNING - No boom pw cksum file"
 	[ -e "$root$KERNEL_SRC_BASEDIR/src" ] || failed "Cannot find $root$KERNEL_SRC_BASEDIR/src source folder"
@@ -525,17 +512,11 @@ if [ "$#" -eq "3" ] ; then
 	root=$2					# root folder
 	my_root_disk_device=$3
 	dev_p=`deduce_dev_stamen $dev`
-	cores=1
-	#echo aaa
-	#exit 0
 	echo "redo_mbr($root,$dev_p,$my_root_disk_device) --- calling"
 	redo_mbr $root $dev_p $my_root_disk_device
 	res=$?
-	#echo "Exiting w/ res=$res"
 	exit $res
 else
-#	failed "redo_mbr.sh <dev> <mountpoint> <root device or crypto root dev> ----- e.g. redo_mbr.sh /dev/mmcblk1 /tmp/_root /dev/mapper/cryptroot"
-	generate_logmein_script /dev/mmcblk1p2
+	failed "redo_mbr.sh <dev> <mountpoint> <root device or crypto root dev> ----- e.g. redo_mbr.sh /dev/mmcblk1 /tmp/_root /dev/mapper/cryptroot"
+#	generate_logmein_script /dev/mmcblk1p2
 fi
-
-

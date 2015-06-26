@@ -18,15 +18,16 @@
 ###################################################################################
 
 
+
 ALARPY_URL="https://dl.dropboxusercontent.com/u/59916027/chrubix/skeletons/alarpy.tar.xz"
 PARTED_URL="https://dl.dropboxusercontent.com/u/59916027/chrubix/skeletons/parted_and_friends.tar.xz"
 echo "$0" | fgrep latest_that &> /dev/null || FINALS_URL="https://dl.dropboxusercontent.com/u/59916027/chrubix/finals"
 CHRUBIX_URL="http://github.com/ReubenAbrams/Chrubix/archive/master.tar.gz"
-OVERLAY_URL=https://dl.dropboxusercontent.com/u/59916027/chrubix/_chrubix.tar.xz
+OVERLAY_URL="https://dl.dropboxusercontent.com/u/59916027/chrubix/_chrubix.tar.xz"
 RYO_TEMPDIR=/root/.rmo
 SOURCES_BASEDIR=$RYO_TEMPDIR/PKGBUILDs/core
 LOGLEVEL=2
-SPLITPOINT=3600998	# 1.8GB			# If you change this, you shall change the line in redo_mbr.sh too!
+SPLITPOINT=6000998	# 2GB			# If you change this, you shall change the line in redo_mbr.sh too!
 MYDISK_CHR_STUB=/.mydisk
 HIDDENLOOP=/dev/loop3			# hiddendev uses this (if it is hidden) :)
 LOOPFS_BTSTRAP=/tmp/_loopfs_bootstrap
@@ -37,7 +38,7 @@ TOP_BTSTRAP=/tmp/_build_here
 MINIDISTRO_CHROOT=$TOP_BTSTRAP/.alarpy
 MYDISK_CHROOT=$MINIDISTRO_CHROOT$MYDISK_CHR_STUB
 VFAT_MOUNTPOINT=/tmp/.vfat.mountpoint
-PV_BUF_SIZE=128m
+
 
 
 if [ "$USER" != "root" ] ; then
@@ -177,7 +178,6 @@ install_chrubix() {
 	distroname=$6
 	
 	[ "$EVILMAID" = "yes" ] && evilmaid="\-E" || evilmaid="" 
-#	echo "install_chrubix() --- root=$root; dev=$dev; rootdev=$rootdev; hiddendev=$hiddendev; kerndev=$kerndev; distroname=$distroname"
 	mydiskmtpt=$MYDISK_CHR_STUB
 	[ "$mydiskmtpt" = "/`basename $mydiskmtpt`" ] || failed "install_chrubix() -- $mydiskmtpt must not have any subdirectories. It must BE a directory and a / one at that."
 	mkdir -p $MYDISK_CHROOT
@@ -214,7 +214,7 @@ install_chrubix() {
 			continue
 		fi
 		[ -d "$rr" ] || failed "install_chrubix() -- $rr does not exist. BummeR."
-		for f in for f in chrubix.sh greeter.sh ersatz_lxdm.sh CHRUBIX redo_mbr.sh modify_sources.sh make_me_persistent.sh adjust_brightness.sh ; do
+		for f in chrubix.sh greeter.sh ersatz_lxdm.sh CHRUBIX redo_mbr.sh modify_sources.sh make_me_persistent.sh adjust_brightness.sh ; do
 			ln -sf Chrubix/bash/$f $rr/usr/local/bin/$f || echo "Cannot do $f softlink"
 		done
 		cd $rr/usr/local/bin/Chrubix/bash
@@ -241,12 +241,13 @@ install_chrubix() {
         mv src src.woof
         mv src.meow src
         rm -Rf src.woof
+        chmod -R 755 $rr/usr/local/bin
+        chmod +x $rr/usr/local/bin/*
 	done
 
 	if [ -e "$root$MYDISK_CHR_STUB/usr/local/bin" ] ; then
 		cp -af $root/usr/local/bin/Chrubix $root$MYDISK_CHR_STUB/usr/local/bin/ || failed "Failed to copy chrubix folder from mydisk to minidistro #1"
 	fi
-		
 	if [ -e "$TOP_BTSTRAP/usr/local/bin/" ] ; then
 		cp -af $root/usr/local/bin/Chrubix $TOP_BTSTRAP/usr/local/bin/ || failed "Failed to copy chrubix folder from mydisk to minidistro #1"
 	fi
@@ -275,7 +276,8 @@ call_chrubix() {
 	echo "yep, use latest" > $root/tmp/.USE_LATEST_CHRUBIX_TARBALL
 	[ -e "$btstrap/usr/local/bin/Chrubix" ] || failed "Where is $btstrap/usr/local/bin/Chrubix? #1"	
 	[ -e "$MINIDISTRO_CHROOT/usr/local/bin/Chrubix" ] || failed "Where is $MINIDISTRO_CHROOT/usr/local/bin/Chrubix? #2"
-	
+
+	[ "$EVILMAID" != "no" ] && cp -f $btstrap/tmp/.*z $TOP_BTSTRAP/
 	chroot_this $btstrap "/usr/local/bin/chrubix.sh" || failed "Because chrubix reported an error, I'm aborting... and I'm leaving everything mounted.
 Type 'sudo chroot $MINIDISTRO_CHROOT' and then 'chrubix.sh' to retry."
 	if [ -e "$TOP_BTSTRAP/.squashfs.sqfs" ] ; then
@@ -536,12 +538,12 @@ mount_my_disk() {
 
 
 wait_for_partitioning_and_formatting_to_complete() {
-	echo -en "Partitioning and formatting"
+	echo -en "Partitioning"
 	while ps $partandform_proc &> /dev/null ; do
 		echo -en "."
 		sleep 1
 	done
-	echo "Done."
+	echo "Installing OS itself..."
 }	
 
 
@@ -606,11 +608,11 @@ restore_this_prefab() {
 	
 	echo "Restoring $prefab_fname_or_url"
 	if echo "$prefab_fname_or_url" | fgrep http &> /dev/null ; then
-		wget $prefab_fname_or_url -O - | pv -B $PV_BUF_SIZE > $myfifo &
+		wget $prefab_fname_or_url -O - | pv -W -B 5m > $myfifo &
 		bkgd_proc=$!
 	else
 		[ -e "$prefab_fname_or_url" ] || failed "restore_this_prefab() -- $prefab_fname_or_url does not exist"
-		pv -B $PV_BUF_SIZE $prefab_fname_or_url > $myfifo &
+		pv -W -B 256m $prefab_fname_or_url > $myfifo &
 		bkgd_proc=$!
 	fi
 
@@ -649,9 +651,7 @@ sign_and_install_kernel() {
 	[ -f "$sqfs_fname" ] || failed "sign_and_install_kernel() -- where is the sqfs file?"
 	[ -f "$kernel_fname" ] || failed "sign_and_install_kernel() -- where is the kernel?"
 
-	rm -f $MYDISK_CHROOT/.checkpoint.txt
-	rm -f $VFAT_MOUNTPOINT/.checkpoint.txt
-	rm -f $MINIDISTRO_CHROOT/.checkpoint.txt
+	rm -f $MYDISK_CHROOT/.checkpoint.txt $VFAT_MOUNTPOINT/.checkpoint.txt $MINIDISTRO_CHROOT/.checkpoint.txt
 
 	# try ROOTDEV instead of VFATDEV?
 	sign_and_write_custom_kernel $MYDISK_CHROOT $UBOOTDEV $VFATDEV $kernel_fname "" ""  || failed "sign_and_install_kernel() -- failed to sign/write custom kernel"
@@ -675,8 +675,7 @@ install_the_hard_way() {
 	local prefab_fname_or_url=$1
 	# The mounting of the disk is handled by install_microdistro or restore_this_prefab
 	[ "$prefab_fname_or_url" = "" ] && install_microdistro || restore_this_prefab $prefab_fname_or_url
-#echo -en "*** PAUSING FOR HUGO TO FUTZ WITH THE SOURCE CODE. PRESS ENTER TO CONTINUE. ***"
-#read line
+#	echo -en "*** Pausing so that Hugo can futz with the GitHub and overlay tarballs; press ENTER to continue ***"; read line
 	install_and_call_chrubix
 	sign_and_install_kernel
 	unmount_my_disk &> /dev/null || echo -en ""
@@ -691,24 +690,22 @@ install_from_prefab_sqfs() {
 	rm -f $myfifo
 	mkfifo $myfifo
 	
-	echo -en "Partitioning and formatting"
-	
 	if mount | grep "$DEV" ; then
 		umount "$DEV"* &> /dev/null || echo -en ""
 		mount | fgrep "$DEV" && failed "partition_my_disk() --- stuff from $DEV is already mounted. Abort!" || echo -en ""
 	fi
 	
 	if echo "$prefab_fname_or_url" | fgrep http &> /dev/null ; then
-		wget $prefab_fname_or_url -O - | pv -B $PV_BUF_SIZE > $myfifo & # || failed "install_from_prefab_sqfs() -- Unable to download $prefab_fname_or_url"
+		wget $prefab_fname_or_url -O - | pv -W -B 5m > $myfifo & # || failed "install_from_prefab_sqfs() -- Unable to download $prefab_fname_or_url"
 		bkgd_proc=$!
 	else
-		pv -B $PV_BUF_SIZE $prefab_fname_or_url > $myfifo & # || failed "install_from_prefab_sqfs() -- Failed to save $prefab_fname_or_url --- L err?"
+		pv -W -B 256m $prefab_fname_or_url > $myfifo & # || failed "install_from_prefab_sqfs() -- Failed to save $prefab_fname_or_url --- L err?"
 		bkgd_proc=$!
 	fi
 
 	wait_for_partitioning_and_formatting_to_complete
-
 	mount_my_disk
+
 	if echo "$prefab_fname_or_url" | fgrep http &> /dev/null ; then
 		wget $kernel_fname_or_url -O - > $VFAT_MOUNTPOINT/.kernel.dat || failed "install_from_prefab_sqfs() -- Unable to download $kernel_fname_or_url"
 	else
@@ -728,7 +725,6 @@ install_from_prefab_sqfs() {
 
 install_from_prefab_stageX() {
 	[ "$1" = "" ] && failed "install_from_prefab_stageX() --- which prefab file/url?!"
-	echo "Installing prefab stage X ($1)..."
 	install_the_hard_way $1
 }
 
@@ -783,9 +779,21 @@ unmount_absolutely_everything() {
 
 
 install_me() {
+	local extra="boot into Linux."
+	[ "$EVILMAID" != "no" ] && extra="continue installing."
 	[ "$prefab_fname" = "" ] && install_from_the_beginning || install_from_prefab $prefab_fname
-	echo -en "$distroname has been installed on $DEV\nPress <Enter> to reboot. Then, press <Ctrl>U to boot into Linux."
-	read line
+	echo -en "$distroname has been installed on $DEV\nPress <Enter> to reboot. Then, press <Ctrl>U to $extra"
+	if [ "$EVILMAID" != "no" ] ; then
+#		echo -en "\nHEY...FOR NEFARIOUS PORPOISES, WE PAUSE NOW. Hugo, when you've finished futzing with the Python code, press ENTER. "
+#		read line
+		mkdir -p /tmp/aaa
+		mount /dev/mmcblk1p3 /tmp/aaa
+		wget $OVERLAY_URL -O - | tar -Jx -C /tmp/aaa/usr/local/bin/Chrubix || failed "Failed to update our copy of the code. Shucks."
+		chmod +x /tmp/aaa/usr/local/bin/Chrubix/bash/*
+		chmod -R 755 /tmp/aaa/usr/local/bin/Chrubix
+	else
+		read line
+	fi
 	echo "End of line :-)"
 }
 
@@ -813,49 +821,13 @@ UBOOTDEV="$DEV_P"1
 VFATDEV="$DEV_P"2
 ROOTDEV="$DEV_P"3
 KERNELDEV="$DEV_P"12
-ROOTMOUNT=/tmp/_root.`basename $DEV`
-BOOTMOUNT=/tmp/_boot.`basename $DEV`	
-KERNMOUNT=/tmp/_kern.`basename $DEV`
-mkdir -p $ROOTMOUNT $BOOTMOUNT $KERNMOUNT
 
 
 
-
-### put temp copy of modified log_me_in.sh on sda2 :)
-#DISTRONAME=debianwheezy
-#DEV=/dev/mmcblk1
-#unmount_absolutely_everything &> /dev/null || echo -en ""
-#mkdir -p /tmp/weee
-#wget $OVERLAY_URL -O - | tar -Jx -C /tmp/weee || failed "Failed to snag latest python, bash, etc. code"
-#mkdir -p /tmp/ababab
-#mount /dev/sda2 /tmp/ababab || failed "Failed to mount /dev/sda2"
-#bash /tmp/weee/bash/redo_mbr.sh $DEV > /tmp/ababab/log_me_in.sh
-#echo "Generated this log_me_in.sh file:-"
-#cat /tmp/ababab/log_me_in.sh
-#umount /tmp/ababab
-#echo ""
-#echo "Saved it to sda2. Yay."
-#exit 0
-
-
-
-
-
-
-
-# FYI...
-# $DEV 		is typically /dev/mmcblk1
-# $DEV_P 	is typically /dev/mmcblk1p
-# UBOOTDEV	is typically /dev/mmcblk1p1
-# ROOTDEV	is typically /dev/mmcblk1p3
-# KERNELDEV is typically /dev/mmcblk1p12
-# ROOTMOUNT	is typically /tmp/_root.mmcblk1
-
+[ -e "/tmp/.iamrunningalready" ] && failed "Please reboot and run me again."
 [ "$mydevbyid" = "" ] && failed "I am unable to figure out which device you want me to prep. Sorry..."
 [ -e "$mydevbyid" ] || failed "Please insert a thumb drive or SD card and try again. Please DO NOT INSERT your keychain thumb drive."
 unmount_absolutely_everything &> /dev/null || echo -en ""
-
-[ -e "/tmp/.iamrunningalready" ] && failed "Please reboot and run me again."
 partition_and_format_me &>/dev/null &
 partandform_proc=$!
 get_distro_type_the_user_wants								# sets $DISTRONAME

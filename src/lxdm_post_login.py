@@ -20,7 +20,7 @@ def pause_for_one_second():
 def execute_this_list( my_list ):
     for cmd in my_list:
         res = os.system( '( %s ) &' % ( cmd ) )
-        os.system( 'sleep 0.25' )
+        os.system( 'sleep 0.2' )
         logme( 'Called >>> %s <<<; res=%d' % ( cmd, res ) )
 
 
@@ -28,22 +28,21 @@ def configure_X_and_start_some_apps():
     logme( 'lxdm_post_login.py --- configuring X and starting some apps' )
     main_list = ( 
                 'pulseaudio -k',  # 'start-pulseaudio-x11',
-                'ps -o pid -C wmaker && wmsystemtray',
-                'keepassx -min',
-                'touch /tmp/.okConnery.thisle.44',
+                'florence',  # & sleep 3; florence hide
                 'xset s off',
                 'xset -dpms',
-                '\
-xmodmap -e "keycode 72=XF86MonBrightnessDown"; \
-xmodmap -e "keycode 73=XF86MonBrightnessUp"; \
-xmodmap -e "keycode 74=XF86AudioMute"; \
-xmodmap -e "keycode 75=XF86AudioLowerVolume"; \
-xmodmap -e "keycode 76=XF86AudioRaiseVolume"',
-                'florence',  # & sleep 3; florence hide
+                'ps -o pid -C wmaker && wmsystemtray',
+                'if ps wax | fgrep mate-session | fgrep -v grep &>/dev/null ; then pulseaudio -k; mpg123 /etc/.mp3/winxp.mp3; fi',
+                'xmodmap -e "keycode 72=XF86MonBrightnessDown"',
+                'xmodmap -e "keycode 73=XF86MonBrightnessUp"',
+                'xmodmap -e "keycode 74=XF86AudioMute"',
+                'xmodmap -e "keycode 75=XF86AudioLowerVolume"',
+                'xmodmap -e "keycode 76=XF86AudioRaiseVolume"',
+                'xmodmap -e "pointer = 1 2 3 5 4 7 6 8 9 10 11 12"',
                 'gpgApplet',
-                'xbindkeys',
+                'keepassx -min',
                 'dconf write /apps/florence/controller/floaticon false',
-                'if ps wax | fgrep mate-session | fgrep -v grep ; then pulseaudio -k; mpg123 /etc/.mp3/winxp.mp3; fi',
+                'xbindkeys',
 #                'ip2router start',
 #                'su freenet -c “/opt/freenet/run.sh start"',  # /opt/freenet start',
                )
@@ -91,14 +90,15 @@ def start_privoxy_freenet_i2p_and_tor():
 def start_a_browser():
     website = 'www.duckduckgo.com'
     binary = None
-    if os.path.exists( '/tmp/.do-not-automatically-connect' ):
-        logme( 'Running dillo to help user access the Net via Starbucks or whatever' )
-        binary = 'dillo'
-    else:
+    distro = load_distro_record( '/' )
+    if distro.lxdm_settings['internet directly']:
         if 0 == os.system( 'which iceweasel &> /dev/null' ):
             binary = 'iceweasel'
         else:
             binary = 'chromium'
+    else:
+        logme( 'Running dillo to help user access the Net via Starbucks or whatever' )
+        binary = 'dillo'
     cmd = '%s %s &' % ( binary, website )
     logme( 'start_a_browser() --- calling %s' % ( cmd ) )
     res = os.system( cmd )

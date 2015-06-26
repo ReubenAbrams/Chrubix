@@ -328,23 +328,6 @@ def do_a_sed( filename, replace_me, with_this ):
             sources.write( re.sub( replace_me, with_this, line ) )
 
 
-# def generate_and_incorporate_patch_for_debian( mountpoint, source_pathname ):
-#    package_name = os.path.basename( source_pathname )
-#    package_path = os.path.dirname( source_pathname )
-    # 'cd' into correct folder for this package --- probably $mountpoint/$source_pathname
-    # for each file ending in Pristine
-        # diff file.*Pristine file > source_pathname/nn-patch
-    # store patches in debian/... ?
-    # ... Something like that :)
-
-#    chroot_this( mountpoint, '''cd %s; mkdir -p do_funky_stuff_here; cd do_funky_stuff_here; mkdir -p %s.orig; tar -zxf
-#   ''' % (source_pathname, package_name))
-
-
-def install_gpg_applet( mountpoint ):
-    system_or_die( 'tar -zxf %s/usr/local/bin/Chrubix/blobs/apps/gpgApplet.tgz -C %s' % ( mountpoint, mountpoint ) )
-
-
 def fix_broken_hyperlinks( dir_to_fix ):
     contents = [ f for f in os.listdir( dir_to_fix ) ]
     for filename in contents:
@@ -435,6 +418,8 @@ def install_windows_xp_theme_stuff( mountpoint ):
     for res_num in ( 24, 32, 48, 64 ):
         resolution = '%dx%d' % ( res_num, res_num )
         system_or_die( 'cp %s/usr/share/icons/GnomeXP/48x48/apps/iceweasel.png %s/usr/share/icons/hicolor/%s/apps/chromium.png' % ( mountpoint, mountpoint, resolution ) )
+    chroot_this( mountpoint, 'mv -f /usr/share/backgrounds/mate/desktop/luna_background.jpg /usr/share/backgrounds/mate/desktop/luna_background_orig.jpg' )
+    chroot_this( mountpoint, 'cp -f /usr/local/bin/Chrubix/blobs/xp/win7_wallpaper.jpg /usr/share/backgrounds/mate/desktop/luna_background.jpg' )
 
 
 def install_mp3_files( mountpoint ):
@@ -527,3 +512,129 @@ def check_sanity_of_distro( mountpoint, kernel_src_basedir ):
             flaws += 1
     logme( "This sanity-checker is incomplete. Please improve it." )
     return broken_pkgs
+
+
+
+
+def migrate_to_obfuscated_filesystem( distro ):
+    failed( 'migrate_to_obfuscated_filesystem() -- nefarious porpoises' )
+    os.system( 'clear' )
+    if distro.status_lst not in ( None, [] ) and len( distro.status_lst ) > 1:
+        distro.status_lst = distro.status_lst[-1:]
+    distro.update_status_with_newline( '*** %s ***' % ( distro.hewwo ) )
+    distro.update_status_with_newline( 'Welcome back!' )
+    distro.update_status_with_newline( '****************************************************************************************' )
+    distro.update_status_with_newline( 'Migrating from a temporary system to an encrypted, permanent system...' )
+    distro.pheasants = True  # HOWEVER, we don't want to modify the sources! If we do that, we lose our existing magic#.
+    distro.kthx = True  # HOWEVER....., we don't want to modify the sources! If we do that, we lose our existing magic#.
+    distro.initrd_rebuild_required = True
+    assert( os.path.exists( '%s/etc/.randomized_serno' % ( distro.mountpoint ) ) )
+    system_or_die( 'rm -f %s%s/core/chromeos-3.4/arch/arm/boot/vmlinux.uimg' % ( distro.mountpoint, distro.kernel_src_basedir ) )
+    for cmd in ( 
+                    'mkdir -p %s' % ( distro.sources_basedir ),
+                    'mkdir -p /tmp/shoopwhoop',
+                    'mount %s /tmp/shoopwhoop' % ( distro.root_dev ),
+                    'tar -Jxf /tmp/shoopwhoop/.mkfs.tar.xz -C /',
+                    'umount /tmp/shoopwhoop',
+                    '''
+FSTYPE="blah"
+while [ "$FSTYPE" != "ext4" ] && [ "$FSTYPE" != "btrfs" ] && [ "$FSTYPE" != "xfs" ] && [ "$FSTYPE" != "jfs" ] ; do
+    echo -en "Your filesystem may use ext4, xfs, jfs, or btrfs. (btrfs=best!) Please choose. => "
+    read FSTYPE
+done
+echo $FSTYPE > %s/.cryptofstype
+''' % ( distro.mountpoint )
+                    ):
+        chroot_this( distro.mountpoint, cmd, on_fail = 'Failed to run %s' % ( cmd ) )
+    distro.crypto_filesystem_format = read_oneliner_file( '%s/.cryptofstype' % ( distro.mountpoint ) )
+    new_mtpt = '/tmp/_enc_root'
+    distro.set_root_password()
+    distro.configure_guestmode_prior_to_migration()
+# NOOO!  system_or_die( 'rm -f /.squashfs.sqfs %s/.squashfs.sqfs' % ( distro.mountpoint ) )    # NOOO! What if we're RUNNING LIVE?!
+    distro.lxdm_settings['use greeter gui'] = False
+    chrubix.save_distro_record( distro_rec = distro, mountpoint = distro.mountpoint )
+    distro.migrate_all_data( new_mtpt )  # also mounts new_mtpt and rejigs kernel
+    mount_sys_tmp_proc_n_dev( new_mtpt, force = True )
+#        distro.mountpoint = new_mtpt
+    distro.update_status( 'PKGBUILDs' )
+    for cmd in ( 
+                    'mkdir -p %s' % ( distro.sources_basedir ),
+                    'mkdir -p /tmp/whoopshoop',
+                    'mount %s /tmp/whoopshoop' % ( distro.root_dev ),
+# FIXME comment out the next line & see what happens
+                    'tar -Jxf /tmp/whoopshoop/.PKGBUILDs.tar.xz -C %s' % ( distro.ryo_tempdir ),
+                    'tar -Jxf /tmp/whoopshoop/.PKGBUILDs.additional.tar.xz -C %s' % ( distro.ryo_tempdir ),
+# FIXME comment out the next 19 lines & see what happens
+                    '''
+cd %s
+errors=0
+for ddd in `find *fs* -maxdepth 1 -mindepth 1 -type d | grep fs`; do
+    echo ddd=$ddd >> /tmp/chrubix.log
+    cd $ddd
+    if [ -e "Makefile" ] ; then
+        if make ; then
+            if make install ; then
+                echo $ddd=OK >> /tmp/chrubix.log
+            else
+                errors=$(($errors+10))
+            fi
+        else
+            errors=$(($errors+1))
+        fi
+    fi
+    cd ../..
+done
+exit $errors
+''' % ( distro.sources_basedir ),
+                    'cp -f /tmp/whoopshoop/.*gz /tmp/',
+                    'cp -f /tmp/whoopshoop/.*gz /'
+                    ):
+        chroot_this( new_mtpt, cmd, on_fail = 'Failed to run %s' % ( cmd ), status_lst = distro.status_lst, title_str = distro.title_str, attempts = 1 )
+        distro.update_status( '.' )
+# Were the binaries installed?
+    for looking_for_cmd in ( 'mkfs.xfs', 'jfs_mkfs', 'mkfs.btrfs' ):
+        if 0 != os.system( 'which %s 2> /dev/null' % ( looking_for_cmd ), attempts = 1 ):
+            failed( 'Unable to locate %s in current filesystem, even though I rebuilt it a moment ago.' % ( looking_for_cmd ) )
+    system_or_die( 'cp -f %s/tmp/whoopshoop/.*gz /tmp/' % ( new_mtpt ) )
+    distro.redo_mbr_for_encrypted_root( new_mtpt )
+    chrubix.save_distro_record( distro_rec = distro, mountpoint = new_mtpt )  # save distro record to new disk (not old mountpoint)
+    distro.update_status_with_newline( '5. Reboot!' )
+    try:
+        os.system( 'umount %s/%s/tmp/whoopshoop' % ( distro.mountpoint, new_mtpt ) )
+        unmount_sys_tmp_proc_n_dev( new_mtpt )
+        os.system( 'umount %s/%s' % ( distro.mountpoint, new_mtpt ) )
+        if distro.mountpoint != '/':
+            unmount_sys_tmp_proc_n_dev( distro.mountpoint )
+    except ( SystemError, SyntaxError ):
+        pass
+    os.system( 'cryptsetup luksClose %s' % ( os.path.basename( distro.crypto_rootdev ) ) )
+    os.system( 'clear; echo "Press ENTER and reboot.; read line' )
+    failed( 'Reboot now.' )
+    os.system( 'sync;sync;sync; reboot' )
+
+
+def create_impatient_wrapper( mountpoint, name_of_binary ):
+    path_and_fname = '/sbin/%s' % ( name_of_binary )
+    if not os.path.exists( path_and_fname ):
+        path_and_fname = '/usr/sbin/%s' % ( name_of_binary )
+        if not os.path.exists( path_and_fname ):
+            failed( 'create_impatient_wrapper() -- unable to find %s' % ( name_of_binary ) )
+    system_or_die( 'mv %s%s %s%s.therealthing' % ( mountpoint, path_and_fname, mountpoint, path_and_fname ) )
+    write_oneliner_file( path_and_fname, '''#!/bin/sh
+%s &
+sudo %s &
+sleep 20
+# copied from poweroff_now()
+sync;sync;sync
+echo 3   > /proc/sys/kernel/printk
+echo 3   > /proc/sys/vm/drop_caches
+echo 256 > /proc/sys/vm/min_free_kbytes
+echo 1   > /proc/sys/vm/overcommit_memory
+echo 1   > /proc/sys/vm/oom_kill_allocating_task
+echo 0   > /proc/sys/vm/oom_dump_tasks
+echo 1   > /proc/sys/kernel/sysrq
+echo o   > /proc/sysrq-trigger
+
+exit 0
+''' % ( path_and_fname, path_and_fname ) )
+    system_or_die( 'chmod +x %s%s' % ( mountpoint, path_and_fname ) )

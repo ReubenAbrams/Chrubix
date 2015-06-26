@@ -126,6 +126,7 @@ mate-desktop-environment-extras'  # FYI, freenet is handled by install_final_pus
         self.architecture = 'armhf'
         self.list_of_mkfs_packages = ( 'cryptsetup', 'jfsutils', 'xfsprogs', 'btrfs-tools' )
         self.packages_folder_url = 'http://ftp.uk.debian.org/debian/'
+        self.my_extra_repos = ''
 
 #    @property
 #    def kernel_src_basedir( self ):
@@ -180,7 +181,7 @@ mate-desktop-environment-extras'  # FYI, freenet is handled by install_final_pus
         self.update_status_with_newline( '...kernel installed.' )
         logme( 'DebianDistro - install_kernel_and_mkfs() - leaving' )
 
-    def install_package_manager_tweaks( self, yes_add_ffmpeg_repo = False ):
+    def install_package_manager_tweaks( self ):
         logme( 'DebianDistro - install_package_manager_tweaks() - starting' )
         write_oneliner_file( '%s/etc/apt/sources.list' % ( self.mountpoint ), '''
 deb http://ftp.uk.debian.org/debian %s main non-free contrib
@@ -197,7 +198,7 @@ deb-src http://ftp.uk.debian.org/debian %s-backports main non-free contrib
 
 %s
 ''' % ( self.branch, self.branch, self.branch, self.branch, self.branch, self.branch, self.branch, self.branch,
-        '' if not yes_add_ffmpeg_repo else 'deb http://www.deb-multimedia.org ' + self.branch + ' main non-free' ) )
+        self.my_extra_repos ) )
         chroot_this( self.mountpoint, '' )
         if g_proxy is not None:
             f = open( '%s/etc/apt/apt.conf' % ( self.mountpoint ), 'a' )
@@ -220,6 +221,8 @@ Acquire::https::Proxy "https://%s/";
 
     def install_important_packages( self ):
         logme( 'DebianDistro - install_all_important_packages_other_than_systemd_sysv() - starting' )
+        chroot_this( self.mountpoint, '''yes "Yes, do as I say!" | apt-get install systemd systemd-sysv''' , title_str = self.title_str, status_lst = self.status_lst,
+                    on_fail = 'Failed to install systemd-sysv' )
         packages_installed_succesfully = []
         packages_that_we_failed_to_install = []
         packages_lst = self.important_packages.split( ' ' )
@@ -497,13 +500,13 @@ fi
             system_or_die( 'rm -Rf   %s%s/%s' % ( self.mountpoint, self.sources_basedir, package_name ) )
             system_or_die( 'mkdir -p %s%s/%s' % ( self.mountpoint, self.sources_basedir, package_name ) )
             files_i_want = self.deduce_filelist_from_website( src_url, package_name )
-            logme( 'QQQ files_i_want(%s,%s) => %s' % ( src_url, package_name, str( files_i_want ) ) )
+            logme( 'files_i_want(%s,%s) => %s' % ( src_url, package_name, str( files_i_want ) ) )
             if files_i_want in ( None, [], '' ):
                 files_i_want = self.deduce_filelist_from_website( os.path.dirname( src_url ) + '/source/' + os.path.basename( src_url ), package_name )
-                logme( 'QQQ files_i_want(%s,%s) => %s' % ( src_url, package_name, str( files_i_want ) ) )
+                logme( 'files_i_want(%s,%s) => %s' % ( src_url, package_name, str( files_i_want ) ) )
             if files_i_want in ( None, [], '' ):
                 files_i_want = ''
-                logme( 'QQQ files_i_want(%s,%s) => %s' % ( src_url, package_name, str( files_i_want ) ) )
+                logme( 'files_i_want(%s,%s) => %s' % ( src_url, package_name, str( files_i_want ) ) )
 #            if files_i_want in ( None, [], '' ):
 #                raise IOError( '%s is absent from the online repositories' % ( package_name ) )
             self.download_pkgfiles_from_website( package_name, files_i_want )
@@ -532,7 +535,7 @@ fi
         logme( '' )
         extra_slash = '/' if src_url[-2:] == '/%s' % ( package_name[:1] )else ''
         full_url = '%s/%s%s' % ( src_url, package_name, extra_slash )
-        logme( 'QQQ full_url = %s' % ( full_url ) )
+        logme( 'full_url = %s' % ( full_url ) )
         for search_phrase in ( '.dsc', '.orig.tar.gz', '.orig.tar.xz', 'debian.tar.gz', 'debian.tar.xz', '.diff.' ):
             if 0 == os.system ( 'curl %s 2> /dev/null | fgrep "%s" > %s' % ( full_url, search_phrase, tmpfile ) ):
                 result_of_search = read_oneliner_file( tmpfile )
@@ -609,14 +612,14 @@ fi
         if neutralize_dependency_vernos:
             do_a_sed( f, '\\(>=.*\\)', '' )
         if not os.path.isfile( f ):
-            failed( 'Hugo, you banjaxed control...' )
+            failed( 'Oops, you banjaxed control...' )
         g = '%s/%s/%s/debian/libservice-wrapper-java.preinst' % ( self.mountpoint, self.sources_basedir, package_name )
         if os.path.isfile( g ):
             write_oneliner_file( g, '''#!/bin/sh
 echo hi\n
 exit 0
 ''' )
-            logme( 'QQQ rewriting preinst file for libservice-wrapper-java' )
+            logme( 'rewriting preinst file for libservice-wrapper-java' )
         logme( 'DebianDistro - tweak_pkgfiles_accordingly() - leaving' )
 
     def build_package_from_fileset( self, package_name ):
@@ -646,13 +649,10 @@ class WheezyDebianDistro( DebianDistro ):
         super( WheezyDebianDistro, self ).__init__( *args, **kwargs )
         self.branch = 'wheezy'  # lowercase; yes, it matters :)
         self.important_packages = self.important_packages.replace( 'openjdk-8-', 'openjdk-7-' ) + ' libetpan15'
-
-    def install_important_packages( self ):
-        chroot_this( self.mountpoint, '''yes "Yes, do as I say!" | apt-get install systemd systemd-sysv''' , title_str = self.title_str, status_lst = self.status_lst,
-                    on_fail = 'Failed to install systemd-sysv' )
-        super( WheezyDebianDistro, self ).install_important_packages()  # FIXME yes_add_ffmpeg_repo = True )
+        self.my_extra_repos = 'deb http://www.deb-multimedia.org ' + self.branch + ' main non-free'
 
     def tweak_pulseaudio( self ):
+        # Wheezy requires a special kind of bulls***. :-/ The standard Distro.tweak_pulseaudio() won't work.
         if os.path.exists( '%s/etc/pulse/default.pa' % ( self.mountpoint ) ):
             new_str = 'load-module module-alsa-source device=hw:0,0 #QQQ'
             do_a_sed( '%s/etc/pulse/default.pa' % ( self.mountpoint ), '#load-module module-alsa-sink', new_str )
@@ -663,27 +663,12 @@ class WheezyDebianDistro( DebianDistro ):
         else:
             logme( 'tweak_pulseaudio() -- unable to modify /etc/default/pulseaudio; it does not exist' )
 
-#    def configure_distrospecific_tweaks( self ):
-#        super( WheezyDebianDistro, self ).configure_distrospecific_tweaks()
-#        for cmd in ( 'echo -en "deb ftp://ftp.debian.org debian jessie main\ndeb-src ftp://ftp.debian.org debian jessie main\n" >> /etc/apt/sources.list',
-#                    'yes Y | apt-get update',
-#                    'yes Y | apt-get install cgpt' ):
-#            chroot_this( self.mountpoint, cmd, on_fail = 'Failed to run %s' % ( cmd ), attempts = 1 )
 
 class JessieDebianDistro( DebianDistro ):
     def __init__( self , *args, **kwargs ):
         super( JessieDebianDistro, self ).__init__( *args, **kwargs )
         self.branch = 'jessie'  # lowercase; yes, it matters
         self.important_packages += ' libetpan-dev g++-4.8'
-
-    def install_important_packages( self ):
-        chroot_this( self.mountpoint, '''yes "Yes, do as I say!" | apt-get install systemd systemd-sysv''' , title_str = self.title_str, status_lst = self.status_lst,
-                    on_fail = 'Failed to install systemd-sysv' )
-        super( JessieDebianDistro, self ).install_important_packages()
-
-    def install_package_manager_tweaks( self ):
-        super( JessieDebianDistro, self ).install_package_manager_tweaks()
-        super( JessieDebianDistro, self ).install_package_manager_tweaks( yes_add_ffmpeg_repo = True )
 
 
 class StretchDebianDistro( DebianDistro ):
@@ -693,14 +678,6 @@ class StretchDebianDistro( DebianDistro ):
         self.important_packages += ' libetpan-dev g++-4.8'
 #        self.use_latest_kernel = True
 
-    def install_important_packages( self ):
-        chroot_this( self.mountpoint, '''yes "Yes, do as I say!" | apt-get install systemd systemd-sysv''' , title_str = self.title_str, status_lst = self.status_lst,
-                    on_fail = 'Failed to install systemd-sysv' )
-        super( StretchDebianDistro, self ).install_important_packages()
-
-    def install_package_manager_tweaks( self ):
-        super( StretchDebianDistro, self ).install_package_manager_tweaks()
-        super( StretchDebianDistro, self ).install_package_manager_tweaks( yes_add_ffmpeg_repo = True )
 
 
 

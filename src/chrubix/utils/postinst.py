@@ -25,10 +25,10 @@ setxkbmap us
 localectl set-x11-keymap us
 xset -b        # dpms, no audio bell; see https://www.notabilisfactum.com/blog/?page_id=7
 xset m 30/10 3
-# FIXME Why don't we put xmodmap stuff (bightness, volume) in here instead? At present, it's in post_lxdm thingumabob
-logger "QQQ startx cccc"
+# TODO Why don't we put xmodmap stuff (bightness, volume) in here instead? At present, it's in post_lxdm thingumabob
+logger "startx cccc"
 syndaemon -t -k -i 1 -d    # disable mousepad for 1s after typing finishes
-logger "QQQ startx end of startx addendum"
+logger "startx end of startx addendum"
 ''' )
     f.close()
 
@@ -112,7 +112,7 @@ GetAvailableNetworks() {
 
 lockfile=/tmp/.go_online_manual.lck
 manual_mode() {
-logger "QQQ wifi-manual --- starting"
+logger "wifi-manual --- starting"
 res=999
 #clear
 echo "This terminal window is here in case the NetworkManager applet malfunctions."
@@ -161,21 +161,21 @@ def generate_wifi_auto_script( outfile ):
 lockfile=/tmp/.go_online_auto.lck
 try_to_connect() {
   local lst res netname_tabbed netname
-  logger "QQQ wifi-auto --- Trying to connect to the Internet..."
+  logger "wifi-auto --- Trying to connect to the Internet..."
   r="`nmcli --nocheck con status | grep -v "NAME.*UUID" | wc -l`"
   if [ "$r" -gt "0" ] ; then
     if ping -W5 -c1 8.8.8.8 ; then
-      logger "QQQ wifi-auto --- Cool, we're already online. Fair enough."
+      logger "wifi-auto --- Cool, we're already online. Fair enough."
       return 0
     else
-      logger "QQQ wifi-auto --- ping failed. OK. Trying to connect to Internet."
+      logger "wifi-auto --- ping failed. OK. Trying to connect to Internet."
     fi
   fi
   lst="`nmcli --nocheck con list | grep -v "UUID.*TYPE.*TIMESTAMP" | sed s/\\ \\ \\ \\ /^/ | cut -d'^' -f1 | tr ' ' '^'`"
   res=999
   for netname_tabbed in $lst $lst $lst ; do # try thrice
     netname="`echo "$netname_tabbed" | tr '^' ' '`"
-    logger "QQQ wifi-auto --- Trying $netname"
+    logger "wifi-auto --- Trying $netname"
     nmcli --nocheck con up id "$netname"
     res=$?
     [ "$res" -eq "0" ] && break
@@ -183,19 +183,19 @@ try_to_connect() {
     sleep 1
   done
   if [ "$res" -eq "0" ]; then
-    logger "QQQ wifi-auto --- Successfully connected to WiFi - ID=$netname"
+    logger "wifi-auto --- Successfully connected to WiFi - ID=$netname"
   else
-    logger "QQQ wifi-auto --- failed to connect; Returning res=$res"
+    logger "wifi-auto --- failed to connect; Returning res=$res"
   fi
 
   return $res
 }
 # -------------------------
-logger "QQQ wifi-auto --- trying to get online automatically"
+logger "wifi-auto --- trying to get online automatically"
 if [ -e "$lockfile" ] ; then
   p="`cat $lockfile`"
   while ps $p &> /dev/null ; do
-    logger "QQQ wifi-auto --- Already running at $$. Waiting."
+    logger "wifi-auto --- Already running at $$. Waiting."
     sleep 1
   done
 fi
@@ -276,6 +276,8 @@ def configure_lxdm_onetime_changes( mountpoint ):
     write_lxdm_pre_login_file( mountpoint, '%s/etc/lxdm/PreLogin' % ( mountpoint ) )
     write_lxdm_post_logout_file( '%s/etc/lxdm/PostLogout' % ( mountpoint ) )
     write_lxdm_post_login_file( '%s/etc/lxdm/PostLogin' % ( mountpoint ) )
+    write_lxdm_pre_reboot_or_shutdown_file( '%s/etc/lxdm/PreReboot' % ( mountpoint ), 'reboot' )
+    write_lxdm_pre_reboot_or_shutdown_file( '%s/etc/lxdm/PreShutdown' % ( mountpoint ), 'shutdown' )
     write_login_ready_file( '%s/etc/lxdm/LoginReady' % ( mountpoint ) )
     if 0 == chroot_this( mountpoint, 'which iceweasel > /tmp/.where_is_it.txt' ) \
     or 0 == chroot_this( mountpoint, 'which chromium  > /tmp/.where_is_it.txt' ):
@@ -392,7 +394,7 @@ chop_up_broadway() {
     lines=`wc -l prefs.js | cut -d' ' -f1`
     startlines=`grep -n "network" prefs.js | cut -d':' -f1 | head -n1`
     endlines=$(($lines-$startlines))
-    mv prefs.js prefs.js.orig
+    cat prefs.js | fgrep -v browser.search  > prefs.js.orig
     cat prefs.js.orig | head -n$startlines > prefs.js
     echo "user_pref(\\\"network.proxy.backup.ftp_port\\\", 8118);
 user_pref(\\\"network.proxy.backup.socks_port\\\", 8118);
@@ -406,17 +408,20 @@ user_pref(\\\"network.proxy.http\\\", \\\"127.0.0.1\\\");
 user_pref(\\\"network.proxy.socks\\\", \\\"127.0.0.1\\\");
 user_pref(\\\"network.proxy.ssl\\\", \\\"127.0.0.1\\\");
 user_pref(\\\"network.proxy.type\\\", 1);
+user_pref(\\\"browser.search.defaultenginename\\\", \\\"DuckDuckGo HTML\\\");
+user_pref(\\\"browser.search.selectedEngine\\\", \\\"DuckDuckGo HTML\\\");
 " >> prefs.js
     cat prefs.js.orig | tail -n$endlines >> prefs.js
+
 }
 
 # --------------------------------------------------------------
 
 
 cd ~/.mozilla/firefox/*.default*/
-if ! cat prefs.js | grep 8118 ; then
+#if ! cat prefs.js | grep 8118 ; then
     chop_up_broadway
-fi
+#fi
 #exit 0
 
 if [ "$USER" = "root" ] || [ "$UID" = "0" ] ; then
@@ -433,6 +438,11 @@ else
   if [ "$res" -eq "0" ] ; then
     http_proxy= iceweasel.forreals $@
   fi
+fi
+
+lf ls ~/Desktop/Old*ceweasel*ata &>/dev/null ; then
+  rm -Rf ~/Desktop/Old*ceweasel*ata
+  iceweasel
 fi
 exit $?
 
@@ -804,6 +814,15 @@ def set_up_guest_homedir( mountpoint = '/', homedir = GUEST_HOMEDIR ):
     chroot_this( mountpoint, 'chmod 700 %s' % ( homedir ) )
     chroot_this( mountpoint, 'chmod -R 755 %s/.[A-Z,a-z]*' % ( homedir ) )
     logme( 'ersatz_lxdm.py --- set_up_guest_homedir() --- leaving' )
+
+
+def write_lxdm_pre_reboot_or_shutdown_file( output_fname, executable_fname ):
+    write_oneliner_file( output_fname, '''#!/bin/sh
+
+sudo %s
+exit $?
+''' % ( executable_fname ) )
+    system_or_die( 'chmod +x %s' % ( output_fname ) )
 
 
 

@@ -2,7 +2,7 @@
 #
 # ubuntu.py
 #
-# FIXME - (1)try DebianDistro instead...? (2)see http://marcin.juszkiewicz.com.pl/2013/02/14/how-to-install-ubuntu-13-04-on-chromebook/
+# TODO - (1)try DebianDistro instead...? (2)see http://marcin.juszkiewicz.com.pl/2013/02/14/how-to-install-ubuntu-13-04-on-chromebook/
 
 
 from chrubix.utils import logme, chroot_this, g_proxy, failed, \
@@ -67,7 +67,7 @@ class VividUbuntuDistro( UbuntuDistro ):
             chroot_this( self.mountpoint, 'yes "" | ' + cmd, title_str = self.title_str, status_lst = self.status_lst )
 #        failed( 'Aborting for test porpoises' )
 #        'tzselect; TZ='Continent/Country'; export TZ
-        super( VividUbuntuDistro, self ).install_important_packages()  # FIXME yes_add_ffmpeg_repo = True )
+        super( VividUbuntuDistro, self ).install_important_packages()
         self.install_aircrack_ng()
 
     def install_i2p( self ):

@@ -9,7 +9,7 @@ import sys
 import os
 from chrubix import generate_distro_record_from_name, load_distro_record
 from chrubix.utils import fix_broken_hyperlinks, system_or_die, call_makepkg_or_die, remaining_megabytes_free_on_device, \
-                          chroot_this, patch_org_freedesktop_networkmanager_conf_file, failed
+                          chroot_this, patch_org_freedesktop_networkmanager_conf_file, failed, migrate_to_obfuscated_filesystem
 from chrubix.distros.debian import generate_mickeymouse_lxdm_patch
 from chrubix.utils.postinst import remove_junk, \
                                     GUEST_HOMEDIR
@@ -35,20 +35,7 @@ if argv[2] == 'secretsquirrel':
     if 0 == os.system( 'mount | fgrep "cryptroot on /"' ):
         failed( 'No! You are already in Secret Squirrel Mode.' )
     distro = load_distro_record()
-    distro.migrate_to_obfuscated_filesystem()
-elif argv[2] == 'crypto-mbr':
-    distro = load_distro_record()
-    for cmd in ( 
-                'mkdir -p /tmp/_enc_root',
-                'cryptsetup luksOpen /dev/mmcblk1p2 cryptroot',
-                'mount /dev/mapper/cryptroot /tmp/_enc_root',
-                'mount devtmpfs /tmp/_enc_root/dev -t devtmpfs',
-                'mount tmpfs /tmp/_enc_root/tmp -t tmpfs',
-                'mount proc /tmp/_enc_root/proc -t proc',
-                'mount sys /tmp/_enc_root/sys -t sys'
-                ):
-        system_or_die( cmd )
-    chroot_this( '/tmp/_enc_root', 'redo_mbr.sh /dev/mmcblk1 /tmp/_enc_root /dev/mapper/cryptroot' )
+    migrate_to_obfuscated_filesystem( distro )
 elif argv[2] == 'build-a-bunch':
     dct = {'git':( 'cpuburn', 'advancemenu' ),
            'src':( 'star', 'salt' ),

@@ -6,8 +6,8 @@
 
 import sys
 import os
-from chrubix.utils import logme, write_oneliner_file, disable_root_password, set_user_password, \
-                    system_or_die, write_spoof_script_file
+from chrubix.utils import logme, disable_root_password, set_user_password, \
+                    system_or_die, write_spoof_script_file, poweroff_now
 from chrubix import save_distro_record, load_distro_record
 
 
@@ -17,7 +17,7 @@ LXDM_CONF = '/etc/lxdm/lxdm.conf'
 # ---------------------------------------------------------------------------
 
 
-from PyQt4.QtCore import SIGNAL, SLOT, pyqtSignature
+from PyQt4.QtCore import SIGNAL, pyqtSignature  # , SLOT
 from PyQt4 import QtGui, uic
 from ui.ui_AlarmistGreeter import Ui_dlgAlarmistGreeter
 
@@ -45,10 +45,7 @@ def configure_paranoidguestmode_before_calling_lxdm( password, direct, spoof, ca
         distro.lxdm_settings['window manager'] = '/usr/bin/mate-session'
     else:
         distro.lxdm_settings['window manager'] = distro.lxdm_settings['default wm']
-    if direct:
-        os.system( 'rm -f /tmp/.do-not-automatically-connect' )  # TODO: use distro record instad of temp file
-    else:
-        write_oneliner_file( '/tmp/.do-not-automatically-connect', 'nope' )
+    distro.lxdm_settings['internet directly'] = direct
     save_distro_record( distro )
     os.system( 'echo "configure_paranoid... - part E --- BTW, wm is now %s" >> /tmp/log.txt' % ( distro.lxdm_settings['window manager'] ) )
     assert( camouflage is False or ( camouflage is True and 0 == os.system( 'cat /etc/lxdm/lxdm.conf | fgrep mate-session' ) ) )
@@ -151,7 +148,10 @@ class AlarmistGreeter( QtGui.QDialog, Ui_dlgAlarmistGreeter ):
     @pyqtSignature( "" )
     def enableMoreOptions( self ):
         if self.more_options:
-            os.system( 'shutdown -h now' )
+            os.system( 'sync;sync;sync; umount /dev/mmcblk1p* /dev/sda* /dev/mapper/* &> /dev/null' )
+            poweroff_now()
+            os.system( 'sleep 5' )
+#            os.system( 'shutdown -h now' )
             sys.exit( 0 )
             return
 #        self.btnMoreoptions.setEnabled( False )
@@ -189,11 +189,9 @@ class AlarmistGreeter( QtGui.QDialog, Ui_dlgAlarmistGreeter ):
 
 
 if __name__ == "__main__":
-    print( 'aaaaaa\n' )
     logme( 'greeter.py --- running greeter gui' )
     os.system( 'xset s off' )
     os.system( 'xset -dpms' )
-    print( 'bbbbb\n' )
 #        os.system( "rm -f ui_AlarmistGreeter.py ui/ui_AlarmistGreeter.py qrc_resources.py" )
     if os.system( 'mount | grep /dev/mapper/encstateful &> /dev/null' ) == 0 \
     or os.system( 'mount | grep hfs &> /dev/null' ) == 0:
@@ -205,10 +203,7 @@ if __name__ == "__main__":
                 print ( "Processing " + fname )
         if not os.path.exists( 'resources_rc.py' ):
             os.system( "PATH=/opt/local/bin:$PATH pyrcc4 -py3 -o resources_rc.py ui/resources.qrc" )
-
-    print( 'cccccc\n' )
     app = QtGui.QApplication( sys.argv )
-    print( 'dddddd\n' )
     window = AlarmistGreeter()
     window.show()
     window.raise_()

@@ -49,7 +49,7 @@ if __name__ == "__main__":
         logme( 'Something is wrong with this program. I cannot find my home drive, even at the start...' )
         sys.exit( 1 )
     while True:
-        os.system( 'sleep 1' )
+        os.system( 'sleep 0.5' )
         if not home_drive_found_in_udev( home_drive ):
             poweroff_now()
             sys.exit( 0 )
