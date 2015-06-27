@@ -580,7 +580,6 @@ unmount_my_disk() {
 
 
 install_and_call_chrubix() {
-	sudo crossystem dev_boot_usb=1 dev_boot_signed_only=0 || echo "WARNING - failed to configure USB and MMC to be bootable"	# dev_boot_signed_only=0
 	install_chrubix $MINIDISTRO_CHROOT $DEV $ROOTDEV $VFATDEV $KERNELDEV $DISTRONAME
 	call_chrubix $MINIDISTRO_CHROOT || failed "call_chrubix() returned an error. Failing."
 # FIXME is this necessary? v
@@ -831,6 +830,7 @@ KERNELDEV="$DEV_P"12
 unmount_absolutely_everything &> /dev/null || echo -en ""
 partition_and_format_me &>/dev/null &
 partandform_proc=$!
+crossystem dev_boot_usb=1 dev_boot_signed_only=0 || failed "Failed to configure USB and MMC to be bootable"	# dev_boot_signed_only=0
 get_distro_type_the_user_wants								# sets $DISTRONAME
 ask_if_afraid_of_evil_maid									# sets $EVILMAID
 prefab_fname=`locate_prefab_file` || prefab_fname=""		# img, sqfs, _D, _C, ...; check Dropbox and local thumb drive

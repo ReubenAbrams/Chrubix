@@ -579,7 +579,6 @@ unmount_my_disk() {
 
 
 install_and_call_chrubix() {
-	sudo crossystem dev_boot_usb=1 dev_boot_signed_only=0 || echo "WARNING - failed to configure USB and MMC to be bootable"	# dev_boot_signed_only=0
 	install_chrubix $MINIDISTRO_CHROOT $DEV $ROOTDEV $VFATDEV $KERNELDEV $DISTRONAME
 	call_chrubix $MINIDISTRO_CHROOT || failed "call_chrubix() returned an error. Failing."
 # FIXME is this necessary? v
@@ -783,17 +782,17 @@ install_me() {
 	[ "$EVILMAID" != "no" ] && extra="continue installing."
 	[ "$prefab_fname" = "" ] && install_from_the_beginning || install_from_prefab $prefab_fname
 	echo -en "$distroname has been installed on $DEV\nPress <Enter> to reboot. Then, press <Ctrl>U to $extra"
-	if [ "$EVILMAID" != "no" ] ; then
+#	if [ "$EVILMAID" != "no" ] ; then
 #		echo -en "\nHEY...FOR NEFARIOUS PORPOISES, WE PAUSE NOW. Hugo, when you've finished futzing with the Python code, press ENTER. "
 #		read line
-		mkdir -p /tmp/aaa
-		mount /dev/mmcblk1p3 /tmp/aaa
-		wget $OVERLAY_URL -O - | tar -Jx -C /tmp/aaa/usr/local/bin/Chrubix || failed "Failed to update our copy of the code. Shucks."
-		chmod +x /tmp/aaa/usr/local/bin/Chrubix/bash/*
-		chmod -R 755 /tmp/aaa/usr/local/bin/Chrubix
-	else
+#		mkdir -p /tmp/aaa
+#		mount /dev/mmcblk1p3 /tmp/aaa
+#		wget $OVERLAY_URL -O - | tar -Jx -C /tmp/aaa/usr/local/bin/Chrubix || failed "Failed to update our copy of the code. Shucks."
+#		chmod +x /tmp/aaa/usr/local/bin/Chrubix/bash/*
+#		chmod -R 755 /tmp/aaa/usr/local/bin/Chrubix
+#	else
 		read line
-	fi
+#	fi
 	echo "End of line :-)"
 }
 
@@ -830,6 +829,7 @@ KERNELDEV="$DEV_P"12
 unmount_absolutely_everything &> /dev/null || echo -en ""
 partition_and_format_me &>/dev/null &
 partandform_proc=$!
+crossystem dev_boot_usb=1 dev_boot_signed_only=0 || failed "Failed to configure USB and MMC to be bootable"	# dev_boot_signed_only=0
 get_distro_type_the_user_wants								# sets $DISTRONAME
 ask_if_afraid_of_evil_maid									# sets $EVILMAID
 prefab_fname=`locate_prefab_file` || prefab_fname=""		# img, sqfs, _D, _C, ...; check Dropbox and local thumb drive
