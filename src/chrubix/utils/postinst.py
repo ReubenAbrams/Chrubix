@@ -440,10 +440,6 @@ else
   fi
 fi
 
-lf ls ~/Desktop/Old*ceweasel*ata &>/dev/null ; then
-  rm -Rf ~/Desktop/Old*ceweasel*ata
-  iceweasel
-fi
 exit $?
 
 ''' )
@@ -556,6 +552,7 @@ if [ "$mhd" = "" ] ; then
     echo "I failed to discover your home disk from /proc/cmdline"
     exit 1
 fi
+
 my_home_disk=`echo "$mhd" | tr ':' '\n' | tr '=' '\n' | grep /dev/`
 my_home_basename=`basename $my_home_disk`
 echo "my_home_basename = $my_home_basename"

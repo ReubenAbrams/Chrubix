@@ -597,7 +597,7 @@ mount_dev_sys_proc_and_tmp() {
 }
 
 
-restore_this_prefab() {
+restore_this_stageX_prefab() {
 	local prefab_fname_or_url=$1
 	local myfifo=/tmp/`basename $prefab_fname_or_url | tr -s '/' '_'`
 	local bkgd_proc
@@ -611,7 +611,7 @@ restore_this_prefab() {
 		wget $prefab_fname_or_url -O - | pv -W -B 5m > $myfifo &
 		bkgd_proc=$!
 	else
-		[ -e "$prefab_fname_or_url" ] || failed "restore_this_prefab() -- $prefab_fname_or_url does not exist"
+		[ -e "$prefab_fname_or_url" ] || failed "restore_this_stageX_prefab() -- $prefab_fname_or_url does not exist"
 		pv -W -B 256m $prefab_fname_or_url > $myfifo &
 		bkgd_proc=$!
 	fi
@@ -619,13 +619,13 @@ restore_this_prefab() {
 	wait_for_partitioning_and_formatting_to_complete
 	mount_my_disk
 	
-	cat $myfifo | tar -Jx -C $TOP_BTSTRAP || failed "restore_this_prefab() -- Failed to unzip $fname --- J err?"	
+	cat $myfifo | tar -Jx -C $TOP_BTSTRAP || failed "restore_this_stageX_prefab() -- Failed to unzip $fname --- J err?"	
 	echo "Done."
 
 	mkdir -p $TOP_BTSTRAP/{dev,sys,proc,tmp}
-	[ -e "$TOP_BTSTRAP/bin/date" ] || failed "restore_this_prefab() -- you say you've restored from a Stage X file... but where's the date binary? #1"
+	[ -e "$TOP_BTSTRAP/bin/date" ] || failed "restore_this_stageX_prefab() -- you say you've restored from a Stage X file... but where's the date binary? #1"
 	[ -e "$MINIDISTRO_CHROOT" ] || failed "Prefab file $prefab_fname_or_url did not contain an .alarpy folder; that is odd. It should have been backed up."
-	mount_dev_sys_proc_and_tmp $MINIDISTRO_CHROOT || failed "restore_this_prefab() -- failed to mount dev, sys, etc. on $MINIDISTRO_CHROOT"
+	mount_dev_sys_proc_and_tmp $MINIDISTRO_CHROOT || failed "restore_this_stageX_prefab() -- failed to mount dev, sys, etc. on $MINIDISTRO_CHROOT"
 	mkdir -p $MYDISK_CHROOT
 
 # So, at this point:-
@@ -673,8 +673,8 @@ wipe_spare_space_in_partition() {
 
 install_the_hard_way() {
 	local prefab_fname_or_url=$1
-	# The mounting of the disk is handled by install_microdistro or restore_this_prefab
-	[ "$prefab_fname_or_url" = "" ] && install_microdistro || restore_this_prefab $prefab_fname_or_url
+	# The mounting of the disk is handled by install_microdistro or restore_this_stageX_prefab
+	[ "$prefab_fname_or_url" = "" ] && install_microdistro || restore_this_stageX_prefab $prefab_fname_or_url
 #	echo -en "*** Pausing so that Hugo can futz with the GitHub and overlay tarballs; press ENTER to continue ***"; read line
 	install_and_call_chrubix
 	sign_and_install_kernel
@@ -682,7 +682,7 @@ install_the_hard_way() {
 }
 
 
-install_from_prefab_sqfs() {
+install_from_sqfs_prefab() {
 	local prefab_fname_or_url=$1
 	local kernel_fname_or_url=$2
 	local myfifo=/tmp/`basename $prefab_fname_or_url | tr -s '/' '_'`
@@ -696,10 +696,10 @@ install_from_prefab_sqfs() {
 	fi
 	
 	if echo "$prefab_fname_or_url" | fgrep http &> /dev/null ; then
-		wget $prefab_fname_or_url -O - | pv -W -B 5m > $myfifo & # || failed "install_from_prefab_sqfs() -- Unable to download $prefab_fname_or_url"
+		wget $prefab_fname_or_url -O - | pv -W -B 5m > $myfifo & # || failed "install_from_sqfs_prefab() -- Unable to download $prefab_fname_or_url"
 		bkgd_proc=$!
 	else
-		pv -W -B 256m $prefab_fname_or_url > $myfifo & # || failed "install_from_prefab_sqfs() -- Failed to save $prefab_fname_or_url --- L err?"
+		pv -W -B 64m $prefab_fname_or_url > $myfifo & # || failed "install_from_sqfs_prefab() -- Failed to save $prefab_fname_or_url --- L err?"
 		bkgd_proc=$!
 	fi
 
@@ -707,12 +707,12 @@ install_from_prefab_sqfs() {
 	mount_my_disk
 
 	if echo "$prefab_fname_or_url" | fgrep http &> /dev/null ; then
-		wget $kernel_fname_or_url -O - > $VFAT_MOUNTPOINT/.kernel.dat || failed "install_from_prefab_sqfs() -- Unable to download $kernel_fname_or_url"
+		wget $kernel_fname_or_url -O - > $VFAT_MOUNTPOINT/.kernel.dat || failed "install_from_sqfs_prefab() -- Unable to download $kernel_fname_or_url"
 	else
-		cp -f $kernel_fname_or_url $VFAT_MOUNTPOINT/.kernel.dat || failed "install_from_prefab_sqfs() -- Failed to save $kernel_fname_or_url --- L err?"
+		cp -f $kernel_fname_or_url $VFAT_MOUNTPOINT/.kernel.dat || failed "install_from_sqfs_prefab() -- Failed to save $kernel_fname_or_url --- L err?"
 	fi
 
-	ps $bkgd_proc &> /dev/null || failed "install_from_prefab_sqfs() -- pv crapped out :-/"
+	ps $bkgd_proc &> /dev/null || failed "install_from_sqfs_prefab() -- pv crapped out :-/"
 	echo "Restoring from $prefab_fname_or_url and .../`basename $kernel_fname_or_url`"
 	cat $myfifo > $VFAT_MOUNTPOINT/.squashfs.sqfs 
 	sign_and_install_kernel		# Try putting this line after mount_my_disk :) ... and see what happens
@@ -737,7 +737,7 @@ install_from_the_beginning() {
 install_from_prefab() {
 	local prefab_fname_or_url=$1
 	if echo $prefab_fname_or_url | fgrep ".sqfs" &> /dev/null ; then
-		install_from_prefab_sqfs $prefab_fname_or_url `echo "$prefab_fname_or_url" | sed s/\.sqfs/\.kernel/`
+		install_from_sqfs_prefab $prefab_fname_or_url `echo "$prefab_fname_or_url" | sed s/\.sqfs/\.kernel/`
 	else
 		install_from_prefab_stageX $prefab_fname_or_url
 	fi
