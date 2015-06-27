@@ -27,7 +27,7 @@ class Distro():
     '''
     '''
     # Class-level consts
-    hewwo = '2015/06/24 @ 17:20'
+    hewwo = '2015/06/27 @ 13:00'
     crypto_rootdev = "/dev/mapper/cryptroot"
     crypto_homedev = "/dev/mapper/crypthome"
     boomfname = "/etc/.boom"
@@ -1331,10 +1331,6 @@ WantedBy=multi-user.target
             chroot_this( self.mountpoint, 'tar -Jxf /usr/local/bin/Chrubix/blobs/apps/freenet.tar.xz -C /', on_fail = 'Failed to install Freenet from tarball' )
         chroot_this( self.mountpoint, 'chown freenet.freenet /opt/freenet', on_fail = 'Failed to chown freenet folder' )
 
-#    def create_reboot_and_shutdown_wrappers( self ):
-#        create_impatient_wrapper( self.mountpoint, 'reboot' )
-#        create_impatient_wrapper( self.mountpoint, 'shutdown' )
-
     def save_for_posterity_if_possible_A( self ):
         return self.save_for_posterity_if_possible( '_A' )
 
@@ -1482,7 +1478,6 @@ WantedBy=multi-user.target
                                 self.configure_sound_speech_and_font_cache,
                                 self.configure_winxp_camo_and_guest_default_files,
                                 self.configure_xwindow_and_timers,
-#                                self.create_reboot_and_shutdown_wrappers,
                                 self.install_extra_menu_items_in_gui,
                                 self.configure_distrospecific_tweaks,
                                 self.install_vbutils_and_firmware_from_cbook,  # just in case the new user's tools differ from the original builder's tools
@@ -1495,6 +1490,8 @@ WantedBy=multi-user.target
             if checkpoint_number == 9999:
                 url_or_fname = read_oneliner_file( '%s/.url_or_fname.txt' % ( self.mountpoint ) )
                 self.update_status_with_newline( 'I was restored from %s by the installer bash script; cool.' % ( url_or_fname ) )
+                if self.reboot_into_stage_two:
+                    self.update_status_with_newline( 'You fear the evil maid. Understood. Hold on to your chair.' )
                 mount_sys_tmp_proc_n_dev( self.mountpoint )  # This line is unnecessary, probably
                 if url_or_fname.find( '_D' ) >= 0:        checkpoint_number = len( first_stage ) + len( second_stage ) + len( third_stage ) + len( fourth_stage )
                 elif url_or_fname.find( '_C' ) >= 0:      checkpoint_number = len( first_stage ) + len( second_stage ) + len( third_stage )

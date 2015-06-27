@@ -41,15 +41,6 @@ VFAT_MOUNTPOINT=/tmp/.vfat.mountpoint
 
 
 
-if [ "$USER" != "root" ] ; then
-	SCRIPTPATH=$( cd $(dirname $0) ; pwd -P )
-	fname=$SCRIPTPATH/`basename $0`
-	sudo bash $fname $@
-	exit $?
-fi
-set -e
-mount | grep /dev/mapper/encstateful &> /dev/null || failed "Run me from within ChromeOS, please."
-
 
 # PARTED_CHROOT is mounted on the internal loopfs
 # MINIDISTRO_CHROOT and its files are actually *living on* MYDISK_CHROOT/.alarpy
@@ -712,7 +703,7 @@ install_from_sqfs_prefab() {
 	fi
 
 	ps $bkgd_proc &> /dev/null || failed "install_from_sqfs_prefab() -- pv crapped out :-/"
-	echo "Restoring from $prefab_fname_or_url and .../`basename $kernel_fname_or_url`"
+#	echo "Restoring from $prefab_fname_or_url and .../`basename $kernel_fname_or_url`"
 	cat $myfifo > $VFAT_MOUNTPOINT/.squashfs.sqfs 
 	sign_and_install_kernel		# Try putting this line after mount_my_disk :) ... and see what happens
 	unmount_my_disk &> /dev/null || echo -en ""
@@ -823,13 +814,22 @@ KERNELDEV="$DEV_P"12
 
 
 
+
+if [ "$USER" != "root" ] ; then
+	SCRIPTPATH=$( cd $(dirname $0) ; pwd -P )
+	fname=$SCRIPTPATH/`basename $0`
+	sudo bash $fname $@
+	exit $?
+fi
+set -e
+mount | grep /dev/mapper/encstateful &> /dev/null || failed "Run me from within ChromeOS, please."
+crossystem dev_boot_usb=1 dev_boot_signed_only=0 || failed "Failed to configure USB and MMC to be bootable"	# dev_boot_signed_only=0
 [ -e "/tmp/.iamrunningalready" ] && failed "Please reboot and run me again."
 [ "$mydevbyid" = "" ] && failed "I am unable to figure out which device you want me to prep. Sorry..."
 [ -e "$mydevbyid" ] || failed "Please insert a thumb drive or SD card and try again. Please DO NOT INSERT your keychain thumb drive."
 unmount_absolutely_everything &> /dev/null || echo -en ""
 partition_and_format_me &>/dev/null &
 partandform_proc=$!
-crossystem dev_boot_usb=1 dev_boot_signed_only=0 || failed "Failed to configure USB and MMC to be bootable"	# dev_boot_signed_only=0
 get_distro_type_the_user_wants								# sets $DISTRONAME
 ask_if_afraid_of_evil_maid									# sets $EVILMAID
 prefab_fname=`locate_prefab_file` || prefab_fname=""		# img, sqfs, _D, _C, ...; check Dropbox and local thumb drive
