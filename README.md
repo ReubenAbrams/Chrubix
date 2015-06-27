@@ -28,16 +28,18 @@ If you don't own an ARM-based Chromebook, buy one. If you already own one, follo
 
 2 Log into ChromeOS.
 * At the power-on screen, press Control-D.
-* At the login window, configure your WiFi connection.
-* At the sign-in window, press Control-Alt-F2 (the second key to the right of the ESC key).
-* Type chromeos <Enter> to log in.
+* Log in to your Chromebook as usual. I assume you've configured your GMail account and WiFi network.
+* Open your web browser.
+* Press Control-Alt-T.
+* Type shell <Enter>.
 
 3 Install Chrubix.
 * Insert an SD card into the port on the left-hand side of the computer.
-* At the hash ('#') prompt, type cd && wget bit.do/that && bash that <Enter>
+* At the hash ('#') prompt, type the following: cd; wget bit.do/that; bash that <Enter>.
 
 4 Answer the on-screen questions.
-* Answer questions. ('Alarmist' = anagram of 'ARM Tails')
+* Choose your GNU/Linux distribution.
+* Are you a deeply paranoid person? Answer 'y' or 'n'.
 * Wait. The computer will reboot after 15-30 minutes.
 * Press Control-U.
 * Enjoy!
