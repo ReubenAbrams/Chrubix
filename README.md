@@ -17,12 +17,14 @@ See https://github.com/ReubenAbrams/Chrubix for details.
 QUICK START
 
 If you don't own an ARM-based Chromebook, buy one. If you already own one, follow these simple instructions.
+
 1 Enter Developer Mode.
-* Turn your laptop off. While holding the ESC and Refresh keys down, press the Power key.
-* The system will reboot and show the Recovery Mode screen. Press Control-D.
-* The system will boot and ask you to confirm. Press <Enter>.
-* At the next power-on screen, press Control-D.
-* Wait for 5-10 minutes while the laptop enters Developer Mode.
+* Make sure your laptop is OFF.
+* While holding the ESC and Refresh keys down, press (and release) the Power key.
+* Count to 10.
+* Press Control-D.
+* Press Enter.
+* Walk away. Come back in 10 minutes.
 
 2 Log into ChromeOS.
 * At the power-on screen, press Control-D.
