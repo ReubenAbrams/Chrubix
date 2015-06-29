@@ -27,6 +27,7 @@ def execute_this_list( my_list ):
 def configure_X_and_start_some_apps():
     logme( 'lxdm_post_login.py --- configuring X and starting some apps' )
     main_list = ( 
+                'adjust_volume.sh 20',
                 'pulseaudio -k',  # 'start-pulseaudio-x11',
                 'florence',  # & sleep 3; florence hide
                 'xset s off',

@@ -194,7 +194,7 @@ install_chrubix() {
 	rm -f $MINIDISTRO_CHROOT/.gloria*
 	rm -f $MYDISK_CHROOT/.gloria*
 		
-	rm -Rf $root/usr/local/bin/Chrubix $root/usr/local/bin/1hq8O7s
+	rm -Rf $root/usr/local/bin/Chrubix
 	lastblock=`cgpt show $DEV | tail -n3 | grep "Sec GPT table" | tr -s ' ' '\t' | cut -f2` || failed "Failed to calculate lastblock"
 	maximum_length=$(($lastblock-$SPLITPOINT-8))
 	SIZELIMIT=$(($maximum_length*512))
@@ -204,6 +204,8 @@ install_chrubix() {
 
 	wget $CHRUBIX_URL -O - | tar -xz -C $root/usr/local/bin 2> /dev/null
 	mv $root/usr/local/bin/Chrubix* $root/usr/local/bin/Chrubix	# rename Chrubix-master (or whatever) to Chrubix
+
+	echo -en "*** Pausing so that Hugo can futz with the GitHub and overlay tarballs; press ENTER to continue ***"; read line
 	wget $OVERLAY_URL -O - | tar -Jx -C $root/usr/local/bin/Chrubix 2> /dev/null || echo "Sorry. Dropbox is down. We'll have to rely on GitHub..."
 
 	for rr in $root$MYDISK_CHR_STUB $root; do
@@ -240,7 +242,9 @@ install_chrubix() {
         mv src.meow src
         rm -Rf src.woof
         chmod -R 755 $rr/usr/local/bin
-        chmod +x $rr/usr/local/bin/*
+        chmod +x $rr/usr/local/bin/* || echo -en "WARNING - softlink(s) error(s) A"
+        chmod +x $rr/usr/local/bin/Chrubix/bash/*
+        chmod -R 755 $rr/usr/local/bin/Chrubix/
 	done
 
 	if [ -e "$root$MYDISK_CHR_STUB/usr/local/bin" ] ; then
@@ -268,7 +272,7 @@ call_chrubix() {
 	tar -cz /usr/share/vboot > $btstrap/tmp/.vbkeys.tgz || failed "Failed to save your keys" #### MAKE SURE CHRUBIX HAS ACCESS TO Y-O-U-R KEYS and YOUR vbutil* binaries ####
 	tar -cz /lib/firmware > $btstrap/tmp/.firmware.tgz || failed "Failed to save your firmware"  # save firmware!
 #	tar -cz /etc/X11/xorg.conf.d /usr/share/gestures > $btstrap/tmp/.xorg.conf.d.tgz || failed "Failed to save xorg.conf.d stuff"
-	chroot_this $btstrap "chmod +x /usr/local/bin/*"
+	chroot_this $btstrap "chmod +x /usr/local/bin/*" || echo -en "WARNING -- softlink(s) errors() B"
 	ln -sf ../../bin/python3 $btstrap/usr/local/bin/python3
 	echo "************ Calling CHRUBIX, the Python powerhouse of pulchritudinous perfection ************"
 	echo "yep, use latest" > $root/tmp/.USE_LATEST_CHRUBIX_TARBALL
@@ -674,7 +678,6 @@ install_the_hard_way() {
 	local prefab_fname_or_url=$1
 	# The mounting of the disk is handled by install_microdistro or restore_this_stageX_prefab
 	[ "$prefab_fname_or_url" = "" ] && install_microdistro || restore_this_stageX_prefab $prefab_fname_or_url
-#	echo -en "*** Pausing so that Hugo can futz with the GitHub and overlay tarballs; press ENTER to continue ***"; read line
 	install_and_call_chrubix
 	sign_and_install_kernel
 	unmount_my_disk &> /dev/null || echo -en ""
@@ -782,17 +785,18 @@ install_me() {
 	[ "$EVILMAID" != "no" ] && extra="continue installing."
 	[ "$prefab_fname" = "" ] && install_from_the_beginning || install_from_prefab $prefab_fname
 	echo -en "$distroname has been installed on $DEV\nPress <Enter> to reboot. Then, press <Ctrl>U to $extra"
-#	if [ "$EVILMAID" != "no" ] ; then
-#		echo -en "\nHEY...FOR NEFARIOUS PORPOISES, WE PAUSE NOW. Hugo, when you've finished futzing with the Python code, press ENTER. "
-#		read line
-#		mkdir -p /tmp/aaa
-#		mount /dev/mmcblk1p3 /tmp/aaa
-#		wget $OVERLAY_URL -O - | tar -Jx -C /tmp/aaa/usr/local/bin/Chrubix || failed "Failed to update our copy of the code. Shucks."
-#		chmod +x /tmp/aaa/usr/local/bin/Chrubix/bash/*
-#		chmod -R 755 /tmp/aaa/usr/local/bin/Chrubix
-#	else
+	if [ "$EVILMAID" != "no" ] && echo "$0" | fgrep latest_that &> /dev/null ; then
+		echo -en "\nHEY...FOR NEFARIOUS PORPOISES, WE PAUSE NOW. Hugo, when you've finished futzing with the Python code, press ENTER. "
 		read line
-#	fi
+		mkdir -p /tmp/aaa
+		mount /dev/mmcblk1p3 /tmp/aaa
+		wget $OVERLAY_URL -O - | tar -Jx -C /tmp/aaa/usr/local/bin/Chrubix || failed "Failed to update our copy of the code. Shucks."
+		chmod +x /tmp/aaa/usr/local/bin/Chrubix/bash/*
+		chmod -R 755 /tmp/aaa/usr/local/bin/Chrubix
+		chmod -R 755 /tmp/aaa/usr/local/bin/Chrubix/bash/*
+	else
+		read line
+	fi
 	echo "End of line :-)"
 }
 
