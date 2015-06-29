@@ -48,12 +48,21 @@ If you don't own an ARM-based Chromebook, buy one. If you already own one, follo
 CREDITS
 
 Reuben Abrams - originator; lead developer
+
 Various authors - the XP themes
+
 Andrea Fabrizi - the Dropbox uploader
+
 ArchLinuxArm team - alarpy etc.
+
 G. Alexander - info on Chromebooks
+
 Marcin Juszkiewicz - hardare info
+
 Authors of FreeNet - Freenet
+
 Authors of I2P - I2P
+
 Authors of Tor - Tor
+
 Tails Team - GPG Applet
