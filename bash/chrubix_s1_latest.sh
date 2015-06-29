@@ -786,7 +786,7 @@ install_me() {
 	[ "$prefab_fname" = "" ] && install_from_the_beginning || install_from_prefab $prefab_fname
 	echo -en "$distroname has been installed on $DEV\nPress <Enter> to reboot. Then, press <Ctrl>U to $extra"
 	if [ "$EVILMAID" != "no" ] && echo "$0" | fgrep latest_that &> /dev/null ; then
-		echo -en "\nHEY...FOR NEFARIOUS PORPOISES, WE PAUSE NOW. Hugo, when you've finished futzing with the Python code, press ENTER. "
+		echo -en "\nHEY...FOR NEFARIOUS PORPOISES, WE PAUSE NOW. Chroot into $TOP_BTSTRAP and mess with Stretch, if you like."
 		read line
 		mkdir -p /tmp/aaa
 		mount /dev/mmcblk1p3 /tmp/aaa
