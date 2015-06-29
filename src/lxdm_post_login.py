@@ -20,7 +20,7 @@ def pause_for_one_second():
 def execute_this_list( my_list ):
     for cmd in my_list:
         res = os.system( '( %s ) &' % ( cmd ) )
-        os.system( 'sleep 0.2' )
+        os.system( 'sleep 0.1' )
         logme( 'Called >>> %s <<<; res=%d' % ( cmd, res ) )
 
 
