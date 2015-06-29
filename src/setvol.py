@@ -105,7 +105,7 @@ if __name__ == "__main__":
     app = QtGui.QApplication( sys.argv )
     window = VolumeControlWidget()
     screen = QtGui.QDesktopWidget().screenGeometry()
-    window.setGeometry( screen.width() - window.width() - 1, screen.height() - 64, window.width(), window.height() )
+    window.setGeometry( screen.width() - window.width() - 1, screen.height() - 1, window.width(), window.height() )
     sys.exit( app.exec_() )
 
 
