@@ -21,7 +21,9 @@ logme( '**************************** WELCOME TO CHRUBIX ************************
 if os.system( 'cat /proc/cmdline 2>/dev/null | fgrep root=/dev/dm-0 > /dev/null' ) == 0:
     from chrubix import exec_cli
     logme( 'Calling exec_cli()' )
-    sys.exit( exec_cli( sys.argv ) )
+    res = exec_cli( sys.argv )
+    print( 'The Python portion of Chrubix is exiting now (res=%d)\n' % ( res ) )
+    sys.exit( res )
 
 
 from PyQt4.QtCore import SIGNAL, SLOT, pyqtSignature
