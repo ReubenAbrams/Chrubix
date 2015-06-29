@@ -2,7 +2,7 @@
 
 # Form implementation generated from reading ui file 'ui/VolumeControl.ui'
 #
-# Created: Sun Jun 28 08:12:27 2015
+# Created: Mon Jun 29 14:06:00 2015
 #      by: PyQt4 UI code generator 4.10.4
 #
 # WARNING! All changes made in this file will be lost!
@@ -26,9 +26,9 @@ except AttributeError:
 class Ui_VolumeControlWidget(object):
     def setupUi(self, VolumeControlWidget):
         VolumeControlWidget.setObjectName(_fromUtf8("VolumeControlWidget"))
-        VolumeControlWidget.resize(147, 19)
+        VolumeControlWidget.resize(240, 19)
         self.progressBar = QtGui.QProgressBar(VolumeControlWidget)
-        self.progressBar.setGeometry(QtCore.QRect(20, 0, 121, 20))
+        self.progressBar.setGeometry(QtCore.QRect(20, 0, 211, 20))
         self.progressBar.setProperty("value", 0)
         self.progressBar.setObjectName(_fromUtf8("progressBar"))
         self.speakeron = QtGui.QLabel(VolumeControlWidget)
