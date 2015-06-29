@@ -89,11 +89,12 @@ def process_command_line( argv ):
     do_kernel_dev = None
     do_spare_dev = None
     do_evil_maid = False
+    install_to_plain_p3 = False
     print( "Running chrubix from command line." )
     if len( sys.argv ) <= 1:
         list_command_line_options()
         raise getopt.GetoptError( "In command line, please specify name of distro" )
-    optlist, args = getopt.getopt( argv[1:], 'hEK:P:D:d:r:s:k:m:' )
+    optlist, args = getopt.getopt( argv[1:], 'hEZK:P:D:d:r:s:k:m:' )
     args = args  # hide Eclipse warning
     for ( opt, param ) in optlist:
         if opt == '-h':
@@ -114,6 +115,8 @@ def process_command_line( argv ):
             do_mountpoint = param
         elif opt == '-E':
             do_evil_maid = True
+        elif opt == '-Z':
+            install_to_plain_p3 = True
         else:
             raise getopt.GetoptError( str( opt ) + " is an unrecognized command-line parameter" )
     distro = generate_distro_record_from_name( do_distro )
@@ -122,6 +125,7 @@ def process_command_line( argv ):
     distro.kernel_dev = do_kernel_dev
     distro.spare_dev = do_spare_dev
     distro.mountpoint = do_mountpoint
+    distro.install_to_plain_p3 = install_to_plain_p3
     if do_evil_maid:
         distro.reboot_into_stage_two = True
         distro.kernel_rebuild_required = True
