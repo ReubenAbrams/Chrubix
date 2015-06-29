@@ -798,7 +798,7 @@ def set_up_guest_homedir( mountpoint = '/', homedir = GUEST_HOMEDIR ):
     for cmd in ( 
                 'mkdir -p %s' % ( homedir ),
                 'chmod 700 %s' % ( homedir ),
-                'tar -Jxf /usr/local/bin/Chrubix/blobs/settings/default_guest_files.tar.xz -C %s' % ( homedir ),
+                'tar -Jxf /usr/local/bin/Chrubix/blobs/settings/default_guest_settings.tar.xz -C %s' % ( homedir ),
                 'chown -R guest.guest %s' % ( homedir ),
                 'chmod 755 %s' % ( LXDM_CONF ),
                 ):
