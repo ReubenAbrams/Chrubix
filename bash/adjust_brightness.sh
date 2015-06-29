@@ -1,11 +1,11 @@
 #!/bin/bash
 #
 # adjust_brightness.sh
-# - calls chrubix.sh w/ ersatz_lxdm as param #1
+# - adjusts brightness :)
 #
 #################################################################################
 
-fp=~/.brightness.path
+fp=~/tmp/.brightness.path
 mypath=`cat $fp 2> /dev/null`
 if [ ! -e "$mypath" ] ; then
 	mp=`find /sys -name brightness -type f | head -n1`

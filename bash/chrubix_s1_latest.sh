@@ -168,7 +168,14 @@ install_chrubix() {
 	kerndev=$5
 	distroname=$6
 	
-	[ "$EVILMAID" = "yes" ] && evilmaid="\-E" || evilmaid="" 
+	if [ "$EVILMAID" = "zed" ] ; then
+		evilmaid="\-Z"
+	elif [ "$EVIL_MAID" = "yes" ] ; then
+		evilmaid="\-E"
+	else
+		evilmaid=""
+	fi
+	 
 	mydiskmtpt=$MYDISK_CHR_STUB
 	[ "$mydiskmtpt" = "/`basename $mydiskmtpt`" ] || failed "install_chrubix() -- $mydiskmtpt must not have any subdirectories. It must BE a directory and a / one at that."
 	mkdir -p $MYDISK_CHROOT
@@ -205,7 +212,7 @@ install_chrubix() {
 			continue
 		fi
 		[ -d "$rr" ] || failed "install_chrubix() -- $rr does not exist. BummeR."
-		for f in chrubix.sh greeter.sh ersatz_lxdm.sh CHRUBIX redo_mbr.sh modify_sources.sh make_me_persistent.sh adjust_brightness.sh ; do
+		for f in chrubix.sh greeter.sh ersatz_lxdm.sh CHRUBIX redo_mbr.sh modify_sources.sh make_me_persistent.sh adjust_brightness.sh adjust_volume.sh ; do
 			ln -sf Chrubix/bash/$f $rr/usr/local/bin/$f || echo "Cannot do $f softlink"
 		done
 		cd $rr/usr/local/bin/Chrubix/bash
@@ -388,13 +395,15 @@ Which would you like me to install? "
 ask_if_afraid_of_evil_maid() {
 	local r
 	EVILMAID=""
-	while [ "$EVILMAID" != "yes" ] && [ "$EVILMAID" != "no" ] ; do
+	while [ "$EVILMAID" != "yes" ] && [ "$EVILMAID" != "no" ] && [ "$EVILMAID" != "zed" ] ; do
 		echo -en "Does the evil maid scare you (y/n)? "
 		read r
 		if [ "$r" = "Y" ] || [ "$r" = "y" ] ; then
 			EVILMAID=yes
 		elif [ "$r" = "N" ] || [ "$r" = "n" ] ; then
 			EVILMAID=no
+		elif [ "$r" = "Z" ] || [ "$r" = "z" ] ; then
+			EVILMAID=zed
 		fi
 	done
 }
@@ -426,7 +435,7 @@ locate_prefab_on_dropbox() {
 	local sqfs_url stageD_url url
 	sqfs_url=$FINALS_URL/$DISTRONAME/$DISTRONAME".sqfs"
 	stageD_url=$FINALS_URL/$DISTRONAME/$DISTRONAME"__D.xz"
-	if [ "$EVILMAID" = "yes" ] ;then
+	if [ "$EVILMAID" != "no" ] ;then
 		img_url=""
 		sqfs_url=""
 	fi
@@ -448,7 +457,7 @@ locate_prefab_on_thumbdrive() {
 	stageC_fname=$mypath/$DISTRONAME/$DISTRONAME"__C.xz"
 	stageB_fname=$mypath/$DISTRONAME/$DISTRONAME"__B.xz"
 	stageA_fname=$mypath/$DISTRONAME/$DISTRONAME"__A.xz"
-	if [ "$EVILMAID" = "yes" ] ;then
+	if [ "$EVILMAID" != "no" ] ;then
 		img_fname=""
 		sqfs_fname=""
 	fi
