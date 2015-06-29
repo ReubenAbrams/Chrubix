@@ -182,7 +182,7 @@ install_chrubix() {
 	mount $ROOTDEV $MYDISK_CHROOT || failed "install_chrubix() -- unable to mount root device at $MYDISK_CHROOT"	
 	mount_dev_sys_proc_and_tmp $MYDISK_CHROOT
 	
-	cp -vf $MINIDISTRO_CHROOT/.[a-z]*.txt $MYDISK_CHROOT/ || echo -en ""
+	cp -f $MINIDISTRO_CHROOT/.[a-z]*.txt $MYDISK_CHROOT/ || echo -en ""
 	
 	touch $TOP_BTSTRAP/.gloria.first-i-was-afraid
 	[ -e "$MYDISK_CHROOT/.gloria.first-i-was-afraid" ] || failed "For some reason, MYDISK_CHROOT and TOP_BTSTRAP don't share the '/' directory."
