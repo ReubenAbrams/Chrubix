@@ -30,10 +30,10 @@ fi
 
 vol=`cat $fp`
 if [ "$1" = "up" ] ; then
-	vol=$(($vol+8))
+	vol=$(($vol+5))
 	[ "$vol" -gt "100" ] && vol=100
 elif [ "$1" = "down" ] ; then
-	vol=$(($vol-8))
+	vol=$(($vol-5))
 	[ "$vol" -lt "0" ] && vol=0
 elif [ "$1" = "mute" ] ; then
 	if [ -e "$fp.orig" ] ; then
