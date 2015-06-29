@@ -258,7 +258,7 @@ if [ -e \"/newroot/$SQUASHFS_FNAME\" ]; then
   while ! mount | grep \"/rw \" > /dev/null ; do
     echo -en \"$BOOT_PROMPT_STRING\"
 	read -t 10 -s line
-	echo ""
+	echo \"\"
 	if [ \"\$line\" = \"x\" ] ; then
         sh
     elif [ \"\$line\" = \"\" ] ; then
