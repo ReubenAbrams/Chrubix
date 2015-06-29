@@ -52,6 +52,7 @@ libdevmapper-dev xbindkeys \
         self.name = None
         self.branch = None
         self.reboot_into_stage_two = False  # set to True by Evil Maid protector :)
+        self.install_to_plain_p3 = False
         self.__args = args
         self.__pheasants = False  # Starts FALSE so that the generic _D is... generic. Turns TRUE later on, in migrate_OS().
         self.__kthx = False  # Always TRUE. That way, even the generic stage files have the obfuscated filesystems (xfs, jfs, btrfs).
@@ -870,9 +871,13 @@ exit 0
         except ( SystemError, SyntaxError ):
             pass
 
-    def squash_OS_or_setup_stage_two( self ):
+    def squash_or_prep_OS( self ):
+        chroot_this( self.mountpoint, 'chmod +x /usr/local/bin/Chrubix/bash/*', title_str = self.title_str, status_lst = self.status_lst )  # FIXME remove by 8/1/2015
+        chroot_this( self.mountpoint, 'chmod -R 755 /usr/local/bin/Chrubix/', title_str = self.title_str, status_lst = self.status_lst )  # FIXME remove by 8/1/2015
         if self.reboot_into_stage_two:
             self.setup_for_stage_two()
+        elif self.install_to_plain_p3:
+            self.setup_for_plain_p3()
         else:
 #            self.set_root_password( 'hi' )
             self.squash_OS()
@@ -914,6 +919,13 @@ sleep 10
             logme( '**FYI, assertion error in rebuild_EVERYTHING_if_evil_maid_mode()**' )
             self.kernel_rebuild_required = False
             self.initrd_rebuild_required = False
+        self.redo_mbr_for_plaintext_root( self.mountpoint )
+        chrubix.save_distro_record( self, self.mountpoint )
+
+    def setup_for_plain_p3( self ):
+        assert( os.path.exists( '%s/.vbkeys.tgz' % ( self.mountpoint ) ) )
+        self.initrd_rebuild_required = True
+        self.set_root_password( 'hi' )
         self.redo_mbr_for_plaintext_root( self.mountpoint )
         chrubix.save_distro_record( self, self.mountpoint )
 
@@ -1118,7 +1130,7 @@ sleep 10
         assert( os.path.islink( '%s/usr/local/bin/chrubix.sh' % ( self.mountpoint ) ) )
         system_or_die( 'chmod +x %s/usr/local/bin/Chrubix/bash/*' % ( self.mountpoint ) )
         for f in ( 'chrubix.sh', 'CHRUBIX', 'greeter.sh', 'preboot_configurer.sh', 'modify_sources.sh', \
-                   'redo_mbr.sh', 'ersatz_lxdm.sh', 'make_me_persistent.sh', 'adjust_brightness.sh' ):
+                   'redo_mbr.sh', 'ersatz_lxdm.sh', 'make_me_persistent.sh', 'adjust_brightness.sh' , 'adjust_volume.sh' ):
             system_or_die( 'ln -sf Chrubix/bash/%s %s/usr/local/bin/%s' % ( f, self.mountpoint, f ) )
             system_or_die( 'chmod +x %s/usr/local/bin/Chrubix/bash/%s' % ( self.mountpoint, f ) )
         mytitle = ( self.fullname ).title()
@@ -1481,7 +1493,7 @@ WantedBy=multi-user.target
                                 self.install_extra_menu_items_in_gui,
                                 self.configure_distrospecific_tweaks,
                                 self.install_vbutils_and_firmware_from_cbook,  # just in case the new user's tools differ from the original builder's tools
-                                self.squash_OS_or_setup_stage_two,  # ... depending on self.reboot_into_stage_two
+                                self.squash_or_prep_OS,  # ... depending on self.reboot_into_stage_two
                                 self.unmount_and_clean_up
                                 )
         all_my_funcs = first_stage + second_stage + third_stage + fourth_stage + fifth_stage

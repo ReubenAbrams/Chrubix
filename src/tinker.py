@@ -65,11 +65,14 @@ elif argv[2] == 'logmein':
         system_or_die( cmd )
     os.system( 'sync;sync;sync;sync' )
     system_or_die( 'umount /tmp/.sda2' )
-
 elif argv[2] == 'build-from-debian':
     distro = generate_distro_record_from_name( argv[3] )
     distro.mountpoint = MYDISK_MTPT
     pkg = argv[4]
+elif argv[2] == 'build-from-jessie-for-stretch':
+    distro = generate_distro_record_from_name( 'debianstretch' )
+    distro.mountpoint = '/'
+    distro.build_and_install_package_from_debian_source( argv[3], 'jessie' )
 #    sys.exit( 0 )
     print( "Building %s from Deb-ish => %s" % ( pkg, argv[3] ) )
     distro.build_and_install_package_from_debian_source( pkg, 'wheezy' if argv[3] == 'debianwheezy' else 'jessie' )
@@ -119,7 +122,7 @@ elif argv[2] == 'install-freenet':
     distro.mountpoint = argv[4]
     distro.install_freenet()
 elif argv[2] == 'clone-guest':
-    outfile = '/tmp/default_guest_files.tar.xz'
+    outfile = '/tmp/default_guest_settings.tar.xz'
     files_to_save = '\
 .config/gtk-3.0/settings.ini \
 .config/dconf/user \

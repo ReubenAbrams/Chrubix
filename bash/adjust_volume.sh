@@ -44,7 +44,7 @@ elif [ "$1" = "mute" ] ; then
 		echo 0 > $fp
 	fi
 fi
-	
+
 echo $vol > $fp
 call_amixer $vol
 

@@ -222,7 +222,7 @@ Acquire::https::Proxy "https://%s/";
     def install_important_packages( self ):
         logme( 'DebianDistro - install_all_important_packages_other_than_systemd_sysv() - starting' )
         chroot_this( self.mountpoint, '''yes "Yes, do as I say!" | apt-get install systemd systemd-sysv''' , title_str = self.title_str, status_lst = self.status_lst,
-                    on_fail = 'Failed to install systemd-sysv' )
+                                on_fail = 'Failed to install systemd-sysv' )
         packages_installed_succesfully = []
         packages_that_we_failed_to_install = []
         packages_lst = self.important_packages.split( ' ' )
@@ -678,7 +678,19 @@ class StretchDebianDistro( DebianDistro ):
         self.important_packages += ' libetpan-dev g++-4.8'
 #        self.use_latest_kernel = True
 
-
-
-
+    def configure_distrospecific_tweaks( self ):
+        DebianDistro.configure_distrospecific_tweaks( self )  # FIXME use super(StretchDebianDistro, self). .... one day :)
+        self.update_status_with_newline( '**Fixing systemd etc. in %s**' % ( self.fullname ) )
+        for cmd in ( 
+#                    'yes Y | apt-get install systemd-shim systemd-shiv',
+                    'yes Y | apt-get remove systemd-gui',
+                    '''cd /tmp; rm -f *deb;
+for f in libpam-systemd libsystemd0 systemd systemd-sysv; do
+  wget https://dl.dropboxusercontent.com/u/59916027/chrubix/systemd/"$f"_215-17%2Bdeb8u1_armhf.deb
+done
+yes Y | dpkg -i *deb
+'''
+                    ):
+            chroot_this( self.mountpoint, cmd, status_lst = self.status_lst, title_str = self.title_str, attempts = 2 )
+        self.update_status_with_newline( '**Done w/ fixing systemd in %s**' % ( self.fullname ) )
 

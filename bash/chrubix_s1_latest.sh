@@ -202,7 +202,7 @@ install_chrubix() {
 	[ "$SIZELIMIT" != "" ] || failed "Set SIZELIMIT before calling install_chrubix(), please."
 	[ "$WGET_PROXY" != "" ] && proxy_info="export http_proxy=$WGET_PROXY; export ftp_proxy=$WGET_PROXY" || proxy_info=""
 
-	echo -en "*** Pausing so that Hugo can futz with the GitHub and overlay tarballs; press ENTER to continue ***"; read line
+	echo -en "*** Pausing so that author can futz with the GitHub and overlay tarballs; press ENTER to continue ***"; read line
 
 	wget $CHRUBIX_URL -O - | tar -xz -C $root/usr/local/bin 2> /dev/null
 	rm -Rf $root/usr/local/bin/Chrubix
