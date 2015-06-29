@@ -202,10 +202,12 @@ install_chrubix() {
 	[ "$SIZELIMIT" != "" ] || failed "Set SIZELIMIT before calling install_chrubix(), please."
 	[ "$WGET_PROXY" != "" ] && proxy_info="export http_proxy=$WGET_PROXY; export ftp_proxy=$WGET_PROXY" || proxy_info=""
 
-	wget $CHRUBIX_URL -O - | tar -xz -C $root/usr/local/bin 2> /dev/null
-	mv $root/usr/local/bin/Chrubix* $root/usr/local/bin/Chrubix	# rename Chrubix-master (or whatever) to Chrubix
-
 	echo -en "*** Pausing so that Hugo can futz with the GitHub and overlay tarballs; press ENTER to continue ***"; read line
+
+	wget $CHRUBIX_URL -O - | tar -xz -C $root/usr/local/bin 2> /dev/null
+	rm -Rf $root/usr/local/bin/Chrubix
+	mv     $root/usr/local/bin/Chrubix* $root/usr/local/bin/Chrubix	# rename Chrubix-master (or whatever) to Chrubix
+
 	wget $OVERLAY_URL -O - | tar -Jx -C $root/usr/local/bin/Chrubix 2> /dev/null || echo "Sorry. Dropbox is down. We'll have to rely on GitHub..."
 
 	for rr in $root$MYDISK_CHR_STUB $root; do
