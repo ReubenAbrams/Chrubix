@@ -313,7 +313,9 @@ Acquire::https::Proxy "https://%s/";
             chroot_this( self.mountpoint, 'sudo apt-mark hold %s' % ( pkg_name ) )
         self.update_status_with_newline( '...installed.' )
 #        svcfile = '%s/lib/systemd/system/getty@.service' % ( self.mountpoint )
-        chroot_this( self.mountpoint, 'systemctl enable lxdm.service' )
+        chroot_this( self.mountpoint, 'systemctl enable lxdm.service' , status_lst = self.status_lst, title_str = self.title_str )
+#        chroot_this( self.mountpoint, 'sudo apt-get clean && sudo apt-get update', status_lst = self.status_lst, title_str = self.title_str )
+
 
 # #        chroot_this( self.mountpoint, 'wget http://www.deb-multimedia.org/pool/main/d/deb-multimedia-keyring/deb-multimedia-keyring_2014.2_all.deb -O - > /tmp/debmult.deb', attempts = 1, title_str = self.title_str, status_lst = self.status_lst )
 # #        chroot_this( self.mountpoint, 'dpkg -i /tmp/debmult.deb', attempts = 1, title_str = self.title_str, status_lst = self.status_lst )
@@ -689,7 +691,7 @@ for f in libpam-systemd libsystemd0 systemd systemd-sysv; do
   wget https://dl.dropboxusercontent.com/u/59916027/chrubix/systemd/"$f"_215-17%2Bdeb8u1_armhf.deb
 done
 yes Y | dpkg -i *deb
-'''
+''',
                     ):
             chroot_this( self.mountpoint, cmd, status_lst = self.status_lst, title_str = self.title_str, attempts = 2 )
         self.update_status_with_newline( '**Done w/ fixing systemd in %s**' % ( self.fullname ) )

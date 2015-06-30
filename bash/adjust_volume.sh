@@ -15,37 +15,37 @@ call_amixer() {
 
 # ------------------------------------------------------------
 
-fp=/tmp/.setvol.running
-currval=`cat $fp 2> /dev/null`
-if [ ! -e "$fp" ] ; then
+volfname=/tmp/.volnow
+
+if [ ! -e "$volfname" ] ; then
 	cd /usr/local/bin/Chrubix/src
 	python3 setvol.py &> /tmp/.setvol.out &
 	sleep 1
 	if [ "$#" -ne "1" ] ; then
-		echo 30 > $fp
+		echo 30 > $volfname
 	else
-		echo $1 > $fp
+		echo $1 > $volfname
 	fi
 fi
 
-vol=`cat $fp`
+vol=`cat $volfname`
 if [ "$1" = "up" ] ; then
-	vol=$(($vol+5))
+	vol=$(($vol+10))
 	[ "$vol" -gt "100" ] && vol=100
 elif [ "$1" = "down" ] ; then
-	vol=$(($vol-5))
+	vol=$(($vol-10))
 	[ "$vol" -lt "0" ] && vol=0
 elif [ "$1" = "mute" ] ; then
-	if [ -e "$fp.orig" ] ; then
-		mv $fp.orig $fp
-		vol=`cat $fp`
+	if [ -e "$volfname.orig" ] ; then
+		mv $volfname.orig $volfname
+		vol=`cat $volfname`
 	else
-		mv $fp $fp.orig
-		echo 0 > $fp
+		mv $volfname $volfname.orig
+		echo 0 > $volfname
 	fi
 fi
 
-echo $vol > $fp
+echo $vol > $volfname
 call_amixer $vol
 
 exit 0

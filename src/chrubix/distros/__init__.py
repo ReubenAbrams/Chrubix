@@ -1130,7 +1130,8 @@ sleep 10
         assert( os.path.islink( '%s/usr/local/bin/chrubix.sh' % ( self.mountpoint ) ) )
         system_or_die( 'chmod +x %s/usr/local/bin/Chrubix/bash/*' % ( self.mountpoint ) )
         for f in ( 'chrubix.sh', 'CHRUBIX', 'greeter.sh', 'preboot_configurer.sh', 'modify_sources.sh', \
-                   'redo_mbr.sh', 'ersatz_lxdm.sh', 'make_me_persistent.sh', 'adjust_brightness.sh' , 'adjust_volume.sh' ):
+                   'redo_mbr.sh', 'ersatz_lxdm.sh', 'make_me_persistent.sh', 'adjust_brightness.sh' ,
+                   'adjust_volume.sh', 'check_ya_battery.sh' ):
             system_or_die( 'ln -sf Chrubix/bash/%s %s/usr/local/bin/%s' % ( f, self.mountpoint, f ) )
             system_or_die( 'chmod +x %s/usr/local/bin/Chrubix/bash/%s' % ( self.mountpoint, f ) )
         mytitle = ( self.fullname ).title()
@@ -1231,6 +1232,8 @@ sleep 10
 #        if os.path.exists( '%s/usr/share/icons/GnomeXP' % ( self.mountpoint ) ):
 #            raise RuntimeError( 'I have already installed the groovy XP stuff, FYI.' )
         assert( os.path.exists( '%s/etc/.mp3/winxp.mp3' % ( self.mountpoint ) ) )
+        if 0 != chroot_this( self.mountpoint, 'cp -f /usr/local/bin/Chrubix/blobs/settings/lxpanel_LXDE_panels_panel /etc/xdg/lxpanel/LXDE/panels/panel' ):
+            failed( 'Failed to copy panel config file from our special loc to the default /etc entry' )
 
     def install_leap_bitmask( self ):
         logme( 'bitmask...' )

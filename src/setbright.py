@@ -1,6 +1,6 @@
 #!/usr/local/bin/python3
 #
-# setvol.py
+# setbright.py
 #
 
 import sys
@@ -25,29 +25,27 @@ from PyQt4.Qt import QLineEdit, QPixmap
 from PyQt4 import QtGui, uic
 from PyQt4 import QtCore
 # import resources_rc
-from ui.ui_VolumeControl import Ui_VolumeControlWidget
+from ui.ui_BrightnessControl import Ui_BrightnessControlWidget
 
 # from testvol import VolumeControlWidget
 
-class VolumeControlWidget( QtGui.QDialog, Ui_VolumeControlWidget ):
+class BrightnessControlWidget( QtGui.QDialog, Ui_BrightnessControlWidget ):
     def __init__( self ):
 #        self._password = None
         self.cycles = 99
-        super( VolumeControlWidget, self ).__init__()
-        uic.loadUi( "ui/VolumeControl.ui", self )
+        super( BrightnessControlWidget, self ).__init__()
+        uic.loadUi( "ui/BrightnessControl.ui", self )
         self.setupUi( self )
         self.setWindowFlags( Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.ToolTip )  # QtCore.Qt.Tool )
         self.show()
         self.raise_()
         self.setAttribute( Qt.WA_ShowWithoutActivating )
-        self.setVolume( 0 )
+        self.setBrightness( 0 )
         self.hide()
-        try:
-            self.old_vol = int( read_oneliner_file( '/tmp/.volnow' ) )
-        except FileNotFoundError:
-            pass
 #        self.speaker_width = self.speakeron.width()
 #        self.speaker_height = self.speakeron.height()
+        self.brightnesspath = None
+        self.current_brightness = None
         QTimer.singleShot( TIME_BETWEEN_CHECKS, self.monitor )
 
     def monitor( self ):
@@ -58,15 +56,18 @@ class VolumeControlWidget( QtGui.QDialog, Ui_VolumeControlWidget ):
         else:
             self.cycles += 1
 #        print( 'checking' )
-        new_vol = int( read_oneliner_file( '/tmp/.volnow' ) )
-        if new_vol != self.old_vol:
-            self.setVolume( new_vol )
-            self.old_vol = new_vol
+        if self.current_brightness is None:
+            self.brightnesspath = '%s/brightness' % ( read_oneliner_file( '/tmp/.brightness.path' ) )
+            self.current_brightness = int ( read_oneliner_file( self.brightnesspath ) )
+        new_brightness = int ( read_oneliner_file( self.brightnesspath ) )
+        if self.current_brightness != new_brightness:
+            self.current_brightness = new_brightness
+            self.setBrightness( self.current_brightness )
         QTimer.singleShot( TIME_BETWEEN_CHECKS, self.monitor )
 
 
-    def setVolume( self, vol ):
-        print( 'setVolume(%d)' % ( vol ) )
+    def setBrightness( self, brig ):
+        print( 'setBrightness(%d)' % ( brig ) )
         self.cycles = 0
         self.show()
 #        if vol < 15:
@@ -75,7 +76,7 @@ class VolumeControlWidget( QtGui.QDialog, Ui_VolumeControlWidget ):
 #        else:
 #            self.speakeron.resize( self.speaker_width, self.speaker_height )
 #            self.speakeroff.resize( 0, 0 )
-        self.progressBar.setValue( vol )
+        self.progressBar.setValue( ( brig * 100 ) / 2800 )
         self.update()
         self.repaint()
 #        self.raise_()
@@ -88,9 +89,9 @@ class VolumeControlWidget( QtGui.QDialog, Ui_VolumeControlWidget ):
 
 if __name__ == "__main__":
     app = QtGui.QApplication( sys.argv )
-    window = VolumeControlWidget()
+    window = BrightnessControlWidget()
     screen = QtGui.QDesktopWidget().screenGeometry()
-    window.setGeometry( screen.width() - window.width() - 1, screen.height() - 49, window.width(), window.height() )
+    window.setGeometry( screen.width() - window.width() * 2 - 9, screen.height() - 49, window.width(), window.height() )
     sys.exit( app.exec_() )
 
 

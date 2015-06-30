@@ -5,12 +5,14 @@
 #
 #################################################################################
 
-fp=~/tmp/.brightness.path
+fp=/tmp/.brightness.path
 mypath=`cat $fp 2> /dev/null`
 if [ ! -e "$mypath" ] ; then
 	mp=`find /sys -name brightness -type f | head -n1`
 	mypath=`dirname $mp`
 	echo "$mypath" > $fp
+	cd /usr/local/bin/Chrubix/src
+	python3 setbright.py &> /tmp/.setbright.out &
 fi
 
 currval=`cat $mypath/brightness`

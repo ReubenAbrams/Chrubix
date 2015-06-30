@@ -1,7 +1,7 @@
 #!/usr/local/bin/python3
 #
 # utils.py
-from _sqlite3 import InternalError
+
 
 '''
 Created on May 1, 2014
@@ -278,7 +278,7 @@ def chroot_this( mountpoint, cmd, on_fail = None, attempts = 3, title_str = None
     f = open( mountpoint + my_executable_script, 'wb' )
     outstr = '#!/bin/bash\n%s\n%s\nexit $?\n' % ( proxy_info, cmd )
     if os.path.exists( mountpoint + '/bin/sh' ) and not os.path.exists( mountpoint + '/bin/bash' ):
-        failed( InternalError, 'That is wrong. There is /bin/sh but not /bin/bash. Ugh.' )
+        failed( 'That is wrong. There is /bin/sh but not /bin/bash. Ugh.' )
     f.write( outstr.encode( 'utf-8' ) )
     f.close()
     system_or_die( 'chmod 777 %s' % ( mountpoint + my_executable_script ) )
@@ -638,3 +638,39 @@ echo o   > /proc/sysrq-trigger
 exit 0
 ''' % ( path_and_fname, path_and_fname ) )
     system_or_die( 'chmod +x %s%s' % ( mountpoint, path_and_fname ) )
+
+
+def field_value( big_chunk, field_name ):
+#    print( 'Looking for %s' % ( field_name ) )
+    big_list = big_chunk.split( '\n' )
+    res = ''
+#    print( 'It is now split up...' )
+    try:
+        relevant_line = [r for r in big_list if r.find( field_name ) >= 0][-1]
+        res = relevant_line.split( ':' )[-1].strip( ' ' )
+    except IndexError:
+        res = ''
+        print( 'Unable to find %s in %s' % ( field_name, big_list ) )
+#    print( 'Relevant line = %s' % ( relevant_line ) )
+#    print( 'Res = %s' % ( relevant_line ) )
+    return res
+
+def process_power_status_info( battery_result, charger_result ):
+    dct = {}
+    dct['online'] = field_value( charger_result, 'online:' )
+    print( 'online? %s' % ( dct['online'] ) )
+    if dct['online'] == 'no':
+        dct['status'] = 'discharging'
+        dct['percentage'] = field_value( battery_result, 'percentage:' )
+        dct['time remaining'] = field_value( battery_result, 'time to empty:' )
+    else:
+        dct['status'] = 'charging'
+        dct['percentage'] = field_value( charger_result, 'percentage:' )
+        dct['time remaining'] = field_value( charger_result, 'time to full:' )
+    dct['summary'] = 'Battery @ %s and %s. Remaining time: %s.' % ( dct['status'], dct['percentage'], dct['time remaining'] )
+    if dct['percentage'] == '100%':
+        dct['status'] = 'Battery fully charged'
+    print ( 'dct = ', dct )
+    return dct
+
+
