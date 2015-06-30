@@ -216,7 +216,7 @@ install_chrubix() {
 			continue
 		fi
 		[ -d "$rr" ] || failed "install_chrubix() -- $rr does not exist. BummeR."
-		for f in chrubix.sh greeter.sh ersatz_lxdm.sh CHRUBIX redo_mbr.sh modify_sources.sh make_me_persistent.sh adjust_brightness.sh adjust_volume.sh ; do
+		for f in chrubix.sh greeter.sh ersatz_lxdm.sh CHRUBIX redo_mbr.sh modify_sources.sh make_me_persistent.sh adjust_brightness.sh adjust_volume.sh check_ya_battery.sh ; do
 			ln -sf Chrubix/bash/$f $rr/usr/local/bin/$f || echo "Cannot do $f softlink"
 		done
 		cd $rr/usr/local/bin/Chrubix/bash
@@ -611,7 +611,7 @@ restore_this_stageX_prefab() {
 	mkfifo $myfifo
 	cd /
 	
-	echo "Restoring $prefab_fname_or_url"
+	echo "Restoring `basename $prefab_fname_or_url`"
 	if echo "$prefab_fname_or_url" | fgrep http &> /dev/null ; then
 		wget $prefab_fname_or_url -O - | pv -W -B 5m > $myfifo &
 		bkgd_proc=$!
@@ -788,7 +788,7 @@ install_me() {
 	[ "$prefab_fname" = "" ] && install_from_the_beginning || install_from_prefab $prefab_fname
 	echo -en "$distroname has been installed on $DEV\nPress <Enter> to reboot. Then, press <Ctrl>U to $extra"
 	if [ "$EVILMAID" != "no" ] && echo "$0" | fgrep latest_that &> /dev/null ; then
-		echo -en "\nHEY...FOR NEFARIOUS PORPOISES, WE PAUSE NOW. Chroot into $TOP_BTSTRAP and mess with Stretch, if you like."
+		echo -en "\nHEY...FOR NEFARIOUS PORPOISES, WE PAUSE NOW. Chroot into $TOP_BTSTRAP and mess with $DISTRONAME, if you like."
 		read line
 		mkdir -p /tmp/aaa
 		mount /dev/mmcblk1p3 /tmp/aaa
