@@ -6,7 +6,7 @@
 import sys
 import os
 import hashlib
-from chrubix.utils import logme, write_oneliner_file
+from chrubix.utils import logme, write_oneliner_file, system_or_die
 from chrubix import generate_distro_record_from_name, save_distro_record, load_distro_record, read_oneliner_file
 import datetime
 
@@ -27,7 +27,8 @@ def execute_this_list( my_list ):
 def configure_X_and_start_some_apps():
     logme( 'lxdm_post_login.py --- configuring X and starting some apps' )
     main_list = ( 
-                'adjust_volume.sh 20',
+                'adjust_volume.sh',
+                'adjust_brightness.sh',
                 'pulseaudio -k',  # 'start-pulseaudio-x11',
                 'florence',  # & sleep 3; florence hide
                 'xset s off',
@@ -41,11 +42,13 @@ def configure_X_and_start_some_apps():
                 'xmodmap -e "keycode 76=XF86AudioRaiseVolume"',
                 'xmodmap -e "pointer = 1 2 3 5 4 7 6 8 9 10 11 12"',
                 'gpgApplet',
+                'check_ya_battery.sh',
                 'keepassx -min',
                 'dconf write /apps/florence/controller/floaticon false',
                 'xbindkeys',
+                'xinput set-prop "Cypress APA Trackpad (cyapa)" "Synaptics Finger" 15 20 256; xinput set-prop "Cypress APA Trackpad (cyapa)" "Synaptics Two-Finger Scrolling" 1 1',
 #                'ip2router start',
-#                'su freenet -c “/opt/freenet/run.sh start"',  # /opt/freenet start',
+#                'su freenet -c "/opt/freenet/run.sh start"',  # /opt/freenet start',
                )
     logme( 'lxdm_post_login.py --- fixing various permissions' )
     execute_this_list( main_list )
@@ -59,7 +62,7 @@ def am_i_online():
         return False
 
 
-def wait_until_online( max_delay = 999 ):
+def wait_until_online( max_delay = 999999 ):
     logme( 'lxdm_post_login.py --- waiting until %d seconds pass OR we end up online' % ( max_delay ) )
     loops = max_delay
     while not am_i_online() and loops > 0:
@@ -70,16 +73,26 @@ def wait_until_online( max_delay = 999 ):
 
 
 def initiate_nm_applet():
-    os.system( 'sleep 2' )
-    if not am_i_online():  # and 0 != os.system( 'ps wax | fgrep nm-applet | grep -v grep' ):
-        if 0 != os.system( 'cat /etc/os-release | grep -i wheezy' ):  # archlinux, jessie need sudo'd nm-applet
-            logme( 'lxdm_post_login.py --- killing and sudoing nm-applet' )
-            os.system( 'killall nm-applet' )
-            os.system( 'sudo nm-applet --nocheck &' )
-        elif 0 != os.system( 'ps wax | fgrep nm-applet | grep -v grep' ):
-            logme( 'lxdm_post_login.py --- running nm-applet' )
-            os.system( 'nm-applet --nocheck &' )
-
+        system_or_die( '''
+sleep 5
+echo QQQAAA >> /tmp/chrubix.log
+if ! ping -c1 -W5 8.8.8.8 &> /dev/null; then
+  echo QQQBBB >> /tmp/chrubix.log
+  if cat /etc/os-release | grep -i wheezy ; then
+    echo QQQCCC >> /tmp/chrubix.log
+    nm-applet --nocheck &
+  else
+    echo QQQDDD >> /tmp/chrubix.log
+    killall nm-applet &> /dev/null || echo -en ""
+    killall nm-applet &> /dev/null || echo -en ""
+    killall nm-applet &> /dev/null || echo -en ""
+    sleep 1
+    echo QQQEEE >> /tmp/chrubix.log
+    sudo nm-applet --nocheck &
+  fi
+fi
+echo QQQZZZ >> /tmp/chrubix.log
+        ''' )
 
 def start_privoxy_freenet_i2p_and_tor():
     if 0 == os.system( 'sudo /usr/local/bin/start_privoxy_freenet_i2p_and_tor.sh' ):
@@ -111,8 +124,8 @@ def start_a_browser():
 
 if __name__ == "__main__":
     logme( 'lxdm_post_login.py --- starting' )
-    configure_X_and_start_some_apps()
     initiate_nm_applet()
+    configure_X_and_start_some_apps()
     wait_until_online()
     start_privoxy_freenet_i2p_and_tor()
     start_a_browser()

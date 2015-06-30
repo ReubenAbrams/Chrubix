@@ -32,7 +32,7 @@ while [ "black" != "white" ] ; do
 		if [ "$charging" = "yes" ] ; then
 			status="charging"
 			pc=`get_field $battery_device "percent" | sed s/\%//`
-			time_remaining="Time until full: `get_field $battery_device "time"`"
+			[ "$pc" != "100" ] && time_remaining="Time until full: `get_field $battery_device "time"`"
 			percentage=" Battery @ $pc%."
 		else
 			pc=`get_field $battery_device "percent" | sed s/\%//`
@@ -43,7 +43,7 @@ while [ "black" != "white" ] ; do
 	message="Laptop $status.$percentage $time_remaining"
 	if [ "$last_message" != "$message" ] ; then
 		echo "$message" > /tmp/.battstat
-		if [ "$(($pc/5))" != "$(($last_pc/5))" ] || [ "$pc" -le "8" ] || [ "$pc" == "100" ] || [ "$pc" == "99" ] ; then
+		if [ "$(($pc%5))" -eq "0" ] || [ "$pc" -le "10" ] || [ "$pc" == "100" ] || [ "$pc" == "99" ] ; then
 			notify-send "Battery $status" "$message"
 		fi
 		last_message="$message"

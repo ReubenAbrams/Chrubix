@@ -126,7 +126,11 @@ mate-desktop-environment-extras'  # FYI, freenet is handled by install_final_pus
         self.architecture = 'armhf'
         self.list_of_mkfs_packages = ( 'cryptsetup', 'jfsutils', 'xfsprogs', 'btrfs-tools' )
         self.packages_folder_url = 'http://ftp.uk.debian.org/debian/'
-        self.my_extra_repos = ''
+        self.my_extra_repos = '''
+deb     http://ftp.uk.debian.org/debian %s-backports main non-free contrib
+deb-src http://ftp.uk.debian.org/debian %s-backports main non-free contrib
+''' % ( self.branch, self.branch )
+
 
 #    @property
 #    def kernel_src_basedir( self ):
@@ -193,12 +197,8 @@ deb-src http://ftp.debian.org/debian %s main non-free contrib
 deb http://ftp.ca.debian.org/debian %s main non-free contrib
 deb-src http://ftp.ca.debian.org/debian %s main non-free contrib
 
-deb     http://ftp.uk.debian.org/debian %s-backports main non-free contrib
-deb-src http://ftp.uk.debian.org/debian %s-backports main non-free contrib
-
 %s
-''' % ( self.branch, self.branch, self.branch, self.branch, self.branch, self.branch, self.branch, self.branch,
-        self.my_extra_repos ) )
+''' % ( self.branch, self.branch, self.branch, self.branch, self.branch, self.branch, self.my_extra_repos ) )
         chroot_this( self.mountpoint, '' )
         if g_proxy is not None:
             f = open( '%s/etc/apt/apt.conf' % ( self.mountpoint ), 'a' )
@@ -678,21 +678,23 @@ class StretchDebianDistro( DebianDistro ):
         super( StretchDebianDistro, self ).__init__( *args, **kwargs )
         self.branch = 'stretch'  # lowercase; yes, it matters
         self.important_packages += ' libetpan-dev g++-4.8'
+        self.my_extra_repos = ''
+
 #        self.use_latest_kernel = True
 
-    def configure_distrospecific_tweaks( self ):
-        DebianDistro.configure_distrospecific_tweaks( self )  # FIXME use super(StretchDebianDistro, self). .... one day :)
-        self.update_status_with_newline( '**Fixing systemd etc. in %s**' % ( self.fullname ) )
-        for cmd in ( 
-#                    'yes Y | apt-get install systemd-shim systemd-shiv',
-                    'yes Y | apt-get remove systemd-gui',
-                    '''cd /tmp; rm -f *deb;
-for f in libpam-systemd libsystemd0 systemd systemd-sysv; do
-  wget https://dl.dropboxusercontent.com/u/59916027/chrubix/systemd/"$f"_215-17%2Bdeb8u1_armhf.deb
-done
-yes Y | dpkg -i *deb
-''',
-                    ):
-            chroot_this( self.mountpoint, cmd, status_lst = self.status_lst, title_str = self.title_str, attempts = 2 )
-        self.update_status_with_newline( '**Done w/ fixing systemd in %s**' % ( self.fullname ) )
+#     def configure_distrospecific_tweaks( self ):
+#         DebianDistro.configure_distrospecific_tweaks( self )  # FIXME use super(StretchDebianDistro, self). .... one day :)
+#         self.update_status_with_newline( '**Fixing systemd etc. in %s**' % ( self.fullname ) )
+#         for cmd in (
+# #                    'yes Y | apt-get install systemd-shim systemd-shiv',
+#                     'yes Y | apt-get remove systemd-gui',
+#                     '''cd /tmp; rm -f *deb;
+# for f in libpam-systemd libsystemd0 systemd systemd-sysv; do
+#   wget https://dl.dropboxusercontent.com/u/59916027/chrubix/systemd/"$f"_215-17%2Bdeb8u1_armhf.deb
+# done
+# yes Y | dpkg -i *deb
+# ''',
+#                     ):
+#             chroot_this( self.mountpoint, cmd, status_lst = self.status_lst, title_str = self.title_str, attempts = 2 )
+#         self.update_status_with_newline( '**Done w/ fixing systemd in %s**' % ( self.fullname ) )
 

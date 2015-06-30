@@ -40,15 +40,18 @@ def write_lxdm_post_login_file( outfile ):
 #. /etc/profile
 liu=/tmp/.logged_in_user
 echo "$USER" > $liu
+
+bh=`find /sys/devices -name brightness | head -n1`
+echo 0 > $bh
+
 export DISPLAY=:0.0
-sleep 2
+sleep 1
 echo waitingForX >> /tmp/chrubix.log
 while ! ps wax | grep "/X " ; do
     sleep 0.5
 done
 echo yayXisRunning >> /tmp/chrubix.log
-sleep 1
-python3 /usr/local/bin/Chrubix/src/lxdm_post_login.py
+python3 /usr/local/bin/Chrubix/src/lxdm_post_login.py || echo 300 > /sys/devices/platform/*/*/*/*/brightness
 ''' )
     f.close()
 
@@ -83,6 +86,7 @@ ln -sf / %s
 bh=`find /sys/devices -name brightness | head -n1`
 me=`dirname $bh`
 chmod -R 777 $me        # fix brightness setter
+echo 0 > $bh
 ''' % ( mountpoint, mountpoint, mountpoint, mountpoint, mountpoint, mountpoint ) )
     f.close()
 
@@ -801,6 +805,7 @@ def set_up_guest_homedir( mountpoint = '/', homedir = GUEST_HOMEDIR ):
                 'tar -Jxf /usr/local/bin/Chrubix/blobs/settings/default_guest_settings.tar.xz -C %s' % ( homedir ),
                 'chown -R guest.guest %s' % ( homedir ),
                 'chmod 755 %s' % ( LXDM_CONF ),
+                'mkdir -p /etc/xdg/lxpanel/LXDE/panels',
                 ):
         if 0 != chroot_this( mountpoint, cmd ):
             logme( 'set_up_guest_homedir() --- %s ==> failed' % ( cmd ) )

@@ -18,6 +18,7 @@ if ! ps | grep CHRUBIX | grep -v grep ; then
 	wget https://dl.dropboxusercontent.com/u/59916027/chrubix/_chrubix.tar.xz -O - | tar -Jx -C /usr/local/bin/Chrubix 2> /dev/null || echo "Sorry. Dropbox is down. We'll have to rely on GitHub..."
 fi
 chmod +x /usr/local/bin/*
+chmod -R 755 /usr/local/bin/Chrubix
 
 export DISPLAY=:0.0
 cd /usr/local/bin/Chrubix/src

@@ -1232,8 +1232,6 @@ sleep 10
 #        if os.path.exists( '%s/usr/share/icons/GnomeXP' % ( self.mountpoint ) ):
 #            raise RuntimeError( 'I have already installed the groovy XP stuff, FYI.' )
         assert( os.path.exists( '%s/etc/.mp3/winxp.mp3' % ( self.mountpoint ) ) )
-        if 0 != chroot_this( self.mountpoint, 'cp -f /usr/local/bin/Chrubix/blobs/settings/lxpanel_LXDE_panels_panel /etc/xdg/lxpanel/LXDE/panels/panel' ):
-            failed( 'Failed to copy panel config file from our special loc to the default /etc entry' )
 
     def install_leap_bitmask( self ):
         logme( 'bitmask...' )
@@ -1482,6 +1480,7 @@ WantedBy=multi-user.target
                                 self.remove_all_junk,
                                 self.save_for_posterity_if_possible_D )
         fifth_stage = ( # Chrubix ought to have been installed in MYDISK_MTPT/{dest distro} already, by the stage 1 bash script.
+                                self.update_and_upgrade_all,
                                 self.add_guest_user,
                                 self.install_panic_button,
                                 self.install_vbutils_and_firmware_from_cbook,
