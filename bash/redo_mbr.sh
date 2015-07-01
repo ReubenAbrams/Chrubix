@@ -518,5 +518,4 @@ if [ "$#" -eq "3" ] ; then
 	exit $res
 else
 	failed "redo_mbr.sh <dev> <mountpoint> <root device or crypto root dev> ----- e.g. redo_mbr.sh /dev/mmcblk1 /tmp/_root /dev/mapper/cryptroot"
-#	generate_logmein_script /dev/mmcblk1p2
 fi
