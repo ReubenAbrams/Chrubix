@@ -5,31 +5,43 @@
 #
 #################################################################################
 
-fp=/tmp/.brightness.path
+
+fp=~/.brightness.path
 mypath=`cat $fp 2> /dev/null`
-if [ ! -e "$mypath" ] ; then
+if [ ! -e "$fp" ] ; then
+	sleep 0.5
+fi
+
+my_brightness_fname=~/.brightnow
+if [ ! -e "$my_brightness_fname" ] ; then
 	mp=`find /sys -name brightness -type f | head -n1`
 	mypath=`dirname $mp`
 	echo "$mypath" > $fp
+#	echo 200 > $my_brightness_fname
+fi
+
+if ! ps wax | fgrep setbright | fgrep -v grep ; then
 	cd /usr/local/bin/Chrubix/src
-	sleep 1
-	v=0
-	noofloops=0
-	while [ "$noofloops" -lt "50" ] ; do
-		echo $v > $mypath/brightness
-		v=$(($v+10))
-		noofloops=$(($noofloops+1))
-		sleep .06
-	done	
 	python3 setbright.py &> /tmp/.setbright.out &
+	sleep 1
+	exit 0
 fi
 
 currval=`cat $mypath/brightness`
+
 if [ "$1" = "up" ] && [ "$currval" -lt "`cat $mypath/max_brightness`" ] ; then
-	currval=$(($currval+100))
+	if [ "$2" != "" ] ; then
+		currval=$(($currval+$2))
+	else
+		currval=$(($currval+100))
+	fi
 elif [ "$1" = "down" ] && [ "$currval" -gt "0" ] ; then
 	currval=$(($currval-100))
+elif [ "$1" != "" ] ; then
+	currval=$1
 fi
 
-echo "$currval" > $mypath/brightness
+
+echo $(($(($currval*100))/`cat $mypath/max_brightness`)) > $my_brightness_fname
+echo $currval > $mypath/brightness
 exit 0

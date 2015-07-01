@@ -5,9 +5,16 @@
 #
 #################################################################################
 
+
+
+volfname=$HOME/.volnow
+
+
+
+
 call_amixer() {
-	echo "$1" > /tmp/.volnow
-	chmod 777 /tmp/.volnow
+	echo "$1" > $volfname
+	chmod 777 $volfname
 	amixer set Speaker "$1"%
 	amixer set Headphone "$1"%
 }
@@ -15,17 +22,21 @@ call_amixer() {
 
 # ------------------------------------------------------------
 
-volfname=/tmp/.volnow
 
 if [ ! -e "$volfname" ] ; then
-	cd /usr/local/bin/Chrubix/src
-	python3 setvol.py &> /tmp/.setvol.out &
-	sleep 1
 	if [ "$#" -ne "1" ] ; then
 		echo 30 > $volfname
 	else
 		echo $1 > $volfname
 	fi
+fi
+
+if ! ps wax | fgrep setvol.py | fgrep -v grep ; then
+	cd /usr/local/bin/Chrubix/src
+	python3 setvol.py &> /tmp/.setvol.out &
+	sleep 3
+	cd /
+	exit 0
 fi
 
 vol=`cat $volfname`
