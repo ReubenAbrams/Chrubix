@@ -36,8 +36,8 @@ while [ "black" != "white" ] ; do
 			percentage=" Battery @ $pc%."
 		else
 			pc=`get_field $battery_device "percent" | sed s/\%//`
-			status="Battery @ $pc%"
-			percentage=" $status."
+			status="battery @ $pc%"
+			#			percentage=" Battery @ $pc%."
 			time_remaining="Time remaining: `get_field $battery_device "time"`"
 		fi
 	fi
