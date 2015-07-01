@@ -42,10 +42,7 @@ class VolumeControlWidget( QtGui.QDialog, Ui_VolumeControlWidget ):
         self.setAttribute( Qt.WA_ShowWithoutActivating )
         self.setVolume( 0 )
         self.hide()
-        try:
-            self.old_vol = int( read_oneliner_file( '/tmp/.volnow' ) )
-        except FileNotFoundError:
-            pass
+        self.old_vol = None
 #        self.speaker_width = self.speakeron.width()
 #        self.speaker_height = self.speakeron.height()
         QTimer.singleShot( TIME_BETWEEN_CHECKS, self.monitor )
@@ -58,10 +55,13 @@ class VolumeControlWidget( QtGui.QDialog, Ui_VolumeControlWidget ):
         else:
             self.cycles += 1
 #        print( 'checking' )
-        new_vol = int( read_oneliner_file( '/tmp/.volnow' ) )
-        if new_vol != self.old_vol:
-            self.setVolume( new_vol )
-            self.old_vol = new_vol
+        if os.path.exists( '/tmp/.volnow' ):
+            new_vol = int( read_oneliner_file( '/tmp/.volnow' ) )
+            if new_vol != self.old_vol:
+                self.setVolume( new_vol )
+                self.old_vol = new_vol
+#        else:
+#            print( 'Waiting for .volnow to appear' )
         QTimer.singleShot( TIME_BETWEEN_CHECKS, self.monitor )
 
 

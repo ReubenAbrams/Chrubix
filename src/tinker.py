@@ -69,6 +69,7 @@ elif argv[2] == 'build-from-debian':
     distro = generate_distro_record_from_name( argv[3] )
     distro.mountpoint = MYDISK_MTPT
     pkg = argv[4]
+    distro.build_and_install_package_from_debian_source( pkg, 'jessie' )
 elif argv[2] == 'build-from-jessie-for-stretch':
     distro = generate_distro_record_from_name( 'debianstretch' )
     distro.mountpoint = '/'
