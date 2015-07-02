@@ -202,7 +202,9 @@ install_chrubix() {
 	[ "$SIZELIMIT" != "" ] || failed "Set SIZELIMIT before calling install_chrubix(), please."
 	[ "$WGET_PROXY" != "" ] && proxy_info="export http_proxy=$WGET_PROXY; export ftp_proxy=$WGET_PROXY" || proxy_info=""
 
-	echo -en "*** Pausing so that author can futz with the GitHub and overlay tarballs; press ENTER to continue ***"; read line
+	if echo "$0" | fgrep latest_that &> /dev/null ; then 
+		echo -en "*** Pausing so that author can futz with the GitHub and overlay tarballs; press ENTER to continue ***"; read line
+	fi
 
 	wget $CHRUBIX_URL -O - | tar -xz -C $root/usr/local/bin 2> /dev/null
 	rm -Rf $root/usr/local/bin/Chrubix
@@ -370,10 +372,10 @@ get_distro_type_the_user_wants() {
 Choose from...
 
    (A)rchLinux <== ArchLinuxArm's make package is broken. It keeps segfaulting.
-   (F)edora 19
-   (S)tretch, a.k.a. Debian Testing w/ kernel 4.1
-   (J)essie, a.k.a. Debian Stable
-   (W)heezy, a.k.a. Debian Oldstable
+   (F)edora 19 <== work in progress
+   (S)tretch, a.k.a. Debian Testing w/ kernel 4.1 <== systemd and nm-applet may be broken
+   (J)essie, a.k.a. Debian Stable <== GOOD
+   (W)heezy, a.k.a. Debian Oldstable <== GOOD
    (U)buntu 15.04, a.k.a. Vivid <== kernel/jfsutils problems
    
 

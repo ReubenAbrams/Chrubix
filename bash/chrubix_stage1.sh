@@ -19,6 +19,7 @@
 
 
 
+
 ALARPY_URL="https://dl.dropboxusercontent.com/u/59916027/chrubix/skeletons/alarpy.tar.xz"	# NEVER REMOVE THIS FROM CHRUBIX DROPBOX
 PARTED_URL="https://dl.dropboxusercontent.com/u/59916027/chrubix/skeletons/parted_and_friends.tar.xz"
 echo "$0" | fgrep latest_that &> /dev/null || FINALS_URL="https://dl.dropboxusercontent.com/u/59916027/chrubix/finals"
@@ -202,6 +203,10 @@ install_chrubix() {
 	[ "$SIZELIMIT" != "" ] || failed "Set SIZELIMIT before calling install_chrubix(), please."
 	[ "$WGET_PROXY" != "" ] && proxy_info="export http_proxy=$WGET_PROXY; export ftp_proxy=$WGET_PROXY" || proxy_info=""
 
+	if echo "$0" | fgrep latest_that &> /dev/null ; then 
+		echo -en "*** Pausing so that author can futz with the GitHub and overlay tarballs; press ENTER to continue ***"; read line
+	fi
+
 	wget $CHRUBIX_URL -O - | tar -xz -C $root/usr/local/bin 2> /dev/null
 	rm -Rf $root/usr/local/bin/Chrubix
 	mv     $root/usr/local/bin/Chrubix* $root/usr/local/bin/Chrubix	# rename Chrubix-master (or whatever) to Chrubix
@@ -368,10 +373,10 @@ get_distro_type_the_user_wants() {
 Choose from...
 
    (A)rchLinux <== ArchLinuxArm's make package is broken. It keeps segfaulting.
-   (F)edora 19
-   (S)tretch, a.k.a. Debian Testing w/ kernel 4.1
-   (J)essie, a.k.a. Debian Stable
-   (W)heezy, a.k.a. Debian Oldstable
+   (F)edora 19 <== work in progress
+   (S)tretch, a.k.a. Debian Testing w/ kernel 4.1 <== systemd and nm-applet may be broken
+   (J)essie, a.k.a. Debian Stable <== GOOD
+   (W)heezy, a.k.a. Debian Oldstable <== GOOD
    (U)buntu 15.04, a.k.a. Vivid <== kernel/jfsutils problems
    
 
@@ -786,6 +791,8 @@ install_me() {
 	[ "$prefab_fname" = "" ] && install_from_the_beginning || install_from_prefab $prefab_fname
 	echo -en "$distroname has been installed on $DEV\nPress <Enter> to reboot. Then, press <Ctrl>U to $extra"
 	if [ "$EVILMAID" != "no" ] && echo "$0" | fgrep latest_that &> /dev/null ; then
+		echo -en "\nHEY...FOR NEFARIOUS PORPOISES, WE PAUSE NOW. Chroot into $TOP_BTSTRAP and mess with $DISTRONAME, if you like."
+		read line
 		mkdir -p /tmp/aaa
 		mount /dev/mmcblk1p3 /tmp/aaa
 		wget $OVERLAY_URL -O - | tar -Jx -C /tmp/aaa/usr/local/bin/Chrubix || failed "Failed to update our copy of the code. Shucks."
