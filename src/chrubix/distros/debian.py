@@ -126,12 +126,7 @@ mate-desktop-environment-extras'  # FYI, freenet is handled by install_final_pus
         self.architecture = 'armhf'
         self.list_of_mkfs_packages = ( 'cryptsetup', 'jfsutils', 'xfsprogs', 'btrfs-tools' )
         self.packages_folder_url = 'http://ftp.uk.debian.org/debian/'
-        self.my_extra_repos = '''
-deb     http://ftp.uk.debian.org/debian %s-backports main non-free contrib
-deb-src http://ftp.uk.debian.org/debian %s-backports main non-free contrib
-''' % ( self.branch, self.branch )
-
-
+        self.my_extra_repos = ''
 #    @property
 #    def kernel_src_basedir( self ):
 #        return self.sources_basedir + "/linux"
@@ -208,12 +203,14 @@ Acquire::ftp::Proxy  "ftp://%s/";
 Acquire::https::Proxy "https://%s/";
 ''' % ( g_proxy, g_proxy, g_proxy ) )
             f.close()
-        chroot_this( self.mountpoint, 'wget http://www.deb-multimedia.org/pool/main/d/deb-multimedia-keyring/deb-multimedia-keyring_2014.2_all.deb -O - > /tmp/debmult.deb', attempts = 1, title_str = self.title_str, status_lst = self.status_lst )
+        chroot_this( self.mountpoint, 'wget http://www.deb-multimedia.org/pool/main/d/deb-multimedia-keyring/deb-multimedia-keyring_2015.6.1_all.deb -O - > /tmp/debmult.deb', attempts = 1, title_str = self.title_str, status_lst = self.status_lst )
         chroot_this( self.mountpoint, 'dpkg -i /tmp/debmult.deb', attempts = 1, title_str = self.title_str, status_lst = self.status_lst )
         chroot_this( self.mountpoint, 'apt-get update', attempts = 1, title_str = self.title_str, status_lst = self.status_lst )
         logme( 'DebianDistro - install_package_manager_tweaks() - leaving' )
 
     def update_and_upgrade_all( self ):
+        if 0 == os.system( 'cat %s/etc/apt/sources.list | fgrep None-backports' % ( self.mountpoint ) ):
+            do_a_sed( '%s/etc/apt/sources.list' % ( self.mountpoint ), 'None-backports', '%s-backports' % ( self.branch ) )
         logme( 'DebianDistro - update_and_upgrade_all() - starting' )
         chroot_this ( self.mountpoint, 'yes 2>/dev/null | apt-get update', "Failed to update OS" , attempts = 5, title_str = self.title_str, status_lst = self.status_lst )
         chroot_this ( self.mountpoint, 'yes 2>/dev/null | apt-get upgrade', "Failed to upgrade OS" , attempts = 5, title_str = self.title_str, status_lst = self.status_lst )
@@ -651,7 +648,11 @@ class WheezyDebianDistro( DebianDistro ):
         super( WheezyDebianDistro, self ).__init__( *args, **kwargs )
         self.branch = 'wheezy'  # lowercase; yes, it matters :)
         self.important_packages = self.important_packages.replace( 'openjdk-8-', 'openjdk-7-' ) + ' libetpan15'
-        self.my_extra_repos = 'deb http://www.deb-multimedia.org ' + self.branch + ' main non-free'
+        self.my_extra_repos = '''
+deb     http://ftp.uk.debian.org/debian %s-backports main non-free contrib
+deb-src http://ftp.uk.debian.org/debian %s-backports main non-free contrib
+deb http://www.deb-multimedia.org %s main non-free'
+''' % ( self.branch, self.branch, self.branch )
 
     def tweak_pulseaudio( self ):
         # Wheezy requires a special kind of bulls***. :-/ The standard Distro.tweak_pulseaudio() won't work.
@@ -671,6 +672,10 @@ class JessieDebianDistro( DebianDistro ):
         super( JessieDebianDistro, self ).__init__( *args, **kwargs )
         self.branch = 'jessie'  # lowercase; yes, it matters
         self.important_packages += ' libetpan-dev g++-4.8'
+        self.my_extra_repos = '''
+deb     http://ftp.uk.debian.org/debian %s-backports main non-free contrib
+deb-src http://ftp.uk.debian.org/debian %s-backports main non-free contrib
+''' % ( self.branch, self.branch )
 
 
 class StretchDebianDistro( DebianDistro ):
@@ -678,23 +683,22 @@ class StretchDebianDistro( DebianDistro ):
         super( StretchDebianDistro, self ).__init__( *args, **kwargs )
         self.branch = 'stretch'  # lowercase; yes, it matters
         self.important_packages += ' libetpan-dev g++-4.8'
-        self.my_extra_repos = ''
 
 #        self.use_latest_kernel = True
 
-#     def configure_distrospecific_tweaks( self ):
-#         DebianDistro.configure_distrospecific_tweaks( self )  # FIXME use super(StretchDebianDistro, self). .... one day :)
-#         self.update_status_with_newline( '**Fixing systemd etc. in %s**' % ( self.fullname ) )
-#         for cmd in (
-# #                    'yes Y | apt-get install systemd-shim systemd-shiv',
-#                     'yes Y | apt-get remove systemd-gui',
-#                     '''cd /tmp; rm -f *deb;
-# for f in libpam-systemd libsystemd0 systemd systemd-sysv; do
-#   wget https://dl.dropboxusercontent.com/u/59916027/chrubix/systemd/"$f"_215-17%2Bdeb8u1_armhf.deb
-# done
-# yes Y | dpkg -i *deb
-# ''',
-#                     ):
-#             chroot_this( self.mountpoint, cmd, status_lst = self.status_lst, title_str = self.title_str, attempts = 2 )
-#         self.update_status_with_newline( '**Done w/ fixing systemd in %s**' % ( self.fullname ) )
+    def configure_distrospecific_tweaks( self ):
+        DebianDistro.configure_distrospecific_tweaks( self )  # FIXME use super(StretchDebianDistro, self). .... one day :)
+        self.update_status_with_newline( '**Fixing systemd etc. in %s**' % ( self.fullname ) )
+        for cmd in ( 
+#                    'yes Y | apt-get install systemd-shim systemd-shiv',
+                    'yes Y | apt-get remove systemd-gui',
+                    '''cd /tmp; rm -f *deb;
+for f in libpam-systemd libsystemd0 systemd systemd-sysv; do
+  wget https://dl.dropboxusercontent.com/u/59916027/chrubix/systemd/"$f"_215-17%2Bdeb8u1_armhf.deb
+done
+yes Y | dpkg -i *deb
+''',
+                    ):
+            chroot_this( self.mountpoint, cmd, status_lst = self.status_lst, title_str = self.title_str, attempts = 2 )
+        self.update_status_with_newline( '**Done w/ fixing systemd in %s**' % ( self.fullname ) )
 
