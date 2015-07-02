@@ -19,7 +19,7 @@
 
 
 
-ALARPY_URL="https://dl.dropboxusercontent.com/u/59916027/chrubix/skeletons/alarpy.tar.xz"
+ALARPY_URL="https://dl.dropboxusercontent.com/u/59916027/chrubix/skeletons/alarpy.tar.xz"	# NEVER REMOVE THIS FROM CHRUBIX DROPBOX
 PARTED_URL="https://dl.dropboxusercontent.com/u/59916027/chrubix/skeletons/parted_and_friends.tar.xz"
 echo "$0" | fgrep latest_that &> /dev/null || FINALS_URL="https://dl.dropboxusercontent.com/u/59916027/chrubix/finals"
 CHRUBIX_URL="http://github.com/ReubenAbrams/Chrubix/archive/master.tar.gz"

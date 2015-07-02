@@ -24,28 +24,29 @@ while [ "black" != "white" ] ; do
 	sleep 1
 	upower -i $charger_device | grep "online.*yes" &> /dev/null && charging="yes" || charging="no"
 	if upower -i $battery_device | fgrep "fully-charged" ; then
-		status="Battery charged"
-		percentage=""
 		time_remaining=""
 		pc=101
+		header="Battery charged"
+		message="Laptop battery is fully charged."
 	else
 		if [ "$charging" = "yes" ] ; then
-			status="Charging battery"
 			pc=`get_field $battery_device "percent" | sed s/\%//`
 			[ "$pc" != "100" ] && time_remaining="Time until full: `get_field $battery_device "time"`"
 			percentage=" Battery @ $pc%."
+			time_remaining="Time remaining: `get_field $battery_device "time"`"
+			header="Laptop charging battery"
+			message="Laptop battery is charging. Time until charged: $time_remaining."
 		else
 			pc=`get_field $battery_device "percent" | sed s/\%//`
-			status="battery @ $pc%"
-			#			percentage=" Battery @ $pc%."
+			header="Laptop battery @ $pc%"
 			time_remaining="Time remaining: `get_field $battery_device "time"`"
+			message="Battery charge is at $pc%. Time remaining: $time_remaining."
 		fi
 	fi
-	message="Laptop $status.$percentage $time_remaining"
 	if [ "$last_message" != "$message" ] ; then
 		echo "$message" > /tmp/.battstat
 		if [ "$(($pc%5))" -eq "0" ] || [ "$pc" -le "10" ] || [ "$pc" == "100" ] || [ "$pc" == "99" ] ; then
-			notify-send "$status" "$message"
+			notify-send "$header" "$message"
 		fi
 		last_message="$message"
 		last_pc=$pc

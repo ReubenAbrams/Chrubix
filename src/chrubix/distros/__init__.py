@@ -717,10 +717,11 @@ Type=Application
 Categories=GTK;Utility;TerminalEmulator;
 ''' )  # FIME should use /usr/local/bin/make_me_persistent.sh
 
-    def configure_lxdm_login_manager( self ):
+    def configure_lxdm_and_lxde( self ):
         configure_lxdm_onetime_changes( self.mountpoint )
         configure_lxdm_behavior( self.mountpoint, self.lxdm_settings )
         configure_lxdm_service( self.mountpoint )
+#        configure_alsa_stop_for_lxdm( self.mountpoint )
         chroot_this( self.mountpoint, 'chmod +x /etc/lxdm/L*' )
         chroot_this( self.mountpoint, 'chmod +x /etc/lxdm/P*' )
 
@@ -926,6 +927,7 @@ sleep 10
         assert( os.path.exists( '%s/.vbkeys.tgz' % ( self.mountpoint ) ) )
         self.initrd_rebuild_required = True
         self.set_root_password( 'hi' )
+#        os.system( 'touch %s/tmp/.donotmakekernel' % ( self.mountpoint ) )  # save time?
         self.redo_mbr_for_plaintext_root( self.mountpoint )
         chrubix.save_distro_record( self, self.mountpoint )
 
@@ -1485,7 +1487,7 @@ WantedBy=multi-user.target
                                 self.install_panic_button,
                                 self.install_vbutils_and_firmware_from_cbook,
                                 self.configure_dbus_sudo_and_groups,
-                                self.configure_lxdm_login_manager,
+                                self.configure_lxdm_and_lxde,
                                 self.configure_privacy_tools,
                                 self.configure_chrome_or_iceweasel,
                                 self.configure_networking,

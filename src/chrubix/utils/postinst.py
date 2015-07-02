@@ -25,10 +25,10 @@ setxkbmap us
 localectl set-x11-keymap us
 xset -b        # dpms, no audio bell; see https://www.notabilisfactum.com/blog/?page_id=7
 xset m 30/10 3
+xinput set-prop "Cypress APA Trackpad (cyapa)" "Synaptics Finger" 15 20 256; xinput set-prop "Cypress APA Trackpad (cyapa)" "Synaptics Two-Finger Scrolling" 1 1
+syndaemon -t -k -i 1 -d # disable mousepad for 1s after typing finishes
+
 # TODO Why don't we put xmodmap stuff (bightness, volume) in here instead? At present, it's in post_lxdm thingumabob
-logger "startx cccc"
-syndaemon -t -k -i 1 -d    # disable mousepad for 1s after typing finishes
-logger "startx end of startx addendum"
 ''' )
     f.close()
 
@@ -41,15 +41,15 @@ def write_lxdm_post_login_file( outfile ):
 liu=/tmp/.logged_in_user
 echo "$USER" > $liu
 
-bh=`find /sys/devices -name brightness | head -n1`
-echo 0 > $bh
+#bh=`find /sys/devices -name brightness | head -n1`
+#echo 100 > $bh
 
 export DISPLAY=:0.0
-sleep 1
 echo waitingForX >> /tmp/chrubix.log
-while ! ps wax | grep "/X " ; do
-    sleep 0.5
+while ! ps wax | fgrep "/X " | fgrep -v grep ; do
+    sleep 0.2
 done
+sleep 1
 echo yayXisRunning >> /tmp/chrubix.log
 python3 /usr/local/bin/Chrubix/src/lxdm_post_login.py || echo 300 > /sys/devices/platform/*/*/*/*/brightness
 ''' )
@@ -86,7 +86,7 @@ ln -sf / %s
 bh=`find /sys/devices -name brightness | head -n1`
 me=`dirname $bh`
 chmod -R 777 $me        # fix brightness setter
-echo 0 > $bh
+#echo 0 > $bh
 ''' % ( mountpoint, mountpoint, mountpoint, mountpoint, mountpoint, mountpoint ) )
     f.close()
 
@@ -324,7 +324,30 @@ def configure_lxdm_behavior( mountpoint, lxdm_settings ):
     assert( os.path.exists( '%s/%s' % ( mountpoint, lxdm_settings['window manager'] ) ) )
     do_a_sed( f, '.*session=.*', 'session=%s' % ( lxdm_settings['window manager'] ) )
     assert( 0 == os.system( 'cat %s | grep session= &> /dev/null' % ( f ) ) )
+    f = '%s/etc/pam.d/lxdm' % ( mountpoint )
+    # http://ubuntuforums.org/showthread.php?t=2178645
+    if os.path.isfile( f ):
+        handle = open( f, 'a' )
+        handle.write( '''
+session required pam_loginuid.so
+session required pam_systemd.so
+''' )
+        handle.close()
     logme( 'configure_lxdm_behavior --- leaving' )
+
+
+def configure_alsa_stop_for_lxdm( mountpoint ):
+    f = '%s/etc/init.d/alsa-utils' % ( mountpoint )
+    os.system( 'mv %s %s.orig' % ( f, f ) )
+    with open( f + '.orig', "r" ) as sources:
+        lines = sources.readlines()
+    with open( f, "w" ) as sources:
+        for line in lines:
+            sources.write( line )
+            if line.find( 'stop)' ) >= 0:
+                sources.write( \
+ '''(sleep 10; sync;sync;sync; cd /usr/local/bin/Chrubix/src; python3 -c "from chrubix.utils import poweroff_now; poweroff_now();" ) &"
+ ''' )
 
 
 def write_login_ready_file( fname ):
@@ -819,12 +842,18 @@ def set_up_guest_homedir( mountpoint = '/', homedir = GUEST_HOMEDIR ):
 
 
 def write_lxdm_pre_reboot_or_shutdown_file( output_fname, executable_fname ):
+    if executable_fname == 'reboot':
+        cmd = 'sudo shutdown -r now'
+    elif executable_fname == 'shutdown':
+        cmd = 'sudo shutdown -h now'
+    else:
+        failed( 'write_lxdm_pre_reboot_or_shutdown_file() -- unknown binary, %s' % ( executable_fname ) )
     write_oneliner_file( output_fname, '''#!/bin/sh
-
-sudo %s
+#(sync;sync;sync;sleep 10;sync;sync;sync;cd /usr/local/bin/Chrubix/src; python3 -c "from chrubix.utils import poweroff_now; poweroff_now(%s);") &
+%s
 exit $?
-''' % ( executable_fname ) )
-    system_or_die( 'chmod +x %s' % ( output_fname ) )
+''' % ( cmd, 'True' if executable_fname == 'reboot' else 'False' ) )
+#    system_or_die( 'chmod +x %s' % ( executable_fname ) )  # ( 'poweroff' if output_fname == 'shutdown' else 'reboot -h -f' ) )
 
 
 

@@ -430,7 +430,8 @@ def install_mp3_files( mountpoint ):
         system_or_die( 'gunzip -f %s/%s.mp3.gz 2> /dev/null' % ( mydir, myname ) )
 
 
-def poweroff_now():
+def poweroff_now( reboot = False ):
+    magic_key = 'b' if reboot else 'o'
     for ( val, fname ) in ( 
                          ( '3', '/proc/sys/kernel/printk' ),
                          ( '3', '/proc/sys/vm/drop_caches' ),
@@ -439,7 +440,7 @@ def poweroff_now():
                          ( '1', '/proc/sys/vm/oom_kill_allocating_task' ),
                          ( '0', '/proc/sys/vm/oom_dump_tasks' ),
                          ( '1', '/proc/sys/kernel/sysrq' ),
-                         ( 'o', '/proc/sysrq-trigger' )
+                         ( magic_key, '/proc/sysrq-trigger' )
                          ):
         write_oneliner_file( fname, val )  # See http://major.io/2009/01/29/linux-emergency-reboot-or-shutdown-with-magic-commands/
 
@@ -673,4 +674,6 @@ def process_power_status_info( battery_result, charger_result ):
     print ( 'dct = ', dct )
     return dct
 
-
+def notify_send( title, mainstring ):
+    logme( 'notify_send() -- %s -- %s' % ( title, mainstring ) )
+    os.system( 'notify-send "%s" "%s"' % ( title, mainstring ) )
