@@ -52,7 +52,7 @@ elif [ "$1" = "mute" ] ; then
 		vol=`cat $volfname`
 	else
 		mv $volfname $volfname.orig
-		echo 0 > $volfname
+		vol=0
 	fi
 fi
 
