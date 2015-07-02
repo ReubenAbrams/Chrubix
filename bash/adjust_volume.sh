@@ -58,5 +58,4 @@ fi
 
 echo $vol > $volfname
 call_amixer $vol
-
 exit 0
