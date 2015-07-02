@@ -393,8 +393,6 @@ Which would you like me to install? "
 *)   echo "Unknown distro";;
 		esac
 	done
-	url=$FINALS_URL/$distroname/$distroname"__D.xz"
-	squrl=$FINALS_URL/$distroname/$distroname.sqfs
 	DISTRONAME=$distroname
 }
 
@@ -615,7 +613,7 @@ restore_this_stageX_prefab() {
 	
 	echo "Restoring `basename $prefab_fname_or_url`"
 	if echo "$prefab_fname_or_url" | fgrep http &> /dev/null ; then
-		wget $prefab_fname_or_url -O - | pv -W -B 5m > $myfifo &
+		wget $prefab_fname_or_url -O - > $myfifo &
 		bkgd_proc=$!
 	else
 		[ -e "$prefab_fname_or_url" ] || failed "restore_this_stageX_prefab() -- $prefab_fname_or_url does not exist"
@@ -702,7 +700,7 @@ install_from_sqfs_prefab() {
 	fi
 	
 	if echo "$prefab_fname_or_url" | fgrep http &> /dev/null ; then
-		wget $prefab_fname_or_url -O - | pv -W -B 5m > $myfifo & # || failed "install_from_sqfs_prefab() -- Unable to download $prefab_fname_or_url"
+		wget $prefab_fname_or_url -O - > $myfifo & # || failed "install_from_sqfs_prefab() -- Unable to download $prefab_fname_or_url"
 		bkgd_proc=$!
 	else
 		pv -W -B 64m $prefab_fname_or_url > $myfifo & # || failed "install_from_sqfs_prefab() -- Failed to save $prefab_fname_or_url --- L err?"
@@ -847,7 +845,11 @@ crossystem dev_boot_usb=1 dev_boot_signed_only=0 || failed "Failed to configure 
 unmount_absolutely_everything &> /dev/null || echo -en ""
 partition_and_format_me &>/dev/null &
 partandform_proc=$!
-get_distro_type_the_user_wants								# sets $DISTRONAME
+if echo "$0" | fgrep latest_that &> /dev/null ; then
+	get_distro_type_the_user_wants								# sets $DISTRONAME
+else
+ 	DISTRONAME=debianjessie
+fi
 ask_if_afraid_of_evil_maid									# sets $EVILMAID
 prefab_fname=`locate_prefab_file` || prefab_fname=""		# img, sqfs, _D, _C, ...; check Dropbox and local thumb drive
 install_me
