@@ -3,3 +3,5 @@
 /ui_ReconfigureorexitForm.py
 /ui_TestDlg.py
 /__pycache__/
+/.DS_Store
+/.gitignore
