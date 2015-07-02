@@ -19,8 +19,7 @@
 
 
 
-
-ALARPY_URL="https://dl.dropboxusercontent.com/u/59916027/chrubix/skeletons/alarpy.tar.xz"
+ALARPY_URL="https://dl.dropboxusercontent.com/u/59916027/chrubix/skeletons/alarpy.tar.xz"	# NEVER REMOVE THIS FROM CHRUBIX DROPBOX
 PARTED_URL="https://dl.dropboxusercontent.com/u/59916027/chrubix/skeletons/parted_and_friends.tar.xz"
 echo "$0" | fgrep latest_that &> /dev/null || FINALS_URL="https://dl.dropboxusercontent.com/u/59916027/chrubix/finals"
 CHRUBIX_URL="http://github.com/ReubenAbrams/Chrubix/archive/master.tar.gz"
@@ -39,6 +38,7 @@ TOP_BTSTRAP=/tmp/_build_here
 MINIDISTRO_CHROOT=$TOP_BTSTRAP/.alarpy
 MYDISK_CHROOT=$MINIDISTRO_CHROOT$MYDISK_CHR_STUB
 VFAT_MOUNTPOINT=/tmp/.vfat.mountpoint
+
 
 
 
@@ -168,14 +168,21 @@ install_chrubix() {
 	kerndev=$5
 	distroname=$6
 	
-	[ "$EVILMAID" = "yes" ] && evilmaid="\-E" || evilmaid="" 
+	if [ "$EVILMAID" = "zed" ] ; then
+		evilmaid="\-Z"
+	elif [ "$EVIL_MAID" = "yes" ] ; then
+		evilmaid="\-E"
+	else
+		evilmaid=""
+	fi
+	 
 	mydiskmtpt=$MYDISK_CHR_STUB
 	[ "$mydiskmtpt" = "/`basename $mydiskmtpt`" ] || failed "install_chrubix() -- $mydiskmtpt must not have any subdirectories. It must BE a directory and a / one at that."
 	mkdir -p $MYDISK_CHROOT
 	mount $ROOTDEV $MYDISK_CHROOT || failed "install_chrubix() -- unable to mount root device at $MYDISK_CHROOT"	
 	mount_dev_sys_proc_and_tmp $MYDISK_CHROOT
 	
-	cp -vf $MINIDISTRO_CHROOT/.[a-z]*.txt $MYDISK_CHROOT/ || echo -en ""
+	cp -f $MINIDISTRO_CHROOT/.[a-z]*.txt $MYDISK_CHROOT/ || echo -en ""
 	
 	touch $TOP_BTSTRAP/.gloria.first-i-was-afraid
 	[ -e "$MYDISK_CHROOT/.gloria.first-i-was-afraid" ] || failed "For some reason, MYDISK_CHROOT and TOP_BTSTRAP don't share the '/' directory."
@@ -187,7 +194,7 @@ install_chrubix() {
 	rm -f $MINIDISTRO_CHROOT/.gloria*
 	rm -f $MYDISK_CHROOT/.gloria*
 		
-	rm -Rf $root/usr/local/bin/Chrubix $root/usr/local/bin/1hq8O7s
+	rm -Rf $root/usr/local/bin/Chrubix
 	lastblock=`cgpt show $DEV | tail -n3 | grep "Sec GPT table" | tr -s ' ' '\t' | cut -f2` || failed "Failed to calculate lastblock"
 	maximum_length=$(($lastblock-$SPLITPOINT-8))
 	SIZELIMIT=$(($maximum_length*512))
@@ -196,7 +203,9 @@ install_chrubix() {
 	[ "$WGET_PROXY" != "" ] && proxy_info="export http_proxy=$WGET_PROXY; export ftp_proxy=$WGET_PROXY" || proxy_info=""
 
 	wget $CHRUBIX_URL -O - | tar -xz -C $root/usr/local/bin 2> /dev/null
-	mv $root/usr/local/bin/Chrubix* $root/usr/local/bin/Chrubix	# rename Chrubix-master (or whatever) to Chrubix
+	rm -Rf $root/usr/local/bin/Chrubix
+	mv     $root/usr/local/bin/Chrubix* $root/usr/local/bin/Chrubix	# rename Chrubix-master (or whatever) to Chrubix
+
 	wget $OVERLAY_URL -O - | tar -Jx -C $root/usr/local/bin/Chrubix 2> /dev/null || echo "Sorry. Dropbox is down. We'll have to rely on GitHub..."
 
 	for rr in $root$MYDISK_CHR_STUB $root; do
@@ -205,7 +214,7 @@ install_chrubix() {
 			continue
 		fi
 		[ -d "$rr" ] || failed "install_chrubix() -- $rr does not exist. BummeR."
-		for f in chrubix.sh greeter.sh ersatz_lxdm.sh CHRUBIX redo_mbr.sh modify_sources.sh make_me_persistent.sh adjust_brightness.sh ; do
+		for f in chrubix.sh greeter.sh ersatz_lxdm.sh CHRUBIX redo_mbr.sh modify_sources.sh make_me_persistent.sh adjust_brightness.sh adjust_volume.sh check_ya_battery.sh ; do
 			ln -sf Chrubix/bash/$f $rr/usr/local/bin/$f || echo "Cannot do $f softlink"
 		done
 		cd $rr/usr/local/bin/Chrubix/bash
@@ -233,7 +242,9 @@ install_chrubix() {
         mv src.meow src
         rm -Rf src.woof
         chmod -R 755 $rr/usr/local/bin
-        chmod +x $rr/usr/local/bin/*
+        chmod +x $rr/usr/local/bin/* || echo -en "WARNING - softlink(s) error(s) A"
+        chmod +x $rr/usr/local/bin/Chrubix/bash/*
+        chmod -R 755 $rr/usr/local/bin/Chrubix/
 	done
 
 	if [ -e "$root$MYDISK_CHR_STUB/usr/local/bin" ] ; then
@@ -261,7 +272,7 @@ call_chrubix() {
 	tar -cz /usr/share/vboot > $btstrap/tmp/.vbkeys.tgz || failed "Failed to save your keys" #### MAKE SURE CHRUBIX HAS ACCESS TO Y-O-U-R KEYS and YOUR vbutil* binaries ####
 	tar -cz /lib/firmware > $btstrap/tmp/.firmware.tgz || failed "Failed to save your firmware"  # save firmware!
 #	tar -cz /etc/X11/xorg.conf.d /usr/share/gestures > $btstrap/tmp/.xorg.conf.d.tgz || failed "Failed to save xorg.conf.d stuff"
-	chroot_this $btstrap "chmod +x /usr/local/bin/*"
+	chroot_this $btstrap "chmod +x /usr/local/bin/*" || echo -en "WARNING -- softlink(s) errors() B"
 	ln -sf ../../bin/python3 $btstrap/usr/local/bin/python3
 	echo "************ Calling CHRUBIX, the Python powerhouse of pulchritudinous perfection ************"
 	echo "yep, use latest" > $root/tmp/.USE_LATEST_CHRUBIX_TARBALL
@@ -388,13 +399,15 @@ Which would you like me to install? "
 ask_if_afraid_of_evil_maid() {
 	local r
 	EVILMAID=""
-	while [ "$EVILMAID" != "yes" ] && [ "$EVILMAID" != "no" ] ; do
+	while [ "$EVILMAID" != "yes" ] && [ "$EVILMAID" != "no" ] && [ "$EVILMAID" != "zed" ] ; do
 		echo -en "Does the evil maid scare you (y/n)? "
 		read r
 		if [ "$r" = "Y" ] || [ "$r" = "y" ] ; then
 			EVILMAID=yes
 		elif [ "$r" = "N" ] || [ "$r" = "n" ] ; then
 			EVILMAID=no
+		elif [ "$r" = "Z" ] || [ "$r" = "z" ] ; then
+			EVILMAID=zed
 		fi
 	done
 }
@@ -426,7 +439,7 @@ locate_prefab_on_dropbox() {
 	local sqfs_url stageD_url url
 	sqfs_url=$FINALS_URL/$DISTRONAME/$DISTRONAME".sqfs"
 	stageD_url=$FINALS_URL/$DISTRONAME/$DISTRONAME"__D.xz"
-	if [ "$EVILMAID" = "yes" ] ;then
+	if [ "$EVILMAID" != "no" ] ;then
 		img_url=""
 		sqfs_url=""
 	fi
@@ -448,7 +461,7 @@ locate_prefab_on_thumbdrive() {
 	stageC_fname=$mypath/$DISTRONAME/$DISTRONAME"__C.xz"
 	stageB_fname=$mypath/$DISTRONAME/$DISTRONAME"__B.xz"
 	stageA_fname=$mypath/$DISTRONAME/$DISTRONAME"__A.xz"
-	if [ "$EVILMAID" = "yes" ] ;then
+	if [ "$EVILMAID" != "no" ] ;then
 		img_fname=""
 		sqfs_fname=""
 	fi
@@ -596,7 +609,7 @@ restore_this_stageX_prefab() {
 	mkfifo $myfifo
 	cd /
 	
-	echo "Restoring $prefab_fname_or_url"
+	echo "Restoring `basename $prefab_fname_or_url`"
 	if echo "$prefab_fname_or_url" | fgrep http &> /dev/null ; then
 		wget $prefab_fname_or_url -O - | pv -W -B 5m > $myfifo &
 		bkgd_proc=$!
@@ -665,7 +678,6 @@ install_the_hard_way() {
 	local prefab_fname_or_url=$1
 	# The mounting of the disk is handled by install_microdistro or restore_this_stageX_prefab
 	[ "$prefab_fname_or_url" = "" ] && install_microdistro || restore_this_stageX_prefab $prefab_fname_or_url
-#	echo -en "*** Pausing so that Hugo can futz with the GitHub and overlay tarballs; press ENTER to continue ***"; read line
 	install_and_call_chrubix
 	sign_and_install_kernel
 	unmount_my_disk &> /dev/null || echo -en ""
@@ -773,14 +785,13 @@ install_me() {
 	[ "$EVILMAID" != "no" ] && extra="continue installing."
 	[ "$prefab_fname" = "" ] && install_from_the_beginning || install_from_prefab $prefab_fname
 	echo -en "$distroname has been installed on $DEV\nPress <Enter> to reboot. Then, press <Ctrl>U to $extra"
-	if [ "$EVILMAID" != "no" ] ; then
-#		echo -en "\nHEY...FOR NEFARIOUS PORPOISES, WE PAUSE NOW. Hugo, when you've finished futzing with the Python code, press ENTER. "
-#		read line
+	if [ "$EVILMAID" != "no" ] && echo "$0" | fgrep latest_that &> /dev/null ; then
 		mkdir -p /tmp/aaa
 		mount /dev/mmcblk1p3 /tmp/aaa
 		wget $OVERLAY_URL -O - | tar -Jx -C /tmp/aaa/usr/local/bin/Chrubix || failed "Failed to update our copy of the code. Shucks."
 		chmod +x /tmp/aaa/usr/local/bin/Chrubix/bash/*
 		chmod -R 755 /tmp/aaa/usr/local/bin/Chrubix
+		chmod -R 755 /tmp/aaa/usr/local/bin/Chrubix/bash/*
 	else
 		read line
 	fi
@@ -815,7 +826,6 @@ KERNELDEV="$DEV_P"12
 
 
 
-
 if [ "$USER" != "root" ] ; then
 	SCRIPTPATH=$( cd $(dirname $0) ; pwd -P )
 	fname=$SCRIPTPATH/`basename $0`
@@ -824,10 +834,10 @@ if [ "$USER" != "root" ] ; then
 fi
 set -e
 mount | grep /dev/mapper/encstateful &> /dev/null || failed "Run me from within ChromeOS, please."
+crossystem dev_boot_usb=1 dev_boot_signed_only=0 || failed "Failed to configure USB and MMC to be bootable"	# dev_boot_signed_only=0
 [ -e "/tmp/.iamrunningalready" ] && failed "Please reboot and run me again."
 [ "$mydevbyid" = "" ] && failed "I am unable to figure out which device you want me to prep. Sorry..."
 [ -e "$mydevbyid" ] || failed "Please insert a thumb drive or SD card and try again. Please DO NOT INSERT your keychain thumb drive."
-crossystem dev_boot_usb=1 dev_boot_signed_only=0 || failed "Failed to configure USB and MMC to be bootable"	# dev_boot_signed_only=0
 unmount_absolutely_everything &> /dev/null || echo -en ""
 partition_and_format_me &>/dev/null &
 partandform_proc=$!
