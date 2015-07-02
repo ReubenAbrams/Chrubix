@@ -59,7 +59,7 @@ G. Alexander - info on Chromebooks
 
 Marcin Juszkiewicz - hardare info
 
-Authors of FreeNet - Freenet
+Authors of Freenet - Freenet
 
 Authors of I2P - I2P
 
