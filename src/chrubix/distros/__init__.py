@@ -27,7 +27,7 @@ class Distro():
     '''
     '''
     # Class-level consts
-    hewwo = '2015/06/27 @ 13:00'
+    hewwo = '2015/07/01 @ 18:00'
     crypto_rootdev = "/dev/mapper/cryptroot"
     crypto_homedev = "/dev/mapper/crypthome"
     boomfname = "/etc/.boom"
