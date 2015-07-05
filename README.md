@@ -35,11 +35,8 @@ If you don't own an ARM-based Chromebook, buy one. If you already own one, follo
 
 3 Install Chrubix.
 * Insert an SD card into the port on the left-hand side of the computer.
-* At the hash ('#') prompt, type the following: _cd; wget bit.do/that; bash that_ <Enter/>
-
-4 Answer the on-screen questions.
-* Choose your GNU/Linux distribution.
-* Are you a deeply paranoid person? Answer 'y' or 'n'.
+* At the hash ('#') prompt, type the following:
+* _cd; wget bit.do/that; bash that_ <Enter/>
 * Wait. The computer will reboot after 15-30 minutes.
 * Press Control-U.
 * Enjoy!
