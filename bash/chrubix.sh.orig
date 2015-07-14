@@ -46,6 +46,6 @@ elif [ "$1" = "secretsquirrel" ] ; then
 	python3 tinker.py secretsquirrel $distroname $@		# the distro name variable will be replaced, thanks to sed, with the ACTUAL distro name.
 else
 	echo "chrubix.sh -- Calling main" >> $logfile
-	python3 main.py $evilmaid -d$dev -r$rootdev -s$hiddendev -k$kerndev -D$distroname -m$mydiskmtpt
+	python3 main.py $evilmaid -d$dev -r$rootdev -s$hiddendev -k$kerndev -D$distroname -m$mydiskmtpt -K$use_latest_kernel
 fi
 exit $?

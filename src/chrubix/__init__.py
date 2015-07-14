@@ -14,7 +14,7 @@ from chrubix.utils import call_binary, read_oneliner_file, write_oneliner_file, 
 from chrubix.utils.postinst import configure_lxdm_behavior
 from chrubix import distros
 from chrubix.distros.archlinux import ArchlinuxDistro
-from chrubix.distros.debian import WheezyDebianDistro, JessieDebianDistro, StretchDebianDistro
+from chrubix.distros.debian import WheezyDebianDistro, JessieDebianDistro, StretchDebianDistro, TailsWheezyDebianDistro
 from chrubix.distros.kali import KaliDistro
 from chrubix.distros.fedora import NineteenFedoraDistro
 from chrubix.distros.ubuntu import VividUbuntuDistro
@@ -47,6 +47,7 @@ def generate_distro_record_from_name( name_str ):
                   'suse'          :SuseDistro,
                   'debianstretch' :StretchDebianDistro,
                   'debianwheezy'  :WheezyDebianDistro,
+                  'debiantails'   :TailsWheezyDebianDistro,
                   }
     os.system( 'cd /' )
     print( "Creating distro record for %s" % ( name_str ) )
@@ -89,6 +90,7 @@ def process_command_line( argv ):
     do_kernel_dev = None
     do_spare_dev = None
     do_evil_maid = False
+    do_latest_kernel = False
     install_to_plain_p3 = False
     print( "Running chrubix from command line." )
     if len( sys.argv ) <= 1:
@@ -113,6 +115,8 @@ def process_command_line( argv ):
             do_kernel_dev = param
         elif opt == '-m':
             do_mountpoint = param
+        elif opt == '-K':
+            do_latest_kernel = True if param == 'yes' else False
         elif opt == '-E':
             do_evil_maid = True
         elif opt == '-Z':
@@ -126,6 +130,7 @@ def process_command_line( argv ):
     distro.spare_dev = do_spare_dev
     distro.mountpoint = do_mountpoint
     distro.install_to_plain_p3 = install_to_plain_p3
+    distro.use_latest_kernel = do_latest_kernel
     if do_evil_maid:
         distro.reboot_into_stage_two = True
         distro.kernel_rebuild_required = True
@@ -139,6 +144,8 @@ def exec_cli( argv ):
     '''
     If main.py detects that Chrubix was called from within ChromeOS, program execution goes HERE.
     This function's job is to install a GNU/Linux variant on the partitions that are already mounted.
+    - Process commnad line w/ process_command_line(), returning a distro struct (for ppropriate distro)
+    - distro.install() -- i.e. install Linux on MMC w/ the appropriate distro subclass.
     '''
     res = 0
     if os.path.isdir( '/Users' ) or not os.path.isfile( '/proc/cmdline' ):

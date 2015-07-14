@@ -4,7 +4,9 @@
 
 
 from chrubix.utils import generate_temporary_filename, g_proxy, failed, system_or_die, write_oneliner_file, wget, logme, \
-                          chroot_this, read_oneliner_file, do_a_sed, call_binary, patch_org_freedesktop_networkmanager_conf_file  # , install_lxdm_from_source
+                          get_list_of_tails_package_URLs, download_this_tails_package_files, \
+                          chroot_this, read_oneliner_file, do_a_sed, call_binary, patch_org_freedesktop_networkmanager_conf_file, \
+                          install_windows_xp_theme_stuff  # , install_lxdm_from_source
 import os
 from chrubix.distros import Distro
 
@@ -104,7 +106,7 @@ gtk2-engines-pixbuf libsnappy-dev libgcrypt-dev iceweasel icedove gconf2 bsdcpio
 x11-utils xbase-clients ssss mat florence monkeysign libxfixes-dev liblzo2-dev python-sqlite \
 wmaker python-cairo python-pdfrw libconfig-dev libx11-dev python-hachoir-core python-hachoir-parser \
 mat myspell-en-us msttcorefonts xorg xserver-xorg-input-synaptics xul-ext-https-everywhere \
-pulseaudio-module-jack alsa-tools-gui alsa-oss paman mythes-en-us \
+pulseaudio-module-jack alsa-tools-gui alsa-oss paman mythes-en-us ncurses-dev \
 cdbs debhelper javahelper quilt adduser git-core ant ant-optional ant-contrib \
 jflex junit4 libcommons-collections3-java libcommons-compress-java libdb-je-java libecj-java \
 libservice-wrapper-java libpisock-dev uno-libs3 libgtk-3-bin libbcprov-java gtk2-engines-murrine libc6-dev \
@@ -169,14 +171,9 @@ mate-desktop-environment-extras'  # FYI, freenet is handled by install_final_pus
                         status_lst = self.status_lst )
         if not os.path.isdir( '%s%s/src/chromeos-3.4' % ( self.mountpoint, self.kernel_src_basedir ) ):
             failed( 'Why does the chromeos source folder not exist? Surely it was downloaded and/or built earlier...' )
-        if self.use_latest_kernel:
-            chroot_this( self.mountpoint, 'cd %s/linux-latest && make install && make modules_install' % ( self.sources_basedir ),
+        chroot_this( self.mountpoint, 'cd %s/src/chromeos-3.4 && make install && make modules_install' % ( self.kernel_src_basedir ),
                                                             title_str = self.title_str, status_lst = self.status_lst,
                                                             on_fail = "Failed to install the standard ChromeOS kernel and/or modules" )
-        else:
-            chroot_this( self.mountpoint, "cd %s/src/chromeos-3.4 && make install && make modules_install" % ( self.kernel_src_basedir ),
-                                                            title_str = self.title_str, status_lst = self.status_lst,
-                                                            on_fail = "Failed to install the tweaked kernel and/or modules" )
         self.update_status_with_newline( '...kernel installed.' )
         logme( 'DebianDistro - install_kernel_and_mkfs() - leaving' )
 
@@ -284,7 +281,7 @@ Acquire::https::Proxy "https://%s/";
         package_name = os.path.basename( source_pathname )
         package_path = os.path.dirname( source_pathname )
 #        generate_and_incorporate_patch_for_debian( self.mountpoint, source_pathname )
-        chroot_this( self.mountpoint, 'cd %s; [ -e "configure" ] && (./configure&&make) || make' % ( source_pathname + ( '/src/chromeos-3.4' if package_name == 'linux-chromebook' else '/' + package_name + '-*' ) ),
+        chroot_this( self.mountpoint, 'cd %s; [ -e "configure" ] && (./configure&&make) || make' % ( source_pathname + ( '/src/chromeos-3.4' if package_name in ( 'linux-chromebook', 'linux-latest', 'linux-next' ) else '/' + package_name + '-*' ) ),
                     on_fail = 'Failed to build %s in %s' % ( package_name, package_path ),
                     attempts = 1,
                     title_str = self.title_str,
@@ -391,7 +388,6 @@ fi
 
     def install_final_push_of_packages( self ):
         logme( 'DebianDistro - install_final_push_of_packages() - starting' )
-        self.install_win_xp_theme()  # If you install this before i2p, something gets broken. :-/
         chroot_this( self.mountpoint, 'yes "" | apt-get -f install' )  # This shouldn't be necessary...
         chroot_this( self.mountpoint, 'which ping && echo "Ping installed OK" || yes 2>/dev/null | apt-get install iputils-ping', on_fail = 'Failed to install ping' )
 #        chroot_this( self.mountpoint, 'pip install leap.bitmask', status_lst = self.status_lst, title_str = self.title_str,
@@ -418,7 +414,8 @@ fi
         self.update_status_with_newline( '...there.' )
         logme( 'DebianDistro - install_final_push_of_packages() - leaving' )
 
-    def install_win_xp_theme( self ):
+    def configure_windows_camouflage_theme( self ):
+        install_windows_xp_theme_stuff( self.mountpoint )
         if 0 != os.system( 'cp %s/usr/local/bin/Chrubix/blobs/xp/win-xp-theme_1.3.1~saucy~Noobslab.com_all.deb %s/tmp/win-xp-themes.deb 2> /dev/null' % ( self.mountpoint, self.mountpoint ) ):
             if 0 != os.system( 'cp /usr/local/bin/Chrubix/blobs/xp/win-xp-theme_1.3.1~saucy~Noobslab.com_all.deb %s/tmp/win-xp-themes.deb 2> /dev/null' % ( self.mountpoint ) ):
                 failed ( 'Unable to retrieve win xp noobslab file from %s/usr/local/bin/Chrubix/blobs/xp' % ( self.mountpoint ) )
@@ -428,6 +425,13 @@ fi
             chroot_this( self.mountpoint, \
                          'cd %s/win-xp-theme/src && install -d /usr/share/themes/Win-XP-theme && cp -r * /usr/share/themes/' % \
                          ( self.sources_basedir ), status_lst = self.status_lst, title_str = self.title_str, on_fail = 'Failed to install win-xp-theme from source' )
+        for cmd in ( 'add-apt-repository ppa:noobslab/themes',
+                    'add-apt-repository ppa:noobslab/icons',
+                    'apt-get update',
+                    'apt-get install win-themes win-icons',
+                    ):
+            if 0 != chroot_this( self.mountpoint, cmd, status_lst = self.status_lst, title_str = self.title_str ):
+                failed( '%s => failed' % ( cmd ) )
 
     def steal_dtc_and_mkinitcpio_from_alarpy( self ):
         logme( 'DebianDistro - steal_dtc_and_mkinitcpio_from_alarpy() - starting' )
@@ -666,6 +670,10 @@ deb http://www.deb-multimedia.org %s main non-free'
         else:
             logme( 'tweak_pulseaudio() -- unable to modify /etc/default/pulseaudio; it does not exist' )
 
+    def update_and_upgrade_all( self ):
+        do_a_sed( '%s/etc/apt/sources.list' % ( self.mountpoint ), 'deb http://www.deb-multimedia.org', '#deb http://www.deb-multimedia.org' )
+        DebianDistro.update_and_upgrade_all( self )
+
 
 class JessieDebianDistro( DebianDistro ):
     def __init__( self , *args, **kwargs ):
@@ -684,8 +692,6 @@ class StretchDebianDistro( DebianDistro ):
         self.branch = 'stretch'  # lowercase; yes, it matters
         self.important_packages += ' libetpan-dev g++-4.8'
 
-#        self.use_latest_kernel = True
-
     def configure_distrospecific_tweaks( self ):
         DebianDistro.configure_distrospecific_tweaks( self )  # FIXME use super(StretchDebianDistro, self). .... one day :)
         self.update_status_with_newline( '**Fixing systemd etc. in %s**' % ( self.fullname ) )
@@ -701,4 +707,78 @@ yes Y | dpkg -i *deb
                     ):
             chroot_this( self.mountpoint, cmd, status_lst = self.status_lst, title_str = self.title_str, attempts = 2 )
         self.update_status_with_newline( '**Done w/ fixing systemd in %s**' % ( self.fullname ) )
+
+
+
+class TailsWheezyDebianDistro ( WheezyDebianDistro ):
+    def __init__( self , *args, **kwargs ):
+        super( TailsWheezyDebianDistro, self ).__init__( *args, **kwargs )
+        self.branch = 'tails'
+
+    def build_this_tails_package( self, package_name ):
+        if 0 != chroot_this( self.mountpoint, '''
+set -e
+cd %s/tails/%s
+for subpackage in `ls | sed s/\~.*// | fgrep -v orig.tar | sort | uniq`; do
+    echo "subpackage = $subpackage"
+    rm -Rf $subpackage
+    mkdir -p $subpackage
+    cd $subpackage
+    stripped_subpackage=`echo $subpackage | cut -d'-' -f1,2`
+    ls ../"$stripped_subpackage"* &> /dev/null || stripped_subpackage=`echo $subpackage | cut -d'-' -f1`
+    tar -zxf ../"$stripped_subpackage"*.orig*gz
+    cd "$stripped_subpackage"* 2>/dev/null || cd `echo $stripped_subpackage | tr '_' '-'`*
+    tar -zxf ../"$stripped_subpackage"*.debian*gz
+    mv ../debian .
+    if ! dpkg-buildpackage &> /tmp/.dpkg.res.txt ; then
+        echo "Calculating dependencies"
+        packages_to_install=`cat /tmp/.dpkg.res.txt | grep -i unmet | tr ' ' '\\n'`
+        for pkg in $packages_to_install ; do
+            yes "" | apt-get install $pkg &> /dev/null && echo "Installed dependency $pkg OK" || echo -en "Warning - unable to install $pkg"
+        done
+    fi
+    if ! dpkg-buildpackage -b -us -uc -d ; then
+        echo "dpkg-buildpackage failed twice"
+        exit 1
+    fi
+done
+exit 0
+            ''' % ( self.sources_basedir, package_name ), status_lst = self.status_lst, title_str = self.title_str, attempts = 1 ):
+            failed( 'failed to build %s' % ( package_name ) )
+
+    def grab_all_tails_packages( self ):
+        self.update_status( 'Grabbing list of TAILS packages...' )
+        system_or_die( 'rm -Rf %s%s/tails' % ( self.mountpoint, self.sources_basedir ) )
+        system_or_die( 'mkdir -p %s%s/tails' % ( self.mountpoint, self.sources_basedir ) )
+
+        list_of_package_names = ['poedit', 'aircrack-ng', 'barry', 'mesa']  # apparmor
+#        list_of_package_names = get_list_of_all_tails_packages()
+
+        logme( 'list of package names = %s' % ( str( list_of_package_names ) ) )
+        print( 'list of package names = %s' % ( str( list_of_package_names ) ) )
+        self.update_status( 'Done. Downloading ' )
+        for package_name in list_of_package_names:
+            self.update_status( '%s ' % ( package_name ) )
+            these_urls = get_list_of_tails_package_URLs( package_name )
+            download_this_tails_package_files( these_urls, self.mountpoint + self.sources_basedir, package_name )
+        self.update_status( 'Done. Building them...' )
+        self.update_status( 'Building tails packages...' )
+        failed_pkgs = []
+        succeeded_pkgs = []
+        for package_name in list_of_package_names:
+            self.update_status( '%s...' % ( package_name ) )
+            try:
+                self.build_this_tails_package( package_name )
+                succeeded_pkgs += [package_name]
+                self.update_status( 'Failed. ' )
+            except:
+                failed_pkgs += [package_name]
+                self.update_status( 'OK. ' )
+            system_or_die( 'mv %s%s/tails/%s*/%s*/*%s*arm*deb %s%s/tails/' % ( self.mountpoint, self.sources_basedir, package_name, package_name, package_name, self.mountpoint, self.sources_basedir ) )
+        print( 'Succeeded :', succeeded_pkgs )
+        print( 'Failed    :', failed_pkgs )
+        logme( 'succeeded = %s' % ( str( succeeded_pkgs ) ) )
+        logme( 'failed = %s' % ( str( failed_pkgs ) ) )
+        self.update_status( 'All were built successfully.' )
+
 

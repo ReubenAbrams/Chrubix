@@ -24,7 +24,7 @@ import chrubix
 g_proxy = None  # if ( 0 != os.system( 'ifconfig | grep inet | fgrep 192.168.0 &> /dev/null' ) or 0 != os.system( 'cat /proc/cmdline | grep dm_verity &> /dev/null' ) ) else '192.168.0.106:8080'
 g_default_window_manager = '/usr/bin/startlxde'  # wmaker, startxfce4, startlxde, ...
 
-
+TAILS_WEB_URL_BASE = 'http://deb.tails.boum.org/pool/main'
 MAXIMUM_COMPRESSION = False  # True  # Max compression on the left; quicker testing on the right :)
 __g_start_time = time.time()
 
@@ -172,6 +172,7 @@ def wget( url, save_as_file = None, extract_to_path = None, decompression_flag =
 
 def failed( s, exception = None ):
     print( s )
+    logme( s )
     if exception is None:
         raise RuntimeError( s )
     else:
@@ -303,11 +304,12 @@ def chroot_this( mountpoint, cmd, on_fail = None, attempts = 3, title_str = None
             os.system( 'sync;sync;sync' )
             time.sleep( pauses_len )
     if res != 0 and on_fail is not None:
-        failed( '%s chroot in %s of "%s" failed after several attempts; %s' % ( proxy_info, mountpoint, cmd, on_fail ) )
+        failed( '%schroot in %s of "%s" failed after several attempts; %s' % ( proxy_info + ' ' if proxy_info not in ( None, '' ) else '' , mountpoint, cmd, on_fail ) )
 #    if os.path.exists( mountpoint + my_executable_script ):
-    os.unlink( mountpoint + my_executable_script )
+    if res == 0:
+        os.unlink( mountpoint + my_executable_script )
     os.system( 'sync;sync;sync' )
-    logme( 'chroot("%s") is returning w/ res=%d' % ( cmd, res ) )
+    logme( 'chroot("%s") is returning w/ res=%d %s' % ( cmd, res , '' if res == 0 else '...script=' + mountpoint + my_executable_script ) )
     return res
 
 
@@ -344,10 +346,12 @@ def patch_kernel( mountpoint, folder, url ):
     if url[-3:] == '.gz':
         system_or_die( 'mv %s%s %s%s.gz' % ( mountpoint, tmpfile, mountpoint, tmpfile ) )
         system_or_die( 'gunzip %s%s.gz' % ( mountpoint, tmpfile ) )
-    if not os.path.isdir( '%s%s' % ( mountpoint, folder ) ):
-        failed( 'This should be a directory but it is not one. ==> %s%s' % ( mountpoint, folder ) )
+#    if not os.path.isdir( '%s%s' % ( mountpoint, folder ) ):
+#        failed( 'This should be a directory but it is not one. ==> %s%s' % ( mountpoint, folder ) )
     assert( os.path.isfile( '%s%s' % ( mountpoint, tmpfile ) ) )
-    if 0 != chroot_this( mountpoint, 'patch -p1 --no-backup-if-mismatch -d %s < %s' % ( folder, tmpfile ), attempts = 1 ):
+    if 0 != chroot_this( mountpoint, 'patch -p1 --verbose --dry-run --no-backup-if-mismatch -d %s < %s' % ( folder, tmpfile ), attempts = 1 ):
+        failed( 'If I were to try to apply %s patch to the kernel, I would fail. Darn it.' % ( url ) )
+    if 0 != chroot_this( mountpoint, 'patch -p1 --verbose --no-backup-if-mismatch -d %s < %s' % ( folder, tmpfile ), attempts = 1 ):
         failed( 'Failed to apply %s patch to kernel.' % ( url ) )
 
 
@@ -677,3 +681,50 @@ def process_power_status_info( battery_result, charger_result ):
 def notify_send( title, mainstring ):
     logme( 'notify_send() -- %s -- %s' % ( title, mainstring ) )
     os.system( 'notify-send "%s" "%s"' % ( title, mainstring ) )
+
+
+
+
+def get_list_of_all_tails_packages():
+    list_of_package_names = []
+    all_possible_chars = 'abcdefghijklmnopqrstuvwxyz'  # 0123456789
+    for indexno in range( 0, len( all_possible_chars ) ):
+        current_char = all_possible_chars[indexno]
+        web_url = '%s/%s/' % ( TAILS_WEB_URL_BASE, current_char )
+        if 0 == os.system( 'wget %s -O %s 2> /dev/null' % ( web_url, '/tmp/.grab_all_tails_packages.txt' ) ):
+#        os.system( 'wget %s -O - > /tmp/.grab_all_tails_packages.txt 2> /dev/null' % ( web_url ) )
+            print( 'URL=%s' % ( web_url ) )
+            with open ( "/tmp/.grab_all_tails_packages.txt", "r" ) as myfile:
+                website_source = myfile.readlines()
+            for this_line in website_source:
+                item = ( this_line + '"' ).split( '"' )[1]
+                if item.find( '/' ) >= 0:
+                    stripped_item = item.strip( '/' )
+                    if stripped_item not in ( '..', '.', '' ):
+                        list_of_package_names += [stripped_item]
+    return list_of_package_names
+
+
+def get_list_of_tails_package_URLs( package_name ):
+    my_url = '%s/%s/%s' % ( TAILS_WEB_URL_BASE, package_name[0:1], package_name )
+    system_or_die( 'wget %s -O %s 2> /dev/null' % ( my_url, '/tmp/.dtpf.files.txt' ) )
+#    os.system( 'wget %s -O - > /tmp/.dtpf.files.txt' % ( my_url ) )
+    with open ( "/tmp/.dtpf.files.txt", "r" ) as myfile:
+        website_source = myfile.readlines()
+    my_files = []
+    for this_line in website_source:
+        item = ( this_line + '"' ).split( '"' )[1]
+        if item.find( '.' ) >= 0:
+            stripped_item = item.strip( '/' )
+            if stripped_item not in ( '..', '.', '' ):
+                my_files += [my_url + '/' + stripped_item]
+    return my_files
+
+
+def download_this_tails_package_files( these_urls, pathbase, package_name ):
+    destination_directory = '%s/tails/%s' % ( pathbase, package_name )
+    os.system( 'mkdir -p %s' % ( destination_directory ) )
+    for url in these_urls:
+        system_or_die( 'wget %s -O %s/%s 2> /dev/null' % ( url, destination_directory, os.path.basename( url ) ) )
+
+

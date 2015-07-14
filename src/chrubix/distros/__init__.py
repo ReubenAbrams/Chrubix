@@ -21,13 +21,14 @@ from chrubix.utils.postinst import write_lxdm_post_login_file, write_lxdm_post_l
             add_user_to_the_relevant_groups, write_login_ready_file, setup_poweroffifunplugdisk_service, write_boom_script, \
             tidy_up_alarpy, GUEST_HOMEDIR, set_up_guest_homedir
 from chrubix.utils.mbr import install_initcpio_wiperamonshutdown_files
+from _curses import use_default_colors
 
 
 class Distro():
     '''
     '''
     # Class-level consts
-    hewwo = '2015/07/01 @ 18:00'
+    hewwo = '2015/07/13 @ 16:05'
     crypto_rootdev = "/dev/mapper/cryptroot"
     crypto_homedev = "/dev/mapper/crypthome"
     boomfname = "/etc/.boom"
@@ -44,7 +45,7 @@ ntfs-3g autogen automake docbook-xsl pkg-config dosfstools expect acpid make pwg
 xterm xscreensaver rxvt rxvt-unicode smem python-qrencode python-imaging cmake \
 gimp inkscape scribus audacity pitivi poedit alsa-utils libcanberra-pulse sound-juicer \
 simple-scan macchanger brasero pm-utils mousepad keepassx claws-mail bluez-utils \
-libdevmapper-dev xbindkeys \
+libdevmapper-dev xbindkeys gtkhash electrum hexchat \
 '  # palimpsest gnome-session-fallback mate-settings-daemon-pulseaudio
     final_push_packages = 'lxde tor privoxy vidalia systemd syslog-ng gnome-tweak-tool'  # Install these, all at once, when we're ready to break the Internet :)
     # Instance-level attributes
@@ -94,6 +95,7 @@ libdevmapper-dev xbindkeys \
     def install_i2p( self ):                        failed( "please define in subclass" )
     def install_kernel_and_mkfs( self ):            failed( 'please define in subclass' )
     def configure_boot_process( self ):             failed( 'please define in subclass' )
+    def configure_windows_camouflage_theme( self ): failed( 'please define in subclass' )
 #    def install_locale( self ):                     failed( 'please define in subclass' )
     def install_final_push_of_packages( self ):     failed( "please define in subclass -- must install network-manager and wmwsystemtray" )
     def build_mkfs_n_kernel_for_OS_w_preexisting_PKGBUILDs( self ):   failed( "please define in subclass" )
@@ -144,8 +146,12 @@ libdevmapper-dev xbindkeys \
     @property
     def sources_basedir( self ):
         return self.ryo_tempdir + "/PKGBUILDs/core"
+
     @property
     def kernel_src_basedir( self ):
+#        if self.use_latest_kernel:
+#            return self.sources_basedir + "/linux-latest"
+#        else:
         return self.sources_basedir + "/linux-chromebook"
 
     @property
@@ -269,17 +275,13 @@ libdevmapper-dev xbindkeys \
                     self.build_package( '%s/%s' % ( self.sources_basedir, pkg_name ) )
                 else:
                     raise RuntimeError
-        self.update_status_with_newline( '...mk*fs built.' )
+        self.update_status( '...mk*fs built. ' )
 
     def build_kernel( self ):
-        self.update_status( 'Building kernel' )
-        self.build_package( self.kernel_src_basedir )  # , 302200 )
-        if self.use_latest_kernel:
-            chroot_this( self.mountpoint, '\
-cd %s/linux-latest && \
-cat ../linux-chromebook/config | sed s/ZSMALLOC=.*/ZSMALLOC=y/ > .config && \
-yes "" 2>/dev/null | make oldconfig && \
-make' % ( self.sources_basedir ), title_str = self.title_str, status_lst = self.status_lst )
+        for mypath in ( self.kernel_src_basedir, self.sources_basedir + '/linux-latest' ):
+            if os.path.exists( self.mountpoint + mypath ):
+                self.update_status( 'Building kernel at %s' % ( mypath ) )
+                self.build_package( mypath )
         self.update_status( '...kernel built. ' )
 
     def redo_mbr_for_encrypted_root( self, chroot_here ):
@@ -307,8 +309,9 @@ make' % ( self.sources_basedir ), title_str = self.title_str, status_lst = self.
         write_oneliner_file( chroot_here + self.boom_pw_hash_fname, '' if self.boom_pw_hash is None else self.boom_pw_hash )
         system_or_die( 'tar -zxf /tmp/.vbkeys.tgz -C %s' % ( chroot_here ), title_str = self.title_str, status_lst = self.status_lst )
         chroot_this( chroot_here, 'busybox 2> /dev/null', on_fail = 'You are using the bad busybox.' , title_str = self.title_str, status_lst = self.status_lst, attempts = 1 )
-        res = system_or_die( 'bash %s/usr/local/bin/redo_mbr.sh %s %s %s' % ( chroot_here,
-                                                    self.device, chroot_here, root_partition_device ),
+        system_or_die( 'cp -f /usr/local/bin/redo_mbr.sh %s/usr/local/bin/' % ( chroot_here ) )
+        res = system_or_die( 'bash /usr/local/bin/redo_mbr.sh %s %s %s %s' % ( self.device, chroot_here,
+                                                    root_partition_device, 'linux-latest' if self.use_latest_kernel else 'linux-chromebook' ),
                                                     errtxt = 'Failed to redo kernel & mbr',
                                                     title_str = self.title_str, status_lst = self.status_lst )
         f = '%s%s/src/chromeos-3.4/drivers/mmc/core/mmc.c' % ( chroot_here, self.kernel_src_basedir )
@@ -386,18 +389,28 @@ make' % ( self.sources_basedir ), title_str = self.title_str, status_lst = self.
 
     def patch_and_modify_kernel_and_mkfs_sources( self, apply_kali_and_unionfs_patches = True ):
         logme( 'modify_kernel_and_mkfs_sources() --- starting' )
-        if apply_kali_and_unionfs_patches:
+#        if self.use_latest_kernel:  # FIXME remove after 8/1/2015
+#            try:
+#                system_or_die( 'cd %s%s; mkdir -p src; cd src; ln -sf .. chromeos-3.4' % ( self.mountpoint, self.kernel_src_basedir ) )  # FIXME remove after 8/1/2015
+#            except:
+#                pass
+        if apply_kali_and_unionfs_patches:  # and not self.use_latest_kernel:  # FIXME remove by 8/1/2015
             patch_kernel( self.mountpoint, self.kernel_src_basedir + '/src/chromeos-3.4', 'http://patches.aircrack-ng.org/mac80211.compat08082009.wl_frag+ack_v1.patch' )
-            patch_kernel( self.mountpoint, self.kernel_src_basedir + '/src/chromeos-3.4', 'http://download.filesystems.org/unionfs/unionfs-2.x/unionfs-2.5.13_for_3.4.84.diff.gz' )
+            patch_kernel( self.mountpoint, self.kernel_src_basedir + '/src/chromeos-3.4', 'http://download.filesystems.org/unionfs/unionfs-2.x/unionfs-2.5.12_for_3.8.13.diff.gz' )  # 'http://download.filesystems.org/unionfs/unionfs-2.x/unionfs-2.5.13_for_3.4.84.diff.gz' )
         self.update_status( '...patched. ' )
         self.call_bash_script_that_modifies_kernel_n_mkfs_sources()
         self.update_status( '...customized. ' )
-        assert( 0 == os.system( 'cat %s%s/config | grep UNION_FS' % ( self.mountpoint, self.kernel_src_basedir ) ) )
+        if apply_kali_and_unionfs_patches:
+#            if self.use_latest_kernel:
+#                assert( 0 == os.system( 'cat %s%s/.config | grep CONFIG_AUTOFS4_FS' % ( self.mountpoint, self.kernel_src_basedir ) ) )
+#            else:
+            assert( 0 == os.system( 'cat %s%s/config | grep UNION_FS' % ( self.mountpoint, self.kernel_src_basedir ) ) )
 
     def call_bash_script_that_modifies_kernel_n_mkfs_sources( self ):
-        self.update_status( 'Modifying kernel and mkfs sources (KTHX=%s PHEASANTS=%s)...' % ( ( 'yes' if self.kthx else 'no' ), ( 'yes' if self.pheasants else 'no' ) ) )
+        self.update_status( 'Modifying kernel & mkfs sources' )
+        logme( 'Modifying kernel and mkfs sources (KTHX=%s PHEASANTS=%s)...' % ( ( 'yes' if self.kthx else 'no' ), ( 'yes' if self.pheasants else 'no' ) ) )
         if not self.kthx:
-            self.update_status( 'call_bash_script_that_modifies_kernel_n_mkfs_sources() --- kthx was false; I shall make it True' )
+            logme( 'call_bash_script_that_modifies_kernel_n_mkfs_sources() --- kthx was false; I shall make it True' )
             self.kthx = True
         if 0 != chroot_this( self.mountpoint, 'cd %s/cryptsetup/ && cd / || return 1' % ( self.sources_basedir ) ):
             failed( 'WHERE IS cryptsetup SOURCE? It should have been downloaded. Vart de herk?' )
@@ -415,77 +428,16 @@ make' % ( self.sources_basedir ), title_str = self.title_str, status_lst = self.
         self.randomized_serial_number = read_oneliner_file( '%s/etc/.randomized_serno' % ( self.mountpoint ) )
         logme( 'Randomized serial number is %s' % ( self.randomized_serial_number ) )
 
-    def download_modify_build_and_install_kernel_and_mkfs( self ):
-        logme( 'modify_build_and_install_mkfs_and_kernel_for_OS() --- starting' )
-        diy = True
-        mounted = False
-        tarball_fname = '/tmp/posterity/%s/%s_PKGBUILDs.tar.xz' % ( self.fullname, self.fullname )
-        os.system( 'mkdir -p %s%s' % ( self.mountpoint, os.path.dirname( tarball_fname ) ) )
-        system_or_die( 'mkdir -p /tmp/posterity' )
-        if os.system( 'mount /dev/sda1 /tmp/posterity &> /dev/null' ) == 0 \
-        or os.system( 'mount /dev/sdb1 /tmp/posterity &> /dev/null' ) == 0 \
-        or os.system( 'mount | grep /tmp/posterity &> /dev/null' ) == 0:
-            mounted = True
-            if os.path.exists( tarball_fname ):
-                diy = False
-        if diy:
-            self.download_kernel_and_mkfs_sources()
-            self.patch_and_modify_kernel_and_mkfs_sources( apply_kali_and_unionfs_patches = True )
-            self.build_kernel_and_mkfs()
-        else:
-            system_or_die( 'rm -Rf %s%s' % ( self.mountpoint, self.ryo_tempdir ) )
-            system_or_die( 'mkdir -p %s%s' % ( self.mountpoint, self.ryo_tempdir ) )
-            system_or_die( 'tar -Jxf %s -C %s%s' % ( tarball_fname, self.mountpoint, self.ryo_tempdir ), status_lst = self.status_lst, title_str = self.title_str )
-            system_or_die( 'mkdir -p %s%s/initramfs_dir' % ( self.mountpoint, self.ryo_tempdir ) )
-        f = '%s%s/src/chromeos-3.4/drivers/mmc/core/mmc.c' % ( self.mountpoint, self.kernel_src_basedir )
-        g = '%s%s/src/chromeos-3.4/fs/btrfs/ctree.h' % ( self.mountpoint, self.kernel_src_basedir )
-        assert( os.path.exists( f ) )
-        assert( os.path.exists( g ) )
-        if mounted and diy:
-            chroot_this( '/', 'cd %s%s && tar -c PKGBUILDs | xz -9 > %s' % ( self.mountpoint, self.ryo_tempdir, tarball_fname ),
-                                                    status_lst = self.status_lst, title_str = self.title_str )
-            chroot_this( '/', 'sync;sync;sync;umount /tmp/posterity' , status_lst = self.status_lst, title_str = self.title_str )
-        self.install_kernel_and_mkfs()
-
     def download_kernel_and_mkfs_sources( self ):
         logme( 'download_kernel_and_mkfs_sources() --- starting' )
-#        kernel_version = call_binary( ['uname', '-r'] )[1].decode( 'utf-8' ).split( '\n' )
-#        if kernel_version != '3.8.11':
-#            failed( 'Rebuild PKGBUILDs to allow for new kernel, please. Oh, and edit 3.8.11 in distros/__init__.py, please.' )
-        os.system( 'mount /dev/sda1 /tmp/posterity &> /dev/null' )
-        raw_pkgbuilds_fname = '/tmp/posterity/%s/%s_raw_PKGBUILDs.tar.xz' % ( self.fullname, self.fullname )
-        logme( 'download_kernel_and_mkfs_sources() -- looking for %s' % ( raw_pkgbuilds_fname ) )
-        if os.path.exists( raw_pkgbuilds_fname ):
-            self.update_status( "Restoring source from raw tarball..." )
-            system_or_die( 'rm -Rf %s%s' % ( self.mountpoint, self.ryo_tempdir ) )
-            system_or_die( 'mkdir -p %s%s' % ( self.mountpoint, self.ryo_tempdir ) )
-            system_or_die( 'tar -Jxf %s -C %s%s' % ( raw_pkgbuilds_fname, self.mountpoint, self.ryo_tempdir ), status_lst = self.status_lst, title_str = self.title_str )
-            self.update_status( 'awesome.' )
-        else:
-#            failed ( "Why could I not find %s?" % ( raw_pkgbuilds_fname ) )
-            self.update_status_with_newline( "Setting up build environment" )
-            system_or_die( "rm -Rf %s" % ( self.mountpoint + self.ryo_tempdir ) )
-            system_or_die( "mkdir -p %s" % ( self.mountpoint + self.ryo_tempdir ) )
-            self.update_status( '...Downloading kernel' )
-            self.download_kernel_source()  # Must be done before mkfs. Otherwise, 'git' complains & quits.
-#            self.download_current_ChromeOS_kernel_source()  # ...to enable me to build the btrfs, xfs, jfs modules & run them within ChromeOS
-            if self.use_latest_kernel:
-                self.download_latest_kernel_src()
-                system_or_die( 'cp -f %s%s/config %s%s/linux-latest/.config' % ( self.mountpoint, self.kernel_src_basedir, self.mountpoint, self.sources_basedir ) )
-            self.update_status( '...Downloading mk*fs' )
-            self.download_mkfs_sources()
-            self.update_status( '...downloaded. Creating raw tarball...' )
-            chroot_this( '/', 'cd %s%s && tar -c PKGBUILDs | xz -9 > %s' % ( self.mountpoint, self.ryo_tempdir, raw_pkgbuilds_fname ),
-                                                    status_lst = self.status_lst, title_str = self.title_str )
-            self.update_status( 'awesome.' )
-
-    def download_latest_kernel_src( self ):
-        logme( 'Downloading latest kernel source from kernel.org' )
-        system_or_die( '''curl https://www.kernel.org/`curl https://www.kernel.org -o - | fgrep tar.xz | grep -v testing | head -n1 | tr '"' '\n' | fgrep tar.xz` -o %s%s/latest-kernel.tar.xz''' % ( self.mountpoint, self.sources_basedir ),
-                             title_str = self.title_str, status_lst = self.status_lst )
-        system_or_die( '''cd %s%s && mkdir -p abq && cd abq && tar -Jxf ../latest-kernel.tar.xz && mv linux-* linux-latest && mv linux-latest .. && cd .. && rmdir abq''' % ( self.mountpoint, self.sources_basedir ),
-                                    title_str = self.title_str, status_lst = self.status_lst )
-        system_or_die( 'rm -f %s%s/latest-kernel.tar.xz''' % ( self.mountpoint, self.sources_basedir ) )
+        self.update_status_with_newline( "Setting up build environment" )
+        system_or_die( "rm -Rf %s" % ( self.mountpoint + self.ryo_tempdir ) )
+        system_or_die( "mkdir -p %s" % ( self.mountpoint + self.ryo_tempdir ) )
+        self.download_kernel_source()  # Must be done before mkfs. Otherwise, 'git' complains & quits.
+        self.update_status( '...Downloading  mk*fs' )
+        self.download_mkfs_sources()
+        self.update_status( '...downloaded.' )
+        system_or_die( 'mkdir -p %s%s/initramfs_dir' % ( self.mountpoint, self.ryo_tempdir ) )
 
     def build_kernel_and_mkfs( self ):
         if 0 != chroot_this( self.mountpoint, 'cd %s/cryptsetup/ && cd / || return 1' % ( self.sources_basedir ) ):
@@ -616,7 +568,7 @@ Choose the 'boom' password : """ ).strip( '\r\n\r\n\r' )
 #        self.update_status_with_newline( "..OK." )
 
     def generate_tarball_of_my_rootfs( self, output_file ):
-        compression_parameters = '-6e' if ( output_file.find( '_D' ) >= 0 or chrubix.utils.MAXIMUM_COMPRESSION is True ) else '-1'
+        compression_parameters = '-6e' if ( output_file.find( '_D' ) >= 0 or chrubix.utils.MAXIMUM_COMPRESSION is True ) else '-2'
         self.update_status( 'Creating tarball %s of my rootfs' % ( output_file ) )
         dirs_to_backup = 'bin boot etc home lib mnt opt root run sbin srv usr var'
         if not is_this_bindmounted( self.mountpoint ):
@@ -624,9 +576,11 @@ Choose the 'boom' password : """ ).strip( '\r\n\r\n\r' )
                 dirs_to_backup += ' .alarpy/%s' % ( dir_name )
         system_or_die( 'mkdir -p %s%s' % ( self.mountpoint, os.path.dirname( output_file ) ) )
         system_or_die( 'rm -Rf %s/.*rash*' % ( os.path.dirname( output_file ) ) )
-        system_or_die( 'cd %s && tar -c %s | xz %s > %s/temp.data' % ( self.mountpoint, dirs_to_backup, compression_parameters, os.path.dirname( output_file ) ), title_str = self.title_str, status_lst = self.status_lst )
-        system_or_die( 'mv %s/temp.data %s' % ( os.path.dirname( output_file ), output_file ) )
-        self.update_status_with_newline( '...created.' )
+        if 0 == os.system( 'cd %s && tar -c %s | xz %s > %s/temp.data' % ( self.mountpoint, dirs_to_backup, compression_parameters, os.path.dirname( output_file ) ) ):  # , title_str = self.title_str, status_lst = self.status_lst ):
+            system_or_die( 'mv %s/temp.data %s' % ( os.path.dirname( output_file ), output_file ) )
+            self.update_status_with_newline( '...created.' )
+        else:
+            self.update_status_with_newline( '...failed.' )
         return 0
 
     def write_my_rootfs_from_tarball( self, fname ):
@@ -641,6 +595,7 @@ Choose the 'boom' password : """ ).strip( '\r\n\r\n\r' )
             return 998
 
     def install_and_mount_barebones_OS( self ):
+        logme( 'install_and_mount_barebones_OS() --- entering' )
         self.update_status( "Downloading and installing skeleton" )
         system_or_die( 'mkdir -p %s' % ( self.sources_basedir ) )
         self.install_barebones_root_filesystem()
@@ -651,6 +606,7 @@ Choose the 'boom' password : """ ).strip( '\r\n\r\n\r' )
         self.update_status( "Mounting partitions" )
         mount_sys_tmp_proc_n_dev( self.mountpoint )
         self.update_status( '...mounted.' )
+        logme( 'install_and_mount_barebones_OS() --- leaving' )
 #        assert( 0 == chroot_this( self.mountpoint, '' ) )
 
     def update_barebones_OS( self ):
@@ -749,6 +705,7 @@ Categories=GTK;Utility;TerminalEmulator;
     def configure_sound_speech_and_font_cache( self ):
         tweak_speech_synthesis( self.mountpoint )
         chroot_this( self.mountpoint, 'fc-cache' )
+        install_mp3_files( self.mountpoint )
         self.tweak_pulseaudio()
 
     def tweak_pulseaudio( self ):
@@ -817,11 +774,10 @@ exit 0
     def remove_all_junk( self ):
         # Tidy up the actual OS
         if not os.path.exists( '%s%s' % ( self.mountpoint, self.kernel_src_basedir ) ):
-            failed( 'For some reason, the linux-chromebook folder is missing from the bootstrap OS. That is not good!' )
+            failed( 'For some reason, the linux kernel source folder is missing from the bootstrap OS. That is not good!' )
         self.update_status( 'Removing superfluous files and directories from OS' )
         remove_junk( self.mountpoint, self.kernel_src_basedir )
-        if not os.path.exists( '%s%s' % ( self.mountpoint, self.kernel_src_basedir ) ):
-            failed( 'remove_junk() deletes the linux-chromebook folder from the bootstrap OS. That is not good!' )
+#        self.use_latest_kernel = orig_kern_val
         tidy_up_alarpy()
         self.update_status_with_newline( '...removed.' )
 
@@ -1167,7 +1123,7 @@ sleep 10
 #            logme( 'Perhaps.' )
             if os.path.exists( '/tmp/posterity/%s/%s.sqfs' % ( self.fullname, self.fullname ) ):
                 self.update_status( 'Restoring squashfs from backup' )
-                system_or_die( 'cp -f /tmp/posterity/%s/%s.sqfs /.squashfs.sqfs' % ( self.fullname, self.fullname ) )
+                res = system_or_die( 'cp -f /tmp/posterity/%s/%s.sqfs /.squashfs.sqfs' % ( self.fullname, self.fullname ) )
                 self.update_status( '...restored.' )
 #                logme( 'Yes.' )
 #            else:
@@ -1211,29 +1167,43 @@ sleep 10
         return 0
 
     def download_kernel_source( self ):  # This also downloads all the other PKGBUILDs (for btrfs-progs, jfsutils, etc.)
+        self.update_status( '...Downloading kernel' )
         # Consider using ArchlinuxDistro.download_package_source()
-        attempt = 0  # to stop Eclipse from warning :)
-        for attempt in range( 3 ):
-            try:
-                if 0 != system_or_die( 'cd %s && rm -Rf PKGBUILDs && git clone git://github.com/archlinuxarm/PKGBUILDs.git' % ( self.mountpoint + self.ryo_tempdir ), \
-                                                        title_str = self.title_str, status_lst = self.status_lst ):
-                    failed( 'Failed to use git to clone the kernel source' )
-                call_makepkg_or_die( mountpoint = '/',
-                                    cmd = 'cd %s && makepkg --skipchecksums --nobuild -f' % ( self.mountpoint + self.kernel_src_basedir ),
-                                    errtxt = 'Failed to make/build kernel source',
-                                    package_path = self.mountpoint + self.kernel_src_basedir )
-                return 0
-            except RuntimeError:
-                self.update_status( ' git or makepkg failed. Retrying...' )
-        failed( 'Failed to download kernel source, even after %d attempts' % ( attempt ) )
-#        self.download_package_source( os.path.basename( self.kernel_src_basedir ), ( 'PKGBUILD', ) )
-
-    def configure_winxp_camo_and_guest_default_files( self ):
-        install_windows_xp_theme_stuff( self.mountpoint )
-        install_mp3_files( self.mountpoint )
-#        if os.path.exists( '%s/usr/share/icons/GnomeXP' % ( self.mountpoint ) ):
-#            raise RuntimeError( 'I have already installed the groovy XP stuff, FYI.' )
-        assert( os.path.exists( '%s/etc/.mp3/winxp.mp3' % ( self.mountpoint ) ) )
+        system_or_die( 'mkdir -p %s' % ( self.mountpoint + self.ryo_tempdir ) )
+        if 0 != system_or_die( 'cd %s && rm -Rf PKGBUILDs && git clone git://github.com/archlinuxarm/PKGBUILDs.git' % ( self.mountpoint + self.ryo_tempdir ), \
+                                                title_str = self.title_str, status_lst = self.status_lst ):
+            failed( 'Failed to use git to clone the kernel source' )
+        logme( 'Downloaading stock kernel' )
+        if not os.path.exists( '%s/PKGBUILD' % ( self.mountpoint + self.kernel_src_basedir ) ):
+            assert( os.path.exists( '%s%s/linux-peach' % ( self.mountpoint, self.sources_basedir ) ) )
+            system_or_die( 'ln -sf linux-peach %s%s' % ( self.mountpoint, self.kernel_src_basedir ) )
+            system_or_die( 'mkdir -p %s%s/src' % ( self.mountpoint, self.kernel_src_basedir ) )
+            system_or_die( 'ln -sf . %s%s/src/chromeos-3.4' % ( self.mountpoint, self.kernel_src_basedir ) )
+#            system_or_die( 'cd %s%s/src; ln -sf . chromeos-3.4' % ( self.mountpoint, self.kernel_src_basedir ) )
+            self.update_status( '...OK, linux-chromebook is now linux-peach. Whatever' )
+#            else:
+#                system_or_die( 'mkdir -p %s' % ( self.mountpoint + self.kernel_src_basedir ) )
+#                wget( url = 'https://dl.dropboxusercontent.com/u/59916027/chrubix/skeletons/linux-chromebook-PKGBUILD.tgz',
+#                     extract_to_path = '%s' % ( self.mountpoint + self.kernel_src_basedir ), decompression_flag = 'z', title_str = self.title_str, status_lst = self.status_lst, attempts = 1 )
+#                self.update_status( 'Someone broke ArchLinuxArm. I have fudged around the bug by downloading linux-chromebook/PKGBUILD from my spare copy.' )
+        logme( '1121212' )
+        if not os.path.exists( '%s%s/src/chromeos-3.4' % ( self.mountpoint, self.kernel_src_basedir ) ):
+                self.update_status( 'Failed to run ln -sf . %s%s/src/chromeos-3.4' % ( self.mountpoint, self.kernel_src_basedir ) )
+        logme( '6666662' )
+        call_makepkg_or_die( mountpoint = '/',
+                            cmd = 'cd %s && makepkg --skipchecksums --nobuild -f' % ( self.mountpoint + self.kernel_src_basedir ),
+                            errtxt = 'Failed to make/build kernel source',
+                            package_path = self.mountpoint + self.kernel_src_basedir )
+        logme( 'Downloading latest kernel' )
+        chroot_this( self.mountpoint, '''
+mkdir -p %s/linux-latest/src
+cd %s/linux-latest/src
+#git clone git://github.com/sfjro/aufs4-linux.git aufs4-linux.git; mv aufs4-linux.git chromeos-3.4
+git clone git://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git; mv linux-next chromeos-3.4
+''' % ( self.sources_basedir, self.sources_basedir ), status_lst = self.status_lst, title_str = self.title_str )
+        logme( '7777' )
+        system_or_die( 'cd %s%s/src/chromeos-3.4 && rm -Rf .git' % ( self.mountpoint, self.kernel_src_basedir ), errtxt = 'Failed to delete git repo associated with %s' % ( self.kernel_src_basedir ) )
+        system_or_die( 'cd %s%s/linux-latest/src/chromeos-3.4 && rm -Rf .git' % ( self.mountpoint, self.sources_basedir ), errtxt = 'Failed to delete git repo associated with %s' % ( self.kernel_src_basedir ) )
 
     def install_leap_bitmask( self ):
         logme( 'bitmask...' )
@@ -1280,7 +1250,10 @@ exit 0
         if 0 != chroot_this( self.mountpoint, 'bash /tmp/install_leap_bitmask.sh',
                                         status_lst = self.status_lst, title_str = self.title_str,
                                         attempts = 3 ):
-            self.update_status( '...shucks. Failed to install leap.bitmask :-(' )
+            if 0 == chroot_this( self.mountpoint, 'pip2 install leap.bitmask', status_lst = self.status_lst, title_str = self.title_str, attempts = 1 ):
+                self.update_status( '...retried w/ pip2 --- OK.' )
+            else:
+                self.update_status( '...shucks. Failed to install leap.bitmask :-(' )
         else:
             self.update_status( '...yay! Succeeded :-)' )
 
@@ -1385,10 +1358,8 @@ WantedBy=multi-user.target
         if os.system( 'mount | grep /tmp/posterity &> /dev/null' ) == 0 \
         or os.system( 'mount /dev/sda1 /tmp/posterity &> /dev/null' ) == 0 \
         or os.system( 'mount /dev/sdb1 /tmp/posterity &> /dev/null' ) == 0:
-            fname = '/tmp/posterity/%s%s/%s%s_%s.xz' % ( self.name,
-                                                         '' if self.branch is None else self.branch,
-                                                         self.name,
-                                                         '' if self.branch is None else self.branch,
+            fname = '/tmp/posterity/%s/%s_%s.xz' % ( self.fullname,
+                                                        self.fullname,
                                                          tailend )
             system_or_die( 'mkdir -p %s' % ( os.path.dirname( fname ) ) )
             res = func_to_call( fname )
@@ -1451,14 +1422,11 @@ WantedBy=multi-user.target
         first_stage = ( 
                                 self.install_and_mount_barebones_OS,
                                 self.install_locale,
-                                self.add_reboot_user,
-                                self.add_shutdown_user,
-                                self.add_guest_user,
                                 self.configure_hostname,
                                 self.update_barebones_OS,
+                                self.install_all_important_packages_in_OS,
                                 self.save_for_posterity_if_possible_A )
         second_stage = ( 
-                                self.install_all_important_packages_in_OS,
                                 self.install_timezone,
                                 self.install_i2p,
                                 self.install_freenet,
@@ -1468,9 +1436,14 @@ WantedBy=multi-user.target
                                 self.install_moose,
                                 self.install_gpg_applet,
                                 self.install_leap_bitmask,
-                                self.download_modify_build_and_install_kernel_and_mkfs,
                                 self.save_for_posterity_if_possible_B )
         third_stage = ( 
+#                                self.download_modify_build_and_install_kernel_and_mkfs,
+                                self.download_kernel_and_mkfs_sources,
+                                self.patch_and_modify_kernel_and_mkfs_sources,  # FYI, this also calls call_bash_script_that_modifies_kernel_n_mkfs_sources()
+                                self.build_kernel_and_mkfs,
+                                self.install_kernel_and_mkfs,
+                                self.configure_windows_camouflage_theme,
                                 self.install_final_push_of_packages,  # After this, assume Internet access is gone.
                                 self.forcibly_rebuild_initramfs_and_vmlinux,  # Is this necessary?
                                 self.save_for_posterity_if_possible_C )
@@ -1483,16 +1456,18 @@ WantedBy=multi-user.target
                                 self.save_for_posterity_if_possible_D )
         fifth_stage = ( # Chrubix ought to have been installed in MYDISK_MTPT/{dest distro} already, by the stage 1 bash script.
                                 self.update_and_upgrade_all,
-                                self.add_guest_user,
                                 self.install_panic_button,
                                 self.install_vbutils_and_firmware_from_cbook,
                                 self.configure_dbus_sudo_and_groups,
                                 self.configure_lxdm_and_lxde,
+                                self.add_reboot_user,
+                                self.add_shutdown_user,
+                                self.add_guest_user,
                                 self.configure_privacy_tools,
                                 self.configure_chrome_or_iceweasel,
                                 self.configure_networking,
                                 self.configure_sound_speech_and_font_cache,
-                                self.configure_winxp_camo_and_guest_default_files,
+                                self.configure_windows_camouflage_theme,
                                 self.configure_xwindow_and_timers,
                                 self.install_extra_menu_items_in_gui,
                                 self.configure_distrospecific_tweaks,
@@ -1530,6 +1505,9 @@ WantedBy=multi-user.target
                 if remaining_megabytes_free_on_device( self.root_dev ) < 300:
                     failed( '%s is nearly full --- you might want to tweak the partitioner in bit.do/that' % ( self.root_dev ) )
             myfunc()
+            if not os.path.exists( '%s/usr/local/bin/Chrubix' % ( self.mountpoint ) ):
+                logme( '***Suddenly, after %s, the chrubix folder has disappeared from our mountpoint.***' % ( myfunc.__name__ ) )
+                system_or_die( 'cp -af /usr/local/bin/Chrubix %s/usr/local/bin/' % ( self.mountpoint ), status_lst = self.status_lst, title_str = self.title_str )
             checkpoint_number += 1
             write_oneliner_file( '%s/.checkpoint.txt' % ( self.mountpoint ), str( checkpoint_number ) )
         logme( 'install() - leaving' )

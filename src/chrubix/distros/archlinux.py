@@ -53,10 +53,10 @@ hunspell-en chromium thunderbird windowmaker libdevmapper-dev \
         # 3.4.0-ARCH (built w/ makepkg). Two kernels wait in PKGBUILDs/ore: one in linux-latest, the other in linux-chromebook.
         logme( 'ArchlinuxDistro - install_kernel_and_mkfs() - starting' )
         chroot_this( self.mountpoint, r'yes "" 2>/dev/null | pacman -U `find %s | grep -x ".*\.tar\.xz"`' % ( self.sources_basedir ), title_str = self.title_str, status_lst = self.status_lst )
-        if self.use_latest_kernel:
-            chroot_this( self.mountpoint, 'cd %s/linux-latest && make install && make modules_install' % ( self.sources_basedir ),
-                         title_str = self.title_str, status_lst = self.status_lst,
-                         on_fail = "Failed to install the standard ChromeOS kernel and/or modules" )
+#         if self.use_latest_kernel:
+#             chroot_this( self.mountpoint, 'cd %s/linux-latest && make install && make modules_install' % ( self.sources_basedir ),
+#                          title_str = self.title_str, status_lst = self.status_lst,
+#                          on_fail = "Failed to install the standard ChromeOS kernel and/or modules" )
         self.update_status_with_newline( '...kernel installed.' )
 
 
@@ -74,7 +74,11 @@ hunspell-en chromium thunderbird windowmaker libdevmapper-dev \
 
     def install_important_packages( self ):
         logme( 'ArchlinuxDistro - install_important_packages() - starting' )
-        self.package_group_size = 99999
+        self.package_group_size = 2
+        os.system( 'clear' )
+        print( 'Chroot into the distro. Try running pacman -Syu. See if it works. Then, exit.' )
+        os.system( 'bash' )
+        chroot_this( self.mountpoint, 'yes "" 2> /dev/null | pacman -Syu', title_str = self.title_str, status_lst = self.status_lst )
         chroot_this( self.mountpoint, 'yes "" 2>/dev/null | pacman -S --needed --force fakeroot', title_str = self.title_str, status_lst = self.status_lst )
         system_or_die( 'rm -f %s/var/lib/pacman/db.lck; sync; sync; sync; sleep 2; sync; sync; sync; sleep 2' % ( self.mountpoint ) )
         packages_lst = [ r for r in self.important_packages.split( ' ' ) if r != '']
@@ -175,48 +179,47 @@ hunspell-en chromium thunderbird windowmaker libdevmapper-dev \
 #                             on_fail = 'Failed to downgrade systemd' )
 #             self.update_status(' (downgraded SystemD)'
 #
-#     def install_final_push_of_packages( self ):
-#         logme( 'ArchlinuxDistro - install_final_push_of_packages() - starting' )
-#         self.update_status(( 'Installed' )
-#         for my_fname in ( 'ssss-0.5-3-armv7h.pkg.tar.xz', 'florence-0.6.2-1-armv7h.pkg.tar.xz' ):
-#             try:
-#                 system_or_die( 'cp /usr/local/bin/Chrubix/blobs/apps/%s /%s/tmp/' % ( my_fname, self.mountpoint ) )
-#             except RuntimeError:
-#                 wget( url = 'https://dl.dropboxusercontent.com/u/59916027/chrubix/%s' % ( my_fname ),
-#                 save_as_file = '%s/tmp/%s' % ( self.mountpoint, my_fname ),
-#                 status_lst = self.status_lst,
-#                 title_str = self.title_str )
-#             if 0 == chroot_this( self.mountpoint, 'yes "" | pacman -U /tmp/%s' % ( my_fname ) ):
-#                 self.update_status(' ' + my_fname.split( '-' )[0]
-#             else:
-#                 failed( 'Failed to install ' + my_fname.split( '-' )[0] )
-# #        perl-cpan-meta-check perl-class-load-xs perl-eval-closure perl-mro-compat perl-package-depreciationmanager perl-sub-name perl-task-weaken \
-# # perl-test-checkdeps perl-test-without-module perl-moose
-#         failed_pkgs = self.install_from_AUR
-#         attempts = 0
-#         while failed_pkgs != '' and attempts < 5:
-#             self.update_and_upgrade_all()
-#             attempts += 1
-#             packages_to_install = failed_pkgs
-#             failed_pkgs = ''
-#             for pkg_name in packages_to_install.split( ' ' ):
-#                 if pkg_name in ( None, '', ' ' ):
-#                     continue
-#                 try:
-#                     self.build_and_install_software_from_archlinux_source( pkg_name, quiet = True )
-#                     self.update_status(' %s' % ( pkg_name ))
-#                 except RuntimeError:
-#                     failed_pkgs += ' %s' % ( pkg_name )
-#         self.update_status('...OK.')
-#         if failed_pkgs != '':
-#             self.update_status(( ['Warning - failed to install%s' % ( failed_pkgs )] )
-#         self.update_status(' etc. ')
-# #        self.update_status(( ['Installing %s' % ( self.final_push_packages.replace( '  ', ' ' ).replace( ' ', ', ' ) )] )
-#         chroot_this( self.mountpoint, 'yes "" 2>/dev/null | pacman -S --needed %s' % ( self.final_push_packages ), title_str = self.title_str, status_lst = self.status_lst,
-#                      on_fail = 'Failed to install final push of packages', attempts = 20 )
-#         self.update_and_upgrade_all()
-#         self.downgrade_systemd_if_necessary( None )  # '213-5' )
-#         self.update_status_with_newline('...complete.')
+    def install_final_push_of_packages( self ):
+        logme( 'ArchlinuxDistro - install_final_push_of_packages() - starting' )
+        self.update_status( 'Installed' )
+        for my_fname in ( 'ssss-0.5-3-armv7h.pkg.tar.xz', 'florence-0.6.2-1-armv7h.pkg.tar.xz' ):
+            try:
+                system_or_die( 'cp /usr/local/bin/Chrubix/blobs/apps/%s /%s/tmp/' % ( my_fname, self.mountpoint ) )
+            except RuntimeError:
+                wget( url = 'https://dl.dropboxusercontent.com/u/59916027/chrubix/%s' % ( my_fname ), \
+                save_as_file = '%s/tmp/%s' % ( self.mountpoint, my_fname ), \
+                status_lst = self.status_lst, \
+                title_str = self.title_str )
+            if 0 == chroot_this( self.mountpoint, 'yes "" | pacman -U /tmp/%s' % ( my_fname ) ):
+                self.update_status( ' ' + my_fname.split( '-' )[0] )
+#            else:
+#                failed( 'Failed to install ' + my_fname.split( '-' )[0])
+#        perl-cpan-meta-check perl-class-load-xs perl-eval-closure perl-mro-compat perl-package-depreciationmanager perl-sub-name perl-task-weaken \
+# perl-test-checkdeps perl-test-without-module perl-moose
+        failed_pkgs = self.install_from_AUR
+        attempts = 0
+        while failed_pkgs != '' and attempts < 5:
+            self.update_and_upgrade_all()
+            attempts += 1
+            packages_to_install = failed_pkgs
+            failed_pkgs = ''
+            for pkg_name in packages_to_install.split( ' ' ):
+                if pkg_name in ( None, '', ' ' ):
+                    continue
+                try:
+                    self.build_and_install_software_from_archlinux_source( pkg_name, quiet = True )
+                    self.update_status( ' %s' % ( pkg_name ) )
+                except RuntimeError:
+                    failed_pkgs += ' %s' % ( pkg_name )
+        self.update_status( '...OK.' )
+        if failed_pkgs != '':
+            self.update_status( ['Warning - failed to install%s' % ( failed_pkgs )] )
+#        self.update_status(' etc. ')
+#        self.update_status(( ['Installing %s' % ( self.final_push_packages.replace( '  ', ' ' ).replace( ' ', ', ' ) )] )
+        chroot_this( self.mountpoint, 'yes "" 2>/dev/null | pacman -S --needed %s' % ( self.final_push_packages ), title_str = self.title_str, status_lst = self.status_lst,
+                     on_fail = 'Failed to install final push of packages', attempts = 20 )
+        self.update_and_upgrade_all()
+        self.update_status_with_newline( '...complete.' )
 
 
 

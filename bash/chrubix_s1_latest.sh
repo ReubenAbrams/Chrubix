@@ -40,8 +40,6 @@ MYDISK_CHROOT=$MINIDISTRO_CHROOT$MYDISK_CHR_STUB
 VFAT_MOUNTPOINT=/tmp/.vfat.mountpoint
 
 
-
-
 # PARTED_CHROOT is mounted on the internal loopfs
 # MINIDISTRO_CHROOT and its files are actually *living on* MYDISK_CHROOT/.alarpy
 # /dev/mmcblk1p2 is mounted at /tmp/_build_here 				 a.k.a. $TOP_BTSTRP
@@ -175,26 +173,14 @@ install_chrubix() {
 	else
 		evilmaid=""
 	fi
-	 
+
 	mydiskmtpt=$MYDISK_CHR_STUB
 	[ "$mydiskmtpt" = "/`basename $mydiskmtpt`" ] || failed "install_chrubix() -- $mydiskmtpt must not have any subdirectories. It must BE a directory and a / one at that."
 	mkdir -p $MYDISK_CHROOT
 	mount $ROOTDEV $MYDISK_CHROOT || failed "install_chrubix() -- unable to mount root device at $MYDISK_CHROOT"	
 	mount_dev_sys_proc_and_tmp $MYDISK_CHROOT
-	
-	cp -f $MINIDISTRO_CHROOT/.[a-z]*.txt $MYDISK_CHROOT/ || echo -en ""
-	
-	touch $TOP_BTSTRAP/.gloria.first-i-was-afraid
-	[ -e "$MYDISK_CHROOT/.gloria.first-i-was-afraid" ] || failed "For some reason, MYDISK_CHROOT and TOP_BTSTRAP don't share the '/' directory."
-	
-	touch $MINIDISTRO_CHROOT/.gloria.i-was-petrified
-	[ -e "$MYDISK_CHROOT/.gloria.i-was-petrified" ] && failed "Why are MINIDISTRO_CHROOT and MYDISK_CHROOT sharing a '/' directory?"
-
-	rm -f $TOP_BTSTRAP/.gloria*
-	rm -f $MINIDISTRO_CHROOT/.gloria*
-	rm -f $MYDISK_CHROOT/.gloria*
-		
-	rm -Rf $root/usr/local/bin/Chrubix
+	cp -f $MINIDISTRO_CHROOT/.[a-z]*.txt $MYDISK_CHROOT/ 2>/dev/null || echo -en ""
+	rm -Rf $TOP_BTSTRAP/.gloria* $MINIDISTRO_CHROOT/.gloria* $MYDISK_CHROOT/.gloria* $root/usr/local/bin/Chrubix
 	lastblock=`cgpt show $DEV | tail -n3 | grep "Sec GPT table" | tr -s ' ' '\t' | cut -f2` || failed "Failed to calculate lastblock"
 	maximum_length=$(($lastblock-$SPLITPOINT-8))
 	SIZELIMIT=$(($maximum_length*512))
@@ -209,7 +195,6 @@ install_chrubix() {
 	wget $CHRUBIX_URL -O - | tar -xz -C $root/usr/local/bin 2> /dev/null
 	rm -Rf $root/usr/local/bin/Chrubix
 	mv     $root/usr/local/bin/Chrubix* $root/usr/local/bin/Chrubix	# rename Chrubix-master (or whatever) to Chrubix
-
 	wget $OVERLAY_URL -O - | tar -Jx -C $root/usr/local/bin/Chrubix 2> /dev/null || echo "Sorry. Dropbox is down. We'll have to rely on GitHub..."
 
 	for rr in $root$MYDISK_CHR_STUB $root; do
@@ -223,7 +208,7 @@ install_chrubix() {
 		done
 		cd $rr/usr/local/bin/Chrubix/bash
 		[ -e "chrubix.sh.orig" ] || failed "Where is chrubix.sh.orig?!"
-	
+		[ "$LATESTKERNEL_TorF" = "True" ] && use_latest_kernel=yes || use_latest_kernel=no
 		cat chrubix.sh.orig \
 | sed s/\$dev/\\\/dev\\\/`basename $dev`/ \
 | sed s/\$rootdev/\\\/dev\\\/`basename $rootdev`/ \
@@ -233,6 +218,7 @@ install_chrubix() {
 | sed s/\$splitpoint/$(($SPLITPOINT*512))/ \
 | sed s/\$sizelimit/$SIZELIMIT/ \
 | sed s/\$mydiskmtpt/\\\/`basename $mydiskmtpt`/ \
+| sed s/\$use_latest_kernel/$use_latest_kernel/ \
 | sed s/\$evilmaid/$evilmaid/ \
 > chrubix.sh || failed "Failed to rejig chrubix.sh.orig"
 
@@ -251,12 +237,8 @@ install_chrubix() {
         chmod -R 755 $rr/usr/local/bin/Chrubix/
 	done
 
-	if [ -e "$root$MYDISK_CHR_STUB/usr/local/bin" ] ; then
-		cp -af $root/usr/local/bin/Chrubix $root$MYDISK_CHR_STUB/usr/local/bin/ || failed "Failed to copy chrubix folder from mydisk to minidistro #1"
-	fi
-	if [ -e "$TOP_BTSTRAP/usr/local/bin/" ] ; then
-		cp -af $root/usr/local/bin/Chrubix $TOP_BTSTRAP/usr/local/bin/ || failed "Failed to copy chrubix folder from mydisk to minidistro #1"
-	fi
+	[ -e "$root$MYDISK_CHR_STUB/usr/local/bin" ] && ( cp -af $root/usr/local/bin/Chrubix $root$MYDISK_CHR_STUB/usr/local/bin/ || failed "Failed to copy chrubix folder from mydisk to minidistro #1" )
+	[ -e "$TOP_BTSTRAP/usr/local/bin/" ]         && ( cp -af $root/usr/local/bin/Chrubix $TOP_BTSTRAP/usr/local/bin/ || failed "Failed to copy chrubix folder from mydisk to minidistro #1" )
 }
 
 
@@ -275,14 +257,12 @@ call_chrubix() {
 	tar -cz /usr/share/alsa/ucm/ > $btstrap/tmp/.usr_share_alsa_ucm.tgz
 	tar -cz /usr/share/vboot > $btstrap/tmp/.vbkeys.tgz || failed "Failed to save your keys" #### MAKE SURE CHRUBIX HAS ACCESS TO Y-O-U-R KEYS and YOUR vbutil* binaries ####
 	tar -cz /lib/firmware > $btstrap/tmp/.firmware.tgz || failed "Failed to save your firmware"  # save firmware!
-#	tar -cz /etc/X11/xorg.conf.d /usr/share/gestures > $btstrap/tmp/.xorg.conf.d.tgz || failed "Failed to save xorg.conf.d stuff"
 	chroot_this $btstrap "chmod +x /usr/local/bin/*" || echo -en "WARNING -- softlink(s) errors() B"
 	ln -sf ../../bin/python3 $btstrap/usr/local/bin/python3
 	echo "************ Calling CHRUBIX, the Python powerhouse of pulchritudinous perfection ************"
 	echo "yep, use latest" > $root/tmp/.USE_LATEST_CHRUBIX_TARBALL
 	[ -e "$btstrap/usr/local/bin/Chrubix" ] || failed "Where is $btstrap/usr/local/bin/Chrubix? #1"	
 	[ -e "$MINIDISTRO_CHROOT/usr/local/bin/Chrubix" ] || failed "Where is $MINIDISTRO_CHROOT/usr/local/bin/Chrubix? #2"
-
 	[ "$EVILMAID" != "no" ] && cp -f $btstrap/tmp/.*z $TOP_BTSTRAP/
 	chroot_this $btstrap "/usr/local/bin/chrubix.sh" || failed "Because chrubix reported an error, I'm aborting... and I'm leaving everything mounted.
 Type 'sudo chroot $MINIDISTRO_CHROOT' and then 'chrubix.sh' to retry."
@@ -305,7 +285,6 @@ partition_the_device() {
 
 	mount | fgrep "$DEV" && failed "partition_my_disk() --- stuff from $DEV is already mounted. Abort!" || echo -en ""
 	echo -en "Partitioning"
-
 	sync;sync;sync; umount $root/{dev/pts,dev,proc,sys,tmp} &> /dev/null || echo -en "."
 	sync;sync;sync; umount "$dev_p"* &> /dev/null &> /dev/null  || echo -en "."
 	sync;sync;sync; umount "$dev"* &> /dev/null &> /dev/null  || echo -en "."
@@ -316,9 +295,7 @@ partition_the_device() {
 	chroot_this $btstrap "cgpt create $dev" || failed "Failed to create $dev"
 	chroot_this $btstrap "cgpt add -i  1 -t kernel -b  8192 -s 32768 -l U-Boot -S 1 -T 5 -P 10 $dev" || failed "Failed to create 1"
 	chroot_this $btstrap "cgpt add -i 12 -t data   -b 40960 -s 32768 -l Script $dev" || failed "Failed to create 12"
-
 	lastblock=`cgpt show $dev | tail -n3 | grep "Sec GPT table" | tr -s ' ' '\t' | cut -f2` || failed "Failed to calculate lastblock"
-
 	if [ "$splitpoint" = "" ] ; then
 		chroot_this $btstrap "cgpt add -i  2 -t data   -b 73728 -s `expr $lastblock - 73728` -l Root $dev" || failed "Failed to create 3"
 	elif [ "$only_two_partitions" = "yes" ] ; then
@@ -415,6 +392,21 @@ ask_if_afraid_of_evil_maid() {
 }
 
 
+ask_if_to_use_latest_kernel() {
+	local r
+	LATESTKERNEL_TorF=""
+	while [ "$LATESTKERNEL_TorF" != "True" ] && [ "$LATESTKERNEL_TorF" != "False" ] ; do
+		echo -en "Must I use the latest kernel (y/n)? "
+		read r
+		if [ "$r" = "Y" ] || [ "$r" = "y" ] ; then
+			LATESTKERNEL_TorF=True
+		elif [ "$r" = "N" ] || [ "$r" = "n" ] ; then
+			LATESTKERNEL_TorF=False
+		fi
+	done
+}
+
+
 
 locate_prefab_file() {
 	local mypath
@@ -439,7 +431,7 @@ locate_prefab_file() {
 
 locate_prefab_on_dropbox() {
 	local sqfs_url stageD_url url
-	sqfs_url=$FINALS_URL/$DISTRONAME/$DISTRONAME".sqfs"
+	sqfs_url=$FINALS_URL/$DISTRONAME/$DISTRONAME.sqfs
 	stageD_url=$FINALS_URL/$DISTRONAME/$DISTRONAME"__D.xz"
 	if [ "$EVILMAID" != "no" ] ;then
 		img_url=""
@@ -458,7 +450,7 @@ locate_prefab_on_dropbox() {
 locate_prefab_on_thumbdrive() { 
 	local mypath sqfs_fname fname stageD_fname stageC_fname stageB_fname stageA_fname
 	mypath=$1
-	sqfs_fname=$mypath/$DISTRONAME/$DISTRONAME".sqfs"
+	sqfs_fname=$mypath/$DISTRONAME/$DISTRONAME.sqfs
 	stageD_fname=$mypath/$DISTRONAME/$DISTRONAME"__D.xz"
 	stageC_fname=$mypath/$DISTRONAME/$DISTRONAME"__C.xz"
 	stageB_fname=$mypath/$DISTRONAME/$DISTRONAME"__B.xz"
@@ -549,7 +541,7 @@ wait_for_partitioning_and_formatting_to_complete() {
 		echo -en "."
 		sleep 1
 	done
-	echo "Installing OS itself..."
+	echo "...Installing OS itself..."
 }	
 
 
@@ -610,34 +602,28 @@ restore_this_stageX_prefab() {
 	rm -f $myfifo
 	mkfifo $myfifo
 	cd /
-	
 	echo "Restoring `basename $prefab_fname_or_url`"
 	if echo "$prefab_fname_or_url" | fgrep http &> /dev/null ; then
 		wget $prefab_fname_or_url -O - > $myfifo &
 		bkgd_proc=$!
 	else
 		[ -e "$prefab_fname_or_url" ] || failed "restore_this_stageX_prefab() -- $prefab_fname_or_url does not exist"
-		pv -W -B 256m $prefab_fname_or_url > $myfifo &
+		pv -W -B 64m $prefab_fname_or_url > $myfifo &
 		bkgd_proc=$!
 	fi
-
 	wait_for_partitioning_and_formatting_to_complete
 	mount_my_disk
-	
 	cat $myfifo | tar -Jx -C $TOP_BTSTRAP || failed "restore_this_stageX_prefab() -- Failed to unzip $fname --- J err?"	
 	echo "Done."
-
 	mkdir -p $TOP_BTSTRAP/{dev,sys,proc,tmp}
 	[ -e "$TOP_BTSTRAP/bin/date" ] || failed "restore_this_stageX_prefab() -- you say you've restored from a Stage X file... but where's the date binary? #1"
 	[ -e "$MINIDISTRO_CHROOT" ] || failed "Prefab file $prefab_fname_or_url did not contain an .alarpy folder; that is odd. It should have been backed up."
 	mount_dev_sys_proc_and_tmp $MINIDISTRO_CHROOT || failed "restore_this_stageX_prefab() -- failed to mount dev, sys, etc. on $MINIDISTRO_CHROOT"
 	mkdir -p $MYDISK_CHROOT
-
 # So, at this point:-
 # - partition #2 of SD card is mounted   at $TOP_BTSTRAP
 # - the .alarpy folder should be present at $TOP_BTSTRAP/.alarpy (a.k.a. $MINIDISTRO_CHROOT)
 # - I can chroot into .alarpy and build the rest of the OS at $MKDISK_CHROOT (which is bindmounted to $TOP_BTSTRAP)
-	
 	echo "9999"                > $MINIDISTRO_CHROOT/.checkpoint.txt 	|| echo "BLAH 1"
 	echo "$prefab_fname_or_url" > $MINIDISTRO_CHROOT/.url_or_fname.txt 	|| echo "BLAH 2"
 	rm -f $myfifo
@@ -655,10 +641,7 @@ sign_and_install_kernel() {
 	mount | fgrep " $VFAT_MOUNTPOINT " &> /dev/null || failed "sign_and_install_kernel() -- why is vfat mountpoint not mounted?"
 	[ -f "$sqfs_fname" ] || failed "sign_and_install_kernel() -- where is the sqfs file?"
 	[ -f "$kernel_fname" ] || failed "sign_and_install_kernel() -- where is the kernel?"
-
 	rm -f $MYDISK_CHROOT/.checkpoint.txt $VFAT_MOUNTPOINT/.checkpoint.txt $MINIDISTRO_CHROOT/.checkpoint.txt
-
-	# try ROOTDEV instead of VFATDEV?
 	sign_and_write_custom_kernel $MYDISK_CHROOT $UBOOTDEV $VFATDEV $kernel_fname "" ""  || failed "sign_and_install_kernel() -- failed to sign/write custom kernel"
 }
 
@@ -717,7 +700,6 @@ install_from_sqfs_prefab() {
 	fi
 
 	ps $bkgd_proc &> /dev/null || failed "install_from_sqfs_prefab() -- pv crapped out :-/"
-#	echo "Restoring from $prefab_fname_or_url and .../`basename $kernel_fname_or_url`"
 	cat $myfifo > $VFAT_MOUNTPOINT/.squashfs.sqfs 
 	sign_and_install_kernel		# Try putting this line after mount_my_disk :) ... and see what happens
 	unmount_my_disk &> /dev/null || echo -en ""
@@ -783,7 +765,8 @@ unmount_absolutely_everything() {
 
 
 install_me() {
-	local extra="boot into Linux."
+	local extra="boot into Linux." prefab_fname
+	prefab_fname=`locate_prefab_file` || prefab_fname=""		# img, sqfs, _D, _C, ...; check Dropbox and local thumb drive
 	[ "$EVILMAID" != "no" ] && extra="continue installing."
 	[ "$prefab_fname" = "" ] && install_from_the_beginning || install_from_prefab $prefab_fname
 	echo -en "$distroname has been installed on $DEV\nPress <Enter> to reboot. Then, press <Ctrl>U to $extra"
@@ -813,6 +796,60 @@ partition_and_format_me() {
 
 
 
+
+run_that_test_to_debug_my_installing_of_latest_kernel() {
+	echo -en "\nFor infernal porpoises, I'm re-jigging the existing OS on the MMC. I am trying the stock/latest/whatever kernel and saving time.\n"
+	unmount_absolutely_everything &> /dev/null || echo -en ""
+	mkdir -p $TOP_BTSTRAP
+	mount $ROOTDEV  $TOP_BTSTRAP
+	mount devtmpfs  $MINIDISTRO_CHROOT/dev -t devtmpfs
+	mount sysfs     $MINIDISTRO_CHROOT/sys -t sysfs		
+	mount proc      $MINIDISTRO_CHROOT/proc -t proc		
+	mount tmpfs     $MINIDISTRO_CHROOT/tmp -t tmpfs	
+#	mount $ROOTDEV 	$MYDISK_CHROOT
+#	mount devtmpfs  $MYDISK_CHROOT/dev -t devtmpfs
+#	mount sysfs     $MYDISK_CHROOT/sys -t sysfs		
+#	mount proc      $MYDISK_CHROOT/proc -t proc		
+#	mount tmpfs     $MYDISK_CHROOT/tmp -t tmpfs
+	
+	install_chrubix $MINIDISTRO_CHROOT $DEV $ROOTDEV $VFATDEV $KERNELDEV $DISTRONAME || failed "run_that_test_to_debug_my_installing_of_latest_kernel() -- failed to install chrubix"
+	ask_if_to_use_latest_kernel
+	echo -en "Making kernel..."
+	if [ "$LATESTKERNEL_TorF" = "False" ] ; then
+		KERNEL_SRC_BASEDIR=$SOURCES_BASEDIR/linux-chromebook
+		if [ -e "$MYDISK_CHROOT$SOURCES_BASEDIR/linux-latest" ] ; then
+			mv $MYDISK_CHROOT$SOURCES_BASEDIR/linux-latest $MYDISK_CHROOT$SOURCES_BASEDIR/linux-latest.disabled
+		fi
+		CHROMEHOME=$KERNEL_SRC_BASEDIR/src/chromeos-3.4
+	else
+		KERNEL_SRC_BASEDIR=$SOURCES_BASEDIR/linux-latest
+		if [ -e "$MYDISK_CHROOT$SOURCES_BASEDIR/linux-latest.disabled" ] ; then
+			mv $MYDISK_CHROOT$SOURCES_BASEDIR/linux-latest.disabled $MYDISK_CHROOT$SOURCES_BASEDIR/linux-latest
+		fi
+		if [ ! -e "$MYDISK_CHROOT$SOURCES_BASEDIR/linux-latest/.upstream" ] ; then
+			rm -Rf $MYDISK_CHROOT$SOURCES_BASEDIR/linux-latest
+			mkdir -p $MYDISK_CHROOT$SOURCES_BASEDIR/linux-latest/src
+			chroot_this $MYDISK_CHROOT "
+cd $SOURCES_BASEDIR/linux-latest/src
+git clone git://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git
+ln -sf linux-next chromeos-3.4
+" || failed "Failed to grab next kernel from git repo"
+			touch $MYDISK_CHROOT$SOURCES_BASEDIR/linux-latest/.upstream
+		fi
+		CHROMEHOME=$KERNEL_SRC_BASEDIR/src/chromeos-3.4
+	fi
+
+	chroot_this $MINIDISTRO_CHROOT "modify_sources.sh $DEV $MYDISK_CHR_STUB no yes" || failed "Failed to modify sources for our test porpoises"
+	chroot_this $MINIDISTRO_CHROOT "redo_mbr.sh $DEV $MYDISK_CHR_STUB $ROOTDEV linux-latest" || failed "Failed to redo mbr & recompile kernel for our test porpoises"	
+	sync;sync;sync
+	unmount_absolutely_everything &> /dev/null || echo -en ""
+	sudo reboot
+	sudo reboot
+	sudo reboot
+}
+
+
+
 ##################################################################################################################################
 
 
@@ -826,10 +863,6 @@ UBOOTDEV="$DEV_P"1
 VFATDEV="$DEV_P"2
 ROOTDEV="$DEV_P"3
 KERNELDEV="$DEV_P"12
-
-
-
-
 if [ "$USER" != "root" ] ; then
 	SCRIPTPATH=$( cd $(dirname $0) ; pwd -P )
 	fname=$SCRIPTPATH/`basename $0`
@@ -843,15 +876,26 @@ crossystem dev_boot_usb=1 dev_boot_signed_only=0 || failed "Failed to configure 
 [ "$mydevbyid" = "" ] && failed "I am unable to figure out which device you want me to prep. Sorry..."
 [ -e "$mydevbyid" ] || failed "Please insert a thumb drive or SD card and try again. Please DO NOT INSERT your keychain thumb drive."
 unmount_absolutely_everything &> /dev/null || echo -en ""
+#------------------------------------------------------------------------------------
+#run_that_test_to_debug_my_installing_of_latest_kernel
+#echo "Reboot now, please."
+#exit 0
+#------------------------------------------------------------------------------------
 partition_and_format_me &>/dev/null &
 partandform_proc=$!
 if echo "$0" | fgrep latest_that &> /dev/null ; then
 	get_distro_type_the_user_wants								# sets $DISTRONAME
+	ask_if_afraid_of_evil_maid									# sets $EVILMAID
+	ask_if_to_use_latest_kernel
 else
  	DISTRONAME=debianjessie
+ 	EVILMAID=no
+ 	LATESTKERNEL_TorF=False		# has to be True or False
 fi
-ask_if_afraid_of_evil_maid									# sets $EVILMAID
-prefab_fname=`locate_prefab_file` || prefab_fname=""		# img, sqfs, _D, _C, ...; check Dropbox and local thumb drive
+clear
+[ "$EVILMAID" = "yes" ] && capitalized_evil_maid="Yes" || capitalized_evil_maid="No"
+echo "I shall install $DISTRONAME on $DEV now."
+echo "Latest kernel? $LATESTKERNEL_TorF. Paranoid? $capitalized_evil_maid."
 install_me
 sudo reboot
 exit 0

@@ -18,7 +18,7 @@ RYO_TEMPDIR=/root/.rmo
 BOOM_PW_FILE=/etc/.sha512bm
 KERNEL_CKSUM_FNAME=.k.bl.ck
 SOURCES_BASEDIR=$RYO_TEMPDIR/PKGBUILDs/core
-KERNEL_SRC_BASEDIR=$SOURCES_BASEDIR/linux-chromebook
+KERNEL_SRC_BASEDIR=/do/not/use/me/yet
 INITRAMFS_DIRECTORY=$RYO_TEMPDIR/initramfs_dir
 INITRAMFS_CPIO=$RYO_TEMPDIR/uInit.cpio.gz
 RAMFS_BOOMFILE=.sha512boom
@@ -437,32 +437,49 @@ COMPRESSION=\"lzma\"
 
 
 redo_mbr() {
-	local root dev_p rootdev
+	local root dev_p rootdev extras old_its new_its
 	root=$1
 	dev_p=$2
 	rootdev=$3
 	echo "redo_mbr($1,$2,$3)"
 
-#	[ -e "$root$BOOM_PW_FILE" ] || echo "WARNING - No boom pw cksum file"
-	[ -e "$root$KERNEL_SRC_BASEDIR/src" ] || failed "Cannot find $root$KERNEL_SRC_BASEDIR/src source folder"
-	rm -f $root$KERNEL_SRC_BASEDIR/src/chromeos-3.4/arch/arm/boot/vmlinux.uimg
-	rm -f $root/root/.vmlinuz.signed
-	rm -f `find $root$KERNEL_SRC_BASEDIR | grep initramfs | grep lzma | grep -vx ".*\.h"`
-	make_initramfs_hybrid $root $rootdev $dev_p
-# FIXME hey... how about saving kernel.its as well as vmlinux.uimg and then using those files instead of making kernel again?
-	if [ ! -e "$root/tmp/.donotmakekernel" ] ; then
-		chroot_this $root "cd $KERNEL_SRC_BASEDIR/src/chromeos-3.4 && make"
-		chroot_this $root "cd $KERNEL_SRC_BASEDIR/src/chromeos-3.4 && make zImage modules dtbs modules_install && cd arch/arm/boot && mkimage -f kernel.its vmlinux.uimg"
-	else
-		# FIXME try trimming this :) ... See what happens :)
-		chroot_this $root "cd $KERNEL_SRC_BASEDIR/src/chromeos-3.4 && make zImage dtbs && cd arch/arm/boot && mkimage -f kernel.its vmlinux.uimg"
+	old_its=$root$SOURCES_BASEDIR/linux-chromebook/src/chromeos-3.4/arch/arm/boot/kernel.its
+	new_its=$root$KERNEL_SRC_BASEDIR/src/chromeos-3.4/arch/arm/boot/kernel.its
+	if [ ! -e "$old_its" ] ; then
+		if [ -e "$old_its.orig" ] ; then
+			cp -f $old_its.orig $old_its
+		else
+			if [ -e "$root$SOURCES_BASEDIR/linux-chromebook/kernel.its" ] ; then
+				cp -f $root$SOURCES_BASEDIR/linux-chromebook/kernel.its $old_its
+			else
+				failed "Why does $old_its not exist? Surely it came with the git repo. WTF?"
+			fi
+#			wget https://www.dropbox.com/s/3rwaakatchwhnpz/kernel.its?dl=0 -O - > $old_its || failed "Failed to download emergency kernel.its from dropbox"
+		fi
 	fi
-	if echo "$rootdev" | grep /dev/mapper &>/dev/null ; then
-		sign_and_write_custom_kernel $root "$dev_p"1 $rootdev "cryptdevice="$dev_p"2:`basename $rootdev`" "" || failed "Failed to sign/write custm kernel"
+	cp $old_its /tmp/.kernel.its
+	if ls dts/exynos5250-{snow,spring}.dtb &> /dev/null; then
+		cp -f dts/exynos5250-{snow,spring}.dtb .
+		cat /tmp/.kernel.its | sed s/\-rev4// | sed s/\-rev5// > $new_its || failed "Failed to copy kernel.its #1"
 	else
-# I assume rootdev == "$dev_p"2
-		sign_and_write_custom_kernel $root "$dev_p"1 $rootdev "" || failed "Failed to sign/write custm kernel"
+		cp -f /tmp/.kernel.its  $new_its || failed "Failed to copy kernel.its #2"
 	fi
+	cd $root$KERNEL_SRC_BASEDIR/src/chromeos-3.4/arch/arm/boot
+	echo "redo_mbr() -- redoing mbr in $root$KERNEL_SRC_BASEDIR" >> /tmp/chrubix.log
+
+	rm -f $root/root/.vmlinuz.signed $root$KERNEL_SRC_BASEDIR/src/chromeos-3.4/arch/arm/boot/{Image,zImage,vmlinux.uimg} `find $root$KERNEL_SRC_BASEDIR | grep initramfs | grep lzma | grep -vx ".*\.h"` || echo -en ""
+	make_initramfs_hybrid $root $rootdev $dev_p		# FIXME hey... how about saving kernel.its as well as vmlinux.uimg and then using those files instead of making kernel again?
+	chroot_this $root "cd $KERNEL_SRC_BASEDIR/src/chromeos-3.4 && make zImage modules modules_install dtbs" || failed "Failed to remake dtbs, kernel, modules, etc."
+
+	if chroot_this $root "cd $KERNEL_SRC_BASEDIR/src/chromeos-3.4/arch/arm/boot && mkimage -f kernel.its vmlinux.uimg" &> /dev/null ; then
+		echo "mkimage ran OK (1st time)"
+	elif chroot_this $root "cd $KERNEL_SRC_BASEDIR/src/chromeos-3.4 && ln -sf arch/arm/boot/kernel.its . && ln -sf arch/arm/boot/zImage . && mkimage -f kernel.its arch/arm/boot/vmlinux.uimg" ; then
+		echo "mkimage ran OK (2nd time)"
+	else 
+		failed "Failed to mkimage from kernel.its to vmlinux.uimg"
+	fi
+	echo "$rootdev" | grep /dev/mapper &>/dev/null && extras="cryptdevice="$dev_p"2:`basename $rootdev`" || extras=""
+	sign_and_write_custom_kernel $root "$dev_p"1 $rootdev $extras "" || failed "Erm. Failed to sign/write custom kernel"
 }
 
 
@@ -495,7 +512,7 @@ sign_and_write_custom_kernel() {
 && echo -en "..." || failed "Failed to sign kernel"
 	sync;sync;sync;sleep 1
 	dd if=$root/root/.vmlinuz.signed of=$writehere 2> /dev/null && echo -en "..." || failed "Failed to write kernel to $writehere"
-	echo -en "OK. Signed & written kernel. "
+	echo "OK. Signed & written kernel."
 }
 
 
@@ -507,15 +524,16 @@ sign_and_write_custom_kernel() {
 export PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin # Just in case phase 3 forgets to pass $PATH to the xterm call to me
 set -e
 
-if [ "$#" -eq "3" ] ; then
+if [ "$#" -eq "4" ] ; then
 	dev=$1					# disk, e.g. /dev/mmcblk1
 	root=$2					# root folder
 	my_root_disk_device=$3
 	dev_p=`deduce_dev_stamen $dev`
-	echo "redo_mbr($root,$dev_p,$my_root_disk_device) --- calling"
+	KERNEL_SRC_BASEDIR=$SOURCES_BASEDIR/$4
+	echo "redo_mbr($root,$dev_p,$my_root_disk_device,$4) --- calling"
 	redo_mbr $root $dev_p $my_root_disk_device
 	res=$?
 	exit $res
 else
-	failed "redo_mbr.sh <dev> <mountpoint> <root device or crypto root dev> ----- e.g. redo_mbr.sh /dev/mmcblk1 /tmp/_root /dev/mapper/cryptroot"
+	failed "redo_mbr.sh <dev> <mountpoint> <root device or crypto root dev> <kernel basename> ----- e.g. redo_mbr.sh /dev/mmcblk1 /tmp/_root /dev/mapper/cryptroot linux-chromebook"
 fi

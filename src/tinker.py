@@ -105,6 +105,8 @@ elif argv[2] == 'fire-everything':
     distro.install_expatriate_software_into_a_debianish_OS( package_name = pkg, method = None )
 elif argv[2] == 'remove-junk':
     remove_junk( MYDISK_MTPT, '/root/.rmo/PKGBUILDs/core/linux-chromebook' )
+elif argv[2] == 'modify-sources':
+    system_or_die( 'bash /usr/local/bin/modify_sources.sh /dev/mmcblk1 /.mydisk no yes' )
 elif argv[2] == 'postinst':
     distro = generate_distro_record_from_name( argv[3] )
     distro.mountpoint = '/'
@@ -117,6 +119,10 @@ elif argv[2] == 'redo-kernel':
     distro = generate_distro_record_from_name( argv[3] )
     distro.mountpoint = MYDISK_MTPT
     distro.modify_build_and_install_mkfs_and_kernel_for_OS( apply_kali_patch = False )
+elif argv[2] == 'tails':
+    distro = generate_distro_record_from_name( 'debiantails' )
+    distro.mountpoint = '/' if os.system( 'cat /proc/cmdline 2>/dev/null | fgrep root=/dev/dm-0 > /dev/null' ) != 0 else MYDISK_MTPT
+    distro.grab_all_tails_packages()
 elif argv[2] == 'install-freenet':
     distro = generate_distro_record_from_name( argv[3] )
     assert( os.path.isdir( argv[4] ) is True )
@@ -212,21 +218,28 @@ elif argv[2] == 'install-bitmask':
     distro.root_dev = '/dev/mmcblk1p3'
     distro.spare_dev = '/dev/mmcblk1p2'
     distro.install_leap_bitmask()
-elif argv[2] == 'mbr-etc':
-    print( 'Assuming wheezy' )
-    distro = generate_distro_record_from_name( 'debianwheezy' )
-    distro.mountpoint = '/' if os.system( 'cat /proc/cmdline 2>/dev/null | fgrep root=/dev/dm-0 > /dev/null' ) != 0 else MYDISK_MTPT
-    distro.device = '/dev/mmcblk1'
-    distro.root_dev = '/dev/mmcblk1p3'
-    distro.spare_dev = '/dev/mmcblk1p2'
-    distro.kernel_rebuild_required = True  # ...because the initramfs needs our boom pw, which means we'll have to rebuild initramfs.... which means rebuilding kernel!
-    distro.root_is_encrypted = False
-    distro.pheasants = True  # <-- testing this NOW
-    distro.kthx = True  # True
-    distro.call_bash_script_that_modifies_kernel_n_mkfs_sources()
-    distro.build_kernel_and_mkfs()  # Recompile mk*fs because our new kernel will probably use random magic#'s for xfs, jfs, and btrfs
-    distro.install_kernel_and_mkfs()
-    distro.redo_mbr( root_partition_device = distro.root_dev, chroot_here = distro.mountpoint )
+# elif argv[2] == 'download-kernel-source':
+#     distro = generate_distro_record_from_name( argv[3] )
+#     distro.mountpoint = '/' if os.system( 'cat /proc/cmdline 2>/dev/null | fgrep root=/dev/dm-0 > /dev/null' ) != 0 else MYDISK_MTPT
+#     distro.device = '/dev/mmcblk1'
+#     distro.root_dev = '/dev/mmcblk1p3'
+#     distro.spare_dev = '/dev/mmcblk1p2'
+#     distro.kernel_rebuild_required = True  # ...because the initramfs needs our boom pw, which means we'll have to rebuild initramfs.... which means rebuilding kernel!
+#     distro.root_is_encrypted = False
+#     distro.kthx = True  # True
+#     distro.use_latest_kernel = False
+#     distro.download_kernel_source()
+# elif argv[2] == 'build-kernel':
+#     distro = generate_distro_record_from_name( 'debianjessie' )
+#     distro.mountpoint = '/' if os.system( 'cat /proc/cmdline 2>/dev/null | fgrep root=/dev/dm-0 > /dev/null' ) != 0 else MYDISK_MTPT
+#     distro.device = '/dev/mmcblk1'
+#     distro.root_dev = '/dev/mmcblk1p3'
+#     distro.spare_dev = '/dev/mmcblk1p2'
+#     distro.kernel_rebuild_required = True  # ...because the initramfs needs our boom pw, which means we'll have to rebuild initramfs.... which means rebuilding kernel!
+#     distro.root_is_encrypted = False
+#     distro.kthx = True  # True
+#     distro.use_latest_kernel = True
+#     distro.build_kernel()
 elif argv[2] == 'patch-nm':
     distro = generate_distro_record_from_name( 'debianwheezy' )
     distro.mountpoint = MYDISK_MTPT
@@ -255,7 +268,6 @@ elif argv[2] == 'makepkg':
                                 package_path = '%s/%s' % ( distro.sources_basedir, pkg ), \
                                 cmd = 'cd %s/%s && makepkg --skipchecksums --nobuild -f' % ( distro.sources_basedir, pkg ),
                                 errtxt = 'Failed to download %s' % ( pkg ) )
-
 elif argv[2] == 'alarpy-build':
     distro = generate_distro_record_from_name( 'debianwheezy' )
     distro.mountpoint = MYDISK_MTPT

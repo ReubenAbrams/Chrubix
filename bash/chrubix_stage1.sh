@@ -848,10 +848,19 @@ partition_and_format_me &>/dev/null &
 partandform_proc=$!
 if echo "$0" | fgrep latest_that &> /dev/null ; then
 	get_distro_type_the_user_wants								# sets $DISTRONAME
+	ask_if_afraid_of_evil_maid									# sets $EVILMAID
+	LATESTKERNEL_TorF=False
 else
  	DISTRONAME=debianjessie
+ 	EVILMAID=no
+ 	LATESTKERNEL_TorF=False
 fi
-ask_if_afraid_of_evil_maid									# sets $EVILMAID
+
+clear
+[ "$EVILMAID" = "yes" ] && capitalized_evil_maid="Yes" || capitalized_evil_maid="No" 
+echo "I shall install $DISTRONAME on $DEV now."
+echo "Latest kernel? $LATESTKERNEL_TorF. Paranoid? $capitalized_evil_maid."
+
 prefab_fname=`locate_prefab_file` || prefab_fname=""		# img, sqfs, _D, _C, ...; check Dropbox and local thumb drive
 install_me
 sudo reboot

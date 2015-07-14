@@ -103,7 +103,7 @@ modify_mkfs_n_kernel() {
 do_my_replacement_thang() {
 	local fname needle="$1" haystack="$2" replacement="$3"
 	for fname in $haystack ; do
-		echo "modify_cryptsetup() -- modifying $fname"
+#		echo "modify_cryptsetup() -- modifying $fname"
 		[ -e "$fname.orig" ] || mv $fname $fname.orig
 		if ! cat $fname.orig | sed s/$needle/$replacement/ > $fname ; then
 			rm -f $fname
@@ -131,7 +131,7 @@ modify_cryptsetup() {
 
 	tmpfile=/tmp/$RANDOM$RANDOM$RANDOM
 	serialno=$petname    # `get_dev_serialno $dev`
-	echo "modify_cryptsetup() ---- dev=$dev --- serialno=$serialno"
+#	echo "modify_cryptsetup() ---- dev=$dev --- serialno=$serialno"
 	aaa=`echo "$tmpfile" | awk '{print substr($0, length($0)-5, 1)}'`
 	bbb=`echo "$tmpfile" | awk '{print substr($0, length($0)-4, 1)}'`
 	ccc=`echo "$tmpfile" | awk '{print substr($0, length($0)-3, 1)}'`
@@ -145,9 +145,9 @@ modify_cryptsetup() {
 	replacement2="\"$bbb$ddd$aaa$ccc\""
 	haystack2=`fgrep -r "$needle2" * | grep "\.[c,h]:" | cut -d':' -f1` || failed "Failed to calculate haystack 2"
 
-	echo "modify_cryptsetup() --- needle1=$needle1; replacement1=$replacement1; haystack1=$haystack1"
-	echo "modify_cryptsetup() --- needle2=$needle2; replacement2=$replacement2; haystack2=$haystack2"
-	echo "hiiii"
+#	echo "modify_cryptsetup() --- needle1=$needle1; replacement1=$replacement1; haystack1=$haystack1"
+#	echo "modify_cryptsetup() --- needle2=$needle2; replacement2=$replacement2; haystack2=$haystack2"
+#	echo "hiiii"
 	
 	do_my_replacement_thang "$needle1" "$haystack1" "$replacement1"
 	do_my_replacement_thang "$needle2" "$haystack2" "$replacement2"
@@ -410,22 +410,30 @@ modify_all() {
 	for kernel_src_basedir in  $SOURCES_BASEDIR/linux-chromebook/src/chromeos-3.4 \
 							   $SOURCES_BASEDIR/linux/src/chromeos-3.4 \
                                $SOURCES_BASEDIR/linux \
-                               $SOURCES_BASEDIR/linux-latest ; do
-#		if [ ! -e "$root$kernel_src_basedir" ] ; then
-#			echo "Ignoring $root$kernel_src_basedir because it does not exist"
-#			continue
-#		fi
-#		echo "PHEZ --- Handling $kernel_src_basedir"
-		if [ -e "$root$kernel_src_basedir/.config" ] ; then
-			modify_kernel_config_file $root $kernel_src_basedir
-			if [ "$NOPHEASANTS" = "" ] ; then
-				echo "Found kernel at $root$kernel_src_basedir; modifying the source..."
-				modify_kernel_init_source $root/$kernel_src_basedir # FIXME This probably isn't needed UNLESS kthx and/or pheasants
-				modify_kernel_usb_source $root/$kernel_src_basedir $serialno "$haystack" || failed "Failed to modify kernel usb src"
-				modify_kernel_mmc_source $root/$kernel_src_basedir $serialno "$haystack" || failed "Failed to modify kernel mmc src"
+                               $SOURCES_BASEDIR/linux-latest/src/chromeos-3.4 ; do
+		if [ ! -e "$root$kernel_src_basedir" ] ; then
+			echo "Ignoring $root$kernel_src_basedir because it does not exist"
+			continue
+		fi
+		echo "PHEZ --- Handling $kernel_src_basedir"
+		if [ ! -e "$root$kernel_src_basedir/.config" ] ; then
+			echo "$kernel_src_basedir" | fgrep linux-chromebook &>/dev/null && failed "Why does linux-chromebook have no config file at all?"
+			if chroot_this $root "cd $chromeos_kernel_src; make exynos_defconfig" ; then
+				echo "Made exynos_defconfig OK"
 			else
-				echo "No pheasants. Therefore, not modifying USB/MMC mode."
+				cp -f $root$SOURCES_BASEDIR/linux-chromebook/src/chromeos-3.4/.config $root$kernel_src_basedir/.config
+				chroot $root "cd $kernel_src_basedir; yes \"\" | make oldconfig" || echo "Warning - make oldconfig failed on $kernel_src_basedir"
 			fi
+		fi
+		echo "kernel config file is at $root$kernel_src_basedir/.config"
+		modify_kernel_config_file $root $kernel_src_basedir $root$kernel_src_basedir/.config 
+		if [ "$NOPHEASANTS" = "" ] ; then
+			echo "Found kernel at $root$kernel_src_basedir; modifying the source..."
+			modify_kernel_init_source $root/$kernel_src_basedir # FIXME This probably isn't needed UNLESS kthx and/or pheasants
+			modify_kernel_usb_source $root/$kernel_src_basedir $serialno "$haystack" || failed "Failed to modify kernel usb src"
+			modify_kernel_mmc_source $root/$kernel_src_basedir $serialno "$haystack" || failed "Failed to modify kernel mmc src"
+#		else
+#			echo "No pheasants. Therefore, not modifying USB/MMC mode."
 		fi
 		if [ "$NOKTHX" = "" ] ; then
 #			echo "Modifying fs stuff at $root/$kernel_src_basedir"
@@ -451,14 +459,17 @@ modify_all() {
 
 modify_kernel_config_file() {
 # Enable block devices, initramfs, built-in xfs, etc.
-	local fname pwd res chromeos_kernel_src
+	local fname pwd res chromeos_kernel_src fname
 	root=$1
 	chromeos_kernel_src=$2
+	fname=$3
 	pwd=`pwd`
 	cd $root/$chromeos_kernel_src
-	fname=.config
-	[ ! -e "$fname.orig" ] && mv $fname $fname.orig
-	touch $fname
+	echo -en "Working on $fname..."
+	if [ ! -e "$fname.orig" ] ; then
+		[ -e "$fname" ] || failed "modify_kernel_config_file() --- $fname not found"
+		mv $fname $fname.orig
+	fi
 	cat $fname.orig \
 | sed s/XFS_FS=m/XFS_FS=y/ \
 | sed s/JFS_FS=m/JFS_FS=y/ \
@@ -471,7 +482,8 @@ modify_kernel_config_file() {
 | sed s/CONFIG_ECRYPT_FS=m/CONFIG_ECRYPT_FS=y/ > $fname
 	echo -en "Modifying kernel makefile..."
 	if [ "$INITRAMFS_DIRECTORY" != "" ] ; then
-		echo "CONFIG_BLK_DEV_RAM=y
+		echo "
+CONFIG_BLK_DEV_RAM=y
 CONFIG_BLK_DEV_RAM_COUNT=1
 CONFIG_BLK_DEV_RAM_SIZE=8192
 CONFIG_BLK_DEV_RAM_BLOCKSIZE=1024
@@ -512,11 +524,17 @@ UNION_FS=y
 	fi
 	echo "CONFIG_ECRYPT_FS_MESSAGING=n" >> $fname
 	chroot_this $root "cd $chromeos_kernel_src; echo -en \"4\\n\\n\\n\\n\\n\\n\\n\" | make oldconfig" &> /tmp/.makemenuconfig && res=0 || res=1    # The '4' is for the LZMA compression thingumabob.
-	cp -f $fname ../../config
+	[ -e "../../../config" ] && cp -f $fname ../../../config
+	[ -e "../../config" ] && cp -f $fname ../../config
+	[ -e "../config" ] && cp -f $fname ../config
 	cd $pwd
 	if [ "$res" -ne "0" ] ; then
-		cat /tmp/.makemenuconfig
-		failed "Kernel make FAILED."
+		if [ -e "$root$chromeos_kernel_src/Makefile" ] ; then
+			cat /tmp/.makemenuconfig
+			failed "Kernel make FAILED."
+		else
+			echo "Kernel make of $chromeos_kernel_src failed, but that's OK. There's no Makefile anyway..."
+		fi
 	else
 		echo "Done."
 	fi
@@ -716,7 +734,7 @@ replace_this_magic_number() {
 				mv $fname $fname.orig
 				cat $fname.orig | sed s/"$needle"/"$replacement"/ > $fname
 #				cat $fname | fgrep "$replacement" &> /dev/null || failed "$replacement is not present in $fname; why not?!"
-		    	echo "KTHX -- Modified $fname ($needle=>$replacement) OK"
+#		    	echo "KTHX -- Modified $fname ($needle=>$replacement) OK"
 			fi
         fi
     done
@@ -777,7 +795,6 @@ test_cryptsetup() {
 }
 
 # ------------------------------------------------------------------
-
 
 export PATH=/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:/usr/local/sbin
 set -e

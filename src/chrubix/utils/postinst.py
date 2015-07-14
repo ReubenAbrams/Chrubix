@@ -496,6 +496,7 @@ exit $?
 
 
 def remove_junk( mountpoint, kernel_src_basedir ):
+#    system_or_die( 'rm -Rf %s%s/*/.git' % ( mountpoint, os.path.dirname( kernel_src_basedir ) ) )
 #    chroot_this( mountpoint, 'cd /usr/include && mv linux ../_linux_ && rm -Rf * && mv ../_linux_ linux' )
     for path in ( 
                     '/var/cache/pacman/pkg',
@@ -506,7 +507,7 @@ def remove_junk( mountpoint, kernel_src_basedir ):
 #                    kernel_src_basedir + '/src/chromeos-3.4/Documentation',    <-- needed for recompiling kernel (don't ask me why)
                     '/usr/src/linux-3.4.0-ARCH',
                     kernel_src_basedir + '/*.tar.gz',
-                    os.path.dirname( kernel_src_basedir ) + '/linux-[a-b,d-z]*'
+#                    os.path.dirname( kernel_src_basedir ) + '/linux-[a-b,d-z]*' # THIS DOESN'T DO ANYTHING.
                 ):
         chroot_this( mountpoint, 'rm -Rf %s' % ( path ) )
 #        if not os.path.exists( '%s%s' % ( mountpoint, kernel_src_basedir ) ):
@@ -831,7 +832,7 @@ def set_up_guest_homedir( mountpoint = '/', homedir = GUEST_HOMEDIR ):
                 'mkdir -p /etc/xdg/lxpanel/LXDE/panels',
                 ):
         if 0 != chroot_this( mountpoint, cmd ):
-            logme( 'set_up_guest_homedir() --- %s ==> failed' % ( cmd ) )
+            failed( 'set_up_guest_homedir() --- %s ==> failed' % ( cmd ) )
         else:
             logme( 'set_up_guest_homedir() --- %s --> success' % ( cmd ) )
     install_iceweasel_mozilla_settings( mountpoint, homedir )

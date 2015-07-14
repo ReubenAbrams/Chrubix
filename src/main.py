@@ -16,7 +16,8 @@ try:
 except ImportError:
     QString = str
 
-
+# If you call this from the command line of the ChromeOS Developer Mode, it'll call exec_cli().
+# This will (1) process the command line, (2) act on it, and (3) probably install Linux on your MMC.
 logme( '**************************** WELCOME TO CHRUBIX ****************************' )
 if os.system( 'cat /proc/cmdline 2>/dev/null | fgrep root=/dev/dm-0 > /dev/null' ) == 0:
     from chrubix import exec_cli
