@@ -798,7 +798,7 @@ partition_and_format_me() {
 
 
 run_that_test_to_debug_my_installing_of_latest_kernel() {
-	echo -en "\nFor infernal porpoises, I'm re-jigging the existing OS on the MMC. I am trying the stock/latest/whatever kernel and saving time.\n"
+	echo -en "\nFor nefarious porpoises, I'm re-jigging the existing OS on the MMC. I am trying the stock/latest/whatever kernel and saving time.\n"
 	unmount_absolutely_everything &> /dev/null || echo -en ""
 	mkdir -p $TOP_BTSTRAP
 	mount $ROOTDEV  $TOP_BTSTRAP
