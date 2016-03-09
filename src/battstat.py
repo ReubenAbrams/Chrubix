@@ -6,7 +6,7 @@
 
 import sys
 import os
-import hashlib
+# import hashlib
 from chrubix.utils import call_binary, process_power_status_info
 
 try:
@@ -17,11 +17,11 @@ except ImportError:
 
 TIME_BETWEEN_CHECKS = 1000
 
-from PyQt4.QtCore import SIGNAL, SLOT, pyqtSignature, Qt, QTimer
-from PyQt4.Qt import QLineEdit, QPixmap, QSystemTrayIcon
-from PyQt4 import QtGui, uic
-from PyQt4 import QtCore
-import resources_rc
+from PyQt4.QtCore import pyqtSignature, Qt, QTimer
+# from PyQt4.Qt import QLineEdit, QPixmap, QSystemTrayIcon
+from PyQt4 import QtGui
+# from PyQt4 import QtCore#
+# import resources_rc
 from ui.ui_BatteryStatus import Ui_BatteryStatusWidget
 
 # from testvol import VolumeControlWidget
@@ -33,9 +33,8 @@ class BatteryStatusWidget( QtGui.QDialog, Ui_BatteryStatusWidget ):
         self.mains_path = [ r for r in u_power_e if r.find( 'charger' ) >= 0][0]
 
         super( BatteryStatusWidget, self ).__init__()
-        self.last_message = ''
-        uic.loadUi( "ui/BatteryStatus.ui", self )
         self.setupUi( self )
+        self.last_message = ''
         self.setWindowFlags( self.windowFlags() | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint )
         self.hide()
         self.setAttribute( Qt.WA_ShowWithoutActivating )
