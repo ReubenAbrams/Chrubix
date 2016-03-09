@@ -25,6 +25,7 @@ def execute_this_list( my_list ):
 
 
 def initiate_nm_applet():
+    logme('initiate_nm_applet() --- entering')
     if not am_i_online():  # and 0 != os.system( 'ps wax | fgrep nm-applet | grep -v grep' ):
         if 0 != os.system( 'cat /etc/os-release | grep -i wheezy' ):  # archlinux, jessie need sudo'd nm-applet
             if 0 != os.system( 'ps wax | fgrep nm-applet | grep -v grep' ):
@@ -46,10 +47,15 @@ def initiate_nm_applet():
             if 0 != os.system( 'ps wax | fgrep nm-applet | grep -v grep' ):
                 logme( 'lxdm_post_login.py --- starting nm-applet' )
                 os.system( 'nm-applet --nocheck &' )
+    logme('initiate_nm_applet() --- leaving')
 
 
 def configure_X_and_start_some_apps():
-    logme( 'lxdm_post_login.py --- configuring X and starting some apps' )
+    '''Configure keyboard.
+    Start WindowMaker system tray, florence, GPG applet, and a few other tools.
+    Also, initiate the nm (NetworkManager[sp?]) applet.
+    '''
+    logme( 'lxdm_post_login.py --- calling configure_X_and_start_some_apps()' )
     sound_vision_keyboard_list = ( # 'start-pulseaudio-x11',
                 'pulseaudio -k; xset s off; xset -dpms',
                 '\
@@ -76,7 +82,7 @@ xmodmap -e "pointer = 1 2 3 5 4 7 6 8 9 10 11 12"',
                )
     execute_this_list( sound_vision_keyboard_list )
     execute_this_list( applets_list )
-    initiate_nm_applet()
+    logme( 'lxdm_post_login.py --- returning from configure_X_and_start_some_apps()' )
 
 
 
@@ -140,21 +146,27 @@ def start_a_browser( force_real = False ):
 
 
 if __name__ == "__main__":
+    '''LXDM calls this script while loggin the user into LXDE & thus the Linux GUI experience in general.
+    This script carries out the instructions and obeys the settings that are present in the configuration
+    file, which itself is read from a data file (/etc/.distro.rec) by load_distro_record(). That data
+    file's contents may have been modified by LXDM or by the ALARMIST anonymous greeter or perhaps 
+    something else. The changes may be temporary (if in RAM); they may be permanent. In any case,
+    I'll do as I'm told.
+    '''
     logme( 'lxdm_post_login.py --- starting' )
 #    os.system( 'echo 0 > /sys/devices/*/*/*/*/brightness' )
-    distro = load_distro_record( '/' )
-    logme( 'lxdm_post_login.py --- calling configure_X_and_start_some_apps()' )
-    configure_X_and_start_some_apps()
-    logme( 'lxdm_post_login.py --- returning from configure_X_and_start_some_apps()' )
-    if distro.lxdm_settings['internet directly']:
-        wait_until_online()
-        start_privoxy_freenet_i2p_and_tor()
-        start_a_browser()
-    else:
-        wait_until_online()
-        start_a_browser()
-        wait_until_truly_online()
-        start_a_browser( force_real = True )
-        start_privoxy_freenet_i2p_and_tor()
+    distro = load_distro_record( '/' )                  # Load the Chrubix configuration file
+    configure_X_and_start_some_apps()                   # start GPG applet, keyboard mapper, ...
+    initiate_nm_applet()                                # start NetworkManager applet
+    if distro.lxdm_settings['internet directly']:   # We are using a sensible WiFi connection that doesn't have any froo-froo login screen.
+        wait_until_online()                             # one our WiFi connection is made (and, presumably, there's no HTML log-in screen)
+        start_privoxy_freenet_i2p_and_tor()             # start proxy, FreeNet, i2p, and tor
+        start_a_browser()                               # open the web browser
+    else:                                           # We are at McDonald's. ;-p
+        wait_until_online()                             # one our WiFi connection is made (but the user still has to log in)
+        start_a_browser()                               # let the user log into the WiFi's login website
+        wait_until_truly_online()                       # wait until the user does that
+        start_a_browser( force_real = True )            # start the real web browser
+        start_privoxy_freenet_i2p_and_tor()             # start proxy, FreeNet, i2p, and tor
     logme( 'lxdm_post_login.py --- ending' )
     sys.exit( 0 )
