@@ -1,13 +1,14 @@
 #!/usr/local/bin/python3
-#
-# setbright.py
-#
+
+'''simple brightness controller for Chrubix
+
+'''
 
 import sys
 import os
-import hashlib
+# import hashlib
 from chrubix.utils import logme, read_oneliner_file
-from chrubix import save_distro_record, load_distro_record
+# from chrubix import save_distro_record, load_distro_record
 
 
 try:
@@ -20,10 +21,10 @@ TIME_BETWEEN_CHECKS = 200  # .2 seconds
 DELAY_BEFORE_HIDING = 3000  # 3 seconds
 
 
-from PyQt4.QtCore import SIGNAL, SLOT, pyqtSignature, Qt, QTimer
-from PyQt4.Qt import QLineEdit, QPixmap
-from PyQt4 import QtGui, uic
-from PyQt4 import QtCore
+from PyQt4.QtCore import  pyqtSignature, Qt, QTimer
+# from PyQt4.Qt import QLineEdit, QPixmap
+from PyQt4 import QtGui  # , uic
+# from PyQt4 import QtCore
 # import resources_rc
 from ui.ui_BrightnessControl import Ui_BrightnessControlWidget
 
@@ -34,7 +35,6 @@ class BrightnessControlWidget( QtGui.QDialog, Ui_BrightnessControlWidget ):
         self.cycles = 99
         self.brightnow_fname = '%s/.brightnow' % ( os.path.expanduser( "~" ) )
         super( BrightnessControlWidget, self ).__init__()
-        uic.loadUi( "ui/BrightnessControl.ui", self )
         self.setupUi( self )
         self.setWindowFlags( Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.ToolTip )  # QtCore.Qt.Tool )
         self.show()
@@ -83,6 +83,9 @@ class BrightnessControlWidget( QtGui.QDialog, Ui_BrightnessControlWidget ):
     def closeEvent( self, event ):
         event.accept()
         sys.exit()
+
+
+#------------------------------------------------------------------------------------------------------------------------------------
 
 
 if __name__ == "__main__":

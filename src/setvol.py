@@ -1,13 +1,16 @@
 #!/usr/local/bin/python3
-#
-# setvol.py
-#
+'''
+setvol.py
+
+simple volume control for taskbar
+'''
+
 
 import sys
 import os
-import hashlib
+# import hashlib
 from chrubix.utils import logme, read_oneliner_file
-from chrubix import save_distro_record, load_distro_record
+# from chrubix import save_distro_record, load_distro_record
 
 
 try:
@@ -20,10 +23,10 @@ TIME_BETWEEN_CHECKS = 200  # .2 seconds
 DELAY_BEFORE_HIDING = 3000  # 3 seconds
 
 
-from PyQt4.QtCore import SIGNAL, SLOT, pyqtSignature, Qt, QTimer
-from PyQt4.Qt import QLineEdit, QPixmap
-from PyQt4 import QtGui, uic
-from PyQt4 import QtCore
+from PyQt4.QtCore import pyqtSignature, Qt, QTimer
+# from PyQt4.Qt import QLineEdit, QPixmap
+from PyQt4 import QtGui  # , uic
+# from PyQt4 import QtCore
 # import resources_rc
 from ui.ui_VolumeControl import Ui_VolumeControlWidget
 
@@ -35,7 +38,6 @@ class VolumeControlWidget( QtGui.QDialog, Ui_VolumeControlWidget ):
         self.cycles = 99
         self.volnow_fname = '%s/.volnow' % ( os.path.expanduser( "~" ) )
         super( VolumeControlWidget, self ).__init__()
-        uic.loadUi( "ui/VolumeControl.ui", self )
         self.setupUi( self )
         self.setWindowFlags( Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.ToolTip )  # QtCore.Qt.Tool )
         self.show()
@@ -88,6 +90,9 @@ class VolumeControlWidget( QtGui.QDialog, Ui_VolumeControlWidget ):
     def closeEvent( self, event ):
         event.accept()
         sys.exit()
+
+
+#------------------------------------------------------------------------------------------------------------------------------------
 
 
 if __name__ == "__main__":
