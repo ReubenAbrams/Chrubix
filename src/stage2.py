@@ -1,7 +1,7 @@
 #!/usr/local/bin/python3
 #
 # stage2.py
-# - stage two, which is called (and then self-deleted) if Evil Made Protection enabled
+# - stage two, which is called (and then self-deleted) if Evil Maid Protection enabled
 
 
 import sys
