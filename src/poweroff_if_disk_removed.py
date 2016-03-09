@@ -22,14 +22,6 @@ def home_drive_found_in_udev( home_drv ):
     return found
 
 
-def run_a_binary( fname ):
-    args = ( fname )
-    popen = subprocess.Popen( args, stdout = subprocess.PIPE )
-    popen.wait()
-    output = popen.stdout.read()
-    print( output )
-
-
 #---------------------------------------------------------------------------------------
 # TODO: Should we wipe RAM? I think we should.... but HOW?
 # See https://bbs.archlinux.org/viewtopic.php?id=136283
