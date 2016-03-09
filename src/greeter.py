@@ -62,7 +62,7 @@ class AlarmistGreeter( QtGui.QDialog, Ui_dlgAlarmistGreeter ):
 #         self._password = value
     def __init__( self ):  # title = "New Password", cksum = None ):
         super( AlarmistGreeter, self ).__init__()
-        uic.loadUi( "ui/AlarmistGreeter.ui", self )
+        self.setupUi( self )
         self.more_options = False
         self.password = False
         self.use_pw = self.chkAllowrootpassword.isChecked()
@@ -186,6 +186,9 @@ class AlarmistGreeter( QtGui.QDialog, Ui_dlgAlarmistGreeter ):
             d = load_distro_record()
             logme( 'camouflage=%s; window manager=%s; is this kosher?' % ( str( self.camouflge ), d.lxdm_settings['window manager'] ) )
             sys.exit( 0 )  # I assume the program that called me will now call lxdm, which will log in as guest & so on.
+
+
+#------------------------------------------------------------------------------------------------------------------------------------
 
 
 if __name__ == "__main__":
